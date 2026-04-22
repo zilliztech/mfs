@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# MFS runtime state
+.mfs/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Local-only files (convention: *.local.* and *.local/ are never committed)
+*.local
+*.local.*
+*.local/
+*.local.md
+
+# Claude Code / agent helpers
+.claude/
+.cc-use/
+.memsearch/
