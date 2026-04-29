@@ -96,11 +96,26 @@ CLI that powers a memory system or a skill manager is also what you hand to
 - **🧼 Zero intrusion.** All state lives in `~/.mfs/`. Your project directory gets
   nothing added to it.
 
-See [evaluation](evaluation/README.md) for agent-level evaluations on code
-search and documentation retrieval.
-
 See [docs/skill.md](docs/skill.md) to install the companion MFS agent skill for
 Codex, Claude Code, or another shell-based agent.
+
+---
+
+## Evaluation highlights
+
+We tested MFS in end-to-end agent runs on large code and documentation
+corpora. The strongest result came from using both MFS search and MFS browse:
+search finds better candidates, and browse helps the agent compare them without
+reading whole files.
+
+![Code search baseline comparison](https://github.com/user-attachments/assets/da624f61-fccc-40b9-bc07-77d6bc416e57)
+
+![Hard code search baseline comparison](https://github.com/user-attachments/assets/95ed7047-5c46-4f1a-aea7-97354d86252b)
+
+![Document search baseline comparison](https://github.com/user-attachments/assets/e224455f-1a46-41c0-9143-d93946283322)
+
+See [evaluation](evaluation/README.md) for the full setup, metrics, examples,
+and machine-readable artifacts.
 
 ---
 
