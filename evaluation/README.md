@@ -1,21 +1,21 @@
 # Evaluation
 
-MFS is built around a simple workflow for agents:
+We evaluated MFS in real end-to-end agent runs, not just isolated retrieval
+calls. The goal was simple: test whether an agent can find the right file or
+document more reliably, with less token usage, when it has indexed MFS search
+and progressive browse tools available.
 
-1. Use search to find likely files.
-2. Use browse to inspect just enough surrounding context.
-3. Read exact line ranges before answering.
-
-The evaluations here test whether that workflow helps in real end-to-end agent
-runs. We tested two common situations:
+We tested two common situations:
 
 - finding the right implementation in a large code folder, using Claude Code
 - finding the right help-center article in a large documentation folder, using
   Codex CLI
 
-The short version: MFS is most useful when the user's words do not exactly
-match the file names, function names, or article titles. Plain shell tools are
-still excellent for exact strings and small folders.
+MFS helps most when the user's words do not exactly match file names, function
+names, or article titles. It also keeps search fast in large directories
+because search runs against an index. Building that index has an upfront cost,
+but it is a one-time cost for repeated agent work over the same corpus. Plain
+shell tools are still excellent for exact strings and small folders.
 
 ## What We Compared
 
@@ -24,10 +24,13 @@ These are the workflows we compared:
 | Public name | What the agent could use |
 | --- | --- |
 | Agent shell tools | the agent's built-in Bash/shell command execution with standard tools such as `grep`, `find`, `sed`, `cat`, and direct file reads |
-| Agent shell tools with strategy | agent shell tools plus explicit instructions to compare candidates carefully |
 | MFS search | `mfs search` for locating candidates, then normal reads |
 | MFS browse | normal search plus `mfs cat`, `mfs ls`, and `mfs tree` for compact inspection |
 | MFS search + MFS browse | `mfs search` to locate candidates, then MFS browse commands to verify them |
+
+The document-search evaluation also included an agent-shell baseline with
+extra candidate-comparison guidance. That check helps separate MFS's tool
+value from prompt-strategy effects, but it is not the main product workflow.
 
 ## Data Shape
 
@@ -63,8 +66,23 @@ choose the article that explains where to see payment history.
 
 | Scenario | Best workflow | Result |
 | --- | --- | --- |
-| Code search | MFS search + MFS browse | Found 23/24 targets, with about 52% lower fresh I/O token cost than agent shell tools |
-| Document search | MFS search + MFS browse | Matched the best full-answer score while using fewer commands and lower fresh I/O token cost than browse-heavy exploration |
+| Code search | MFS search + MFS browse | Found 23/24 targets, with about 52% lower token usage than agent shell tools |
+| Document search | MFS search + MFS browse | Matched the best full-answer score while using fewer commands and lower token usage than browse-heavy exploration |
+
+![Code search baseline comparison](https://github.com/user-attachments/assets/da624f61-fccc-40b9-bc07-77d6bc416e57)
+
+In the full code-search run, MFS search + MFS browse found one more target than
+the agent-shell baseline and reduced average token usage by about 52%.
+
+![Hard code search baseline comparison](https://github.com/user-attachments/assets/95ed7047-5c46-4f1a-aea7-97354d86252b)
+
+On hard paraphrase queries, the combined workflow kept perfect accuracy and
+used the lowest average token usage.
+
+![Document search baseline comparison](https://github.com/user-attachments/assets/e224455f-1a46-41c0-9143-d93946283322)
+
+In the documentation run, MFS search + MFS browse matched the best completeness
+score while using lower average token usage than the agent-shell baseline.
 
 The strongest pattern is not "MFS replaces grep." It is:
 
@@ -92,28 +110,29 @@ tools is the bare baseline, while Agent shell tools with strategy receives the
 same kind of generic candidate-comparison guidance as the MFS workflows, but
 with all MFS commands blocked.
 
-Fresh I/O token cost is the unified headline cost metric. For Claude Code, it
-is `input_tokens + output_tokens`. For Codex CLI, it is
+Token usage is reported with a unified fresh I/O definition. For Claude Code,
+it is `input_tokens + output_tokens`. For Codex CLI, it is
 `input_tokens - cached_input_tokens + output_tokens`. Cached input/cache-read
 tokens are excluded because they mostly reflect provider-side cache reuse
 across repeated non-interactive runs, not fresh corpus context the agent had
 to consume.
 
-The prompts under `evaluation/artifacts/experiment-skills/` are simplified
-evaluation versions of the public `skills/mfs/` skill. They were kept short so
-each workflow could isolate one capability during the experiment, but they
-follow the same search, browse, and candidate-verification principles as the
-user-facing skill.
+The prompts under `evaluation/artifacts/experiment-skills/` are short
+evaluation variants of the public `skills/mfs/` skill. They follow the same
+search, browse, and verification principles.
 
-## Read More
+## Details
 
-- [Code search evaluation](code-search.md)
-- [Document search evaluation](document-search.md)
-- [Code example: image-saving function](examples/code-image-save.md)
-- [Document example: manual payment history](examples/document-payment-history.md)
-- [Document example: multi-article Google Ads question](examples/document-google-ads.md)
-- [Raw log publishing notes](raw-log-publishing.md)
+For the full setup, metrics, and per-scenario discussion, see the
+[code search evaluation](code-search.md) and the
+[document search evaluation](document-search.md).
 
-Machine-readable summaries are kept under `evaluation/artifacts/`. Those files
-preserve raw run labels for auditability; the public pages use descriptive
-workflow names.
+For concrete examples of what changed inside an agent run, see the
+[image-saving function example](examples/code-image-save.md), the
+[manual payment history example](examples/document-payment-history.md), and
+the [multi-article Google Ads example](examples/document-google-ads.md).
+
+Machine-readable summaries are kept under `evaluation/artifacts/`. Raw log
+publishing notes are in [raw-log-publishing.md](raw-log-publishing.md). The
+artifact files preserve raw run labels for auditability; the public pages use
+descriptive workflow names.

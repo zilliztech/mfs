@@ -3,9 +3,8 @@
 These files are the prompts used to control tool access in the evaluation
 runs. They are simplified evaluation versions of the public `skills/mfs/`
 skill: shorter, easier to audit, and split by capability so each workflow can
-be measured cleanly. They were not written as dataset-specific prompts; they
-follow the same search, browse, and candidate-verification principles as the
-current reusable skill.
+be measured cleanly. They follow the same search, browse, and
+candidate-verification principles as the current reusable skill.
 
 ## Code Search
 
@@ -33,6 +32,3 @@ only exposed the subcommands allowed for each workflow.
 | MFS search | `document-search/A1_mfs_search.md` |
 | MFS browse | `document-search/A2_mfs_browse.md` |
 | MFS search + MFS browse | `document-search/A3_mfs_search_and_browse.md` |
-
-The `document-search-before-progressive-browse/` folder keeps the earlier A1
-and A3 prompts from before the progressive browse instructions were tightened.
