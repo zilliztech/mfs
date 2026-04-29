@@ -42,19 +42,18 @@ TIFF conversion utilities.
 | MFS search + MFS browse | `mfs search`, then MFS browse commands such as `mfs cat --peek/--skim/-n` |
 
 Each run ended with one predicted source file. We measured whether the file was
-correct, how many turns the agent took, and how much fresh I/O token cost it
-used.
+correct, how many turns the agent took, and how much token usage it incurred.
 
 ## Result
 
-| Workflow | Correct | Timeouts | Avg fresh I/O tokens | Avg turns | Avg wall time |
+| Workflow | Correct | Timeouts | Avg token usage | Avg turns | Avg wall time |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Agent shell tools | 22/24 | 1 | 962 | 5.8 | 28.8s |
 | MFS search | 22/24 | 2 | 516 | 3.2 | 33.0s |
 | MFS search + MFS browse | 23/24 | 1 | 460 | 3.2 | 25.5s |
 
 The combined workflow found one more target than agent shell tools and used
-about 52% lower fresh I/O token cost. It also took fewer turns on average.
+about 52% lower token usage. It also took fewer turns on average.
 
 ![Code search baseline comparison](https://github.com/user-attachments/assets/da624f61-fccc-40b9-bc07-77d6bc416e57)
 
@@ -80,7 +79,7 @@ raw artifact keeps `linear_tokens` and `with_read_tokens` as secondary metrics.
 On easy queries, agent shell tools were already strong. The difference became
 clearer on hard paraphrase tasks:
 
-| Hard-query workflow | Correct | Avg fresh I/O tokens |
+| Hard-query workflow | Correct | Avg token usage |
 | --- | ---: | ---: |
 | Agent shell tools | 7/8 | 1,734 |
 | MFS search | 8/8 | 1,122 |

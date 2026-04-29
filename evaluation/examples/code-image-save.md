@@ -34,11 +34,11 @@ without reading unrelated files.
 
 Outcome:
 
-| Workflow | Predicted file | Correct | Fresh I/O tokens |
+| Workflow | Predicted file | Correct | Token usage |
 | --- | --- | ---: | ---: |
 | Agent shell tools | `neurodata/ndio/ndio/convert/tiff.py` | no | 1,035 |
 | MFS search | `pytorch/vision/torchvision/utils.py` | yes | 2,067 |
 | MFS search + MFS browse | `pytorch/vision/torchvision/utils.py` | yes | 610 |
 
-The combined workflow found the right file and used lower fresh I/O token cost
-than both alternatives.
+The combined workflow found the right file and used lower token usage than
+both alternatives.

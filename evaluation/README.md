@@ -19,18 +19,22 @@ shell tools are still excellent for exact strings and small folders.
 
 ## What We Compared
 
+MFS has two complementary command families:
+
+- **MFS search**: indexed semantic and keyword search, mainly through
+  [`mfs search`](../docs/cli.md#mfs-search).
+- **MFS browse**: compact file and directory inspection, mainly through
+  [`mfs cat`](../docs/cli.md#mfs-cat), [`mfs ls`](../docs/cli.md#mfs-ls),
+  and [`mfs tree`](../docs/cli.md#mfs-tree).
+
 These are the workflows we compared:
 
 | Public name | What the agent could use |
 | --- | --- |
 | Agent shell tools | the agent's built-in Bash/shell command execution with standard tools such as `grep`, `find`, `sed`, `cat`, and direct file reads |
-| MFS search | `mfs search` for locating candidates, then normal reads |
-| MFS browse | normal search plus `mfs cat`, `mfs ls`, and `mfs tree` for compact inspection |
-| MFS search + MFS browse | `mfs search` to locate candidates, then MFS browse commands to verify them |
-
-The document-search evaluation also included an agent-shell baseline with
-extra candidate-comparison guidance. That check helps separate MFS's tool
-value from prompt-strategy effects, but it is not the main product workflow.
+| MFS search | agent shell tools plus `mfs search` for locating candidates |
+| MFS browse | agent shell tools plus `mfs cat`, `mfs ls`, and `mfs tree` for compact inspection |
+| MFS search + MFS browse | agent shell tools plus `mfs search` to locate candidates and MFS browse commands to verify them |
 
 ## Data Shape
 
@@ -41,7 +45,8 @@ The data was intentionally close to what agents see in real projects:
 - Documentation files: 6,221 Wix Help Center articles from
   [WixQA](https://huggingface.co/datasets/Wix/WixQA).
 - Questions: short natural-language requests, often paraphrased rather than
-  copied from file names or headings.
+  copied from file names or headings, which is closer to how people actually
+  ask agents to search local projects and document sets.
 
 Example code query:
 
@@ -62,27 +67,52 @@ payment history.
 The expected answer was not just a generic Pay Button article. The agent had to
 choose the article that explains where to see payment history.
 
-## Results at a Glance
+## Results
 
-| Scenario | Best workflow | Result |
-| --- | --- | --- |
-| Code search | MFS search + MFS browse | Found 23/24 targets, with about 52% lower token usage than agent shell tools |
-| Document search | MFS search + MFS browse | Matched the best full-answer score while using fewer commands and lower token usage than browse-heavy exploration |
+### Code Search
 
-![Code search baseline comparison](https://github.com/user-attachments/assets/da624f61-fccc-40b9-bc07-77d6bc416e57)
+| Workflow | Correct target files | Avg token usage |
+| --- | ---: | ---: |
+| Agent shell tools | 22/24 | 962 |
+| MFS search | 22/24 | 516 |
+| MFS search + MFS browse | 23/24 | 460 |
 
 In the full code-search run, MFS search + MFS browse found one more target than
 the agent-shell baseline and reduced average token usage by about 52%.
 
-![Hard code search baseline comparison](https://github.com/user-attachments/assets/95ed7047-5c46-4f1a-aea7-97354d86252b)
+![Code search baseline comparison](https://github.com/user-attachments/assets/da624f61-fccc-40b9-bc07-77d6bc416e57)
+
+### Hard Code Search
+
+| Workflow | Correct target files | Avg token usage |
+| --- | ---: | ---: |
+| Agent shell tools | 7/8 | 1,734 |
+| MFS search | 8/8 | 1,122 |
+| MFS search + MFS browse | 8/8 | 692 |
 
 On hard paraphrase queries, the combined workflow kept perfect accuracy and
 used the lowest average token usage.
 
-![Document search baseline comparison](https://github.com/user-attachments/assets/e224455f-1a46-41c0-9143-d93946283322)
+![Hard code search baseline comparison](https://github.com/user-attachments/assets/95ed7047-5c46-4f1a-aea7-97354d86252b)
+
+### Document Search
+
+| Workflow | Found all required articles | Avg token usage |
+| --- | ---: | ---: |
+| Agent shell tools | 20/40 | 53,951 |
+| Agent shell tools with strategy | 22/40 | 65,094 |
+| MFS search | 23/40 | 29,276 |
+| MFS browse | 25/40 | 66,125 |
+| MFS search + MFS browse | 25/40 | 43,170 |
+
+The `Agent shell tools with strategy` row is a document-search control: it uses
+the same shell tools as the baseline, but with extra candidate-comparison
+guidance.
 
 In the documentation run, MFS search + MFS browse matched the best completeness
 score while using lower average token usage than the agent-shell baseline.
+
+![Document search baseline comparison](https://github.com/user-attachments/assets/e224455f-1a46-41c0-9143-d93946283322)
 
 The strongest pattern is not "MFS replaces grep." It is:
 
@@ -104,11 +134,6 @@ the harness parsed the JSONL event stream for final answers, command traces,
 and token usage. Because Codex CLI did not expose the same fine-grained shell
 tool restrictions, the harness controlled MFS access by placing a small `mfs`
 wrapper script at the front of `PATH`.
-
-The two agent-shell document workflows differ only in prompting: Agent shell
-tools is the bare baseline, while Agent shell tools with strategy receives the
-same kind of generic candidate-comparison guidance as the MFS workflows, but
-with all MFS commands blocked.
 
 Token usage is reported with a unified fresh I/O definition. For Claude Code,
 it is `input_tokens + output_tokens`. For Codex CLI, it is

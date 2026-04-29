@@ -44,11 +44,11 @@ For each question, we checked:
 
 - whether the agent found at least one expected article
 - whether it found all expected articles
-- how many commands and fresh I/O tokens it used
+- how many commands it ran and how much token usage it incurred
 
 ## Result
 
-| Workflow | Found at least one | Found all required | Avg fresh I/O tokens | Avg commands | Avg wall time |
+| Workflow | Found at least one | Found all required | Avg token usage | Avg commands | Avg wall time |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Agent shell tools | 27/40 | 20/40 | 53,951 | 7.2 | 47.2s |
 | Agent shell tools with strategy | 28/40 | 22/40 | 65,094 | 8.1 | 54.5s |
@@ -57,7 +57,7 @@ For each question, we checked:
 | MFS search + MFS browse | 31/40 | 25/40 | 43,170 | 6.5 | 87.2s |
 
 The combined workflow reached the best full-answer score while using far fewer
-commands and lower fresh I/O token cost than browse-heavy exploration.
+commands and lower token usage than browse-heavy exploration.
 
 ![Document search baseline comparison](https://github.com/user-attachments/assets/e224455f-1a46-41c0-9143-d93946283322)
 
