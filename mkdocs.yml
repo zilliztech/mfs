@@ -1,0 +1,77 @@
+site_name: MFS
+site_description: "Semantic file search CLI for agents and developers, powered by Milvus"
+site_url: https://zilliztech.github.io/mfs/
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: black
+    accent: deep orange
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+  font:
+    text: Fira Code
+    code: Fira Code
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/terminal.css
+
+repo_url: https://github.com/zilliztech/mfs
+repo_name: zilliztech/mfs
+
+nav:
+  - Home:
+    - Overview: index.md
+    - Why MFS: why.md
+    - Design Philosophy: design-philosophy.md
+    - Architecture: architecture.md
+    - Quickstart: getting-started.md
+  - User Guide:
+    - CLI Reference: cli.md
+    - Search and Browse: search-and-browse.md
+    - File Formats: formats.md
+    - Configuration: configuration.md
+    - Milvus Backends: backends.md
+    - Agent Workflows: agent-workflows.md
+  - Benchmarks:
+    - Overview: benchmarks/README.md
+    - Code Search:
+      - Report: benchmarks/code-search/report.md
+      - Selected Transcript: benchmarks/code-search/selected_transcripts/code-q19-hard-comparison.md
+    - Document Search:
+      - Report: benchmarks/document-search/report.md
+      - Adjacent Article Selection: benchmarks/document-search/selected_transcripts/wixqa-0034-adjacent-article-selection.md
+      - Multi-document Success: benchmarks/document-search/selected_transcripts/wixqa-0126-multi-doc-success.md
+    - Raw Log Publishing: benchmarks/raw-log-publishing.md
+  - Help:
+    - FAQ: faq.md
+    - Troubleshooting: troubleshooting.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
