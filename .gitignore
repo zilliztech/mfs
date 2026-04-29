@@ -16,6 +16,7 @@ venv/
 .mypy_cache/
 .coverage
 htmlcov/
+site/
 
 # Editor / OS
 .DS_Store

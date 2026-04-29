@@ -1,0 +1,175 @@
+/* Terminal-style overrides for mkdocs-material. */
+
+:root {
+  --mfs-orange: #f0a870;
+  --mfs-orange-dim: #c07848;
+  --mfs-blue: #7db8e8;
+  --mfs-blue-dim: #5a94c0;
+  --mfs-blue-bright: #96cdf5;
+  --mfs-bg: #1f2137;
+  --mfs-surface: #252a44;
+  --mfs-text: #bcc6d4;
+  --mfs-text-dim: #808da0;
+  --mfs-heading: #e8b888;
+  --mfs-border: #303658;
+  --mfs-code-bg: #1a1c30;
+  --mfs-header-bg: #181a30;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: var(--mfs-bg);
+  --md-default-bg-color--light: var(--mfs-surface);
+  --md-default-fg-color: var(--mfs-text);
+  --md-default-fg-color--light: var(--mfs-text-dim);
+  --md-accent-fg-color: var(--mfs-orange);
+  --md-typeset-a-color: var(--mfs-blue);
+}
+
+[data-md-color-scheme="slate"] .md-header,
+[data-md-color-scheme="slate"] .md-tabs,
+[data-md-color-scheme="slate"] .md-footer {
+  background: var(--mfs-header-bg);
+  border-color: var(--mfs-border);
+}
+
+.md-header__title,
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  font-family: 'Fira Code', monospace;
+}
+
+.md-header__topic:first-child::before {
+  content: "$ ";
+  color: var(--mfs-orange);
+  font-weight: 700;
+}
+
+@keyframes mfs-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.md-header__topic:first-child::after {
+  content: "_";
+  color: var(--mfs-orange);
+  animation: mfs-blink 1s step-end infinite;
+  margin-left: 2px;
+}
+
+[data-md-color-scheme="slate"] .md-nav__link {
+  color: var(--mfs-text-dim);
+}
+
+[data-md-color-scheme="slate"] .md-nav__link:hover,
+[data-md-color-scheme="slate"] .md-nav__link--active,
+[data-md-color-scheme="slate"] .md-tabs__link--active {
+  color: var(--mfs-orange);
+}
+
+.md-typeset h1 {
+  color: var(--mfs-heading);
+}
+
+.md-typeset h2 {
+  color: var(--mfs-blue);
+}
+
+.md-typeset h3 {
+  color: var(--mfs-blue-dim);
+}
+
+.md-typeset h1::before {
+  content: "# ";
+  color: var(--mfs-orange-dim);
+}
+
+.md-typeset h2::before {
+  content: "## ";
+  color: var(--mfs-blue-dim);
+}
+
+[data-md-color-scheme="slate"] .md-typeset {
+  color: var(--mfs-text);
+}
+
+[data-md-color-scheme="slate"] .md-typeset strong {
+  color: #d8dfe8;
+}
+
+[data-md-color-scheme="slate"] .md-typeset code {
+  background: var(--mfs-code-bg);
+  color: var(--mfs-orange);
+  border: 1px solid var(--mfs-border);
+}
+
+[data-md-color-scheme="slate"] .md-typeset pre {
+  background: var(--mfs-code-bg);
+  border: 1px solid var(--mfs-border);
+  border-radius: 6px;
+}
+
+[data-md-color-scheme="slate"] .md-typeset pre code {
+  border: none;
+  color: var(--mfs-text);
+}
+
+[data-md-color-scheme="slate"] .md-typeset blockquote {
+  border-left: 3px solid var(--mfs-orange-dim);
+  color: var(--mfs-text-dim);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+  background: var(--mfs-surface);
+  color: var(--mfs-blue);
+  border-bottom: 2px solid var(--mfs-blue-dim);
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) tr:hover td {
+  background: rgba(107, 163, 214, 0.06);
+}
+
+[data-md-color-scheme="slate"] .md-typeset a {
+  color: var(--mfs-blue);
+  text-decoration: none;
+}
+
+[data-md-color-scheme="slate"] .md-typeset a:hover {
+  color: var(--mfs-blue-bright);
+  text-decoration: underline;
+}
+
+[data-md-color-scheme="slate"] .md-search__input {
+  background: var(--mfs-code-bg);
+  border: 1px solid var(--mfs-border);
+  color: var(--mfs-text);
+}
+
+[data-md-color-scheme="slate"] .md-search__input::placeholder {
+  color: var(--mfs-text-dim);
+}
+
+[data-md-color-scheme="slate"] .md-sidebar {
+  border-right: 1px solid var(--mfs-border);
+}
+
+[data-md-color-scheme="slate"] ::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-track {
+  background: var(--mfs-bg);
+}
+
+[data-md-color-scheme="slate"] ::-webkit-scrollbar-thumb {
+  background: var(--mfs-border);
+  border-radius: 4px;
+}
+
+[data-md-color-scheme="slate"] .mermaid {
+  --md-mermaid-node-bg-color: #2a3a5c;
+  --md-mermaid-node-fg-color: #c8d0dc;
+  --md-mermaid-edge-color: var(--mfs-blue-dim);
+  --md-mermaid-label-bg-color: #232e48;
+  --md-mermaid-label-fg-color: #c8d0dc;
+}
