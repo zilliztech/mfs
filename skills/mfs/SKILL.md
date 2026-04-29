@@ -1,6 +1,6 @@
 ---
 name: mfs
-description: Use MFS to find, inspect, and verify information in local indexed files with semantic search, exact grep, and progressive browse commands.
+description: Use this skill when you need faster, more accurate search across large local file collections such as codebases, SKILL files, Markdown notes, documentation, memory logs, session transcripts, and other project files. It helps locate relevant files quickly, reduce missed matches, compare close candidates, and inspect file overviews before reading exact lines. The workflow runs through the MFS command-line tool for semantic search, exact grep, and progressive browse.
 ---
 
 # MFS
@@ -18,17 +18,16 @@ MFS has two complementary legs:
 Native shell tools still matter. Use `rg`, `find`, and ordinary file reads for
 literal strings, filename patterns, and already-known small files.
 
-## Operating Model
+## How to Use MFS
 
-Use MFS as a retrieval workflow, not as a replacement for all shell commands:
+Use MFS in two steps:
 
-1. Locate likely candidates with semantic or hybrid search.
-2. Collapse repeated hits from the same file into distinct candidates.
-3. Browse the strongest candidates at bounded density.
-4. Verify exact lines before answering, citing, or editing.
+1. Find likely files with search or grep.
+2. Open only the needed overview, section, or line range to verify.
 
-The goal is to avoid two extremes: reading whole files too early, or trusting a
-single search chunk without checking surrounding context.
+Search answers "where should I look?" Browse answers "is this really the right
+place?" This avoids reading whole files too early and avoids trusting one search
+snippet without context.
 
 ## First Checks
 
@@ -45,7 +44,20 @@ large indexing job:
 mfs status
 ```
 
-Use `mfs add <path>` only when indexing is clearly needed for the task.
+Indexing rules:
+
+- `mfs search` needs an index. Run `mfs add <path>` first if the target folder
+  has not been indexed.
+- `mfs grep` can work without prior indexing because it falls back to system
+  grep for non-indexed files, while indexed files can use MFS routing.
+- `mfs cat`, `mfs ls`, and `mfs tree` can browse local files without prior
+  indexing. Indexing can still improve summaries and status metadata.
+- `mfs status` tells you whether background indexing is still running and
+  whether the index is ready enough to rely on search results.
+
+Use `mfs add <path>` only when indexing is clearly needed for the task. For a
+large folder, prefer asking before starting a new indexing job unless the user
+already requested it.
 
 ## Decision Tree
 
@@ -306,6 +318,8 @@ you need more detail or examples:
 - `references/command-reference.md` for exact command syntax and options.
 - `references/workflow.md` for search-plus-browse usage patterns.
 - `references/candidate-selection.md` for choosing between close candidates.
+- `references/architecture-and-mechanics.md` for indexing, sync, pipes, file
+  types, storage, and safety details.
 - `examples/codebase-search.md` for implementation-search examples.
 - `examples/document-search.md` for documentation-search examples.
 - `examples/memory-search.md` for memory, log, and transcript examples.
