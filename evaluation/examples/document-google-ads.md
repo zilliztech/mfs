@@ -35,10 +35,9 @@ Outcome:
 
 | Workflow | Found both articles | Notes |
 | --- | ---: | --- |
-| Native shell | no | usually found one relevant Google Ads article |
+| Agent shell tools | no | usually found one relevant Google Ads article |
 | MFS search | sometimes partial | better candidate set, but still required agent judgment |
-| MFS search + browse | yes | returned both campaign and billing/credit articles |
+| MFS search + MFS browse | yes | returned both campaign and billing/credit articles |
 
 This is the case where browse matters most: the agent must compare article
 outlines and decide that the final answer needs more than one document.
-

@@ -34,12 +34,11 @@ Outcome:
 
 | Workflow | Found expected article | Notes |
 | --- | ---: | --- |
-| Native shell | no | selected Pay Button and manual payment setup articles |
-| Native shell with strategy | no | used fewer tokens but still chose adjacent articles |
+| Agent shell tools | no | selected Pay Button and manual payment setup articles |
+| Agent shell tools with strategy | no | used fewer tokens but still chose adjacent articles |
 | MFS search | yes | surfaced the payment overview article |
-| MFS search + browse | yes | verified the payment overview article with line-range reads |
+| MFS search + MFS browse | yes | verified the payment overview article with line-range reads |
 
 This example shows the core MFS value: semantic search gets the agent closer to
 the user's intent, and browse helps compare adjacent articles without reading
 whole pages.
-

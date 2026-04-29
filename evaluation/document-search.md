@@ -2,9 +2,14 @@
 
 ## What We Tested
 
-We tested MFS on a help-center retrieval task. The corpus contained 6,221 Wix
-Help Center articles from WixQA, indexed into 45,036 chunks. Indexing the full
-corpus took 25 minutes and 28 seconds in the test environment.
+We asked Codex CLI to answer help-center retrieval questions. The corpus
+contained 6,221 Wix Help Center articles from
+[WixQA](https://huggingface.co/datasets/Wix/WixQA), indexed into 45,036 chunks.
+Indexing the full corpus took 25 minutes and 28 seconds in the test
+environment.
+
+The run used commit `5187cf2` and Codex CLI with the GPT-5.5 Codex profile.
+The main WixQA full-corpus runs were completed on April 28, 2026.
 
 The questions were expert-written support questions. They looked like user
 requests, not article titles.
@@ -24,11 +29,11 @@ but only some explain payment history.
 
 | Workflow | Tools available |
 | --- | --- |
-| Native shell | normal shell search and file reads |
-| Native shell with strategy | normal shell tools plus explicit candidate-comparison guidance |
+| Agent shell tools | the agent's built-in Bash/shell command execution with standard tools such as `grep`, `find`, `sed`, `cat`, and direct file reads |
+| Agent shell tools with strategy | agent shell tools plus explicit candidate-comparison guidance |
 | MFS search | `mfs search` to locate articles, then normal reads |
 | MFS browse | normal search plus MFS browse commands |
-| MFS search + browse | `mfs search` to locate and MFS browse commands to verify |
+| MFS search + MFS browse | `mfs search` to locate candidates, then MFS browse commands to verify them |
 
 The test had 40 questions:
 
@@ -39,34 +44,43 @@ For each question, we checked:
 
 - whether the agent found at least one expected article
 - whether it found all expected articles
-- how many commands and input tokens it used
+- how many commands and fresh I/O tokens it used
 
 ## Result
 
-| Workflow | Found at least one | Found all required | Avg effective input | Avg commands | Avg wall time |
+| Workflow | Found at least one | Found all required | Avg fresh I/O tokens | Avg commands | Avg wall time |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Native shell | 27/40 | 20/40 | 52,809 | 7.2 | 47.2s |
-| Native shell with strategy | 28/40 | 22/40 | 63,661 | 8.1 | 54.5s |
-| MFS search | 31/40 | 23/40 | 28,240 | 4.7 | 54.5s |
-| MFS browse | 31/40 | 25/40 | 63,958 | 11.8 | 103.7s |
-| MFS search + browse | 31/40 | 25/40 | 41,734 | 6.5 | 87.2s |
+| Agent shell tools | 27/40 | 20/40 | 53,951 | 7.2 | 47.2s |
+| Agent shell tools with strategy | 28/40 | 22/40 | 65,094 | 8.1 | 54.5s |
+| MFS search | 31/40 | 23/40 | 29,276 | 4.7 | 54.5s |
+| MFS browse | 31/40 | 25/40 | 66,125 | 11.8 | 103.7s |
+| MFS search + MFS browse | 31/40 | 25/40 | 43,170 | 6.5 | 87.2s |
 
 The combined workflow reached the best full-answer score while using far fewer
-commands and less input than browse-heavy exploration.
+commands and lower fresh I/O token cost than browse-heavy exploration.
+
+![Document search baseline comparison](https://github.com/user-attachments/assets/e224455f-1a46-41c0-9143-d93946283322)
+
+The combined MFS search + MFS browse workflow matched the best completeness
+score and used lower average token cost than the agent-shell baseline.
+
+Fresh I/O tokens are `input_tokens - cached_input_tokens + output_tokens` from
+the Codex CLI event stream. Cached input is excluded because it can vary
+heavily across repeated non-interactive runs, while fresh I/O better captures
+the context and output the agent actually had to process. Reasoning tokens are
+retained in the raw transcripts as a secondary metric; they do not change the
+main comparison.
 
 ## Why This Matters
 
-The tool-level retrieval gap was large:
+The native workflow often found a related article, but not always the article
+that answered the full user request. MFS search improved the candidate set, and
+MFS browse helped the agent compare nearby articles without reading every page
+in full.
 
-| Retrieval method | Relevant article in top 10 |
-| --- | ---: |
-| Native keyword search | 10/40 |
-| MFS article-level search | 32/40 |
-
-With top 20 MFS results, at least one relevant article appeared for 36/40
-questions. The remaining work is agent judgment: choosing the right article
-among adjacent candidates and noticing when the question needs multiple
-articles.
+The remaining challenge is multi-article completeness. Some questions require
+two documents, and the agent still has to recognize that one answer source is
+not enough.
 
 ## Concrete Examples
 
@@ -81,4 +95,3 @@ articles.
 MFS search gives the agent a better candidate set. MFS browse makes it cheaper
 to compare candidates before reading exact lines. Together, they are most useful
 when documentation has many adjacent pages with overlapping vocabulary.
-
