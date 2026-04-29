@@ -6,13 +6,13 @@ files preserve the original run labels for traceability.
 
 ## Workflow Name Mapping
 
-| Artifact value | Public name |
+| Artifact value | Public workflow |
 | --- | --- |
 | `A0` | Agent shell tools |
 | `A0S` | Agent shell tools with strategy |
-| `A1`, `A1 v2` | MFS search |
-| `A2` | MFS browse |
-| `A3`, `A3 v2` | MFS search + MFS browse |
+| `A1` | Agent shell tools plus MFS search |
+| `A2` | Agent shell tools plus MFS browse |
+| `A3` | Agent shell tools plus MFS search + MFS browse |
 
 ## Files
 

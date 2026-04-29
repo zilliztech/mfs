@@ -8,9 +8,6 @@ contained 6,221 Wix Help Center articles from
 Indexing the full corpus took 25 minutes and 28 seconds in the test
 environment.
 
-The run used commit `5187cf2` and Codex CLI with the GPT-5.5 Codex profile.
-The main WixQA full-corpus runs were completed on April 28, 2026.
-
 The questions were expert-written support questions. They looked like user
 requests, not article titles.
 
@@ -31,9 +28,13 @@ but only some explain payment history.
 | --- | --- |
 | Agent shell tools | the agent's built-in Bash/shell command execution with standard tools such as `grep`, `find`, `sed`, `cat`, and direct file reads |
 | Agent shell tools with strategy | agent shell tools plus explicit candidate-comparison guidance |
-| MFS search | `mfs search` to locate articles, then normal reads |
-| MFS browse | normal search plus MFS browse commands |
-| MFS search + MFS browse | `mfs search` to locate candidates, then MFS browse commands to verify them |
+| MFS search | agent shell tools plus `mfs search` for locating candidate articles |
+| MFS browse | agent shell tools plus MFS browse commands for compact article and directory inspection |
+| MFS search + MFS browse | agent shell tools plus `mfs search` for locating candidates and MFS browse commands for verification |
+
+The result tables below use shorter labels such as `MFS browse`, but those
+rows still mean the agent kept its normal shell tools and gained the listed
+MFS capability.
 
 The test had 40 questions:
 
@@ -64,13 +65,6 @@ commands and lower token usage than browse-heavy exploration.
 The combined MFS search + MFS browse workflow matched the best completeness
 score and used lower average token cost than the agent-shell baseline.
 
-Fresh I/O tokens are `input_tokens - cached_input_tokens + output_tokens` from
-the Codex CLI event stream. Cached input is excluded because it can vary
-heavily across repeated non-interactive runs, while fresh I/O better captures
-the context and output the agent actually had to process. Reasoning tokens are
-retained in the raw transcripts as a secondary metric; they do not change the
-main comparison.
-
 ## Why This Matters
 
 The native workflow often found a related article, but not always the article
@@ -95,3 +89,20 @@ not enough.
 MFS search gives the agent a better candidate set. MFS browse makes it cheaper
 to compare candidates before reading exact lines. Together, they are most useful
 when documentation has many adjacent pages with overlapping vocabulary.
+
+## Run Notes
+
+The run used commit `5187cf2` and Codex CLI with the GPT-5.5 Codex profile.
+The main WixQA full-corpus runs were completed on April 28, 2026.
+
+The harness ran Codex CLI in non-interactive JSON mode with `codex exec
+--json`. It parsed the JSONL event stream for final answers, command traces,
+and token usage, and controlled MFS access by placing a small `mfs` wrapper at
+the front of `PATH`.
+
+Each task had a 180-second timeout; timed-out tasks would count as misses. Token
+usage is `input_tokens - cached_input_tokens + output_tokens` from the Codex
+CLI event stream. Cached input/cache-read tokens are excluded because they
+mostly reflect provider-side cache reuse across repeated non-interactive runs,
+not fresh corpus context the agent had to consume. Reasoning tokens are
+retained as a secondary metric.

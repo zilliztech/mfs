@@ -36,6 +36,10 @@ These are the workflows we compared:
 | MFS browse | agent shell tools plus `mfs cat`, `mfs ls`, and `mfs tree` for compact inspection |
 | MFS search + MFS browse | agent shell tools plus `mfs search` to locate candidates and MFS browse commands to verify them |
 
+The result tables below use shorter labels such as `MFS search`, but those
+rows still mean the agent kept its normal shell tools and gained the listed
+MFS capability.
+
 ## Data Shape
 
 The data was intentionally close to what agents see in real projects:
@@ -135,12 +139,9 @@ and token usage. Because Codex CLI did not expose the same fine-grained shell
 tool restrictions, the harness controlled MFS access by placing a small `mfs`
 wrapper script at the front of `PATH`.
 
-Token usage is reported with a unified fresh I/O definition. For Claude Code,
-it is `input_tokens + output_tokens`. For Codex CLI, it is
-`input_tokens - cached_input_tokens + output_tokens`. Cached input/cache-read
-tokens are excluded because they mostly reflect provider-side cache reuse
-across repeated non-interactive runs, not fresh corpus context the agent had
-to consume.
+Token usage is reported with a consistent fresh input/output definition so the
+tables focus on context the agent actively consumed and produced. The exact
+formula is documented in each scenario page.
 
 The evaluation prompts in each scenario folder are short evaluation variants
 of the public `skills/mfs/` skill. They follow the same search, browse, and

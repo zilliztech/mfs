@@ -6,12 +6,12 @@ the original run labels for traceability.
 
 ## Workflow Name Mapping
 
-| Artifact value | Public name |
+| Artifact value | Public workflow |
 | --- | --- |
 | `A0` | Agent shell tools |
-| `A1` | MFS search |
-| `A2` | MFS browse |
-| `A3` | MFS search + MFS browse |
+| `A1` | Agent shell tools plus MFS search |
+| `A2` | Agent shell tools plus MFS browse |
+| `A3` | Agent shell tools plus MFS search + MFS browse |
 
 ## Files
 
