@@ -36,7 +36,7 @@ Find references to ERR_TOKEN_EXPIRED.
 Workflow:
 
 ```bash
-rg "ERR_TOKEN_EXPIRED" .
+grep -R -n "ERR_TOKEN_EXPIRED" .
 ```
 
 If the corpus has mixed indexed and non-indexed files and MFS routing is useful:
@@ -85,7 +85,7 @@ Workflow:
 mfs search "handler registry callback registration logic" . --top-k 20
 mfs search "register callback into hook handler registry" . --top-k 20
 mfs cat --peek -H 20 -D 3 <plausible-candidate>
-rg "register.*callback|callback.*register|registry" <likely-scope>
+grep -R -n -E "register.*callback|callback.*register|registry" <likely-scope>
 ```
 
 Reasoning:

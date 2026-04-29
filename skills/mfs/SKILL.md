@@ -15,8 +15,9 @@ MFS has two complementary legs:
 - Search locates candidate files and chunks.
 - Browse verifies structure and surrounding context before you answer or edit.
 
-Native shell tools still matter. Use `rg`, `find`, and ordinary file reads for
-literal strings, filename patterns, and already-known small files.
+Native shell tools still matter. Use `grep`, `find`, ordinary file reads, or
+`rg` when it is available, especially for literal strings, filename patterns,
+and already-known small files.
 
 ## How to Use MFS
 
@@ -66,9 +67,10 @@ Pick the smallest useful tool for each sub-task:
 - Natural-language concept, behavior, policy, procedure, or vague intent:
   start with `mfs search "<query>" <path>` or `mfs search "<query>" --all`.
 - Exact identifier, error code, unique phrase, URL, config key, or import path:
-  use `rg` first, or `mfs grep` when you want MFS's indexed/fallback routing.
+  use `grep` or `rg` if available, or use `mfs grep` when you want MFS's
+  indexed/fallback routing.
 - Filename or directory pattern:
-  use `find`, `fd`, or shell globbing.
+  use `find`, shell globbing, or `fd` if available.
 - Known file, need outline or section map:
   use `mfs cat --peek <file>`.
 - Known file, need compact context:
@@ -118,9 +120,9 @@ mfs grep -C 5 "<pattern>" <path>
 mfs grep -i "<pattern>" <path>
 ```
 
-Use native `rg` directly when you need normal ripgrep behavior or the task is
-clearly a literal search. Use `mfs grep` when you want MFS's indexed/fallback
-routing across mixed files.
+Use native `grep` directly when the task is clearly a literal search over local
+files. Use `rg` if it is available and you want faster ripgrep behavior. Use
+`mfs grep` when you want MFS's indexed/fallback routing across mixed files.
 
 ### Cat
 
