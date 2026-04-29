@@ -36,7 +36,7 @@ Find mentions of queue.json.
 Workflow:
 
 ```bash
-rg "queue\\.json" <memory-root>
+grep -R -n "queue\\.json" <memory-root>
 ```
 
 If the memory folder includes mixed file formats:

@@ -81,7 +81,7 @@ Find where the docs mention mkdocs build --strict.
 Workflow:
 
 ```bash
-rg "mkdocs build --strict" ./docs
+grep -R -n "mkdocs build --strict" ./docs
 ```
 
 Or:

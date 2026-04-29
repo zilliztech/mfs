@@ -36,8 +36,9 @@ If search results look weak:
 1. Rewrite the query with synonyms or more domain terms.
 2. Increase `--top-k` to compare more distinct files.
 3. Use `mfs cat --peek` on the top candidates to compare structure.
-4. Use `rg` only if the task has literal anchors or MFS cannot locate a
-   plausible semantic candidate.
+4. Use literal search only if the task has literal anchors or MFS cannot locate
+   a plausible semantic candidate. Prefer `grep` as the portable baseline; use
+   `rg` when it is available.
 
 Do not immediately grep the same vague words. Literal search is not a better
 version of semantic search; it is a different tool.

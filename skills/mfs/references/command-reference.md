@@ -44,9 +44,10 @@ mfs grep -i "<pattern>" <path>
 mfs grep "<pattern>" <path> --json
 ```
 
-Use `rg` directly when you need normal ripgrep behavior or when the target is
-clearly a literal search over local files. Use `mfs grep` when you want one
-interface across indexed and non-indexed files.
+Use native `grep` directly when the target is clearly a literal search over
+local files. Use `rg` if it is available and you want faster ripgrep behavior.
+Use `mfs grep` when you want one interface across indexed and non-indexed
+files.
 
 ## `mfs cat`
 
