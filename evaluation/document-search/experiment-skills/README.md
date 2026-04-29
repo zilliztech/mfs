@@ -8,9 +8,9 @@ available in each document-search workflow.
 | --- | --- |
 | `A0_native_shell.md` | Agent shell tools |
 | `A0S_native_shell_with_strategy.md` | Agent shell tools with strategy |
-| `A1_mfs_search.md` | MFS search |
-| `A2_mfs_browse.md` | MFS browse |
-| `A3_mfs_search_and_browse.md` | MFS search + MFS browse |
+| `A1_mfs_search.md` | Agent shell tools plus MFS search |
+| `A2_mfs_browse.md` | Agent shell tools plus MFS browse |
+| `A3_mfs_search_and_browse.md` | Agent shell tools plus MFS search + MFS browse |
 
 `A0S_native_shell_with_strategy.md` is a control prompt for separating prompt
 strategy from tool value. The main product workflow remains MFS search and MFS
