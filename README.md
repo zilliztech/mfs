@@ -96,8 +96,8 @@ CLI that powers a memory system or a skill manager is also what you hand to
 - **🧼 Zero intrusion.** All state lives in `~/.mfs/`. Your project directory gets
   nothing added to it.
 
-See [docs/benchmarks](docs/benchmarks/README.md) for agent-level evaluations on
-code search and documentation retrieval.
+See [evaluation](evaluation/README.md) for agent-level evaluations on code
+search and documentation retrieval.
 
 See [docs/skill.md](docs/skill.md) to install the companion MFS agent skill for
 Codex, Claude Code, or another shell-based agent.

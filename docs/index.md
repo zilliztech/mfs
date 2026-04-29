@@ -58,4 +58,5 @@ through compact `mfs cat` views.
 - [Search and Browse](search-and-browse.md) for the agent workflow
 - [CLI Reference](cli.md) for command options
 - [Architecture](architecture.md) for how ingestion, queueing, and retrieval work
-- [Benchmarks](benchmarks/README.md) for code and document retrieval results
+- [Evaluation](https://github.com/zilliztech/mfs/tree/main/evaluation) for code
+  and document retrieval results

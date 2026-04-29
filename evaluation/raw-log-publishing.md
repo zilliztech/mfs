@@ -1,13 +1,13 @@
-# Raw Log Publishing
+# Evaluation Artifact Publishing
 
-The benchmark reports in this repository use cleaned summaries and selected
-transcript excerpts. Full raw logs are better published as external artifacts,
-for example in a Hugging Face dataset, after redaction.
+The public evaluation pages in this repository use cleaned summaries and small
+examples. Full raw logs are better published as external artifacts, for example
+in a Hugging Face dataset, after redaction.
 
 ## Recommended Shape
 
 ```text
-mfs-benchmarks/
+mfs-evaluation/
   code-search/
     results_summary.jsonl
     raw_transcripts_sanitized.tar.zst
@@ -28,7 +28,7 @@ Before publishing raw logs:
 - Search for real credentials and environment variables:
   `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `ZILLIZ_TOKEN`, `Authorization:`,
   `Bearer`, `sk-`, `ghp_`, and `github_pat_`.
-- Keep benchmark prompts and task definitions only if they do not reveal hidden
+- Keep evaluation prompts and task definitions only if they do not reveal hidden
   answers to the agent at runtime.
 - Separate public results from internal iteration notes. Internal notes may
   include language such as regressions, force-stops, aborted runs, or design
@@ -45,8 +45,8 @@ for the repository:
 | --- | ---: |
 | Code raw transcripts, final/scale runs | about 2.5 MB |
 | Document raw transcripts, formal WixQA runs | about 134 MB |
-| Full document benchmark workspace | about 1.1 GB |
-| Full code benchmark workspace | about 277 MB |
+| Full document evaluation workspace | about 1.1 GB |
+| Full code evaluation workspace | about 277 MB |
 
 The repository should keep the cleaned summaries and curated excerpts. Full raw
 logs should be compressed and published separately only after the checklist

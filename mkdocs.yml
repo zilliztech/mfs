@@ -42,16 +42,7 @@ nav:
     - Configuration: configuration.md
     - Milvus Backends: backends.md
     - Agent Workflows: agent-workflows.md
-  - Benchmarks:
-    - Overview: benchmarks/README.md
-    - Code Search:
-      - Report: benchmarks/code-search/report.md
-      - Selected Transcript: benchmarks/code-search/selected_transcripts/code-q19-hard-comparison.md
-    - Document Search:
-      - Report: benchmarks/document-search/report.md
-      - Adjacent Article Selection: benchmarks/document-search/selected_transcripts/wixqa-0034-adjacent-article-selection.md
-      - Multi-document Success: benchmarks/document-search/selected_transcripts/wixqa-0126-multi-doc-success.md
-    - Raw Log Publishing: benchmarks/raw-log-publishing.md
+  - Evaluation: https://github.com/zilliztech/mfs/tree/main/evaluation
   - Help:
     - FAQ: faq.md
     - Troubleshooting: troubleshooting.md
