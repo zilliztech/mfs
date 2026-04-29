@@ -96,7 +96,7 @@ large files.
 
 ## Concrete Example
 
-See [Code example: image-saving function](examples/code-image-save.md).
+See [Code example: image-saving function](examples/image-save.md).
 
 In that case, agent shell tools selected a plausible TIFF writer. The MFS
 search + MFS browse workflow found the expected `torchvision.utils.save_image`

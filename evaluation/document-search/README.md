@@ -84,10 +84,10 @@ not enough.
 
 ## Concrete Examples
 
-- [Manual payment history](examples/document-payment-history.md): keyword
+- [Manual payment history](examples/payment-history.md): keyword
   search was pulled toward Pay Button and manual payment setup articles; MFS
   search surfaced the article that explains payment history.
-- [Google Ads multi-article question](examples/document-google-ads.md): the
+- [Google Ads multi-article question](examples/google-ads.md): the
   question needed two articles, and the combined MFS workflow returned both.
 
 ## Takeaway
