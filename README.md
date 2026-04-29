@@ -87,7 +87,8 @@ CLI that powers a memory system or a skill manager is also what you hand to
   share one density model — orient an agent in a new repo without burning its
   context window.
 - **🧩 Multi-format indexing.** Markdown, source code (tree-sitter AST across 15
-  languages), PDF (via pymupdf4llm). JSON, CSV, HTML and friends stay grep-able.
+  languages), PDF (via pymupdf4llm), and DOCX (via python-docx). JSON, JSONL,
+  CSV, HTML and friends stay grep-able and readable via `mfs cat`.
 - **🔀 Smart grep routing.** Indexed files go through Milvus BM25; everything else
   falls back to the system `grep` — you don't think about which is which.
 - **🚫 No LLM in the hot path.** Chunking, summarization heuristics, embedding — all
@@ -218,6 +219,7 @@ mfs search "oauth flow" ./src/ --mode semantic     # dense only
 mfs search "ERR_TOKEN" ./src/ --mode keyword       # BM25 only
 mfs search "auth" --all --top-k 20                 # across all indexed folders
 mfs search "auth" ./src/ --json                    # scoped + JSON for parsing
+git log --oneline | mfs search "fix auth"          # temporary dense search over stdin
 
 mfs grep "ERR_TOKEN_EXPIRED" .                     # Milvus BM25 / system grep
 mfs grep -C 5 "OAuth" ./docs/                      # context lines
@@ -248,11 +250,17 @@ mfs cat --peek ./docs/auth.md      # heading-only skeleton
 mfs cat --skim ./docs/auth.md      # headings + first paragraph of each
 mfs cat --deep ./docs/auth.md      # detailed expansion
 mfs cat -n 40:60 ./docs/auth.md    # drill in to a specific line range
+mfs cat --skim ./data/events.jsonl # compact rows for JSONL / JSON / CSV
 ```
 
 All three presets are driven by the same three knobs — `-W <chars>` (per-node
 width), `-H <n>` (how many top-level nodes), `-D <n>` (depth). Custom budgets
 work anywhere: `mfs cat -W 80 -H 5 -D 2 auth.md`.
+
+PDF and DOCX files are converted to Markdown before indexing or browsing.
+JSON, JSONL and CSV are intentionally not embedded by default; `mfs grep`
+still searches them, and `mfs cat --peek/--skim/--deep` gives compact
+structured views.
 
 The point of browse: an agent should *not* have to choose between "read the
 whole file" (expensive) and "stare at a single search chunk" (no surrounding
@@ -290,7 +298,7 @@ the same **Hit envelope** — `{source, lines, content, score, metadata}`.
 handles all five.
 
 ```bash
-$ mfs search "oauth flow" --json
+$ mfs search "oauth flow" . --json
 [
   {
     "source": "/repo/src/auth/oauth.py",
@@ -319,7 +327,7 @@ the right files, or when you want image assets to be searchable.
 
 ### Summaries sharpen recall on vague queries
 
-Text files (Markdown, code, PDFs converted to Markdown) can carry an
+Text files (Markdown, code, PDFs/DOCX converted to Markdown) can carry an
 auto-generated LLM summary that's embedded **alongside** the body chunks in
 the same collection. The summary participates in the same hybrid retrieval,
 so a vague query like *"how does the new onboarding flow work"* can hit the
@@ -433,6 +441,10 @@ model    = "gpt-4o-mini"
 Use `mfs config show` to inspect effective config and `mfs config set <key>
 <value>` to edit it from the CLI.
 
+Converted PDF/DOCX Markdown is cached under `~/.mfs/converted/`. The cache is
+bounded by `[cache].max_size_mb` and evicts the least recently used converted
+files when it grows past the configured cap.
+
 <details>
 <summary><b>Milvus backends</b></summary>
 
@@ -474,7 +486,7 @@ uv run ruff check src/ tests/    # lint
 The codebase lives under `src/mfs/`:
 
 - `cli.py` — Click entry point
-- `ingest/` — scanner, chunker (incl. tree-sitter AST), PDF converter, worker
+- `ingest/` — scanner, chunker (incl. tree-sitter AST), PDF/DOCX converter, worker
 - `embedder/` — embedding providers (OpenAI, ONNX, Gemini, Voyage, Jina, Ollama, …)
 - `llm/` — LLM / VLM providers for opt-in enrichment
 - `search/` — search, grep, summary, density presets

@@ -301,6 +301,33 @@ class MilvusStore:
         escaped = ", ".join(f'"{_escape(i)}"' for i in ids)
         return self._delete(f"id in [{escaped}]")
 
+    def get_body_chunk_ids(self, source: str) -> set[str]:
+        """Return body chunk ids for a single source, excluding summaries."""
+        rows = self._query_all(
+            f'source == "{_escape(source)}" and is_dir == false and chunk_index != -1',
+            output_fields=["id"],
+        )
+        return {str(r["id"]) for r in rows if r.get("id")}
+
+    def update_file_hash_by_ids(self, ids: list[str], file_hash: str) -> int:
+        """Update ``file_hash`` for existing chunks without re-embedding them."""
+        if not ids:
+            return 0
+        escaped = ", ".join(f'"{_escape(i)}"' for i in ids)
+        rows = self._query_all(
+            f"id in [{escaped}]",
+            output_fields=[
+                "id", "source", "parent_dir", "chunk_index", "start_line", "end_line",
+                "chunk_text", "dense_vector", "content_type", "file_hash",
+                "is_dir", "embed_status", "metadata", "account_id",
+            ],
+        )
+        for row in rows:
+            row["file_hash"] = file_hash
+        if rows:
+            self.client.upsert(collection_name=self._config.collection_name, data=rows)
+        return len(rows)
+
     def delete_by_prefix(self, path_prefix: str) -> int:
         """Delete all chunks whose source starts with `path_prefix`.
 

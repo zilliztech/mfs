@@ -24,6 +24,8 @@ from ..embedder import EmbeddingProvider, get_provider
 from ..llm import VLMCapable
 from ..llm import get_provider as get_llm_provider
 from ..store import ChunkRecord, MilvusStore
+from .chunker import chunk_file, hash_text
+from .converter import convert_to_markdown, is_convertible
 from .queue import QueueTask, TaskQueue
 
 
@@ -194,7 +196,7 @@ def process_batch(
     embed_tasks: list[QueueTask] = []
     llm_state: dict = {"provider": None, "factory": llm_factory}
 
-    for task in batch:
+    for task in _prepare_embed_ref_tasks(batch, logger):
         if task.task_type == "embed":
             embed_tasks.append(task)
             continue
@@ -233,6 +235,115 @@ def process_batch(
         )
     store.insert_chunks(records)
     return len(records)
+
+
+def _prepare_embed_ref_tasks(
+    batch: list[QueueTask],
+    logger: logging.Logger,
+) -> list[QueueTask]:
+    """Populate ``chunk_text`` for embed-ref tasks by re-reading source files."""
+    refs_by_source: dict[str, list[QueueTask]] = {}
+    prepared: list[QueueTask] = []
+    for task in batch:
+        if task.task_type != "embed_ref":
+            prepared.append(task)
+            continue
+        refs_by_source.setdefault(task.source, []).append(task)
+
+    for source, refs in refs_by_source.items():
+        restored = _restore_embed_refs_for_source(source, refs, logger)
+        prepared.extend(restored)
+    return prepared
+
+
+def _restore_embed_refs_for_source(
+    source: str,
+    refs: list[QueueTask],
+    logger: logging.Logger,
+) -> list[QueueTask]:
+    path = Path(source)
+    if not path.exists() or not path.is_file():
+        logger.warning("Skipping queued chunks for missing source: %s", source)
+        return []
+
+    expected_hash = refs[0].file_hash
+    try:
+        current_hash = _hash_file(path)
+    except OSError as exc:
+        logger.warning("Skipping queued chunks for unreadable source %s: %s", source, exc)
+        return []
+    if expected_hash and current_hash != expected_hash:
+        logger.warning("Skipping queued chunks for changed source: %s", source)
+        return []
+
+    ext = path.suffix.lower()
+    if is_convertible(ext):
+        try:
+            content = convert_to_markdown(path)
+        except RuntimeError as exc:
+            logger.warning("Skipping queued chunks for %s: %s", source, exc)
+            return []
+        chunk_ext = ".md"
+    else:
+        try:
+            content = path.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            logger.warning("Skipping queued chunks for unreadable source %s: %s", source, exc)
+            return []
+        chunk_ext = ext
+
+    chunks = chunk_file(path, content, chunk_ext)
+    by_index: dict[int, tuple[str, str]] = {
+        ch.chunk_index: (hash_text(ch.text), ch.text) for ch in chunks
+    }
+    by_hash: dict[str, str] = {}
+    for ch in chunks:
+        by_hash.setdefault(hash_text(ch.text), ch.text)
+
+    out: list[QueueTask] = []
+    for ref in refs:
+        text = ""
+        indexed = by_index.get(ref.chunk_index)
+        if indexed is not None and indexed[0] == ref.content_hash:
+            text = indexed[1]
+        elif ref.content_hash:
+            text = by_hash.get(ref.content_hash, "")
+        if not text:
+            logger.warning(
+                "Skipping queued chunk %s for %s: chunk reference no longer matches",
+                ref.chunk_id,
+                source,
+            )
+            continue
+        out.append(
+            QueueTask(
+                chunk_id=ref.chunk_id,
+                source=ref.source,
+                parent_dir=ref.parent_dir,
+                chunk_text=text,
+                chunk_index=ref.chunk_index,
+                start_line=ref.start_line,
+                end_line=ref.end_line,
+                content_type=ref.content_type,
+                file_hash=ref.file_hash,
+                is_dir=ref.is_dir,
+                metadata=ref.metadata,
+                account_id=ref.account_id,
+                content_hash=ref.content_hash,
+                task_type="embed",
+            )
+        )
+    return out
+
+
+def _hash_file(path: Path) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 16), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _prepare_llm_task(
@@ -293,6 +404,7 @@ def _prepare_llm_task(
         is_dir=task.is_dir,
         metadata=dict(task.metadata or {}),
         account_id=task.account_id,
+        content_hash=hash_text(text),
         task_type="embed",
     )
     return populated

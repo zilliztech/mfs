@@ -6,6 +6,7 @@ Commands: add, remove, search, grep, ls, tree, cat, status.
 from __future__ import annotations
 
 import hashlib
+import math
 import sys
 import time
 from pathlib import Path
@@ -18,6 +19,7 @@ from .cli_config import config_group
 from .config import Config, ensure_mfs_home, load_config
 from .embedder import get_provider
 from .ingest.chunker import chunk_file, extract_frontmatter, generate_chunk_id, hash_text
+from .ingest.chunker import chunk_text as chunk_plain_text
 from .ingest.converter import convert_to_markdown, is_convertible
 from .ingest.queue import QueueTask, TaskQueue
 from .ingest.scanner import FileInfo, Scanner
@@ -35,6 +37,7 @@ from .store import MilvusStore
 from .output.display import (
     error,
     format_cat_density,
+    format_cat_result,
     format_grep_results,
     format_ls,
     format_search_results,
@@ -145,6 +148,9 @@ def _tasks_for_file(
     model_id: str,
     account_id: str,
     scanner: Scanner,
+    *,
+    include_text: bool = True,
+    task_type: str = "embed",
 ) -> tuple[list[QueueTask], str]:
     # Convertible formats (e.g. PDF) go through a binary-aware converter that
     # emits Markdown; everything else is read as text. The chunker is always
@@ -177,7 +183,7 @@ def _tasks_for_file(
                 chunk_id=chunk_id,
                 source=source,
                 parent_dir=parent,
-                chunk_text=ch.text,
+                chunk_text=ch.text if include_text else "",
                 chunk_index=ch.chunk_index,
                 start_line=ch.start_line,
                 end_line=ch.end_line,
@@ -186,9 +192,56 @@ def _tasks_for_file(
                 is_dir=False,
                 metadata=ch.metadata or {},
                 account_id=account_id,
+                content_hash=content_hash,
+                task_type=task_type,
             )
         )
     return tasks, file_hash
+
+
+def _task_priority(task: QueueTask) -> tuple[int, int, int, int, str]:
+    """Lower tuple values should be queued first."""
+    path = Path(task.source)
+    parts = [p.lower() for p in path.parts]
+    name = path.name.lower()
+    suffix = path.suffix.lower()
+
+    score = 1000
+    if name in {p.lower() for p in C.PRIORITY_FILENAMES}:
+        score -= 350
+    if name in {
+        "pyproject.toml", "package.json", "go.mod", "cargo.toml",
+        "pom.xml", "build.gradle", "requirements.txt", "dockerfile",
+        "compose.yaml", "docker-compose.yml",
+    }:
+        score -= 260
+    if any(part in {"src", "lib", "app", "apps", "packages", "services", "cmd", "internal", "server", "client"} for part in parts):
+        score -= 220
+    if any(part in {"docs", "doc", "guides", "guide", "manual", "reference", "specs"} for part in parts):
+        score -= 190
+    if any(part in {"examples", "example", "samples", "sample", "notebooks"} for part in parts):
+        score -= 90
+    if any(part in {"tests", "test", "__tests__", "fixtures", "fixture", "snapshots"} for part in parts):
+        score += 80
+    if any(part in {"dist", "build", "coverage", "vendor", "third_party", "generated"} for part in parts):
+        score += 260
+
+    if suffix in C.MARKDOWN_EXTENSIONS:
+        score -= 70
+    elif suffix in {".pdf", ".docx"}:
+        score -= 55
+    elif suffix in C.CODE_EXTENSIONS:
+        score -= 45
+    elif suffix in C.TEXT_EXTENSIONS:
+        score -= 20
+
+    depth = len(parts)
+    chunk_index = task.chunk_index if task.chunk_index >= 0 else 10_000
+    return (score, depth, chunk_index, len(task.source), task.source)
+
+
+def _sort_tasks_for_queue(tasks: list[QueueTask]) -> list[QueueTask]:
+    return sorted(tasks, key=_task_priority)
 
 
 _IMAGE_EXTENSIONS: frozenset[str] = frozenset(
@@ -379,6 +432,8 @@ def add(paths: tuple[str, ...], exclude: tuple[str, ...], force: bool,
                     body_tasks, _h = _tasks_for_file(
                         info, embedder.model_name,
                         config.milvus.account_id, scanner,
+                        include_text=sync_mode,
+                        task_type="embed" if sync_mode else "embed_ref",
                     )
                     if body_tasks:
                         body_task_count = queue.enqueue(body_tasks)
@@ -471,11 +526,13 @@ def _run_add_once(
     sync_times = status.get("sync_times", {}) or {}
 
     queue = _queue(config) if not sync_mode else None
-    # In sync mode we accumulate tasks in memory and stream them through the
-    # embed pipeline directly — going through queue.json would be O(N²) on
-    # large corpora because each enqueue rewrites the full queue file.
+    # Accumulate tasks in memory and flush once. In sync mode we stream this
+    # list directly through the embed pipeline; in async mode one enqueue avoids
+    # repeatedly rewriting a growing queue.json.
     sync_tasks: list[QueueTask] = []
     sync_seen_ids: set[str] = set()
+    async_tasks: list[QueueTask] = []
+    async_seen_ids: set[str] = set()
     model_id = embedder.model_name
     account_id = config.milvus.account_id
 
@@ -495,7 +552,14 @@ def _run_add_once(
                 sync_tasks.append(t)
                 added += 1
             return added
-        return queue.enqueue(new_tasks)
+        added = 0
+        for t in new_tasks:
+            if t.chunk_id in async_seen_ids:
+                continue
+            async_seen_ids.add(t.chunk_id)
+            async_tasks.append(t)
+            added += 1
+        return added
 
     for root in abs_paths:
         if root.is_dir():
@@ -527,17 +591,33 @@ def _run_add_once(
         for fi in targets:
             total_files_touched += 1
             was_modified = any(fi.path == m.path for m in diff.modified)
+            tasks, file_hash = _tasks_for_file(
+                fi,
+                model_id,
+                account_id,
+                scanner,
+                include_text=sync_mode,
+                task_type="embed" if sync_mode else "embed_ref",
+            )
             if was_modified:
-                # Delete body chunks; preserve summary chunk but mark stale.
+                if not tasks:
+                    continue
+                # Delete only body chunks that no longer exist after re-chunking;
+                # preserve unchanged chunks and mark summaries stale.
+                source = str(fi.path)
                 try:
-                    store.delete_body_chunks_by_source(str(fi.path))
+                    old_ids = store.get_body_chunk_ids(source)
+                    new_ids = {t.chunk_id for t in tasks}
+                    store.delete_by_ids(sorted(old_ids - new_ids))
+                    existing = old_ids & new_ids
+                    store.update_file_hash_by_ids(sorted(existing), file_hash)
+                    tasks = [t for t in tasks if t.chunk_id not in existing]
                 except Exception:
                     pass
                 try:
-                    store.mark_summary_stale(str(fi.path))
+                    store.mark_summary_stale(source)
                 except Exception:
                     pass
-            tasks, _file_hash = _tasks_for_file(fi, model_id, account_id, scanner)
             total_added_tasks += _add_tasks(tasks)
 
         sync_times[str(root)] = _now()
@@ -553,6 +633,9 @@ def _run_add_once(
         total_added_tasks += added_llm
         if added_llm and not quiet:
             click.echo(f"Queued {added_llm} LLM/VLM task(s).")
+
+    if not sync_mode and async_tasks:
+        total_added_tasks = queue.enqueue(_sort_tasks_for_queue(async_tasks))
 
     status["sync_times"] = sync_times
     status["state"] = "indexing" if total_added_tasks else status.get("state", "idle")
@@ -1032,9 +1115,6 @@ def search(query: str, path: str | None, top_k: int, path_opt: str | None,
         error(str(exc))
         raise click.exceptions.Exit(2) from exc
 
-    store = _build_store(config, embedder.dimension, retry_on_lock=True)
-    searcher = Searcher(store, embedder)
-
     # Resolve positional / --path alias. Positional wins; --path kept for compat.
     scope_path = path or path_opt
 
@@ -1056,15 +1136,16 @@ def search(query: str, path: str | None, top_k: int, path_opt: str | None,
             click.echo(format_search_results([], output_json=output_json, quiet=quiet))
             return
         else:
-            # Branch C: arbitrary text without headers. Ad-hoc embedding of
-            # stdin isn't implemented; warn + exit 0 rather than falling back
-            # to the indexed corpus (which would be a silent surprise).
-            warn(
-                "stdin contains text without ::mfs: headers; "
-                "mfs search does not search inside arbitrary stdin content. "
-                "Pipe `mfs cat <file>` output instead."
+            # Branch C: arbitrary text without headers. Search the piped text
+            # itself via temporary dense embeddings; do not fall back to the
+            # indexed corpus.
+            results = _search_plain_stdin(
+                query,
+                stdin_text,
+                embedder=embedder,
+                top_k=top_k,
             )
-            click.echo(format_search_results([], output_json=output_json, quiet=quiet))
+            click.echo(format_search_results(results, output_json=output_json, quiet=quiet))
             return
 
     # POSIX-style scoping: no pipe, no path, no --all → error. Matches grep
@@ -1090,9 +1171,60 @@ def search(query: str, path: str | None, top_k: int, path_opt: str | None,
         # in practice). Fall through with no filter.
         path_filter = None
 
+    store = _build_store(config, embedder.dimension, retry_on_lock=True)
+    searcher = Searcher(store, embedder)
     mode_enum = SearchMode(mode)
     results = searcher.search(query, mode=mode_enum, path_filter=path_filter, top_k=top_k)
     click.echo(format_search_results(results, output_json=output_json, quiet=quiet))
+
+
+def _search_plain_stdin(query: str, stdin_text: str, *, embedder, top_k: int) -> list:
+    query = query.strip()
+    if not query or not stdin_text.strip():
+        return []
+    chunks = chunk_plain_text(stdin_text)
+    if not chunks:
+        return []
+
+    vectors = embedder.embed([query] + [ch.text for ch in chunks])
+    if not vectors:
+        return []
+    query_vector = vectors[0]
+    chunk_vectors = vectors[1:]
+    scored = []
+    for ch, vector in zip(chunks, chunk_vectors):
+        scored.append((_cosine_similarity(query_vector, vector), ch))
+    scored.sort(key=lambda item: item[0], reverse=True)
+
+    from .store import SearchResult
+
+    results = []
+    if top_k <= 0:
+        return []
+    for score, ch in scored[:top_k]:
+        results.append(
+            SearchResult(
+                source="<stdin>",
+                chunk_text=ch.text,
+                chunk_index=ch.chunk_index,
+                start_line=ch.start_line,
+                end_line=ch.end_line,
+                content_type=ch.content_type,
+                score=score,
+                is_dir=False,
+                metadata={"temporary": True},
+            )
+        )
+    return results
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    if na == 0.0 or nb == 0.0:
+        return 0.0
+    return dot / (na * nb)
 
 
 # -------------------------------------------------------------------- grep
@@ -1427,12 +1559,13 @@ def _tree_entries(target: Path, max_depth: int, depth: int = 0,
 @click.option("--no-frontmatter", is_flag=True, help="Strip YAML frontmatter before display.")
 @click.option("--no-meta", is_flag=True, help="Omit ::mfs: headers even when piped.")
 @click.option("--meta", is_flag=True, help="Force ::mfs: headers even when output is a terminal.")
+@click.option("--json", "output_json", is_flag=True, help="JSON output")
 @click.option("--no-line-numbers", is_flag=True,
               help="Omit source line numbers from density views (peek/skim/deep).")
 def cat(file: str, preset: str | None, width: int | None, height: int | None,
         depth: int | None, line_range: str | None,
         no_frontmatter: bool, no_meta: bool, meta: bool,
-        no_line_numbers: bool) -> None:
+        output_json: bool, no_line_numbers: bool) -> None:
     path = Path(file).resolve()
     if not path.exists() or not path.is_file():
         error(f"{path}: not a file")
@@ -1464,18 +1597,39 @@ def cat(file: str, preset: str | None, width: int | None, height: int | None,
     body = content
     if no_frontmatter:
         _fm, body, _o = extract_frontmatter(content)
+    source_total_lines = body.count("\n") + 1
 
     # Density view if preset or explicit W/H/D
     if preset or any(v is not None for v in (width, height, depth)):
         params = resolve_density(ctype, preset, width, height, depth)
-        total_lines = body.count("\n") + 1
         body = format_cat_density(
             body, ctype, params,
             show_line_numbers=not no_line_numbers,
-            total_lines=total_lines,
+            total_lines=source_total_lines,
         )
     elif line_range:
         body = _slice_by_lines(body, line_range)
+
+    if output_json:
+        lines = (
+            _parse_line_range(line_range, source_total_lines)
+            if line_range
+            else (1, source_total_lines)
+        )
+        indexed = _is_indexed(path)
+        file_hash = _short_file_hash(path) if indexed else ""
+        click.echo(
+            format_cat_result(
+                str(path),
+                body,
+                content_type=ctype,
+                lines=lines,
+                indexed=indexed,
+                file_hash=file_hash,
+                preset=preset,
+            )
+        )
+        return
 
     # Meta-header logic (pipe vs terminal).
     # We probe Milvus to set `indexed` truthfully and only emit `hash=` when
@@ -1507,6 +1661,16 @@ def _slice_by_lines(content: str, rng: str) -> str:
     except ValueError:
         return content
     return "\n".join(lines[start - 1 : end])
+
+
+def _parse_line_range(rng: str, total_lines: int) -> tuple[int, int]:
+    a, _, b = rng.partition(":")
+    try:
+        start = max(1, int(a)) if a else 1
+        end = min(total_lines, int(b)) if b else total_lines
+    except ValueError:
+        return (1, total_lines)
+    return (start, max(start, end))
 
 
 def _suppressed_stderr():

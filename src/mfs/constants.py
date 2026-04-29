@@ -14,15 +14,16 @@ INDEXED_EXTENSIONS: set[str] = {
     ".sh", ".bash", ".zsh", ".sql", ".proto", ".graphql", ".tf", ".hcl",
     # Text
     ".txt",
-    # Conversion targets. Only PDF is wired up for MVP; DOCX/EPUB stay out
-    # of the indexed set until we have a converter for them (otherwise they
-    # would be read as raw bytes and produce binary-noise chunks).
-    ".pdf",
+    # Conversion targets. PDF and DOCX are converted to Markdown before chunking.
+    # Keep other binary document formats out of the indexed set until we have
+    # a converter for them; otherwise they would be read as raw bytes and
+    # produce binary-noise chunks.
+    ".pdf", ".docx",
 }
 
 # Extensions that go through a text converter before chunking. The converter
 # output is Markdown so we route into the Markdown chunker path.
-CONVERTED_EXTENSIONS: set[str] = {".pdf"}
+CONVERTED_EXTENSIONS: set[str] = {".pdf", ".docx"}
 
 NOT_INDEXED_EXTENSIONS: set[str] = {
     ".json", ".yaml", ".yml", ".toml", ".ini", ".env",

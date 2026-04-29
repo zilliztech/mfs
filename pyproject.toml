@@ -22,11 +22,6 @@ classifiers = [
     "Topic :: Software Development",
     "Topic :: Text Processing :: Indexing",
 ]
-
-[project.urls]
-Homepage = "https://github.com/zilliztech/mfs"
-Repository = "https://github.com/zilliztech/mfs"
-Issues = "https://github.com/zilliztech/mfs/issues"
 dependencies = [
     "click>=8.1",
     "pymilvus>=2.5",
@@ -41,9 +36,15 @@ dependencies = [
     "setuptools<81",
     "watchfiles>=1.1.1",
     "pymupdf4llm>=1.27.2.2",
+    "python-docx>=1.1",
     "tree-sitter>=0.23",
-    "tree-sitter-language-pack>=0.7",
+    "tree-sitter-language-pack>=0.7,<1.6.3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/zilliztech/mfs"
+Repository = "https://github.com/zilliztech/mfs"
+Issues = "https://github.com/zilliztech/mfs/issues"
 
 [project.optional-dependencies]
 onnx = [
