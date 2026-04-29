@@ -10,6 +10,8 @@ Task types
 ----------
 - ``embed``        — default. ``chunk_text`` is already populated; the worker
                      just embeds it and writes the chunk record.
+- ``embed_ref``    — ``chunk_text`` is intentionally empty. The worker restores
+                     it by re-reading ``source`` and matching ``content_hash``.
 - ``llm_summarize`` — the worker reads ``source``, runs an LLM ``generate``
                      call, then embeds the resulting summary as a
                      ``chunk_index=-1`` record.
@@ -45,6 +47,7 @@ class QueueTask:
     is_dir: bool
     metadata: dict
     account_id: str
+    content_hash: str = ""
     task_type: str = "embed"
 
 

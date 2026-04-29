@@ -1,8 +1,8 @@
 """Unified JSON envelope for hit-list commands.
 
-``search``, ``grep``, ``ls`` and ``tree`` all describe "things found at a
+``search``, ``grep``, ``ls``, ``tree`` and ``cat`` all describe "things found at a
 path"; giving them a single envelope lets agents and downstream tools
-parse all four with one schema. ``status`` keeps its own shape (it's
+parse all five with one schema. ``status`` keeps its own shape (it's
 about global state, not a hit list).
 """
 

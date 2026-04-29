@@ -1,6 +1,6 @@
 """Output formatting for MFS commands.
 
-All hit-list commands (search/grep/ls/tree) share the :class:`Hit` JSON
+All hit-list commands (search/grep/ls/tree/cat) share the :class:`Hit` JSON
 envelope so agents and downstream tools can parse any of them with one
 schema. Text output follows a unified visual skeleton — a right-aligned
 line-number gutter followed by two spaces of content — so search, grep,
@@ -520,3 +520,29 @@ def format_cat_density(
         prefix = f"{ln:>{width}}" if ln is not None else pad
         rendered.append(f"{prefix}  {text}")
     return "\n".join(rendered)
+
+
+def format_cat_result(
+    source: str,
+    content: str,
+    *,
+    content_type: str,
+    lines: tuple[int, int] | None,
+    indexed: bool,
+    file_hash: str = "",
+    preset: str | None = None,
+) -> str:
+    hit = Hit(
+        source=source,
+        lines=lines,
+        content=content,
+        score=None,
+        metadata={
+            "kind": "cat",
+            "content_type": content_type,
+            "indexed": indexed,
+            "hash": file_hash,
+            "preset": preset,
+        },
+    )
+    return _dumps([hit.to_dict()])
