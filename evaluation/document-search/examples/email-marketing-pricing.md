@@ -40,20 +40,31 @@ reject the monthly-balance page.
 
 ## Trace
 
-Trace artifact: [email-marketing-pricing-trace.jsonl](email-marketing-pricing-trace.jsonl)
+Trace artifacts:
 
-This is a curated, shortened trace. It removes absolute paths, long article
-excerpts, and low-signal tool output; it is not the full raw transcript.
+- [shell-only trace](email-marketing-pricing-shell-trace.jsonl)
+- [MFS-enabled trace](email-marketing-pricing-mfs-trace.jsonl)
 
-| Step | Workflow | Action | What happened | Why it mattered |
-| ---: | --- | --- | --- | --- |
-| 1 | Agent shell tools | grep | Keyword search returned many email-marketing and plan-related files. | The candidate set was broad and noisy. |
-| 2 | Agent shell tools | read | The agent inspected free-email, monthly-balance, upgrade-plan, and getting-started articles. | Several files were plausible, but only some answered pricing. |
-| 3 | Agent shell tools | final | It selected the monthly-balance article. | This matched usage/quota language, not the user's pricing intent. |
-| 4 | MFS search + MFS browse | search | `mfs search` surfaced free quota and upgrade-plan candidates from the natural-language question. | The search started closer to the billing/plan intent. |
-| 5 | MFS search + MFS browse | browse | `mfs cat --peek` compared the free-quota, upgrade-plan, and monthly-balance article structures. | Browse made adjacent candidate comparison cheap. |
-| 6 | MFS search + MFS browse | search | A refined MFS query for plan pricing and free monthly emails surfaced the companion campaign article. | The agent recognized that the answer needed two articles. |
-| 7 | MFS search + MFS browse | final | It returned both expected articles. | The final answer covered both pricing/upgrade and campaign flow. |
+These are curated, shortened traces from two separate agent runs on the same
+task. They remove absolute paths, long article excerpts, and low-signal tool
+output; they are not the full raw transcripts.
+
+### Shell-Only Run
+
+| Step | Action | What happened | Why it mattered |
+| ---: | --- | --- | --- |
+| 1 | grep | Keyword search returned many email-marketing and plan-related files. | The candidate set was broad and noisy. |
+| 2 | read | The agent inspected free-email, monthly-balance, upgrade-plan, and getting-started articles. | Several files were plausible, but only some answered pricing. |
+| 3 | final | It selected the monthly-balance article. | This matched usage/quota language, not the user's pricing intent. |
+
+### MFS-Enabled Run
+
+| Step | Action | What happened | Why it mattered |
+| ---: | --- | --- | --- |
+| 1 | search | `mfs search` surfaced free quota and upgrade-plan candidates from the natural-language question. | The search started closer to the billing/plan intent. |
+| 2 | browse | `mfs cat --peek` compared the free-quota, upgrade-plan, and monthly-balance article structures. | Browse made adjacent candidate comparison cheap. |
+| 3 | search | A refined MFS query for plan pricing and free monthly emails surfaced the companion campaign article. | The agent recognized that the answer needed two articles. |
+| 4 | final | It returned both expected articles. | The final answer covered both pricing/upgrade and campaign flow. |
 
 This is the clearest document-search pattern in the run: MFS found the right
 intent and cut token usage by about 62% at the same time.

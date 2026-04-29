@@ -39,19 +39,30 @@ upgrade article without reading many full files.
 
 ## Trace
 
-Trace artifact: [bookings-upgrade-trace.jsonl](bookings-upgrade-trace.jsonl)
+Trace artifacts:
 
-This is a curated, shortened trace. It removes absolute paths, long article
-excerpts, and low-signal tool output; it is not the full raw transcript.
+- [shell-only trace](bookings-upgrade-shell-trace.jsonl)
+- [MFS-enabled trace](bookings-upgrade-mfs-trace.jsonl)
 
-| Step | Workflow | Action | What happened | Why it mattered |
-| ---: | --- | --- | --- | --- |
-| 1 | Agent shell tools | grep | Keyword search found articles about adding Bookings, premium plans, and generic upgrade states. | The exact words pointed toward setup pages. |
-| 2 | Agent shell tools | read | The agent inspected Bookings overview, adding Bookings, and generic upgrade articles. | The right topic was present, but the specific upgrade page was not selected. |
-| 3 | Agent shell tools | final | It answered with the article about adding Wix Bookings. | That article explains setup, not the user's plan-limit block. |
-| 4 | MFS search + MFS browse | search | `mfs search` returned the upgrade-specific Wix Bookings article alongside the setup article. | The correct intent appeared before a long manual file search. |
-| 5 | MFS search + MFS browse | browse | `mfs cat --peek` checked both the setup article and the upgrade article. | The article outlines made the distinction obvious. |
-| 6 | MFS search + MFS browse | final | It returned the Wix Bookings upgrade article. | The answer matched the user's actual blocker in 3 commands. |
+These are curated, shortened traces from two separate agent runs on the same
+task. They remove absolute paths, long article excerpts, and low-signal tool
+output; they are not the full raw transcripts.
+
+### Shell-Only Run
+
+| Step | Action | What happened | Why it mattered |
+| ---: | --- | --- | --- |
+| 1 | grep | Keyword search found articles about adding Bookings, premium plans, and generic upgrade states. | The exact words pointed toward setup pages. |
+| 2 | read | The agent inspected Bookings overview, adding Bookings, and generic upgrade articles. | The right topic was present, but the specific upgrade page was not selected. |
+| 3 | final | It answered with the article about adding Wix Bookings. | That article explains setup, not the user's plan-limit block. |
+
+### MFS-Enabled Run
+
+| Step | Action | What happened | Why it mattered |
+| ---: | --- | --- | --- |
+| 1 | search | `mfs search` returned the upgrade-specific Wix Bookings article alongside the setup article. | The correct intent appeared before a long manual file search. |
+| 2 | browse | `mfs cat --peek` checked both the setup article and the upgrade article. | The article outlines made the distinction obvious. |
+| 3 | final | It returned the Wix Bookings upgrade article. | The answer matched the user's actual blocker in 3 commands. |
 
 This example is useful because the mistake is easy to see: setup is not the
 same as upgrade. MFS kept both candidates visible, then browse made the intent
