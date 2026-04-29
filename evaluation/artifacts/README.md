@@ -8,11 +8,11 @@ original run fields for traceability.
 
 | Artifact value | Public name |
 | --- | --- |
-| `A0` | Native shell |
-| `A0S` | Native shell with strategy |
+| `A0` | Agent shell tools |
+| `A0S` | Agent shell tools with strategy |
 | `A1`, `A1 v2` | MFS search |
 | `A2` | MFS browse |
-| `A3`, `A3 v2` | MFS search + browse |
+| `A3`, `A3 v2` | MFS search + MFS browse |
 
 ## Files
 
@@ -23,6 +23,10 @@ artifacts/
   document-search/
     results_summary.jsonl
     retrieval_summary.jsonl
+  experiment-skills/
+    README.md
+    code-search/
+    document-search/
 ```
 
 The human-readable pages are:
@@ -31,3 +35,8 @@ The human-readable pages are:
 - `evaluation/document-search.md`
 - `evaluation/examples/`
 
+`fresh_io_tokens` is the headline cost field used by the public tables. For
+Codex CLI runs it excludes cached input tokens and includes output tokens; for
+Claude Code runs it matches the stored `pure_io_tokens` field. Earlier
+document-search `A1` and `A3` rows are retained for traceability, while the
+public result tables use the later `A1 v2` and `A3 v2` rows.

@@ -28,18 +28,17 @@ formats, but it was not the expected implementation.
 
 ## What MFS Did Differently
 
-The MFS search + browse workflow used semantic search to find candidates whose
+The MFS search + MFS browse workflow used semantic search to find candidates whose
 meaning matched the query, then used bounded browsing to verify the function
 without reading unrelated files.
 
 Outcome:
 
-| Workflow | Predicted file | Correct | Direct file-output tokens |
+| Workflow | Predicted file | Correct | Fresh I/O tokens |
 | --- | --- | ---: | ---: |
-| Native shell | `neurodata/ndio/ndio/convert/tiff.py` | no | 1,035 |
+| Agent shell tools | `neurodata/ndio/ndio/convert/tiff.py` | no | 1,035 |
 | MFS search | `pytorch/vision/torchvision/utils.py` | yes | 2,067 |
-| MFS search + browse | `pytorch/vision/torchvision/utils.py` | yes | 610 |
+| MFS search + MFS browse | `pytorch/vision/torchvision/utils.py` | yes | 610 |
 
-The combined workflow found the right file and used less direct file-output
-context than both alternatives.
-
+The combined workflow found the right file and used lower fresh I/O token cost
+than both alternatives.
