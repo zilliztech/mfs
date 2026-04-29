@@ -3,6 +3,9 @@
 MFS is designed for agents that can run shell commands. The agent does not need
 an SDK; it needs a small workflow.
 
+For reusable setup, install the companion skill from `skills/mfs/`. See
+[Agent Skill](skill.md) for installation and usage notes.
+
 ## General rule
 
 Use MFS to locate and orient. Use native shell tools when they are the best
