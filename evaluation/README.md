@@ -142,22 +142,40 @@ tokens are excluded because they mostly reflect provider-side cache reuse
 across repeated non-interactive runs, not fresh corpus context the agent had
 to consume.
 
-The prompts under `evaluation/artifacts/experiment-skills/` are short
-evaluation variants of the public `skills/mfs/` skill. They follow the same
-search, browse, and verification principles.
+The evaluation prompts in each scenario folder are short evaluation variants
+of the public `skills/mfs/` skill. They follow the same search, browse, and
+verification principles.
 
 ## Details
 
 For the full setup, metrics, and per-scenario discussion, see the
-[code search evaluation](code-search.md) and the
-[document search evaluation](document-search.md).
+[code search evaluation](code-search/) and the
+[document search evaluation](document-search/).
 
 For concrete examples of what changed inside an agent run, see the
-[image-saving function example](examples/code-image-save.md), the
-[manual payment history example](examples/document-payment-history.md), and
-the [multi-article Google Ads example](examples/document-google-ads.md).
+[image-saving function example](code-search/examples/image-save.md), the
+[manual payment history example](document-search/examples/payment-history.md),
+and the
+[multi-article Google Ads example](document-search/examples/google-ads.md).
 
-Machine-readable summaries are kept under `evaluation/artifacts/`. Raw log
-publishing notes are in [raw-log-publishing.md](raw-log-publishing.md). The
-artifact files preserve raw run labels for auditability; the public pages use
-descriptive workflow names.
+Each scenario folder contains its own task manifest, run summaries, example
+walkthroughs, and evaluation prompts:
+
+```text
+evaluation/
+  code-search/
+    artifacts/
+    datasets/
+    examples/
+    experiment-skills/
+  document-search/
+    artifacts/
+    datasets/
+    examples/
+    experiment-skills/
+```
+
+The task manifests list the exact queries and expected target files used in
+the evaluation without redistributing source-code bodies or help-center article
+bodies. The artifact files preserve raw run labels for auditability; the public
+pages use descriptive workflow names.
