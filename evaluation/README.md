@@ -79,7 +79,7 @@ choose the article that explains where to see payment history.
 | --- | ---: | ---: |
 | Agent shell tools | 22/24 | 962 |
 | MFS search | 22/24 | 516 |
-| MFS search + MFS browse | 23/24 | 460 |
+| MFS search + MFS browse | **23/24** | **460** |
 
 In the full code-search run, MFS search + MFS browse found one more target than
 the agent-shell baseline and reduced average token usage by about 52%.
@@ -91,8 +91,8 @@ the agent-shell baseline and reduced average token usage by about 52%.
 | Workflow | Correct target files | Avg token usage |
 | --- | ---: | ---: |
 | Agent shell tools | 7/8 | 1,734 |
-| MFS search | 8/8 | 1,122 |
-| MFS search + MFS browse | 8/8 | 692 |
+| MFS search | **8/8** | 1,122 |
+| MFS search + MFS browse | **8/8** | **692** |
 
 On hard paraphrase queries, the combined workflow kept perfect accuracy and
 used the lowest average token usage.
@@ -105,9 +105,9 @@ used the lowest average token usage.
 | --- | ---: | ---: |
 | Agent shell tools | 20/40 | 53,951 |
 | Agent shell tools with strategy | 22/40 | 65,094 |
-| MFS search | 23/40 | 29,276 |
-| MFS browse | 25/40 | 66,125 |
-| MFS search + MFS browse | 25/40 | 43,170 |
+| MFS search | 23/40 | **29,276** |
+| MFS browse | **25/40** | 66,125 |
+| MFS search + MFS browse | **25/40** | 43,170 |
 
 The `Agent shell tools with strategy` row is a document-search control: it uses
 the same shell tools as the baseline, but with extra candidate-comparison
@@ -155,9 +155,9 @@ For the full setup, metrics, and per-scenario discussion, see the
 
 For concrete examples of what changed inside an agent run, see the
 [image-saving function example](code-search/examples/image-save.md), the
-[manual payment history example](document-search/examples/payment-history.md),
+[email marketing pricing example](document-search/examples/email-marketing-pricing.md),
 and the
-[multi-article Google Ads example](document-search/examples/google-ads.md).
+[Bookings upgrade example](document-search/examples/bookings-upgrade.md).
 
 Each scenario folder contains its own task manifest, run summaries, example
 walkthroughs, and evaluation prompts:
