@@ -96,6 +96,9 @@ CLI that powers a memory system or a skill manager is also what you hand to
 - **🧼 Zero intrusion.** All state lives in `~/.mfs/`. Your project directory gets
   nothing added to it.
 
+See [docs/benchmarks](docs/benchmarks/README.md) for agent-level evaluations on
+code search and documentation retrieval.
+
 ---
 
 ## Install

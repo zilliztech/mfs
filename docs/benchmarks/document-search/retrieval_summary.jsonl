@@ -1,0 +1,3 @@
+{"benchmark": "document-search-retrieval", "hit_at_1": 1, "hit_at_10": 10, "hit_at_5": 4, "method": "native keyword", "n": 40}
+{"all_hit_at_10": 27, "benchmark": "document-search-retrieval", "hit_at_1": 14, "hit_at_10": 32, "hit_at_5": 28, "method": "mfs top10 dedup", "n": 40}
+{"all_hit_at_10": 34, "benchmark": "document-search-retrieval", "hit_at_1": 14, "hit_at_10": 36, "hit_at_5": 31, "method": "mfs top20 dedup", "n": 40}
