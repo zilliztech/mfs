@@ -40,7 +40,7 @@ touching a vector database.
 │   MFS   ← you are here                                             │
 │   ─────────────────────                                            │
 │   📟  CLI    mfs add · search · grep · ls · tree · cat             │
-│   🧠  Skill  /mfs-search   (in development — for Claude Code etc.) │
+│   🧠  Skill  skills/mfs    (reusable agent workflow instructions)   │
 │                                                                    │
 │   Hybrid retrieval · density presets · JSON Hit envelope ·         │
 │   tree-sitter AST · pipe-aware · ~/.mfs/ state only                │
@@ -66,9 +66,9 @@ MFS ships the two things an agent-first tool actually needs:
 
 - **📟 a CLI** — for any agent that can run shell commands (Claude Code, Codex
   CLI, OpenCode, your own)
-- **🧠 a companion Skill** — `/mfs-search`, an in-development Claude Code skill
-  that teaches an agent when and how to reach for MFS, so users get semantic
-  retrieval without writing prompt scaffolding themselves
+- **🧠 a companion Skill** — `skills/mfs`, a reusable agent skill that teaches
+  when to search, when to browse, when to verify with line ranges, and when to
+  use native shell tools instead
 
 Closing the loop: **MFS is the tool agents use to build agent apps.** The same
 CLI that powers a memory system or a skill manager is also what you hand to
@@ -98,6 +98,9 @@ CLI that powers a memory system or a skill manager is also what you hand to
 
 See [docs/benchmarks](docs/benchmarks/README.md) for agent-level evaluations on
 code search and documentation retrieval.
+
+See [docs/skill.md](docs/skill.md) to install the companion MFS agent skill for
+Codex, Claude Code, or another shell-based agent.
 
 ---
 

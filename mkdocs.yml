@@ -37,6 +37,7 @@ nav:
   - User Guide:
     - CLI Reference: cli.md
     - Search and Browse: search-and-browse.md
+    - Agent Skill: skill.md
     - File Formats: formats.md
     - Configuration: configuration.md
     - Milvus Backends: backends.md
