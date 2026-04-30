@@ -16,6 +16,13 @@ It's a POSIX-style CLI (`ls` / `tree` / `cat` / `grep` / `search`) that gives an
 agent semantic access to any folder — and gives a human the same toolkit at the
 terminal. Files are the source of truth; Milvus is the derived index underneath.
 
+The "memory" part is not just branding. Modern agent memory is often discussed
+as semantic, episodic, procedural, and working memory; in practice, the durable
+layers are usually files: Markdown notes, JSONL transcripts, SKILL documents,
+runbooks, PDFs, DOCX files, and code. MFS makes those memory files searchable
+with Milvus. See the [docs homepage](https://zilliztech.github.io/mfs/) for the
+full story.
+
 ---
 
 ## Where MFS sits
@@ -511,6 +518,29 @@ The codebase lives under `src/mfs/`:
 - `search/` — search, grep, summary, density presets
 - `output/` — display, pipe handshake, JSON schema
 - `store.py` — Milvus collection wrapper
+
+---
+
+## Roadmap
+
+- [ ] Rewrite low-level file processing modules in Rust for faster scanning,
+      parsing, and format handling.
+- [ ] Support more file formats and more multimodal content types.
+- [ ] Run broader evaluations across more agent workflows, corpora, and
+      real-world scenarios.
+
+---
+
+## Acknowledgements
+
+MFS is shaped by several related projects and communities:
+
+- [VKFS](https://github.com/ZeroZ-lab/vkfs), built by a partner team, explores a
+  similar Unix-like interface for agent access to vector-backed knowledge.
+- [claude-context](https://github.com/zilliztech/claude-context) and
+  [memsearch](https://github.com/zilliztech/memsearch), earlier Zilliz projects,
+  provided practical lessons from community feedback on code search, memory
+  search, synchronization, and agent-facing architecture.
 
 ---
 
