@@ -18,9 +18,7 @@ Common options:
 | `--interval` | debounce interval such as `1500ms`, `10s`, `1m` |
 | `--exclude` | glob pattern to exclude; can be repeated |
 | `--summarize` | auto-generate LLM summaries for text files |
-| `--summary` | inject a summary for one path |
 | `--describe` | auto-generate VLM descriptions for images |
-| `--description` | inject an image description for one path |
 
 ## `mfs search`
 

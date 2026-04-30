@@ -147,9 +147,8 @@ These formats are still useful with `mfs cat`, `mfs ls`, `mfs tree`, and
 `mfs grep`.
 
 Images are ignored by normal text indexing. They become searchable only when a
-text description is attached or generated:
+text description is generated:
 
-- `mfs add <image> --description "<text>"`
 - `mfs add <path> --describe` with a vision-capable provider
 
 The searchable record is the text description, not a direct image embedding.
@@ -173,4 +172,3 @@ MFS can also connect to Milvus server or Zilliz Cloud, depending on
 configuration. Before removing or recreating a collection, inspect existing
 collections and avoid touching data that does not belong to the current MFS
 configuration.
-

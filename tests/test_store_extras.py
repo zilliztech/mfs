@@ -101,6 +101,7 @@ def test_get_llm_summaries(store):
     ])
     out = store.get_llm_summaries("/proj")
     assert "/proj/a.md" in out
+    assert out["/proj/a.md"]["text"] == "summary of a"
 
 
 def test_delete_by_prefix(store):
