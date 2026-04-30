@@ -60,6 +60,36 @@ this run. Adding MFS browse made verification cheaper: the agent could inspect
 just enough local context around the candidate function before answering,
 instead of reading or comparing larger file regions.
 
+## Trace
+
+Trace artifacts:
+
+- [shell-only trace](image-save-shell-trace.jsonl)
+- [MFS-enabled trace](image-save-mfs-trace.jsonl)
+
+These are curated, shortened traces from two separate agent runs on the same
+task. They remove absolute paths, long tool output, and low-signal reasoning;
+they are not the full raw transcripts.
+
+### Shell-Only Run
+
+| Step | Action | What happened | Why it mattered |
+| ---: | --- | --- | --- |
+| 1 | grep | The first keyword search found `neurodata/ndio/ndio/convert/tiff.py`. | The words `array`, `image`, and `tiff` matched a plausible but wrong technical domain. |
+| 2 | grep | Broader image-saving searches found raster and image-similarity utilities. | The run stayed near literal image-processing vocabulary. |
+| 3 | read | The agent read the TIFF helper and saw a function exporting numpy arrays to TIFF files. | This looked like a strong local match, but it was not the expected TorchVision implementation. |
+| 4 | final | It answered with the TIFF helper. | The final answer missed `torchvision/utils.py`. |
+
+### MFS-Enabled Run
+
+| Step | Action | What happened | Why it mattered |
+| ---: | --- | --- | --- |
+| 1 | search | `mfs search` used the behavioral query about persisting a numerical array as a rasterized picture. | The candidate search was not limited to exact symbol names. |
+| 2 | search | A refined MFS query checked the nearby array-to-image family. | The agent kept the false-positive family visible while looking for the implementation target. |
+| 3 | browse | `mfs cat --peek` showed `make_grid` and `save_image` in `torchvision/utils.py`. | The correct function became visible without reading the full file. |
+| 4 | browse | A narrow line-range read showed `save_image` converting a tensor through PIL and saving it to disk. | This verified the file matched the behavior described by the query. |
+| 5 | final | It answered with `pytorch/vision/torchvision/utils.py`. | The final answer matched the expected file with lower token usage than the shell-only run. |
+
 This example shows the code-search value case: when a query describes behavior
 instead of naming symbols, MFS can avoid a plausible but wrong keyword match and
 then verify the target with less context.
