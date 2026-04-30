@@ -183,21 +183,31 @@ This supports several sync styles:
 
 ## 5. Everything Should Become Searchable
 
+AI workspaces already contain many kinds of knowledge: memory files, raw
+transcripts, codebases, product documents, customer notes, PDFs, tables,
+runbooks, and SKILL trees. In enterprise environments this information will only
+grow. It should be searchable infrastructure, not a pile of disconnected files
+that every agent has to rediscover from scratch.
+
 MFS starts with the file types agents use today: Markdown, source code, text,
 PDF, DOCX, JSON, JSONL, CSV, directories, and images with generated
-descriptions.
+descriptions. The goal is not only "search text files"; it is to make useful
+workspace knowledge addressable by agents.
 
 Different formats enter the system in different ways:
 
 - Markdown, code, text, PDF, and DOCX can be embedded as body chunks.
-- PDF and DOCX are converted to Markdown first and cached.
+- PDF and DOCX are converted to Markdown first and cached, so these awkward
+  document formats can be handled directly instead of requiring manual exports.
 - JSON, JSONL, CSV, YAML, TOML, HTML, and logs are readable through structured
   browse views and searchable with `mfs grep`.
 - Images can become searchable through `mfs add --describe`, which stores a VLM
   text description in the same collection.
 
 The long-term direction is broader: every useful local artifact should have a
-searchable representation, including more multimodal formats. The principle is
-the same whether the source is text, a transcript, a table, a PDF, an image, or
-future media types: keep the original file as truth, derive the searchable
-surface, and let the agent search broadly before browsing precisely.
+searchable representation. Images are the current multimodal path through VLM
+descriptions; future formats could include video, audio, music, screenshots, and
+other media. The principle is the same whether the source is text, a transcript,
+a table, a PDF, an image, or future media types: keep the original file as
+truth, derive the searchable surface, and let the agent search broadly before
+browsing precisely.
