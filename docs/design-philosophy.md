@@ -6,23 +6,7 @@ product.
 
 The design can be reduced to five principles.
 
-## 1. Files Stay the Source of Truth
-
-The user's files are the durable state. Milvus stores a derived index.
-
-That keeps the system predictable:
-
-- deleting `~/.mfs/` does not delete user knowledge
-- `mfs add .` can rebuild the index from the actual files
-- file deletion should remove derived index records
-- Git, editors, `grep`, `cat`, and `find` continue to work normally
-- project folders do not receive generated sidecar files
-
-MFS state lives under `~/.mfs/` by default: config, queue, Milvus Lite database,
-worker status, logs, and converted PDF/DOCX cache. The indexed project
-directory stays clean.
-
-## 2. Search and Browse Are Both Necessary
+## 1. Search and Browse Are Both Necessary
 
 MFS gives agents two complementary ways to get information:
 
@@ -56,7 +40,7 @@ anchors such as error codes, function names, config keys, feature flags, table
 labels, and transcript phrases. Optional generated summaries add another
 retrieval surface, but they do not replace the original chunks.
 
-## 3. Browsing Needs a "Look Once" Layer
+## 2. Browsing Needs a "Look Once" Layer
 
 Traditional shell tools leave a gap:
 
@@ -97,10 +81,47 @@ Markdown is a good example. It already carries semantic structure in headings
 and first paragraphs, so MFS can show a useful outline without asking an LLM to
 summarize the whole file.
 
+LLM summaries are still available as an optional enrichment path. They are not
+required for normal browsing, but they can help broad, macro-level queries land
+on the right file or directory.
+
+During progressive browsing, agents should not rely only on MFS browse commands.
+`mfs cat`, `mfs ls`, and `mfs tree` are designed to work alongside native Linux
+tools such as `grep`, `find`, `sed`, `awk`, and shell pipelines.
+
+## 3. Files Stay the Source of Truth
+
+The user's files are the durable state. Milvus stores a derived index.
+
+That keeps the system predictable:
+
+- deleting `~/.mfs/` does not delete user knowledge
+- `mfs add .` can rebuild the index from the actual files
+- file deletion should remove derived index records
+- Git, editors, `grep`, `cat`, and `find` continue to work normally
+- project folders do not receive generated sidecar files
+
+MFS state lives under `~/.mfs/` by default: config, queue, Milvus Lite database,
+worker status, logs, and converted PDF/DOCX cache. The indexed project
+directory stays clean.
+
+Because files are the source of truth, the index must follow file changes. When
+files are added, edited, removed, or converted from PDF/DOCX, MFS needs to detect
+what changed, update the affected chunks, recompute embeddings where needed, and
+refresh directory summaries.
+
+```text
+real files change
+  -> detect diff
+  -> update derived index
+  -> keep search and browse aligned with disk
+```
+
 ## 4. Sync and Queueing Stay Lightweight
 
+Synchronization is necessary, but it should stay small enough for a CLI tool.
 MFS does not silently rescan on every query. The user or agent updates the index
-explicitly:
+explicitly, or starts a watch loop when the workflow needs it:
 
 ```bash
 mfs add .
@@ -108,7 +129,17 @@ mfs add . --force
 mfs add . --watch --interval 60s
 ```
 
-The sync model is simple:
+The sync path has three concerns:
+
+```mermaid
+flowchart LR
+  files[Files are source of truth] --> diff[Diff<br/>what changed?]
+  diff --> embed[Embedding work<br/>what needs vectors?]
+  embed --> queue[Queue<br/>how to process without blocking?]
+  queue --> usable[Progressively usable index]
+```
+
+The concrete flow is:
 
 ```text
 scan disk files
@@ -123,8 +154,8 @@ scan disk files
 skips the mtime shortcut when a copy, checkout, or sync tool may have preserved
 old timestamps.
 
-The queue is also intentionally small. MFS avoids Redis, RabbitMQ, and
-long-running services:
+The queue is intentionally small. MFS avoids Redis, RabbitMQ, and long-running
+services:
 
 - queue: `~/.mfs/queue.json`
 - lock: filelock around queue writes
@@ -140,6 +171,15 @@ For large corpora, MFS prioritizes likely high-value files first: entry files
 like `README.md` and `SKILL.md`, package metadata, source roots, documentation
 roots, and then lower-value generated or fixture paths. The final index is the
 same; early usefulness is better.
+
+This supports several sync styles:
+
+| Scenario | Sync style |
+| --- | --- |
+| one-time project indexing | `mfs add .` |
+| suspicious timestamps or external copy | `mfs add . --force` |
+| active memory/log append workflow | `mfs add . --watch` |
+| frequent project edits | `mfs add . --watch --interval 60s` |
 
 ## 5. Everything Should Become Searchable
 
