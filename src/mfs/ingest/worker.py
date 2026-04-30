@@ -23,10 +23,12 @@ from ..config import Config, ensure_mfs_home, load_config
 from ..embedder import EmbeddingProvider, get_provider
 from ..llm import VLMCapable
 from ..llm import get_provider as get_llm_provider
+from ..search.summary import build_dir_summary_records
 from ..store import ChunkRecord, MilvusStore
 from .chunker import chunk_file, hash_text
 from .converter import convert_to_markdown, is_convertible
 from .queue import QueueTask, TaskQueue
+from .scanner import Scanner
 
 
 _DEFAULT_SUMMARIZE_PROMPT = (
@@ -413,9 +415,14 @@ def _prepare_llm_task(
 def _generate_summary(llm, task: QueueTask) -> str:
     src = Path(task.source)
     try:
-        content = src.read_text(encoding="utf-8", errors="replace")
+        if is_convertible(src.suffix.lower()):
+            content = convert_to_markdown(src)
+        else:
+            content = src.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:
         raise RuntimeError(f"cannot read {src}: {exc}") from exc
+    except RuntimeError as exc:
+        raise RuntimeError(f"cannot convert {src}: {exc}") from exc
     if len(content) > _MAX_SUMMARIZE_INPUT_CHARS:
         content = content[:_MAX_SUMMARIZE_INPUT_CHARS]
     prompt = _DEFAULT_SUMMARIZE_PROMPT.format(content=content)
@@ -506,6 +513,7 @@ def worker_main(
 
     batch_size = max(1, config.embedding.batch_size)
     processed_total = 0
+    touched_dirs: set[Path] = set()
     logger.info("Worker started (batch_size=%d)", batch_size)
     update_status(home, state="indexing")
     llm_factory = _make_llm_factory(config)
@@ -514,6 +522,9 @@ def worker_main(
         batch = queue.dequeue(batch_size=batch_size)
         if not batch:
             break
+        for task in batch:
+            if task.parent_dir:
+                touched_dirs.add(Path(task.parent_dir))
         n = process_batch(batch, embedder, store, logger, llm_factory=llm_factory)
         processed_total += n
         status = load_status(home)
@@ -527,6 +538,18 @@ def worker_main(
             except Exception:
                 # Progress callbacks are advisory — never let UI errors halt indexing.
                 pass
+
+    if touched_dirs:
+        try:
+            build_dir_summary_records(
+                sorted(touched_dirs),
+                Scanner(config),
+                store,
+                account_id=config.milvus.account_id,
+                embedder_dim=embedder.dimension,
+            )
+        except Exception as exc:
+            logger.warning("Directory summary rebuild failed: %s", exc)
 
     _pid_path(home).unlink(missing_ok=True)
     update_status(home, state="idle")

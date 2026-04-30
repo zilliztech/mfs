@@ -467,7 +467,7 @@ class MilvusStore:
         """Return {source: metadata} for LLM summary chunks under `path_prefix`."""
         expr = f'source like "{_escape(path_prefix)}%" and chunk_index == -1'
         rows = self._query_all(
-            expr, output_fields=["source", "content_type", "metadata"],
+            expr, output_fields=["source", "chunk_text", "content_type", "metadata"],
         )
         needs_filter = _has_like_wildcards(path_prefix)
         out: dict[str, dict] = {}
@@ -478,6 +478,7 @@ class MilvusStore:
             meta = r.get("metadata") or {}
             if isinstance(meta, str):
                 meta = {}
+            meta["text"] = r.get("chunk_text", "") or ""
             meta["content_type"] = r.get("content_type", "llm_summary")
             out[src] = meta
         return out

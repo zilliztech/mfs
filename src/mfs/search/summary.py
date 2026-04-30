@@ -198,6 +198,11 @@ def build_dir_summary_records(
         entry_texts: list[tuple[str, str, bool]] = []
         file_count = 0
         indexed_count = 0
+        llm_summaries: dict[str, dict] = {}
+        try:
+            llm_summaries = store.get_llm_summaries(str(dir_path) + "/")
+        except Exception:
+            llm_summaries = {}
         try:
             children = list(dir_path.iterdir())
         except OSError:
@@ -216,10 +221,19 @@ def build_dir_summary_records(
             if cls != "indexed":
                 continue
             indexed_count += 1
-            try:
-                summary_text = extract_file_summary(child)
-            except Exception:
-                summary_text = ""
+            meta = llm_summaries.get(str(child.resolve()))
+            summary_text = ""
+            if (
+                meta is not None
+                and meta.get("content_type") == C.CONTENT_TYPE_LLM_SUMMARY
+                and not meta.get("stale")
+            ):
+                summary_text = meta.get("text", "") or ""
+            if not summary_text:
+                try:
+                    summary_text = extract_file_summary(child)
+                except Exception:
+                    summary_text = ""
             entry_texts.append((child.name, summary_text, False))
 
         summary = aggregate_dir_summary(

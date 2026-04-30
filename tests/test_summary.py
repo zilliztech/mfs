@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from mfs.search.summary import (
     aggregate_dir_summary,
+    build_dir_summary_records,
     extract_file_summary,
     sort_by_priority,
 )
@@ -64,3 +65,44 @@ def test_extract_file_summary_ok_for_text(tmp_path):
     f.write_text("Line one of a note.\n\nLine two.\n")
     summary = extract_file_summary(f)
     assert "Line one" in summary
+
+
+def test_build_dir_summary_prefers_fresh_llm_file_summary(tmp_path):
+    from mfs.config import Config
+    from mfs.ingest.scanner import Scanner
+
+    doc = tmp_path / "guide.md"
+    doc.write_text("# Guide\n\nPlain heuristic text.\n", encoding="utf-8")
+
+    class _Store:
+        def __init__(self):
+            self.records = []
+
+        def get_llm_summaries(self, path_prefix: str):
+            assert path_prefix == str(tmp_path) + "/"
+            return {
+                str(doc.resolve()): {
+                    "text": "LLM summary: renewal workflow and escalation routing.",
+                    "content_type": "llm_summary",
+                    "stale": False,
+                }
+            }
+
+        def get_dir_summary(self, _dir_path: str):
+            return None
+
+        def insert_chunks(self, records):
+            self.records.extend(records)
+
+    store = _Store()
+    records = build_dir_summary_records(
+        [tmp_path],
+        Scanner(Config()),
+        store,
+        account_id="default",
+        embedder_dim=4,
+    )
+
+    assert records
+    assert "LLM summary" in records[0].chunk_text
+    assert "Plain heuristic text" not in records[0].chunk_text

@@ -50,10 +50,9 @@ mfs cat --peek ./data/config.json
 ## Images
 
 Image files are not directly embedded. MFS can index an image description as
-text if you provide one or opt into VLM description generation.
+text when you opt into VLM description generation.
 
 ```bash
-mfs add ./assets/diagram.png --description "Architecture diagram ..."
 mfs add ./assets --describe
 ```
 

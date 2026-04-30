@@ -90,8 +90,6 @@ indexing does not require them.
 ```bash
 mfs add ./docs --summarize
 mfs add ./assets --describe
-mfs add ./README.md --summary "Short project overview..."
-mfs add ./diagram.png --description "Architecture diagram showing..."
 ```
 
 Options:
@@ -100,8 +98,6 @@ Options:
 | --- | --- |
 | `--summarize` | auto-generate summaries for indexed text files |
 | `--describe` | auto-generate image descriptions with a vision-capable provider |
-| `--summary <text>` | manually attach a summary to one file |
-| `--description <text>` | manually attach a description to one file, often an image |
 
 `--summarize` and `--describe` use the configured `[llm]` provider. Image
 descriptions require a provider/model that can process images.
@@ -447,7 +443,7 @@ Readable and grep-able, but not embedded by default:
 - YAML, TOML, INI, env files
 - HTML, XML, CSS, logs
 
-Images can be searched only when text descriptions have been added through
-`--description` or `--describe`.
+Images can be searched only when text descriptions have been generated through
+`--describe`.
 
 Files larger than 10 MB are skipped by the scanner for indexing.

@@ -358,7 +358,6 @@ tell it apart from body chunks.
 
 ```bash
 mfs add ./docs/ --summarize                                     # auto-generate via the configured [llm]
-mfs add ./docs/note.md --summary "Three auth flows: …"          # inject an external summary
 ```
 
 Summaries are **stale-tracked**: when a summarized file is re-indexed after
@@ -374,7 +373,6 @@ the JSON envelope. Works for PNG / JPG / WEBP / GIF / BMP.
 
 ```bash
 mfs add ./assets/ --describe                                    # auto-generate via a VLM-capable provider
-mfs add ./assets/arch.png --description "System architecture diagram: …"   # inject
 ```
 
 ### Providers

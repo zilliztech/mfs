@@ -47,7 +47,7 @@ LLM summaries and VLM image descriptions are opt-in:
 
 ```bash
 mfs add ./docs --summarize
-mfs add ./assets/diagram.png --description "Architecture diagram ..."
+mfs add ./assets --describe
 ```
 
 This keeps the base path cheaper, easier to reproduce, and easier to run in

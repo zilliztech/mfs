@@ -251,7 +251,12 @@ _IMAGE_EXTENSIONS: frozenset[str] = frozenset(
 
 def _is_text_summarizable(path: Path) -> bool:
     ext = path.suffix.lower()
-    return ext in C.MARKDOWN_EXTENSIONS or ext in C.TEXT_EXTENSIONS or ext in C.CODE_EXTENSIONS
+    return (
+        ext in C.MARKDOWN_EXTENSIONS
+        or ext in C.TEXT_EXTENSIONS
+        or ext in C.CODE_EXTENSIONS
+        or is_convertible(ext)
+    )
 
 
 def _find_image_files(roots: list[Path]) -> list[Path]:
@@ -319,42 +324,6 @@ def _make_llm_task(
     )
 
 
-def _llm_summary_task(
-    file_path: Path,
-    summary_text: str,
-    content_type: str,
-    model_id: str,
-    account_id: str,
-    scanner: Scanner,
-    extra_meta: dict | None = None,
-) -> QueueTask:
-    source = str(file_path.resolve())
-    try:
-        file_hash = scanner.compute_file_hash(file_path) if file_path.exists() and file_path.is_file() else ""
-    except OSError:
-        file_hash = ""
-    content_hash = hash_text(summary_text)
-    # Use chunk_index=-1 line range to differentiate from body chunks
-    chunk_id = generate_chunk_id(source, -1, -1, content_hash, model_id)
-    meta = {"stale": False}
-    if extra_meta:
-        meta.update(extra_meta)
-    return QueueTask(
-        chunk_id=chunk_id,
-        source=source,
-        parent_dir=_parent_dir(file_path),
-        chunk_text=summary_text,
-        chunk_index=-1,
-        start_line=0,
-        end_line=0,
-        content_type=content_type,
-        file_hash=file_hash,
-        is_dir=False,
-        metadata=meta,
-        account_id=account_id,
-    )
-
-
 # ---------------------------------------------------------------------------
 # Click commands
 # ---------------------------------------------------------------------------
@@ -378,10 +347,6 @@ main.add_command(config_group)
 @click.option("--force", is_flag=True, help="Force full hash comparison (skip mtime)")
 @click.option("--watch", is_flag=True, help="Watch for file changes and reindex automatically")
 @click.option("--interval", default=None, help="Watch debounce interval, e.g. 1500ms, 10s, 1m")
-@click.option("--summary", "summary_text", default=None,
-              help="Inject an LLM summary for a single file path")
-@click.option("--description", "description_text", default=None,
-              help="Inject a VLM description for a single file path (e.g. image)")
 @click.option("--summarize", is_flag=True,
               help="Auto-generate LLM summaries for indexed text files (uses configured llm provider)")
 @click.option("--describe", is_flag=True,
@@ -391,7 +356,6 @@ main.add_command(config_group)
 @click.option("--quiet", is_flag=True, help="Minimal output")
 def add(paths: tuple[str, ...], exclude: tuple[str, ...], force: bool,
         watch: bool, interval: str | None,
-        summary_text: str | None, description_text: str | None,
         summarize: bool, describe: bool,
         sync_mode: bool, quiet: bool) -> None:
     config = load_config()
@@ -411,66 +375,6 @@ def add(paths: tuple[str, ...], exclude: tuple[str, ...], force: bool,
     scanner = Scanner(config, extra_excludes=list(exclude))
 
     abs_paths = [Path(p).resolve() for p in paths]
-
-    # --- LLM summary / VLM description injection (single path) ---
-    if summary_text or description_text:
-        if len(abs_paths) != 1 or not abs_paths[0].exists():
-            error("--summary / --description requires exactly one existing path")
-            raise click.exceptions.Exit(2)
-        target = abs_paths[0]
-        queue = _queue(config)
-        body_task_count = 0
-
-        # Index body content first if missing — otherwise the file shows up
-        # in the store with only the LLM summary chunk, which defeats
-        # chunk-level search.
-        if summary_text and target.is_file():
-            already_indexed = str(target) in store.get_indexed_files(str(target.parent))
-            if not already_indexed:
-                info = scanner._file_info_if_indexed(target)
-                if info is not None:
-                    body_tasks, _h = _tasks_for_file(
-                        info, embedder.model_name,
-                        config.milvus.account_id, scanner,
-                        include_text=sync_mode,
-                        task_type="embed" if sync_mode else "embed_ref",
-                    )
-                    if body_tasks:
-                        body_task_count = queue.enqueue(body_tasks)
-
-        if summary_text:
-            task = _llm_summary_task(
-                target, summary_text, "llm_summary",
-                embedder.model_name, config.milvus.account_id, scanner,
-            )
-            queue.enqueue([task])
-        if description_text:
-            task = _llm_summary_task(
-                target, description_text, "vlm_description",
-                embedder.model_name, config.milvus.account_id, scanner,
-            )
-            queue.enqueue([task])
-        if not quiet:
-            if body_task_count:
-                click.echo(
-                    f"Queued {body_task_count} body chunk(s) + injected "
-                    f"summary/description for {target}"
-                )
-            else:
-                click.echo(f"Injected summary/description for {target}")
-        if not sync_mode:
-            Worker(config).ensure_running()
-            if not quiet:
-                click.echo("Worker running in background. Run `mfs status` to check progress.")
-            return
-        try:
-            _drain_sync(quiet=quiet, total_hint=max(1, body_task_count + 1))
-        except Exception as exc:
-            error(f"worker failed: {exc}")
-            raise click.exceptions.Exit(1) from exc
-        if not quiet:
-            click.echo("Summary embedded.")
-        return
 
     # --- Watch mode ---
     if watch:
@@ -1410,7 +1314,7 @@ def _ls_entries(
                 item["stale"] = True
 
             if use_cached:
-                # Prefer injected LLM/VLM summary; fall back to the rule-based
+                # Prefer generated LLM/VLM summary; fall back to the rule-based
                 # skim extraction for plain-text/code/markdown bodies.
                 if llm_meta and llm_meta.get("content_type") in (
                     "llm_summary", "vlm_description"

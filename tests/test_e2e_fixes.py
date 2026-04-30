@@ -514,6 +514,70 @@ def test_async_queue_uses_chunk_refs_and_priority_order(mfs_home, tmp_path, monk
     assert any("/src/" in t["source"] for t in tasks[:2])
 
 
+def test_async_summarize_queue_keeps_llm_tasks_light(mfs_home, tmp_path, monkeypatch):
+    """Async --summarize queues references only; worker fills text later."""
+    import json
+
+    from mfs.cli import _run_add_once
+    from mfs.config import load_config
+    from mfs.ingest.scanner import Scanner
+    from mfs.store import MilvusStore
+
+    work = tmp_path / "summaries"
+    work.mkdir()
+    doc = work / "guide.md"
+    doc.write_text("# Guide\n\nToken rotation policy lives here.\n", encoding="utf-8")
+
+    class _StubEmbedder:
+        model_name = "stub"
+        dimension = 8
+        batch_size = 16
+
+    monkeypatch.setattr("mfs.cli.Worker.ensure_running", lambda self: None)
+
+    config = load_config()
+    store = MilvusStore(config.milvus, 8)
+    store.connect()
+    scanner = Scanner(config)
+
+    _run_add_once(
+        [work.resolve()],
+        force=False,
+        sync_mode=False,
+        quiet=True,
+        config=config,
+        embedder=_StubEmbedder(),
+        store=store,
+        scanner=scanner,
+        summarize=True,
+    )
+
+    data = json.loads((mfs_home / "queue.json").read_text(encoding="utf-8"))
+    tasks = data["tasks"]
+    assert {t["task_type"] for t in tasks} == {"embed_ref", "llm_summarize"}
+    assert all(t["chunk_text"] == "" for t in tasks)
+
+    summary_tasks = [t for t in tasks if t["task_type"] == "llm_summarize"]
+    assert len(summary_tasks) == 1
+    assert summary_tasks[0]["source"] == str(doc.resolve())
+    assert summary_tasks[0]["chunk_index"] == -1
+    assert summary_tasks[0]["content_type"] == "llm_summary"
+    assert summary_tasks[0]["metadata"] == {"stale": False}
+
+
+def test_add_help_excludes_manual_summary_options():
+    """Manual summary/description injection is not part of the CLI surface."""
+    from mfs.cli import main
+
+    runner = CliRunner()
+    result = runner.invoke(main, ["add", "--help"])
+    assert result.exit_code == 0
+    assert "--summarize" in result.output
+    assert "--describe" in result.output
+    assert "--summary" not in result.output
+    assert "--description" not in result.output
+
+
 def test_worker_restores_embed_ref_before_insert(tmp_path):
     """The worker can recover chunk text from a lightweight queue reference."""
     import logging
@@ -564,6 +628,48 @@ def test_worker_restores_embed_ref_before_insert(tmp_path):
     count = process_batch([task], _StubEmbedder(), store, logging.getLogger("test"))
     assert count == 1
     assert store.records[0].chunk_text == chunk.text
+
+
+def test_worker_summary_uses_converter_for_binary_docs(tmp_path, monkeypatch):
+    """PDF/DOCX summaries should use converted Markdown, not raw file bytes."""
+    from mfs.ingest.queue import QueueTask
+    from mfs.ingest import worker as worker_mod
+
+    source = tmp_path / "brief.pdf"
+    source.write_bytes(b"%PDF not actually parsed in this unit test")
+    seen: dict[str, str] = {}
+
+    class _StubLLM:
+        def generate(self, prompt: str) -> str:
+            seen["prompt"] = prompt
+            return "summary"
+
+    monkeypatch.setattr(worker_mod, "is_convertible", lambda ext: ext == ".pdf")
+    monkeypatch.setattr(
+        worker_mod,
+        "convert_to_markdown",
+        lambda path: "# Converted Brief\n\nThis came from markdown conversion.",
+    )
+
+    task = QueueTask(
+        chunk_id="summary-1",
+        source=str(source),
+        parent_dir=str(tmp_path),
+        chunk_text="",
+        chunk_index=-1,
+        start_line=0,
+        end_line=0,
+        content_type="llm_summary",
+        file_hash="abc",
+        is_dir=False,
+        metadata={"stale": False},
+        account_id="default",
+        task_type="llm_summarize",
+    )
+
+    assert worker_mod._generate_summary(_StubLLM(), task) == "summary"
+    assert "Converted Brief" in seen["prompt"]
+    assert "%PDF" not in seen["prompt"]
 
 
 def test_modified_file_queues_only_new_chunk_refs(mfs_home, tmp_path, monkeypatch):
