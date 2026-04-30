@@ -16,8 +16,8 @@ theme:
     - search.highlight
     - content.code.copy
   font:
-    text: Fira Code
-    code: Fira Code
+    text: JetBrains Mono
+    code: JetBrains Mono
   icon:
     repo: fontawesome/brands/github
 
@@ -34,8 +34,8 @@ nav:
     - Design Philosophy: design-philosophy.md
     - Architecture: architecture.md
     - Quickstart: getting-started.md
+  - CLI Reference: cli.md
   - User Guide:
-    - CLI Reference: cli.md
     - Search and Browse: search-and-browse.md
     - Agent Skill: skill.md
     - File Formats: formats.md

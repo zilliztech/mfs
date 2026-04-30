@@ -130,6 +130,15 @@ def test_config_show_marks_env_overlay(cli_main, mfs_home, monkeypatch):
     assert "sk-test-XYZ" not in result.output
 
 
+def test_config_show_json_redacts_secrets(cli_main, mfs_home, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-JSON")
+    runner = CliRunner()
+    result = runner.invoke(cli_main, ["config", "show", "--json"])
+    assert result.exit_code == 0, result.output
+    assert "sk-test-JSON" not in result.output
+    assert '"api_key": "<set>"' in result.output
+
+
 def test_config_show_marks_file_override(cli_main, mfs_home):
     runner = CliRunner()
     runner.invoke(cli_main, ["config", "set", "embedding.batch_size", "64"])
