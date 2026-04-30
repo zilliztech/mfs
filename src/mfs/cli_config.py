@@ -194,6 +194,10 @@ def _config_to_dict(cfg: Config) -> dict:
     out = {}
     for section in ("embedding", "llm", "indexing", "cache", "milvus"):
         out[section] = asdict(getattr(cfg, section))
+    for key in SECRET_KEYS:
+        section, fname = key.split(".", 1)
+        if out.get(section, {}).get(fname):
+            out[section][fname] = "<set>"
     return out
 
 
