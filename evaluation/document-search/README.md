@@ -93,8 +93,8 @@ when documentation has many adjacent pages with overlapping vocabulary.
 
 ## Run Notes
 
-The run used commit `5187cf2` and Codex CLI with the GPT-5.5 Codex profile.
-The main WixQA full-corpus runs were completed on April 28, 2026.
+The run used commit `5187cf2` and Codex CLI 0.125.0 with the GPT-5.5 Codex
+profile. The main WixQA full-corpus runs were completed on April 28, 2026.
 
 The harness ran Codex CLI in non-interactive JSON mode with `codex exec
 --json`. For A0S and MFS workflows, the skill prompt listed in the comparison

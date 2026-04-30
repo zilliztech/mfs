@@ -127,17 +127,19 @@ The strongest pattern is not "MFS replaces grep." It is:
 
 ## How We Ran It
 
-The code-search evaluation used Claude Code in non-interactive mode. Each task
-was run with `claude -p`, the workflow prompt was injected with
+The code-search evaluation used Claude Code 2.1.119 with `claude-sonnet-4-6`
+in non-interactive mode. Each task was run with `claude -p`, the workflow
+prompt was injected with
 `--append-system-prompt`, and tool restrictions controlled which MFS commands
 were available.
 
-The document-search evaluation used Codex CLI in non-interactive JSON mode.
-Each task was run with `codex exec --json`, the prompt was sent on stdin, and
-the harness parsed the JSONL event stream for final answers, command traces,
-and token usage. Because Codex CLI did not expose the same fine-grained shell
-tool restrictions, the harness controlled MFS access by placing a small `mfs`
-wrapper script at the front of `PATH`.
+The document-search evaluation used Codex CLI 0.125.0 with the GPT-5.5 Codex
+profile in non-interactive JSON mode. Each task was run with `codex exec
+--json`, the prompt was sent on stdin, and the harness parsed the JSONL event
+stream for final answers, command traces, and token usage. Because Codex CLI
+did not expose the same fine-grained shell tool restrictions, the harness
+controlled MFS access by placing a small `mfs` wrapper script at the front of
+`PATH`.
 
 Token usage is reported with a consistent fresh input/output definition so the
 tables focus on context the agent actively consumed and produced. The exact

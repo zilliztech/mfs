@@ -91,8 +91,9 @@ implementation and verified the relevant line window.
 
 ## Run Notes
 
-The run used commit `afaf8c6`, Claude Code, and Claude Sonnet 4.6. The final
-run window was April 24, 2026, 04:15:45 to 04:50:56 UTC.
+The run used commit `afaf8c6`, Claude Code 2.1.119 with
+`claude-sonnet-4-6`, and the final run window was April 24, 2026, 04:15:45 to
+04:50:56 UTC.
 
 The harness ran Claude Code in non-interactive mode with `claude -p`. Each
 workflow's skill prompt, listed in the comparison table above, was injected
