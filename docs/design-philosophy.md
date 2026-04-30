@@ -1,14 +1,16 @@
 # Design Philosophy
 
-MFS is built as infrastructure for agents, not as a replacement filesystem or a
-closed knowledge product. The design favors ordinary files, explicit commands,
-and predictable indexing behavior.
+MFS is built as infrastructure for agents: a thin file-search layer over
+ordinary workspaces, not a replacement filesystem and not a closed knowledge
+product.
 
-## Files Are the Source of Truth
+The design can be reduced to five principles.
+
+## 1. Files Stay the Source of Truth
 
 The user's files are the durable state. Milvus stores a derived index.
 
-That principle keeps the system simple:
+That keeps the system predictable:
 
 - deleting `~/.mfs/` does not delete user knowledge
 - `mfs add .` can rebuild the index from the actual files
@@ -17,113 +19,88 @@ That principle keeps the system simple:
 - project folders do not receive generated sidecar files
 
 MFS state lives under `~/.mfs/` by default: config, queue, Milvus Lite database,
-worker status, logs, and converted PDF/DOCX cache.
+worker status, logs, and converted PDF/DOCX cache. The indexed project
+directory stays clean.
 
-## Search Body Chunks, Not Just Summaries
+## 2. Search and Browse Are Both Necessary
 
-Agents often need exact anchors: error codes, function names, config keys,
-feature flags, table labels, class names, or a phrase from a transcript. These
-details are easy to lose if retrieval is built only on generated summaries.
+MFS gives agents two complementary ways to get information:
 
-MFS indexes body chunks directly. Optional generated summaries can add another
-retrieval surface, but they do not replace the original chunks.
+- **flat global search** with `mfs search` and `mfs grep`
+- **progressive local browsing** with `mfs ls`, `mfs tree`, and `mfs cat`
+
+They solve different jobs. Search answers **where might the answer be?** Browse
+answers **what is around this result, and what should I read next?**
+
+This is close to how people use the web: first use a prebuilt index to find
+candidate pages, then read previews, then open the specific page and navigate
+inside it. The index matters because at large scale a blind browse is too slow.
+The browse step matters because one search result rarely contains all the local
+context an agent needs.
+
+It is also close to how people use a library: search the catalog first, inspect
+the right shelf next, then read the exact pages.
+
+MFS keeps both paths available:
 
 ```bash
-mfs add ./docs
-mfs search "ERR_TOKEN_EXPIRED" ./docs --mode keyword
 mfs search "how does token revocation work" ./docs --mode hybrid
+mfs grep "ERR_TOKEN_EXPIRED" ./docs
+mfs tree --peek -L 2 ./docs
+mfs cat --skim ./docs/auth.md
+mfs cat -n 80:140 ./docs/auth.md
 ```
 
-This lets exact and semantic retrieval work over the same source files.
+MFS searches body chunks directly, not only summaries. This preserves exact
+anchors such as error codes, function names, config keys, feature flags, table
+labels, and transcript phrases. Optional generated summaries add another
+retrieval surface, but they do not replace the original chunks.
 
-## Search and Browse Have Different Jobs
+## 3. Browsing Needs a "Look Once" Layer
 
-Search answers: **where might the answer be?**
+Traditional shell tools leave a gap:
 
-Browse answers: **what is around this result, and what should I read next?**
+- `cat` is too detailed and can waste tokens on whole files
+- `ls` and `tree` show names but too little content
+- `grep` shows local matches but not the overall shape
 
-MFS keeps those jobs separate:
+Agents need a fast way to look at a file or directory and understand its rough
+structure before deciding where to spend context.
 
-- `mfs search` performs flat retrieval across the indexed corpus.
-- `mfs grep` handles exact search across indexed and non-indexed text.
-- `mfs ls`, `mfs tree`, and `mfs cat` expose the file hierarchy and local
-  structure.
-- `mfs cat -n start:end` reads exact lines once the target is clear.
+Most useful local data already has a tree shape:
 
-This separation matters for agents. A search engine should not pretend to make
-all browsing decisions. An agent should not replace corpus-wide search with a
-blind directory walk.
+| Data | Natural structure |
+| --- | --- |
+| Markdown | headings and paragraphs |
+| Code | modules, classes, functions, symbols |
+| JSON | nested keys and values |
+| JSONL | rows, then keys inside each row |
+| CSV | headers, rows, cells |
+| Directory | child files and subdirectories |
 
-## W/H/D Controls Information Density
+To "look once", MFS renders the trunk before the leaves. It exposes the same
+information-density controls across `cat`, `ls`, and `tree`:
 
-Agent tools need a middle granularity between `ls` and full-file `cat`.
+| Control | Meaning |
+| --- | --- |
+| `-W` | width: characters per node, value, paragraph, or summary |
+| `-H` | height: number of headings, rows, entries, or children |
+| `-D` | depth: nested levels to expand |
 
-MFS uses three density knobs across `cat`, `ls`, and `tree`:
-
-| Knob | Meaning | Examples |
-| --- | --- | --- |
-| `-W` | Width: characters per node, paragraph, value, or summary | shorter or longer preview text |
-| `-H` | Height: number of headings, symbols, rows, or children | fewer or more top-level items |
-| `-D` | Depth: levels of nested structure to expand | headings, JSON keys, directory levels |
-
-The presets are shortcuts over those knobs:
+The presets are shortcuts:
 
 - `--peek`: structure only
 - `--skim`: compact overview
 - `--deep`: richer context
 
-Different file types map naturally onto this model:
+Markdown is a good example. It already carries semantic structure in headings
+and first paragraphs, so MFS can show a useful outline without asking an LLM to
+summarize the whole file.
 
-| File type | Structure | What browse shows |
-| --- | --- | --- |
-| Markdown | heading tree | headings plus bounded paragraph previews |
-| Code | module, class, function, symbol structure | signatures and local excerpts |
-| JSON / JSONL | nested keys and rows | compact structural preview |
-| CSV | headers and sample rows | table shape and representative rows |
-| Directory | child files and subdirectories | names, indexed state, summaries |
-
-The goal is controlled context spending: enough information to decide the next
-step, not enough to flood the agent.
-
-## Markdown Already Carries Structure
-
-Markdown notes, memory summaries, runbooks, and skill files often contain useful
-semantic structure in their headings and first paragraphs. MFS uses that
-structure directly for chunking and browse summaries.
-
-Default indexing does not need an LLM to understand a Markdown outline. The
-agent can use the outline through `mfs cat --peek` or `mfs cat --skim`, then
-read exact lines when needed.
-
-Generated LLM summaries are opt-in:
-
-```bash
-mfs add ./docs --summarize
-```
-
-They are useful for some vague document-retrieval workloads, but the base path
-remains deterministic and cheaper to run.
-
-## No LLM in the Default Hot Path
-
-Default ingestion uses deterministic file scanning, conversion, chunking,
-embedding, and Milvus insertion. It does not call an LLM for every file.
-
-Optional enrichment is explicit:
-
-```bash
-mfs add ./docs --summarize
-mfs add ./assets --describe
-```
-
-This keeps MFS usable in offline or restricted environments when configured with
-a local embedding provider, and avoids making the index pipeline depend on
-generation latency or summary cache consistency.
-
-## Synchronization Is Explicit
+## 4. Sync and Queueing Stay Lightweight
 
 MFS does not silently rescan on every query. The user or agent updates the index
-with `mfs add`.
+explicitly:
 
 ```bash
 mfs add .
@@ -131,25 +108,23 @@ mfs add . --force
 mfs add . --watch --interval 60s
 ```
 
-The sync model is intentionally lightweight:
+The sync model is simple:
 
-1. scan the requested files
-2. compare current sources with indexed sources in Milvus
-3. use mtime as a fast hint and file hash as the content check
-4. delete records for removed files
-5. queue new or changed chunks
-6. rebuild affected directory summaries
-7. let the worker embed queued tasks
+```text
+scan disk files
+  -> compare with indexed {source, file_hash}
+  -> delete rows for removed files
+  -> queue new or changed chunk refs
+  -> embed queued work
+  -> rebuild affected directory summaries
+```
 
-`--force` skips the mtime shortcut and recomputes hashes. Use it after unusual
-operations that preserve old timestamps, such as some `rsync` or copy flows.
+`mtime` is used as a fast hint, and file hash is the content check. `--force`
+skips the mtime shortcut when a copy, checkout, or sync tool may have preserved
+old timestamps.
 
-## The Queue Is Lightweight, Not a Broker
-
-Embedding can be the slow part, so the default `mfs add` path queues work and
-starts a detached worker. The worker exits after the queue is empty.
-
-MFS avoids Redis, RabbitMQ, and long-running services:
+The queue is also intentionally small. MFS avoids Redis, RabbitMQ, and
+long-running services:
 
 - queue: `~/.mfs/queue.json`
 - lock: filelock around queue writes
@@ -157,32 +132,32 @@ MFS avoids Redis, RabbitMQ, and long-running services:
 - progress: `~/.mfs/status.json`
 - logs: `~/.mfs/worker.log`
 
-Queue entries store references and metadata, not large raw chunk bodies. If a
-machine stops mid-index, the recovery path is to rerun `mfs add` or use
-`mfs add --force`.
+Queue entries store references and metadata, not large raw chunk bodies. The
+worker exits after the queue is empty. If a machine stops mid-index, the
+recovery path is to rerun `mfs add` or use `mfs add --force`.
 
-## Make Large Corpora Useful Early
+For large corpora, MFS prioritizes likely high-value files first: entry files
+like `README.md` and `SKILL.md`, package metadata, source roots, documentation
+roots, and then lower-value generated or fixture paths. The final index is the
+same; early usefulness is better.
 
-When thousands of chunks are waiting, the final index is the same regardless of
-order. But early usefulness matters for agents.
+## 5. Everything Should Become Searchable
 
-MFS prioritizes likely high-value files first:
+MFS starts with the file types agents use today: Markdown, source code, text,
+PDF, DOCX, JSON, JSONL, CSV, directories, and images with generated
+descriptions.
 
-- root entry files such as `README.md`, `SKILL.md`, `CLAUDE.md`, `INDEX.md`
-- package and build metadata such as `pyproject.toml`, `package.json`, `go.mod`
-- source roots such as `src`, `lib`, `app`, `services`
-- documentation roots such as `docs`, `guides`, `reference`
-- generated, vendor, build, and fixture paths later
+Different formats enter the system in different ways:
 
-The same priority idea also helps browse commands show important entries near
-the top.
+- Markdown, code, text, PDF, and DOCX can be embedded as body chunks.
+- PDF and DOCX are converted to Markdown first and cached.
+- JSON, JSONL, CSV, YAML, TOML, HTML, and logs are readable through structured
+  browse views and searchable with `mfs grep`.
+- Images can become searchable through `mfs add --describe`, which stores a VLM
+  text description in the same collection.
 
-## Keep the Project Directory Clean
-
-MFS does not write `.abstract.md`, `.overview.md`, `.mfs/`, or other generated
-state into the target project. This avoids polluting repositories and avoids a
-second synchronization problem where generated files themselves need to be
-tracked, ignored, or updated.
-
-The project directory stays the user's directory. MFS is the index and browse
-layer around it.
+The long-term direction is broader: every useful local artifact should have a
+searchable representation, including more multimodal formats. The principle is
+the same whether the source is text, a transcript, a table, a PDF, an image, or
+future media types: keep the original file as truth, derive the searchable
+surface, and let the agent search broadly before browsing precisely.

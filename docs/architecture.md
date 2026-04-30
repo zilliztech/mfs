@@ -1,74 +1,265 @@
 # Architecture
 
-MFS has two paths: ingest and retrieve.
+MFS is a small CLI layer around local files and Milvus. It has two major data
+paths:
+
+- **ingest**: turn files into indexed chunks, summaries, and metadata
+- **retrieve**: combine indexed search with live filesystem browsing
+
+## System Position
+
+```mermaid
+flowchart TB
+  agent[Shell-based agents<br/>Codex, Claude Code, OpenCode, custom tools]
+  skill[MFS Skill<br/>search, browse, verify workflow]
+  cli[MFS CLI<br/>add, search, grep, ls, tree, cat]
+  files[Local files<br/>memory, skills, transcripts, code, docs]
+  state[MFS state<br/>~/.mfs/config.toml<br/>queue.json, status.json, converted cache]
+  milvus[Milvus / Zilliz Cloud<br/>dense vectors, BM25, metadata filters]
+
+  agent --> skill
+  skill --> cli
+  agent --> cli
+  cli --> files
+  cli --> state
+  cli --> milvus
+  milvus --> cli
+```
+
+MFS does not mount a filesystem and does not require an always-on service. The
+project directory stays clean; derived state lives under `~/.mfs/` by default.
+
+## Command Surface
+
+```text
+                ┌─────────────── mfs ───────────────┐
+                │                                    │
+        ingest  │  add      status      remove       │
+                │                                    │
+        search  │  search   grep                    │
+                │                                    │
+        browse  │  ls       tree       cat           │
+                │                                    │
+        config  │  config path/show/get/set/init     │
+                └────────────────────────────────────┘
+```
+
+Search commands read indexed state. Browse commands read the live filesystem and
+can be used before indexing.
+
+## Ingest Path
+
+`mfs add <path...>` scans files, detects changes, builds chunk tasks, and either
+processes them in the foreground or hands them to a short-lived worker.
 
 ```mermaid
 flowchart LR
-  F[Local files] --> S[Scanner]
-  S --> C[Chunker / converter]
-  C --> Q[queue.json]
-  Q --> W[Worker]
-  W --> E[Embedder]
-  E --> M[Milvus collection]
-  M --> R[search / grep]
-  F --> B[ls / tree / cat browse]
-  B --> R
+  input[paths] --> scan[Scanner<br/>ignore rules, extension policy, size limit]
+  scan --> diff[Diff<br/>disk files vs indexed sources]
+  diff --> added[added / modified]
+  diff --> deleted[deleted]
+  deleted --> drop[delete rows by source]
+  added --> convert{convertible?}
+  convert -- PDF/DOCX --> md[Markdown converter<br/>cached in ~/.mfs/converted]
+  convert -- text/code/markdown --> chunk[Chunker]
+  md --> chunk
+  chunk --> tasks[QueueTask records]
+  tasks --> mode{--sync?}
+  mode -- yes --> inline[inline batch processing]
+  mode -- no --> queue[~/.mfs/queue.json]
+  queue --> worker[detached worker]
+  inline --> embed[Embedding provider]
+  worker --> embed
+  embed --> store[Milvus upsert]
+  store --> dirs[rebuild directory summaries]
 ```
 
-## Ingest path
+Key points:
 
-`mfs add <path...>` does the indexing work in stages:
+- `mtime` is used as a fast hint; file hash is the content check.
+- `--force` skips the mtime shortcut and recomputes hashes.
+- Modified files only re-queue chunks that changed; unchanged chunk IDs are
+  preserved.
+- PDF and DOCX are converted to Markdown before chunking or summarization.
+- `--summarize` and `--describe` add enrichment tasks; they are opt-in.
 
-1. scan files under the requested paths
-2. apply ignore rules and extension classification
-3. convert PDF/DOCX to Markdown when needed
-4. chunk Markdown, code, and text
-5. enqueue chunk tasks
-6. embed and write chunks to Milvus
+## Queue and Worker
 
-Without `--sync`, steps 1-5 happen in the foreground and a detached worker
-handles embedding. With `--sync`, embedding runs in the foreground with a
-progress bar.
+The async path is intentionally simple.
 
-## Queue model
+```text
+mfs add .
+  ├─ scan, diff, chunk
+  ├─ write lightweight QueueTask records to ~/.mfs/queue.json
+  ├─ start worker if one is not running
+  └─ return to caller
 
-The queue lives at `~/.mfs/queue.json`. It is intentionally lightweight local
-state, not a durable distributed queue. If a machine crashes during background
-embedding, the recovery path is simple: run `mfs add . --force` or rebuild the
-index from files.
+worker
+  ├─ dequeue batch
+  ├─ restore chunk text from source file when task_type=embed_ref
+  ├─ call LLM/VLM only for opt-in summary/description tasks
+  ├─ embed texts in batches
+  ├─ upsert rows into Milvus
+  ├─ update ~/.mfs/status.json
+  ├─ rebuild touched directory summaries
+  └─ exit when queue is empty
+```
 
-Queue items store enough metadata for the worker to re-read changed files and
-embed current chunks without keeping large raw text blobs in the queue.
+The queue is not a durable broker. It stores references and metadata instead of
+large raw chunk bodies. If the machine stops mid-index, run `mfs add .` again or
+use `mfs add . --force`.
 
-## Priority order
+Priority ordering is applied before async enqueue:
 
-When many files are queued, MFS pushes likely-useful files earlier:
+```mermaid
+flowchart TB
+  root[Entry files<br/>README, SKILL, CLAUDE, INDEX] --> pkg[Package and build metadata]
+  pkg --> src[Source roots<br/>src, lib, app, services]
+  src --> docs[Docs and references<br/>docs, guides, manuals]
+  docs --> examples[Examples and notebooks]
+  examples --> tests[Tests, fixtures, generated, vendor]
+```
 
-- important entry files such as `README.md`, `SKILL.md`, `CONTRIBUTING.md`
-- package/build files such as `pyproject.toml`, `package.json`, `go.mod`
-- source directories such as `src`, `lib`, `app`, `services`
-- documentation directories such as `docs`, `guides`, `reference`
-- examples and notebooks after core docs/code
-- generated, vendor, build, and test fixture paths later
+This does not change the final index. It only makes large corpora useful earlier
+while embedding is still running.
 
-This does not change the final index. It only improves early usefulness while
-a large indexing job is still running.
+## Milvus Collection Model
 
-## Retrieval path
+All searchable records share one collection.
 
-`mfs search` uses a `Searcher` over Milvus:
+```text
+mfs_chunks
+  id             primary key, deterministic chunk id
+  source         original file or directory path
+  parent_dir     parent directory path
+  chunk_index    body chunk index, -1 for generated enrichment, 0 for dirs
+  start_line     source start line
+  end_line       source end line
+  chunk_text     searchable text, analyzer-enabled for BM25
+  dense_vector   embedding vector
+  sparse_vector  BM25 sparse vector generated by Milvus
+  content_type   markdown, code, text, llm_summary, vlm_description, directory
+  file_hash      source file hash
+  is_dir         directory summary marker
+  embed_status   complete / pending
+  metadata       JSON details such as headings, language, stale state
+  account_id     tenant or namespace label
+```
 
-- `hybrid`: dense vector search + BM25 + reciprocal rank fusion
-- `semantic`: dense vector search only
-- `keyword`: BM25 keyword search only
+```mermaid
+flowchart LR
+  body[Body chunks<br/>chunk_index >= 0] --> collection[(Milvus collection)]
+  summary[LLM summaries<br/>chunk_index = -1] --> collection
+  image[VLM image descriptions<br/>chunk_index = -1] --> collection
+  dir[Directory summaries<br/>is_dir = true] --> collection
+  collection --> dense[dense vector index]
+  collection --> sparse[BM25 sparse index]
+  collection --> scalar[source/path/content filters]
+```
 
-`mfs grep` routes exact search through indexed content where possible and falls
-back to system grep for paths that are not embedded.
+Directory summaries are records too. They let broad queries return a directory
+when the directory is the right navigation target, and they feed `mfs ls` /
+`mfs tree` previews.
 
-`mfs ls`, `mfs tree`, and `mfs cat` read the filesystem directly and render
-bounded density views. They can also consult indexed summaries when available.
+## Retrieval Path
 
-## Storage
+`mfs search` and `mfs grep` use different routes.
+
+```mermaid
+flowchart TB
+  query[query] --> mode{search mode}
+  mode -- semantic --> emb[embed query]
+  emb --> dense[dense vector search]
+  mode -- keyword --> bm25[BM25 keyword search]
+  mode -- hybrid --> both[dense + BM25]
+  both --> rrf[RRF fusion]
+  dense --> post[post-process stale paths]
+  bm25 --> post
+  rrf --> post
+  post --> hits[ranked hits<br/>source, lines, content, score, metadata]
+```
+
+Search modes:
+
+| Mode | Route | Best for |
+| --- | --- | --- |
+| `hybrid` | dense + BM25 + reciprocal rank fusion | default agent search |
+| `semantic` | dense vector only | paraphrased or conceptual queries |
+| `keyword` | BM25 only | identifiers, exact terms, error codes |
+
+`mfs grep` is exact search. It first uses indexed BM25 to find likely indexed
+files, then verifies matches by reading file lines. For unindexed files under a
+scoped directory, it can fall back to system grep.
+
+```mermaid
+flowchart LR
+  pattern[pattern] --> prefilter[Milvus BM25 prefilter]
+  prefilter --> indexed[read indexed files and regex match lines]
+  pattern --> unindexed[system grep over unindexed scoped files]
+  indexed --> matches[grep matches with context lines]
+  unindexed --> matches
+```
+
+## Browse Path
+
+Browse commands read files directly. They are not just wrappers around search.
+
+```mermaid
+flowchart TB
+  path[path] --> command{command}
+  command -- ls --> children[directory children]
+  command -- tree --> recursive[recursive directory tree]
+  command -- cat --> file[file content]
+  children --> density[W/H/D density renderer]
+  recursive --> density
+  file --> parser{file shape}
+  parser -- Markdown --> headings[heading tree]
+  parser -- Code --> symbols[symbols and excerpts]
+  parser -- JSON/JSONL --> keys[keys, rows, nested values]
+  parser -- CSV --> table[headers and sample rows]
+  parser -- PDF/DOCX --> converted[converted Markdown]
+  headings --> density
+  symbols --> density
+  keys --> density
+  table --> density
+  converted --> density
+  density --> output[text or JSON]
+```
+
+The density controls are shared:
+
+| Control | Meaning |
+| --- | --- |
+| `-W` | width: characters per node, value, paragraph, or summary |
+| `-H` | height: number of headings, rows, entries, or children |
+| `-D` | depth: nested levels to expand |
+
+This is the "look once" layer between `ls` and full-file `cat`.
+
+## Sync and State
+
+```mermaid
+sequenceDiagram
+  participant U as user or agent
+  participant CLI as mfs add
+  participant FS as filesystem
+  participant M as Milvus
+  participant Q as queue.json
+  participant W as worker
+
+  U->>CLI: mfs add .
+  CLI->>FS: scan current files
+  CLI->>M: read indexed {source, file_hash}
+  CLI->>CLI: compute added / modified / deleted
+  CLI->>M: delete stale rows
+  CLI->>Q: enqueue changed chunk refs
+  CLI->>W: start if needed
+  W->>Q: dequeue batch
+  W->>FS: restore chunk text
+  W->>M: embed and upsert
+  W->>M: rebuild directory summaries
+  W->>Q: exit when empty
+```
 
 Default state layout:
 
@@ -77,9 +268,11 @@ Default state layout:
   config.toml
   milvus.db
   queue.json
+  queue.json.lock
+  status.json
+  worker.log
   converted/
+    <hash>.md
 ```
 
-The Milvus collection defaults to `mfs_chunks`. Each row represents a chunk,
-summary, image description, or directory summary with metadata such as source
-path, line range, content type, file hash, and account id.
+The collection can be rebuilt from files. The files remain the durable source.
