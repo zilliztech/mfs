@@ -1,62 +1,111 @@
 # MFS
 
-**MFS is a semantic file search CLI built for agents driving a shell.** It gives
-local folders a search layer that feels like normal POSIX tools: `search`,
-`grep`, `ls`, `tree`, and `cat`.
+**MFS is an agent-native file search layer for large local workspaces.**
 
-The core idea is simple:
+Agent projects are increasingly built on folders full of files: Markdown memory
+logs, JSONL session transcripts, SKILL documents, design notes, codebases,
+runbooks, PDFs, DOCX files, and long-lived knowledge bases. These files are easy
+for humans to edit, but hard for an agent to search reliably with only `grep`,
+`find`, and full-file reads.
 
-- files stay on disk and remain the source of truth
-- Milvus is a rebuildable index, not a second filesystem
-- agents use semantic search to locate candidates
-- agents use progressive browsing to verify context before acting
+MFS adds a Milvus-backed retrieval layer over those files while keeping the
+folder itself as the source of truth. It gives agents the two capabilities they
+need most:
+
+- **Search**: quickly locate likely files and chunks across a large corpus with
+  hybrid semantic and keyword retrieval.
+- **Browse**: inspect just enough surrounding structure with `ls`, `tree`, and
+  `cat` before reading exact lines or making changes.
 
 ```bash
 mfs add .
-mfs search "how do we refresh expired tokens" .
-mfs cat --skim ./src/auth/token.py
-mfs cat -n 80:140 ./src/auth/token.py
+mfs search "where do we store memory rollover rules" .
+mfs tree --peek -L 2 ./skills
+mfs cat --skim ./memory/2026-04.md
+mfs cat -n 80:140 ./memory/2026-04.md
 ```
 
-## Where MFS sits
+## The Layer MFS Provides
+
+MFS sits between shell-based agents and the files they need to understand.
 
 ```mermaid
 flowchart TB
-  A[Agent applications<br/>memory, skills, docs, codebases] --> B[MFS CLI<br/>add, search, grep, ls, tree, cat]
-  B --> C[Milvus / Zilliz Cloud<br/>dense vectors, BM25, metadata]
-  B --> D[Local files<br/>source of truth]
-  D --> B
+  A[Agent workflows<br/>Codex, Claude Code, OpenCode, custom agents] --> B[MFS CLI + Skill]
+  B --> C[Search<br/>semantic, keyword, grep]
+  B --> D[Browse<br/>ls, tree, cat, W/H/D density]
+  C --> E[Milvus / Zilliz Cloud<br/>vectors, BM25, metadata]
+  D --> F[Local files<br/>source of truth]
+  F --> B
+  E --> B
 ```
 
-MFS is not a daemon, an SDK-first framework, or a filesystem mount. It is a
-small command-line layer that any agent, script, or developer can invoke.
+Typical corpora:
 
-## Two legs: search and browse
+| Corpus | Common shape | What MFS helps with |
+| --- | --- | --- |
+| Agent memory | Markdown summaries, JSONL transcripts, daily logs | Recover prior decisions, inspect raw turns, compare nearby memories. |
+| Agent skills | `SKILL.md`, references, examples, scripts | Find the right skill rule and verify the exact instruction text. |
+| Codebases | Source files, tests, package metadata, docs | Search concepts, identifiers, errors, and browse symbols before editing. |
+| Knowledge bases | Markdown, PDFs, DOCX, runbooks, design specs | Locate answers when the user's wording does not match titles or filenames. |
+| Session archives | Long JSONL or text logs | Combine indexed search with exact grep and structured `cat` views. |
 
-Search is flat and global. It answers: **where might the answer be?**
+## Why Agents Need Both Search and Browse
 
-Browse is hierarchical and local. It answers: **what is around this hit, and
-what should I inspect next?**
+Plain shell tools are strong when the agent already knows the exact token. They
+are weak when the user asks in natural language, or when the relevant file name
+does not contain the answer.
 
-This matters for agents. A single search chunk is often too narrow; reading
-whole files is often too expensive. MFS gives agents the middle path:
-`--peek`, `--skim`, `--deep`, and line-range drilldown.
+Pure semantic search is also not enough. A single chunk can point to the right
+place but still hide the surrounding directory, headings, adjacent files, or
+exact line range the agent must verify.
 
-## What it can index
+MFS treats search and browsing as two separate, complementary moves:
 
-MFS currently indexes Markdown, text, source code, PDF, and DOCX files. PDF and
-DOCX are converted to Markdown before chunking and cached under
-`~/.mfs/converted/`.
+1. Use `mfs search` or `mfs grep` to find candidates across the corpus.
+2. Use `mfs ls`, `mfs tree`, and `mfs cat --peek/--skim/--deep` to inspect the
+   candidate neighborhood without reading everything.
+3. Use `mfs cat -n start:end` to read exact lines before answering or editing.
 
-Structured files such as JSON, JSONL, CSV, YAML, TOML, HTML, and logs are not
-embedded by default. They remain searchable through `mfs grep` and readable
-through compact `mfs cat` views.
+This matches how people use web search: index first, result preview second,
+focused reading third.
 
-## Start here
+## Built for Agent Integration
 
-- [Quickstart](getting-started.md) for installation and the first index
-- [Search and Browse](search-and-browse.md) for the agent workflow
-- [CLI Reference](cli.md) for command options
-- [Architecture](architecture.md) for how ingestion, queueing, and retrieval work
-- [Evaluation](https://github.com/zilliztech/mfs/tree/main/evaluation) for code
-  and document retrieval results
+MFS is intentionally a CLI first. Agents already know how to run shell commands,
+parse JSON, and pipe outputs. Developers do not need to add a retrieval SDK to
+every agent framework.
+
+MFS ships:
+
+- a POSIX-style CLI: `mfs add`, `search`, `grep`, `ls`, `tree`, `cat`
+- a companion [Agent Skill](skill.md) that teaches agents when to search, when
+  to browse, and when to verify with line ranges
+- JSON output for automation and readable terminal output for humans
+- Milvus Lite for local use, plus Milvus server and Zilliz Cloud for shared or
+  managed deployments
+
+## Design Commitments
+
+- **Files remain the source of truth.** The index can be rebuilt; the original
+  files stay readable, editable, and Git-friendly.
+- **Body chunks are searchable.** MFS embeds original file chunks instead of
+  relying only on summaries, so identifiers, error codes, and config keys remain
+  visible to retrieval.
+- **Project directories stay clean.** MFS state lives under `~/.mfs/` by
+  default. It does not create generated summary files inside your repo.
+- **LLM enrichment is optional.** Default indexing does not call an LLM. File
+  summaries and image descriptions are available through `--summarize` and
+  `--describe` when the use case justifies them.
+- **Large corpora become progressively useful.** The queue prioritizes entry
+  files, docs, source roots, and other high-value paths so early indexed results
+  are useful even before a large job fully finishes.
+
+## Start Here
+
+- [Quickstart](getting-started.md) for local setup and the first index.
+- [Search and Browse](search-and-browse.md) for the agent workflow.
+- [CLI Reference](cli.md) for exact command inputs, outputs, and options.
+- [Design Philosophy](design-philosophy.md) for the principles behind the tool.
+- [Evaluation](https://github.com/zilliztech/mfs/tree/main/evaluation) for
+  end-to-end agent results on code and document search tasks.
