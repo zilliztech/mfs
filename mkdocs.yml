@@ -7,7 +7,7 @@ theme:
   palette:
     scheme: slate
     primary: black
-    accent: deep orange
+    accent: cyan
   features:
     - navigation.tabs
     - navigation.tabs.sticky
@@ -34,7 +34,6 @@ nav:
     - Design Philosophy: design-philosophy.md
     - Architecture: architecture.md
     - Quickstart: getting-started.md
-  - CLI Reference: cli.md
   - User Guide:
     - Search and Browse: search-and-browse.md
     - Agent Skill: skill.md
@@ -42,6 +41,7 @@ nav:
     - Configuration: configuration.md
     - Milvus Backends: backends.md
     - Agent Workflows: agent-workflows.md
+  - CLI Reference: cli.md
   - Evaluation: https://github.com/zilliztech/mfs/tree/main/evaluation
   - Help:
     - FAQ: faq.md

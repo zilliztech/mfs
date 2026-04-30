@@ -1,58 +1,101 @@
 # Why MFS
 
-Agents already know how to use a shell. They can run `grep`, `cat`, `find`, and
-`ls`, but those tools only understand literal text and directory structure.
-Modern workspaces contain notes, docs, transcripts, PDFs, source code, and
-support files where the right wording is often unknown in advance.
+Agent systems are becoming file-heavy. A useful agent no longer works only from
+the current prompt; it often carries a local ecosystem of memories, skills,
+transcripts, project notes, runbooks, and code.
 
-MFS adds semantic retrieval without asking the user to move files into a new
-system.
+Those files are valuable because they are ordinary files. Developers can edit
+them, diff them, commit them, and move them between tools. But ordinary shell
+search gives agents only two extremes:
 
-## The problem
+- exact matching with `grep`, which misses paraphrased or conceptual requests
+- broad reads with `cat`, which waste context and still miss nearby structure
 
-An agent working in a large folder usually has two bad options:
+MFS fills the layer between those extremes.
 
-- run literal search and miss paraphrased or conceptual matches
-- read too many files and spend context on irrelevant text
+## The Agent File Problem
 
-This becomes worse for memory logs, support documents, design specs, and skill
-trees. The files are useful precisely because they are human-readable, but the
-agent still needs an index to find the right local region quickly.
+An agent working over a large workspace usually needs to answer questions like:
 
-## The MFS answer
+- Which memory file recorded the previous decision about a migration?
+- Which SKILL reference explains when to use a tool?
+- Which JSONL transcript contains the raw turn behind a summarized note?
+- Which source file implements a behavior described in natural language?
+- Which runbook or PDF mentions a policy without using the user's exact words?
 
-MFS combines two command families:
+The hard part is not that files are inaccessible. The hard part is that there
+are too many of them, and the useful one may be named or worded differently from
+the current query.
 
-| Need | Command family | What it gives the agent |
+## The MFS Answer
+
+MFS gives agents two complementary command families.
+
+| Need | Commands | What the agent gets |
 | --- | --- | --- |
-| Find likely candidates | `mfs search`, `mfs grep` | flat retrieval over indexed files |
-| Verify local context | `mfs ls`, `mfs tree`, `mfs cat` | structured views with bounded output |
+| Locate candidates | `mfs search`, `mfs grep` | Fast global retrieval over indexed files, combining semantic and keyword signals. |
+| Inspect context | `mfs ls`, `mfs tree`, `mfs cat` | Bounded, structured views of directories and files before reading exact lines. |
 
-Semantic search is not enough by itself. Browsing is not enough by itself. The
-useful workflow alternates them.
+The two modes solve different problems:
+
+- **Search is flat and global.** It finds where the answer might be across a
+  corpus of memory, docs, code, and transcripts.
+- **Browse is hierarchical and local.** It shows what sits around a result:
+  neighboring files, headings, symbols, rows, keys, and line ranges.
+
+An agent should not have to choose between "semantic RAG over chunks" and
+"manually browsing the filesystem." MFS packages both paths into one CLI.
+
+## Why This Matters for Memory and Skills
+
+Memory systems often produce two kinds of files:
+
+- curated Markdown summaries, rules, decisions, and project notes
+- raw JSONL or transcript logs that preserve exact wording
+
+These need different access patterns. Markdown summaries are good semantic
+targets. Raw JSONL is often better for exact recovery, structure inspection, and
+grep. MFS supports both: index the text-like files, grep the raw archives, and
+use `mfs cat --peek/--skim` to inspect structure before expanding the exact
+region.
+
+Skill trees have a similar shape. `SKILL.md` files contain high-level
+instructions, while references and examples contain details. An agent can search
+for the likely skill, skim the surrounding reference directory, and then read the
+exact lines it should follow.
 
 ## Why a CLI
 
-A CLI is the lowest-friction integration point for agent tools:
+A CLI is the lowest-friction integration surface for shell-based agents:
 
-- no server lifecycle to manage
-- no client SDK to import
-- no project files generated in the target repo
-- JSON output for automation
-- normal terminal output for humans
+- no server lifecycle for the agent to manage
+- no SDK import or framework lock-in
+- JSON output when the caller is a program
+- normal terminal output when the caller is a human
+- no generated files inside the target project
 
-For an agent, `mfs search "..." . --json` is just another shell command. For a
-developer, it is still usable directly at the terminal.
+For an agent, this is just another tool call:
+
+```bash
+mfs search "memory rollover rules" ~/.codex/memories --json
+mfs tree --peek -L 2 ./skills
+mfs cat -n 40:90 ./skills/mfs/SKILL.md
+```
 
 ## Why Milvus
 
-MFS needs more than a toy vector store. It needs dense retrieval, sparse keyword
-retrieval, metadata filtering, and a path to local or managed deployment.
+MFS needs more than a small local vector toy. It needs:
 
-Milvus gives MFS three backend shapes:
+- dense vector retrieval for meaning
+- sparse keyword retrieval for exact tokens
+- metadata filters for path, account, content type, and line ranges
+- a local mode for single-user workflows
+- a managed mode for larger shared corpora
 
-- Milvus Lite for zero-config local use
-- self-hosted Milvus for larger or shared environments
-- Zilliz Cloud for managed infrastructure
+Milvus gives MFS those deployment shapes:
 
-The files remain the durable state. The Milvus collection can be rebuilt.
+- **Milvus Lite** for zero-config local indexing
+- **Milvus server** for self-hosted larger deployments
+- **Zilliz Cloud** for managed infrastructure
+
+The Milvus collection is still derived state. Files remain the durable source.
