@@ -8,6 +8,38 @@ runbooks, PDFs, DOCX files, and long-lived knowledge bases. These files are easy
 for humans to edit, but hard for an agent to search reliably with only `grep`,
 `find`, and full-file reads.
 
+## What the Name Means
+
+**MFS** has two meanings:
+
+- **Memory File Search**: the files an agent depends on are increasingly its
+  long-term memory surface.
+- **Milvus File Search**: Milvus gives that memory surface a scalable semantic
+  and keyword index.
+
+This naming is intentional. In agent systems, "memory" is no longer just a chat
+history buffer. The CoALA paper, LangChain's memory docs, and LangChain's Agent
+Builder write-up all use a similar vocabulary for agent memory:
+
+| Memory layer | What it means for agents | Common file shape |
+| --- | --- | --- |
+| Semantic memory | Facts, preferences, domain knowledge, project context | Markdown notes, docs, PDFs, DOCX files, knowledge bases |
+| Episodic memory | Past events, conversations, tool traces, decisions, outcomes | JSONL transcripts, session logs, daily notes, benchmark traces |
+| Procedural memory | Instructions, skills, workflows, rules for how the agent should behave | `AGENTS.md`, `SKILL.md`, runbooks, workflow references |
+| Working memory | The agent's current context window and scratch state | Usually not a durable corpus; MFS retrieves long-term files into it |
+
+That is why MFS treats memory as files first. Many useful agent memories are
+already human-readable files: a skill tree, a conversation archive, a project
+decision log, a codebase, a folder of onboarding docs. Milvus then turns those
+files into searchable infrastructure: dense vectors for meaning, BM25 for exact
+terms, and metadata filters for scoped retrieval.
+
+References: [CoALA](https://arxiv.org/abs/2309.02427),
+[LangChain memory overview](https://docs.langchain.com/oss/python/concepts/memory),
+[LangChain Deep Agents memory](https://docs.langchain.com/oss/python/deepagents/memory),
+and
+[LangChain Agent Builder memory](https://www.langchain.com/blog/how-we-built-agent-builders-memory-system).
+
 MFS adds a Milvus-backed retrieval layer over those files while keeping the
 folder itself as the source of truth. It gives agents the two capabilities they
 need most:
