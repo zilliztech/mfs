@@ -31,6 +31,7 @@ nav:
   - Home:
     - Overview: index.md
     - Why MFS: why.md
+    - How MFS Compares: comparison.md
     - Design Philosophy: design-philosophy.md
     - Architecture: architecture.md
     - Quickstart: getting-started.md

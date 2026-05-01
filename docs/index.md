@@ -138,6 +138,8 @@ MFS ships:
 - [Quickstart](getting-started.md) for local setup and the first index.
 - [Search and Browse](search-and-browse.md) for the agent workflow.
 - [CLI Reference](cli.md) for exact command inputs, outputs, and options.
+- [How MFS Compares](comparison.md) for differences from context databases,
+  semantic grep tools, and agent filesystems.
 - [Design Philosophy](design-philosophy.md) for the principles behind the tool.
 - [Evaluation](https://github.com/zilliztech/mfs/tree/main/evaluation) for
   end-to-end agent results on code and document search tasks.

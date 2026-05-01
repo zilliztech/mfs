@@ -123,23 +123,9 @@ Synchronization exists because the index is derived state. If a user edits a
 file, deletes a note, appends a transcript, or converts a PDF/DOCX into cached
 Markdown, the Milvus rows must eventually match the real files again.
 
-The tempting design is to hide all of that behind every query: run
-`mfs search`, silently scan the folder, detect changes, rebuild chunks, update
-embeddings, and then return results. MFS avoids that for three reasons:
-
-- **Query commands should stay read-only and predictable.** A search should not
-  unexpectedly rewrite local state, start a worker, or spend seconds hashing a
-  large tree.
-- **Embedding is the slow part.** Scanning is usually cheap; chunking and
-  embedding many changed files is not. Hiding that cost inside `search` makes
-  agent behavior harder to reason about.
-- **Agents need explicit control.** In some workflows stale results are fine for
-  a moment; in others, the agent should force a rebuild before answering. The
-  command surface should make that choice visible.
-
-So MFS makes synchronization explicit. The user or agent updates the index when
+MFS makes synchronization explicit. The user or agent updates the index when
 they want the indexed view to catch up, or starts a watch loop when the workflow
-really needs continuous updates:
+needs continuous updates:
 
 ```bash
 mfs add .
@@ -178,10 +164,6 @@ diff:
        unchanged -> skip
 ```
 
-`mtime` is used only as a fast hint to reduce hashing work. File hash is the
-content check. `--force` skips the mtime shortcut when a copy, checkout, or sync
-tool may have preserved old timestamps.
-
 The queue exists because embedding work should not block every default `mfs add`
 call. It is intentionally much smaller than a broker system. MFS is a CLI tool,
 so it avoids Redis, RabbitMQ, and a permanent daemon:
@@ -215,7 +197,7 @@ This supports several sync styles:
 | Scenario | Sync style |
 | --- | --- |
 | one-time project indexing | `mfs add .` |
-| suspicious timestamps or external copy | `mfs add . --force` |
+| stronger rebuild pass | `mfs add . --force` |
 | active memory/log append workflow | `mfs add . --watch` |
 | frequent project edits | `mfs add . --watch --interval 60s` |
 
