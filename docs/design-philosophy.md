@@ -119,9 +119,27 @@ real files change
 
 ## 4. Sync and Queueing Stay Lightweight
 
-Synchronization is necessary, but it should stay small enough for a CLI tool.
-MFS does not silently rescan on every query. The user or agent updates the index
-explicitly, or starts a watch loop when the workflow needs it:
+Synchronization exists because the index is derived state. If a user edits a
+file, deletes a note, appends a transcript, or converts a PDF/DOCX into cached
+Markdown, the Milvus rows must eventually match the real files again.
+
+The tempting design is to hide all of that behind every query: run
+`mfs search`, silently scan the folder, detect changes, rebuild chunks, update
+embeddings, and then return results. MFS avoids that for three reasons:
+
+- **Query commands should stay read-only and predictable.** A search should not
+  unexpectedly rewrite local state, start a worker, or spend seconds hashing a
+  large tree.
+- **Embedding is the slow part.** Scanning is usually cheap; chunking and
+  embedding many changed files is not. Hiding that cost inside `search` makes
+  agent behavior harder to reason about.
+- **Agents need explicit control.** In some workflows stale results are fine for
+  a moment; in others, the agent should force a rebuild before answering. The
+  command surface should make that choice visible.
+
+So MFS makes synchronization explicit. The user or agent updates the index when
+they want the indexed view to catch up, or starts a watch loop when the workflow
+really needs continuous updates:
 
 ```bash
 mfs add .
@@ -129,33 +147,44 @@ mfs add . --force
 mfs add . --watch --interval 60s
 ```
 
-The sync path has three concerns:
+The sync path has three jobs:
 
 ```mermaid
-flowchart LR
-  files[Files are source of truth] --> diff[Diff<br/>what changed?]
-  diff --> embed[Embedding work<br/>what needs vectors?]
-  embed --> queue[Queue<br/>how to process without blocking?]
-  queue --> usable[Progressively usable index]
+flowchart TB
+  files[Real files<br/>source of truth] --> scan[Scan with ignore rules<br/>and file type policy]
+  scan --> diff[Diff against indexed<br/>source + file_hash]
+  diff --> remove[Delete rows<br/>for removed files]
+  diff --> changed[New or changed files]
+  changed --> chunks[Chunk changed content]
+  chunks --> queue[Queue lightweight chunk refs]
+  queue --> worker[Worker embeds and upserts]
+  worker --> dirs[Refresh affected<br/>directory summaries]
+  dirs --> usable[Progressively usable index]
 ```
 
-The concrete flow is:
+The important part is that MFS compares two views:
 
 ```text
-scan disk files
-  -> compare with indexed {source, file_hash}
-  -> delete rows for removed files
-  -> queue new or changed chunk refs
-  -> embed queued work
-  -> rebuild affected directory summaries
+left:  current disk state
+       all files that exist now, after ignore rules and size limits
+
+right: indexed state in Milvus
+       source path, file_hash, chunk metadata, summary rows
+
+diff:
+       added    -> chunk and embed
+       modified -> rechunk, compare chunk hashes, embed changed chunks
+       deleted  -> remove old rows from Milvus
+       unchanged -> skip
 ```
 
-`mtime` is used as a fast hint, and file hash is the content check. `--force`
-skips the mtime shortcut when a copy, checkout, or sync tool may have preserved
-old timestamps.
+`mtime` is used only as a fast hint to reduce hashing work. File hash is the
+content check. `--force` skips the mtime shortcut when a copy, checkout, or sync
+tool may have preserved old timestamps.
 
-The queue is intentionally small. MFS avoids Redis, RabbitMQ, and long-running
-services:
+The queue exists because embedding work should not block every default `mfs add`
+call. It is intentionally much smaller than a broker system. MFS is a CLI tool,
+so it avoids Redis, RabbitMQ, and a permanent daemon:
 
 - queue: `~/.mfs/queue.json`
 - lock: filelock around queue writes
@@ -163,14 +192,23 @@ services:
 - progress: `~/.mfs/status.json`
 - logs: `~/.mfs/worker.log`
 
-Queue entries store references and metadata, not large raw chunk bodies. The
-worker exits after the queue is empty. If a machine stops mid-index, the
-recovery path is to rerun `mfs add` or use `mfs add --force`.
+Queue entries store references and metadata, not large raw chunk bodies. That
+keeps the queue cheap to rewrite and avoids duplicating the user's corpus in
+`~/.mfs/`. When the worker needs text, it reconstructs the chunk from the
+current file and the queued range/hash metadata. If the file changed while work
+was waiting, the next `mfs add` reconciles the derived index with the new file
+state.
 
-For large corpora, MFS prioritizes likely high-value files first: entry files
-like `README.md` and `SKILL.md`, package metadata, source roots, documentation
-roots, and then lower-value generated or fixture paths. The final index is the
-same; early usefulness is better.
+The worker exits after the queue is empty. If a machine stops mid-index, MFS
+does not try to provide database-grade job durability; the recovery path is to
+rerun `mfs add` or use `mfs add --force`. That tradeoff keeps the system easy to
+install and easy to delete: the authoritative data is still the user's files.
+
+For large corpora, the index should become useful before every file is done.
+MFS therefore prioritizes likely high-value files first: entry files like
+`README.md` and `SKILL.md`, package metadata, source roots, documentation roots,
+recently changed files, and then lower-value generated or fixture paths. The
+final index is the same; the early search experience is better.
 
 This supports several sync styles:
 
