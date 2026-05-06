@@ -1,6 +1,6 @@
 """Ollama LLM provider (local models via Ollama server).
 
-Requires: ``pip install 'mfs[llm-ollama]'`` or ``uv add 'mfs[llm-ollama]'``
+Requires: ``pip install 'mfs-cli[llm-ollama]'`` or ``uv add 'mfs-cli[llm-ollama]'``
 Environment variables:
     OLLAMA_HOST — optional, default ``http://localhost:11434``
 
@@ -24,8 +24,8 @@ class OllamaLLM:
         except ImportError as exc:
             raise ImportError(
                 "Ollama LLM provider requires ollama. "
-                "Install with: pip install 'mfs[llm-ollama]' "
-                "or: uv add 'mfs[llm-ollama]'"
+                "Install with: pip install 'mfs-cli[llm-ollama]' "
+                "or: uv add 'mfs-cli[llm-ollama]'"
             ) from exc
 
         self._client = ollama.Client()  # reads OLLAMA_HOST

@@ -51,11 +51,11 @@ DEFAULT_MODELS: dict[str, str] = {
 }
 
 _INSTALL_HINTS: dict[str, str] = {
-    "openai":    "pip install mfs  (or: uv add mfs)",
-    "anthropic": 'pip install "mfs[llm-anthropic]"  (or: uv add "mfs[llm-anthropic]")',
-    "google":    'pip install "mfs[llm-google]"  (or: uv add "mfs[llm-google]")',
-    "ollama":    'pip install "mfs[llm-ollama]"  (or: uv add "mfs[llm-ollama]")',
-    "mistral":   'pip install "mfs[llm-mistral]"  (or: uv add "mfs[llm-mistral]")',
+    "openai":    "pip install mfs-cli  (or: uv add mfs-cli)",
+    "anthropic": 'pip install "mfs-cli[llm-anthropic]"  (or: uv add "mfs-cli[llm-anthropic]")',
+    "google":    'pip install "mfs-cli[llm-google]"  (or: uv add "mfs-cli[llm-google]")',
+    "ollama":    'pip install "mfs-cli[llm-ollama]"  (or: uv add "mfs-cli[llm-ollama]")',
+    "mistral":   'pip install "mfs-cli[llm-mistral]"  (or: uv add "mfs-cli[llm-mistral]")',
 }
 
 

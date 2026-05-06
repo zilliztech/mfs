@@ -1,6 +1,6 @@
 """Ollama embedding provider (local models via Ollama server).
 
-Requires: ``pip install 'mfs[ollama]'`` or ``uv add 'mfs[ollama]'``
+Requires: ``pip install 'mfs-cli[ollama]'`` or ``uv add 'mfs-cli[ollama]'``
 Environment variables:
     OLLAMA_HOST — optional, default http://localhost:11434
 """
@@ -24,7 +24,7 @@ class OllamaEmbedding:
         except ImportError as exc:
             raise ImportError(
                 "Ollama embedding provider requires ollama. "
-                "Install with: pip install 'mfs[ollama]' or: uv add 'mfs[ollama]'"
+                "Install with: pip install 'mfs-cli[ollama]' or: uv add 'mfs-cli[ollama]'"
             ) from exc
 
         self._client = ollama.Client()  # reads OLLAMA_HOST

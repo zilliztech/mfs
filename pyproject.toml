@@ -1,5 +1,5 @@
 [project]
-name = "mfs"
+name = "mfs-cli"
 version = "0.1.0"
 description = "Semantic file search CLI powered by Milvus"
 readme = "README.md"
@@ -67,7 +67,7 @@ llm-google = ["google-genai>=1.0"]
 llm-ollama = ["ollama>=0.4"]
 llm-mistral = ["mistralai>=1.0"]
 all = [
-    "mfs[onnx,local,google,voyage,jina,mistral,ollama,llm-anthropic,llm-google,llm-ollama,llm-mistral]",
+    "mfs-cli[onnx,local,google,voyage,jina,mistral,ollama,llm-anthropic,llm-google,llm-ollama,llm-mistral]",
 ]
 
 [project.scripts]

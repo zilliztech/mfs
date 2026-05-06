@@ -1,6 +1,6 @@
 """Anthropic Messages LLM/VLM provider.
 
-Requires: ``pip install 'mfs[llm-anthropic]'`` or ``uv add 'mfs[llm-anthropic]'``
+Requires: ``pip install 'mfs-cli[llm-anthropic]'`` or ``uv add 'mfs-cli[llm-anthropic]'``
 Environment variables:
     ANTHROPIC_API_KEY — required
 """
@@ -33,8 +33,8 @@ class AnthropicLLM:
         except ImportError as exc:
             raise ImportError(
                 "Anthropic LLM provider requires anthropic. "
-                "Install with: pip install 'mfs[llm-anthropic]' "
-                "or: uv add 'mfs[llm-anthropic]'"
+                "Install with: pip install 'mfs-cli[llm-anthropic]' "
+                "or: uv add 'mfs-cli[llm-anthropic]'"
             ) from exc
 
         effective_api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")

@@ -1,6 +1,6 @@
 """Google Gemini LLM/VLM provider.
 
-Requires: ``pip install 'mfs[llm-google]'`` or ``uv add 'mfs[llm-google]'``
+Requires: ``pip install 'mfs-cli[llm-google]'`` or ``uv add 'mfs-cli[llm-google]'``
 Environment variables:
     GOOGLE_API_KEY            — required unless using Vertex AI credentials
     GEMINI_API_KEY            — fallback (used by Google AI Studio docs / community tools)
@@ -38,8 +38,8 @@ class GoogleLLM:
         except ImportError as exc:
             raise ImportError(
                 "Google LLM provider requires google-genai. "
-                "Install with: pip install 'mfs[llm-google]' "
-                "or: uv add 'mfs[llm-google]'"
+                "Install with: pip install 'mfs-cli[llm-google]' "
+                "or: uv add 'mfs-cli[llm-google]'"
             ) from exc
 
         use_vertex_ai = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").strip().lower() == "true"

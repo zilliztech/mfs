@@ -128,6 +128,29 @@ and machine-readable artifacts.
 
 ## Install
 
+Install the published CLI package:
+
+```bash
+uv tool install mfs-cli
+mfs --help
+```
+
+For one-off use without installing a persistent tool:
+
+```bash
+uvx --from mfs-cli mfs --help
+```
+
+To use optional providers, install the matching extra:
+
+```bash
+uv tool install "mfs-cli[onnx]"              # local bge-m3 ONNX INT8
+uv tool install "mfs-cli[google]"            # Google Gemini embeddings
+uv tool install "mfs-cli[llm-anthropic]"     # Anthropic summaries/descriptions
+```
+
+For development from source:
+
 ```bash
 git clone https://github.com/zilliztech/mfs.git
 cd mfs
@@ -138,7 +161,7 @@ uv run mfs --help
 MFS is managed with [`uv`](https://docs.astral.sh/uv/) and `pyproject.toml`.
 
 <details>
-<summary><b>Optional extras — other embedding / LLM providers</b></summary>
+<summary><b>Source install extras — other embedding / LLM providers</b></summary>
 
 ```bash
 # Embedding providers

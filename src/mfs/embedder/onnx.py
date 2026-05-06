@@ -1,6 +1,6 @@
 """ONNX embedding via onnxruntime (runs on CPU, no GPU required).
 
-Requires: ``pip install 'mfs[onnx]'`` or ``uv add 'mfs[onnx]'``
+Requires: ``pip install 'mfs-cli[onnx]'`` or ``uv add 'mfs-cli[onnx]'``
 No API key needed. Default model is a pre-quantized int8 bge-m3 ONNX export.
 """
 
@@ -28,8 +28,8 @@ class OnnxEmbedding:
         except ImportError as exc:
             raise ImportError(
                 "ONNX embedding provider requires onnxruntime. "
-                "Install with: pip install 'mfs[onnx]' "
-                "or: uv add 'mfs[onnx]'"
+                "Install with: pip install 'mfs-cli[onnx]' "
+                "or: uv add 'mfs-cli[onnx]'"
             ) from exc
 
         from huggingface_hub import hf_hub_download, list_repo_files

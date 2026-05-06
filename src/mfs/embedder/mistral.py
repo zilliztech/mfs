@@ -1,6 +1,6 @@
 """Mistral AI embedding provider.
 
-Requires: ``pip install 'mfs[mistral]'`` or ``uv add 'mfs[mistral]'``
+Requires: ``pip install 'mfs-cli[mistral]'`` or ``uv add 'mfs-cli[mistral]'``
 Environment variables:
     MISTRAL_API_KEY — required
 
@@ -37,7 +37,7 @@ class MistralEmbedding:
         except ImportError as exc:
             raise ImportError(
                 "Mistral embedding provider requires mistralai. "
-                "Install with: pip install 'mfs[mistral]' or: uv add 'mfs[mistral]'"
+                "Install with: pip install 'mfs-cli[mistral]' or: uv add 'mfs-cli[mistral]'"
             ) from exc
 
         self._api_key = api_key or os.environ.get("MISTRAL_API_KEY")

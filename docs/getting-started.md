@@ -2,6 +2,28 @@
 
 ## Install
 
+Install the published CLI package:
+
+```bash
+uv tool install mfs-cli
+mfs --help
+```
+
+For one-off use without installing a persistent tool:
+
+```bash
+uvx --from mfs-cli mfs --help
+```
+
+For local embeddings or optional providers, install the matching extra:
+
+```bash
+uv tool install "mfs-cli[onnx]"
+mfs config set embedding.provider onnx
+```
+
+For development from source:
+
 ```bash
 git clone https://github.com/zilliztech/mfs.git
 cd mfs
@@ -15,7 +37,7 @@ The default install uses OpenAI embeddings and Milvus Lite.
 export OPENAI_API_KEY="sk-..."
 ```
 
-For local embeddings:
+For local embeddings while developing from source:
 
 ```bash
 uv sync --extra onnx

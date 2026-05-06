@@ -1,6 +1,6 @@
 """Google (Gemini) embedding provider.
 
-Requires: ``pip install 'mfs[google]'`` or ``uv add 'mfs[google]'``
+Requires: ``pip install 'mfs-cli[google]'`` or ``uv add 'mfs-cli[google]'``
 Environment variables:
     GOOGLE_API_KEY — required unless using Vertex AI credentials
     GEMINI_API_KEY — fallback (used by Google AI Studio docs / community tools)
@@ -45,7 +45,7 @@ class GoogleEmbedding:
         except ImportError as exc:
             raise ImportError(
                 "Google embedding provider requires google-genai. "
-                "Install with: pip install 'mfs[google]' or: uv add 'mfs[google]'"
+                "Install with: pip install 'mfs-cli[google]' or: uv add 'mfs-cli[google]'"
             ) from exc
 
         use_vertex_ai = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").strip().lower() == "true"
