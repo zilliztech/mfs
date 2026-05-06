@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/zilliztech/mfs/blob/main/LICENSE"><img src="https://img.shields.io/github/license/zilliztech/mfs?style=flat-square" alt="License"></a>
+  <a href="https://pypi.org/project/mfs-cli/"><img src="https://img.shields.io/pypi/v/mfs-cli?style=flat-square&color=blue" alt="PyPI"></a>
   <img src="https://img.shields.io/badge/python-%3E%3D3.10-blue?style=flat-square&logo=python&logoColor=white" alt="Python">
   <a href="https://milvus.io/"><img src="https://img.shields.io/badge/powered%20by-Milvus-00A1EA?style=flat-square" alt="Milvus"></a>
   <a href="https://github.com/zilliztech/mfs/stargazers"><img src="https://img.shields.io/github/stars/zilliztech/mfs?style=flat-square" alt="Stars"></a>
@@ -128,7 +129,7 @@ and machine-readable artifacts.
 
 ## Install
 
-Install the published CLI package:
+Install from PyPI. The package name is `mfs-cli`; the command is `mfs`:
 
 ```bash
 uv tool install mfs-cli
