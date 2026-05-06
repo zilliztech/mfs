@@ -4,6 +4,25 @@ This reference focuses on command usage for agents. Prefer scoped commands over
 global commands when the task gives a path. Use `--json` when another tool will
 parse the output.
 
+## Availability Check
+
+Before using MFS, verify that the command is installed:
+
+```bash
+mfs --version
+```
+
+If the command is missing, install the published CLI package when setup is part
+of the task:
+
+```bash
+uv tool install mfs-cli
+```
+
+The PyPI package name is `mfs-cli`; the installed command is `mfs`. If
+installation is not appropriate, fall back to native shell tools and normal file
+reads.
+
 ## Command Map
 
 | Need | Command |
