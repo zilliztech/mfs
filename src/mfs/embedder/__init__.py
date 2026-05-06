@@ -64,14 +64,14 @@ DEFAULT_DIMENSIONS: dict[str, int] = {
 }
 
 _INSTALL_HINTS: dict[str, str] = {
-    "openai": "pip install mfs  (or: uv add mfs)",
-    "onnx": 'pip install "mfs[onnx]"  (or: uv add "mfs[onnx]")',
-    "google": 'pip install "mfs[google]"  (or: uv add "mfs[google]")',
-    "voyage": 'pip install "mfs[voyage]"  (or: uv add "mfs[voyage]")',
-    "jina": 'pip install "mfs[jina]"  (or: uv add "mfs[jina]")',
-    "mistral": 'pip install "mfs[mistral]"  (or: uv add "mfs[mistral]")',
-    "ollama": 'pip install "mfs[ollama]"  (or: uv add "mfs[ollama]")',
-    "local": 'pip install "mfs[local]"  (or: uv add "mfs[local]")',
+    "openai": "pip install mfs-cli  (or: uv add mfs-cli)",
+    "onnx": 'pip install "mfs-cli[onnx]"  (or: uv add "mfs-cli[onnx]")',
+    "google": 'pip install "mfs-cli[google]"  (or: uv add "mfs-cli[google]")',
+    "voyage": 'pip install "mfs-cli[voyage]"  (or: uv add "mfs-cli[voyage]")',
+    "jina": 'pip install "mfs-cli[jina]"  (or: uv add "mfs-cli[jina]")',
+    "mistral": 'pip install "mfs-cli[mistral]"  (or: uv add "mfs-cli[mistral]")',
+    "ollama": 'pip install "mfs-cli[ollama]"  (or: uv add "mfs-cli[ollama]")',
+    "local": 'pip install "mfs-cli[local]"  (or: uv add "mfs-cli[local]")',
 }
 
 

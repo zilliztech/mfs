@@ -72,7 +72,7 @@ def test_get_provider_install_hint(monkeypatch):
         return real_import_module(name)
 
     monkeypatch.setattr("importlib.import_module", fake_import_module)
-    with pytest.raises(ImportError, match=r"mfs\[llm-anthropic\]"):
+    with pytest.raises(ImportError, match=r"mfs-cli\[llm-anthropic\]"):
         get_provider("anthropic")
 
 

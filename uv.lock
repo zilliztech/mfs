@@ -1534,7 +1534,7 @@ wheels = [
 ]
 
 [[package]]
-name = "mfs"
+name = "mfs-cli"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
@@ -1630,7 +1630,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'jina'", specifier = ">=0.27" },
     { name = "huggingface-hub", marker = "extra == 'onnx'", specifier = ">=0.23" },
     { name = "langchain-text-splitters", specifier = ">=0.2" },
-    { name = "mfs", extras = ["onnx", "local", "google", "voyage", "jina", "mistral", "ollama", "llm-anthropic", "llm-google", "llm-ollama", "llm-mistral"], marker = "extra == 'all'" },
+    { name = "mfs-cli", extras = ["onnx", "local", "google", "voyage", "jina", "mistral", "ollama", "llm-anthropic", "llm-google", "llm-ollama", "llm-mistral"], marker = "extra == 'all'" },
     { name = "milvus-lite", specifier = ">=2.5.1" },
     { name = "mistralai", marker = "extra == 'llm-mistral'", specifier = ">=1.0" },
     { name = "mistralai", marker = "extra == 'mistral'", specifier = ">=1.0" },

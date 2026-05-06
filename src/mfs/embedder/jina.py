@@ -1,6 +1,6 @@
 """Jina AI embedding provider.
 
-Requires: ``pip install 'mfs[jina]'`` or ``uv add 'mfs[jina]'``
+Requires: ``pip install 'mfs-cli[jina]'`` or ``uv add 'mfs-cli[jina]'``
 Environment variables:
     JINA_API_KEY — required
 

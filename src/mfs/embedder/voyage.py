@@ -1,6 +1,6 @@
 """Voyage AI embedding provider.
 
-Requires: ``pip install 'mfs[voyage]'`` or ``uv add 'mfs[voyage]'``
+Requires: ``pip install 'mfs-cli[voyage]'`` or ``uv add 'mfs-cli[voyage]'``
 Environment variables:
     VOYAGE_API_KEY — required
 """
@@ -24,7 +24,7 @@ class VoyageEmbedding:
         except ImportError as exc:
             raise ImportError(
                 "Voyage embedding provider requires voyageai. "
-                "Install with: pip install 'mfs[voyage]' or: uv add 'mfs[voyage]'"
+                "Install with: pip install 'mfs-cli[voyage]' or: uv add 'mfs-cli[voyage]'"
             ) from exc
 
         self._client = voyageai.Client()  # reads VOYAGE_API_KEY

@@ -1,6 +1,6 @@
 """Local embedding via sentence-transformers (runs on CPU/GPU).
 
-Requires: ``pip install 'mfs[local]'`` or ``uv add 'mfs[local]'``
+Requires: ``pip install 'mfs-cli[local]'`` or ``uv add 'mfs-cli[local]'``
 No API key needed.
 """
 
@@ -14,7 +14,7 @@ def _detect_device() -> str:
     except ImportError as exc:
         raise ImportError(
             "Local embedding provider requires sentence-transformers (which pulls in torch). "
-            "Install with: pip install 'mfs[local]' or: uv add 'mfs[local]'"
+            "Install with: pip install 'mfs-cli[local]' or: uv add 'mfs-cli[local]'"
         ) from exc
 
     if torch.cuda.is_available():
@@ -50,7 +50,7 @@ class LocalEmbedding:
             except ImportError as exc:
                 raise ImportError(
                     "Local embedding provider requires sentence-transformers. "
-                    "Install with: pip install 'mfs[local]' or: uv add 'mfs[local]'"
+                    "Install with: pip install 'mfs-cli[local]' or: uv add 'mfs-cli[local]'"
                 ) from exc
 
             self._st_model = SentenceTransformer(

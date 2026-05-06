@@ -1,6 +1,6 @@
 """OpenAI embedding provider.
 
-Requires: ``pip install mfs`` (openai is included by default)
+Requires: ``pip install mfs-cli`` (openai is included by default)
 Environment variables:
     OPENAI_API_KEY   — required
     OPENAI_BASE_URL  — optional, override API base URL

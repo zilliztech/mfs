@@ -2,6 +2,7 @@
 
 import logging
 import warnings
+from importlib.metadata import PackageNotFoundError, version
 
 # Suppress milvus_lite's pkg_resources deprecation warning before any
 # pymilvus / milvus_lite import happens downstream. Matching by message
@@ -36,4 +37,7 @@ import pymilvus  # noqa: E402, F401
 
 logging.getLogger("pymilvus").setLevel(logging.ERROR)
 
-__version__ = "0.1.0"
+try:
+    __version__ = version("mfs-cli")
+except PackageNotFoundError:
+    __version__ = "0.0.0+local"

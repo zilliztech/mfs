@@ -1,6 +1,6 @@
 """Mistral AI LLM provider.
 
-Requires: ``pip install 'mfs[llm-mistral]'`` or ``uv add 'mfs[llm-mistral]'``
+Requires: ``pip install 'mfs-cli[llm-mistral]'`` or ``uv add 'mfs-cli[llm-mistral]'``
 Environment variables:
     MISTRAL_API_KEY — required
 
@@ -28,8 +28,8 @@ class MistralLLM:
         except ImportError as exc:
             raise ImportError(
                 "Mistral LLM provider requires mistralai. "
-                "Install with: pip install 'mfs[llm-mistral]' "
-                "or: uv add 'mfs[llm-mistral]'"
+                "Install with: pip install 'mfs-cli[llm-mistral]' "
+                "or: uv add 'mfs-cli[llm-mistral]'"
             ) from exc
 
         self._api_key = api_key or os.environ.get("MISTRAL_API_KEY")
