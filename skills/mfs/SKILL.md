@@ -32,11 +32,23 @@ snippet without context.
 
 ## First Checks
 
-Before relying on MFS, check that the command exists:
+Before relying on MFS, check that the command exists and is the expected CLI:
 
 ```bash
-mfs --help
+mfs --version
 ```
+
+If `mfs` is not found, the PyPI package name is `mfs-cli` and the installed
+command is `mfs`:
+
+```bash
+uv tool install mfs-cli
+```
+
+After installing, run `mfs --version` again. If installing tools is outside the
+current task or requires user approval, report that MFS is not available and
+continue with native shell tools such as `grep`, `find`, `rg` when available,
+and normal file reads.
 
 If the target folder may not be indexed, inspect status or ask before running a
 large indexing job:
