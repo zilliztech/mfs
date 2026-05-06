@@ -111,6 +111,8 @@ every agent framework.
 MFS ships:
 
 - a POSIX-style CLI: `mfs add`, `search`, `grep`, `ls`, `tree`, `cat`
+- a PyPI package, [`mfs-cli`](https://pypi.org/project/mfs-cli/), that installs
+  the `mfs` command
 - a companion [Agent Skill](skill.md) that teaches agents when to search, when
   to browse, and when to verify with line ranges
 - JSON output for automation and readable terminal output for humans

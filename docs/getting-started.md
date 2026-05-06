@@ -2,7 +2,7 @@
 
 ## Install
 
-Install the published CLI package:
+Install from PyPI. The package name is `mfs-cli`; the command is `mfs`:
 
 ```bash
 uv tool install mfs-cli
