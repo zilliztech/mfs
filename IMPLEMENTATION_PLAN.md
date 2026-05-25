@@ -144,7 +144,8 @@ design/                   # 设计文档（实现绝对依据）
 - image(VLM)/pdf(converter)/text_blob 索引留 Phase 6。
 
 **下一步 Phase 4：检索 hybrid + 读命令 + HTTP API**：
-1. `common/retrieval.py` + milvus.py 加 `hybrid_search`/`sparse_search`：hybrid(dense+BM25 RRF，pymilvus AnnSearchRequest+RRFRanker)、semantic(纯dense)、keyword(纯sparse)；跨 partition merge(over_fetch_ratio)；filter(namespace/connector_uri/object_uri prefix/chunk_kind/metadata)；collapse by object_uri。
+- ✅ milvus.py `hybrid_search`/`sparse_search` 已加 + **pymilvus API 已 Lite 验证**：keyword=`client.search(data=["text"], anns_field="sparse_vec")`（BM25 Function 自动转 sparse）；hybrid=`client.hybrid_search(reqs=[AnnSearchRequest(data=[qvec],anns_field="dense_vec",param={"metric_type":"COSINE"}), AnnSearchRequest(data=["text"],anns_field="sparse_vec",param={})], ranker=RRFRanker())`。BM25 distance 可为负，正常。
+1. `common/retrieval.py`（或 engine.search 方法）：调上面三方法（hybrid/semantic/keyword）+ build_filter(namespace/connector_uri/object_uri like prefix/chunk_kind in/metadata)+ envelope(design/03 §11: source/lines/content/score/locator/metadata)+ collapse by object_uri。
 2. grep 派发(design/05 §6)：pushdown(connector.grep)→BM25(sparse)→线性扫(connector.read)。
 3. 读命令(engine 方法)：ls/tree(objects+connector.list 刷新)、cat(--range/--locator/--meta)、head/tail、export、status。Phase 4 先 file 的 ls/cat/search/grep。
 4. `api/` FastAPI /v1 + `server/__main__.py`(mfs-server run/api/worker/reload)。

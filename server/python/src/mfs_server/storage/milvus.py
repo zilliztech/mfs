@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from pymilvus import DataType, Function, FunctionType, MilvusClient
+from pymilvus import AnnSearchRequest, DataType, Function, FunctionType, MilvusClient, RRFRanker
 
 from ..config import ServerConfig
 
@@ -161,5 +161,38 @@ class MilvusStore:
             output_fields=output_fields or ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "lines", "metadata"],
             search_params={"metric_type": "COSINE"},
             consistency_level=consistency_level,
+        )
+        return list(res[0]) if res else []
+
+    _DEFAULT_OUT = ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "lines", "metadata"]
+
+    def sparse_search(self, namespace_id: str, query_text: str, limit: int, expr: str = "",
+                      output_fields: Optional[list[str]] = None,
+                      consistency_level: str = "Strong") -> list[dict]:
+        """BM25 keyword search: Milvus turns query_text into a sparse vector via the
+        content_bm25 Function. (verified: pymilvus search(data=[text], anns_field='sparse_vec'))."""
+        assert self.client is not None
+        name = self.resolve_collection(namespace_id)
+        res = self.client.search(
+            collection_name=name, data=[query_text], anns_field="sparse_vec", limit=limit,
+            filter=expr, output_fields=output_fields or self._DEFAULT_OUT,
+            consistency_level=consistency_level,
+        )
+        return list(res[0]) if res else []
+
+    def hybrid_search(self, namespace_id: str, query_vec: list[float], query_text: str, limit: int,
+                      expr: str = "", output_fields: Optional[list[str]] = None,
+                      over_fetch: int = 3, consistency_level: str = "Strong") -> list[dict]:
+        """dense + BM25 sparse fused with RRF (design/06 §7)."""
+        assert self.client is not None
+        name = self.resolve_collection(namespace_id)
+        k = limit * over_fetch
+        rd = AnnSearchRequest(data=[query_vec], anns_field="dense_vec",
+                              param={"metric_type": "COSINE"}, limit=k, expr=expr or None)
+        rs = AnnSearchRequest(data=[query_text], anns_field="sparse_vec",
+                              param={}, limit=k, expr=expr or None)
+        res = self.client.hybrid_search(
+            collection_name=name, reqs=[rd, rs], ranker=RRFRanker(), limit=limit,
+            output_fields=output_fields or self._DEFAULT_OUT, consistency_level=consistency_level,
         )
         return list(res[0]) if res else []
