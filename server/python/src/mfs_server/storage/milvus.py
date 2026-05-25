@@ -32,7 +32,7 @@ class MilvusStore:
         self.client = MilvusClient(**kwargs)
 
     def is_lite(self) -> bool:
-        return self.uri.endswith(".db") or self.uri.startswith("./") or "/" in self.uri and not self.uri.startswith("http")
+        return not self.uri.startswith("http")
 
     def resolve_collection(self, namespace_id: str) -> str:
         if self.strategy == "per_namespace":
@@ -81,6 +81,8 @@ class MilvusStore:
 
     def _add_scalar_indexes(self, name: str) -> None:
         assert self.client is not None
+        if self.is_lite():
+            return  # Milvus Lite 3.0 rejects scalar INVERTED indexes; skip (filter falls back to scan)
         for f in self.SCALAR_INDEX_FIELDS:
             try:
                 ip = MilvusClient.prepare_index_params()

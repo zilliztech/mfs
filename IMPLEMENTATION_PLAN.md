@@ -107,8 +107,8 @@ design/                   # 设计文档（实现绝对依据）
 
 - [x] Phase 0：环境诊断、`v0.4-impl` 从 main 分叉、design/ 带入、Rust 1.95 安装、本计划。
 - [x] Phase 1：地基（config / ids / metadata-sqlite / object_store / milvus / transformation_cache）— 冒烟测 **25/25，Lite + Zilliz 均通过**（`server/python/tests/phase1_storage_smoke.py`）。
-- [ ] Phase 2：connector 框架 + file + ingest  ← **进行中**
-- [ ] Phase 3：chunk/embed/Milvus + cache 闭环
+- [x] Phase 2：connector 框架 + file connector + engine/worker/queue — 组件测 14/14 + engine 端到端 10/10（add/幂等/增量）。
+- [ ] Phase 3：chunk/embed/Milvus + cache 闭环  ← **进行中**
 - [ ] Phase 4：检索 + 读命令 + HTTP API
 - [ ] Phase 5：Rust CLI
 - [ ] Phase 6：全 object_kind + web + github
@@ -134,12 +134,13 @@ design/                   # 设计文档（实现绝对依据）
 - **跑测试用 `cd server/python && timeout 60 .venv/bin/python tests/XXX.py` 前台**，不要 `uv run python`（会被 harness 判后台，且多进程抢同一临时 sqlite 会 hang）。需 OpenAI key 的测试用 `bash -ic`。每个测试用唯一/先清理的 db 路径避免竞争。
 - file_state.connector_id 有 FK→connectors(id)：测试/流程要先插 connectors 行再 sync。
 
-**Phase 2 connector 框架已完成**：`base.py`（契约 + ConnectorContext + on_object_indexed/deleted hook）、`registry.py`、`storage/file_state.py`、`connectors/file/plugin.py`（本机 scan/ignore/stat-first/rename/sync）。组件测试 `tests/phase2_file_connector_smoke.py` 14/14。
+**Phase 2 完成**：`base.py`（契约 + ConnectorContext + on_object_indexed/deleted hook）、`registry.py`、`storage/file_state.py`、`connectors/file/plugin.py`（本机 scan/ignore/stat-first/rename/sync）、`engine/engine.py`（register_or_get_connector / add / _run_job / _index_object **stub** / _claim_batch / job 继承）、`engine/state.py`（ConnectorStateStore）。`object_tasks` 加了 `old_uri` 列。测试：file 组件 14/14、engine 端到端 10/10（`tests/phase2_*_smoke.py`）。Milvus Lite 跳过 scalar 索引（避免噪音 + 不支持）。
 
-**下一步 Phase 2 剩余：engine + worker + queue**（验收 add 跑通）：
-- `engine/`：注册 connector（写 connectors 表）；`add` 入口 → 建 connector_job → 跑 `connector.sync()` → 每个 ObjectChange 建 object_task。
-- `ConnectorStateStore`（connector_state 表 + state_snapshot 暂存 + checkpoint/commit；engine 注入给 ctx.state）。
-- `worker/` + queue：claim（SQLite 事务）；FIFO pick_next_job；**per-object 原子**（chunk 跨 task 攒批 embed、upsert+mark 按 task 边界）；task 成功调 `plugin.on_object_indexed(relpath)`、更新 objects.search_status；job 继承（过继 connector 名下 pending/failed task）。
-- file plugin 注入：engine 构造后 `plugin.file_state = FileStateStore(meta, ns, connector_id)`。
-- object_task.object_uri 存【相对 path】（与 sync yield 一致）；Milvus object_uri = connector_uri + relpath（engine 拼）。
-- Phase 2 验收：内部 `add(./dir)` → connectors/objects/file_state 有行、job/task succeeded（embed/Milvus 留 Phase 3，processor 先 stub 直接 mark 成功）。
+**当前 `_index_object` 是 Phase 2 stub**：只 stat + 写 objects/file_state，chunk_count=0，不 chunk/embed/写 Milvus。Phase 3 填真逻辑。
+
+**下一步 Phase 3：真 processor（chunk/embed/Milvus）+ cache 闭环**：
+1. `common/embedding.py`：OpenAIEmbeddingProvider（openai SDK，text-embedding-3-small=dim 1536）+ BatchingEmbeddingClient + CachingEmbeddingClient（用 `tx_cache.batch_get/put`；key=`cache_key(sha1(text),'embedding','openai',model,version)`；dense_vec float32）。
+2. `processors/document.py`（Chonkie `RecursiveChunker(chunk_size=cfg.chunk.chunk_size)`）+ `processors/code.py`（`CodeChunker(language=by ext)`）。chunk→lines：start_index/end_index 是**字符偏移**，转行号 `content[:idx].count("\n")+1`。
+3. 填 `engine._index_object`：read 全文（plugin.read 拼 bytes→text）→ object_kind 选 chunker → chunks → CachingEmbeddingClient.batch_embed → **先 `milvus.delete_by_object` 再 upsert**（重建幂等）Milvus rows（chunk_id(ns,connector_uri,full_uri,'body',None,lines)/namespace_id/connector_uri/object_uri=full_uri/locator=None/lines/content/dense_vec/chunk_kind='body'/metadata/indexed_at）→ chunk_count 写 objects；search_status indexed/partial(chunk_max)。`full_uri = connector_uri + relpath`。
+   - Phase 3 只做 document+code；image(VLM)/pdf(converter)/text_blob 留 Phase 6。
+4. 验收（**需 OpenAI key → `bash -ic '... .venv/bin/python tests/phase3_*.py'`**）：add 临时 repo(.md/.py)→ Milvus chunks>0（Lite+Zilliz 都测）→ search_dense 召回正确 → 重跑/改文件验证 tx cache 命中（监控 objects.chunk_count / Milvus count / tx_cache.stats）。

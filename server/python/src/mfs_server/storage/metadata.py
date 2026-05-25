@@ -91,6 +91,7 @@ SQLITE_DDL = [
         connector_job_id  TEXT REFERENCES connector_jobs(id),
         connector_id      TEXT,
         object_uri        TEXT,
+        old_uri           TEXT,
         change_kind       TEXT,
         status            TEXT,
         priority          INTEGER DEFAULT 0,
