@@ -266,3 +266,98 @@ class Engine:
         """Map a user path/URI to (connector_uri, object_prefix) for search/grep scope."""
         _, connector_uri, _, _ = self._resolve_target(target)
         return connector_uri, None
+
+    # --- read commands (design/05) — Phase 4 file connector ---
+    async def _open_path(self, path: str):
+        """(connector_id, connector_uri, relpath, plugin) for the registered file
+        connector whose root is the longest prefix of the abs path."""
+        import json
+        abs_path = os.path.abspath(path)
+        rows = await self.meta.fetchall(
+            "SELECT * FROM connectors WHERE namespace_id=? AND type='file'", (self.ns,))
+        best = None
+        best_root = ""
+        for r in rows:
+            root_abs = r["root_uri"].replace("file://local", "", 1)
+            if abs_path == root_abs or abs_path.startswith(root_abs.rstrip("/") + "/"):
+                if len(root_abs) > len(best_root):
+                    best, best_root = r, root_abs
+        if best is None:
+            raise ValueError(f"path not under any registered connector: {path}")
+        rel = "/" if abs_path == best_root else "/" + os.path.relpath(abs_path, best_root)
+        plugin, _ = self._build_plugin("file", json.loads(best["config_json"]), best["id"])
+        await plugin.connect()
+        return best["id"], best["root_uri"], rel, plugin
+
+    async def ls(self, path: str) -> list[dict]:
+        _, _, rel, plugin = await self._open_path(path)
+        try:
+            entries = await plugin.list(rel)
+        finally:
+            await plugin.close()
+        return [{"name": e.name, "type": e.type, "media_type": e.media_type, "size_hint": e.size_hint}
+                for e in entries]
+
+    async def cat(self, path: str, range: tuple[int, int] | None = None, meta: bool = False):
+        from ..connectors.base import Range
+        _, curi, rel, plugin = await self._open_path(path)
+        try:
+            st = await plugin.stat(rel)
+            if st.type == "dir":
+                raise IsADirectoryError(path)
+            if meta:
+                return {"source": curi + rel, "media_type": st.media_type,
+                        "size_hint": st.size_hint, "fingerprint": st.fingerprint}
+            rg = Range(range[0], range[1]) if range else None
+            buf = bytearray()
+            async for ch in plugin.read(rel, rg):
+                buf += ch
+            return bytes(buf).decode("utf-8", errors="replace")
+        finally:
+            await plugin.close()
+
+    async def head(self, path: str, n: int = 20) -> str:
+        text = await self.cat(path)
+        return "\n".join(text.splitlines()[:n])
+
+    async def tail(self, path: str, n: int = 20) -> str:
+        text = await self.cat(path)
+        return "\n".join(text.splitlines()[-n:])
+
+    async def grep(self, pattern: str, path: str, top_k: int = 100, regex: bool = False) -> list[dict]:
+        """Dispatch: pushdown (file: none) -> BM25 (indexed scope) -> linear scan
+        (not_indexed objects in scope). design/05 §6."""
+        import re as _re
+        cid, curi, rel, plugin = await self._open_path(path)
+        scope_prefix = (curi + rel) if rel != "/" else None
+        try:
+            results: list[dict] = []
+            # 2b BM25 over indexed objects in scope
+            expr = build_filter(self.ns, curi, scope_prefix)
+            hits = await asyncio.to_thread(self.milvus.sparse_search, self.ns, pattern, top_k, expr)
+            for h in hits:
+                e = h.get("entity", h)
+                results.append({"source": e.get("object_uri"), "lines": e.get("lines"),
+                                "content": e.get("content"), "via": "bm25"})
+            # 2c linear scan over not_indexed objects in scope (file connector)
+            rx = _re.compile(pattern if regex else _re.escape(pattern))
+            like = (rel.rstrip("/") + "%") if rel != "/" else "%"
+            not_idx = await self.meta.fetchall(
+                "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed' "
+                "AND object_uri LIKE ?", (cid, like))
+            for o in not_idx[:50]:
+                relp = o["object_uri"]
+                try:
+                    buf = bytearray()
+                    async for ch in plugin.read(relp):
+                        buf += ch
+                    text = bytes(buf).decode("utf-8", errors="replace")
+                    for i, line in enumerate(text.splitlines(), 1):
+                        if rx.search(line):
+                            results.append({"source": curi + relp, "lines": [i, i],
+                                            "content": line, "via": "linear"})
+                except Exception:  # noqa: BLE001
+                    pass
+            return results
+        finally:
+            await plugin.close()
