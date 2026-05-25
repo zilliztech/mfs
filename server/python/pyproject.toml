@@ -19,6 +19,7 @@ dependencies = [
     "markitdown[all]>=0.0.1",
     "milvus-lite>=3.0",
     "pathspec>=1.1.1",
+    "aiomysql>=0.3.2",
 ]
 
 [project.optional-dependencies]

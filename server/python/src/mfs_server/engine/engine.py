@@ -96,7 +96,7 @@ class Engine:
         m = _SCHEME_RE.match(target)
         if m:
             sch = m.group(1)
-            if sch in ("web", "github", "postgres"):
+            if sch in ("web", "github", "postgres", "mysql"):
                 return sch, target, sch, {}
             if sch != "file":
                 raise NotImplementedError(f"connector scheme '{sch}' not yet implemented")
