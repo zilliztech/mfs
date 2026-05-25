@@ -41,3 +41,7 @@ def load_builtin() -> None:
         from . import mysql  # noqa: F401
     except ImportError:
         pass
+    try:
+        from . import mongo  # noqa: F401
+    except ImportError:
+        pass

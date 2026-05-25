@@ -20,6 +20,7 @@ dependencies = [
     "milvus-lite>=3.0",
     "pathspec>=1.1.1",
     "aiomysql>=0.3.2",
+    "pymongo>=4.13",
 ]
 
 [project.optional-dependencies]

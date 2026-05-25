@@ -115,7 +115,9 @@ design/                   # 设计文档（实现绝对依据）
 - [x] engine **table_rows/record_collection pipeline**（read_records→per_row row_text chunk + text_fields 拼接 + locator(pk) + ObjectConfig 从 [[objects]] 解析）。
 - [x] **postgres connector**（asyncpg，结构化模板；本地 PG 端到端 7/7：per_row + locator + search）。PG14 装好、test db `mfstest`。注：asyncpg cursor 需在 transaction 内；dsn `postgresql:///mfstest?host=/var/run/postgresql`（peer auth）。
 - [x] **mysql connector**（aiomysql，结构化模板）— MariaDB 本地端到端 4/4（证明 table_rows pipeline 跨 DB 通用）。MariaDB 装好、db `mfstest`、user mfs/mfs。
-- [ ] Phase 10 余：需 API key 的 SaaS connector（slack/discord/gmail/gdrive/notion/jira/linear/zendesk/salesforce/hubspot/feishu/bigquery/snowflake）— 查最新 SDK/API 文档写、**暂不端到端测**（无 key）。mongo/s3(minio) 本地可测可后补。
+- [x] **mongo connector**（pymongo 4.13+ AsyncMongoClient，文档型 record_collection）— 查文档写、import/registry 验证通过；**未端到端测**（无本地 mongo 实例）。已注册 schemes: file/web/github/postgres/mysql/mongo。
+- [ ] Phase 10 余：需 key 的 SaaS connector（slack/discord/gmail/gdrive/notion/jira/linear/zendesk/salesforce/hubspot/feishu/bigquery/snowflake）— 各类已有模板：结构化=postgres/mysql、文档=mongo、API分页=github、爬取=web、消息(per_group)待 engine 扩展。查文档写、无 key 不端到端测。
+- [ ] 其余：SDK(py/ts/go/java)、deployments(docker/helm)、Skill bundle、server-rs 加速、cancel(daemon)。
 - [ ] 其余：SDK(py/ts/go/java 从 openapi 生成)、deployments(docker/helm)、Skill bundle、server-rs 加速（PyO3）、cancel(daemon)。
 - [ ] Phase 7：健壮性 case
 - [ ] Phase 8：端到端矩阵（Zilliz × Lite）
