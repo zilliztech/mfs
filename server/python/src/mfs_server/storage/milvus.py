@@ -147,6 +147,18 @@ class MilvusStore:
             return int(rows[0]["count(*)"])
         return 0
 
+    def get_chunks_by_object(self, namespace_id: str, connector_uri: str, object_uri: str) -> list[dict]:
+        """All chunks of an object incl. dense_vec — for rename chunk_id rewrite (reuse
+        vectors, zero re-embed; design/04 §5.7.3)."""
+        assert self.client is not None
+        name = self.resolve_collection(namespace_id)
+        flt = (f'namespace_id == "{namespace_id}" and connector_uri == "{connector_uri}" '
+               f'and object_uri == "{object_uri}"')
+        return self.client.query(
+            collection_name=name, filter=flt,
+            output_fields=["content", "dense_vec", "chunk_kind", "locator", "lines", "metadata", "indexed_at"],
+            consistency_level="Strong")
+
     def search_dense(self, namespace_id: str, query_vec: list[float], limit: int,
                      expr: str = "", output_fields: Optional[list[str]] = None,
                      consistency_level: str = "Strong") -> list[dict]:

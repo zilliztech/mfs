@@ -258,8 +258,36 @@ class Engine:
             return
 
         if kind == "renamed" and task["old_uri"]:
-            # Phase 3: re-embed under new uri; chunk_id-rewrite vector reuse is a Phase 7 optimization
             old_full = connector_uri + task["old_uri"]
+            # rename = chunk_id rewrite, REUSE vectors (zero re-embed; design/04 §5.7.3)
+            old_chunks = await asyncio.to_thread(self.milvus.get_chunks_by_object, ns, connector_uri, old_full)
+            if old_chunks:
+                rows = []
+                for ch in old_chunks:
+                    loc, ln = ch.get("locator"), ch.get("lines")
+                    rows.append({
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, ch["chunk_kind"], loc, ln),
+                        "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
+                        "locator": loc, "lines": ln, "content": ch["content"], "dense_vec": ch["dense_vec"],
+                        "chunk_kind": ch["chunk_kind"], "metadata": ch.get("metadata") or {},
+                        "indexed_at": ch.get("indexed_at") or int(time.time() * 1000)})
+                await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, old_full)
+                await asyncio.to_thread(self.milvus.upsert, ns, rows)
+                await asyncio.to_thread(self.object_store.move_artifacts, ns, old_full, full_uri)
+                st = await plugin.stat(relpath)
+                await self.meta.execute("DELETE FROM objects WHERE connector_id=? AND object_uri=?", (cid, task["old_uri"]))
+                await self.meta.execute(
+                    "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
+                    " fingerprint, indexable, last_seen, search_status, chunk_count, indexed_at) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(connector_id, object_uri) DO UPDATE SET "
+                    " type=excluded.type, media_type=excluded.media_type, size_hint=excluded.size_hint, "
+                    " fingerprint=excluded.fingerprint, indexable=excluded.indexable, last_seen=excluded.last_seen, "
+                    " search_status=excluded.search_status, chunk_count=excluded.chunk_count, indexed_at=excluded.indexed_at",
+                    (cid, relpath, os.path.dirname(relpath) or "/", st.type, st.media_type, st.size_hint,
+                     st.fingerprint, 1, _now(), "indexed", len(rows), _now()))
+                await plugin.on_object_indexed(relpath)
+                return    # reused vectors — no chunk/embed
+            # fallback (old had no chunks): drop refs, index new normally below
             await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, old_full)
             await self.meta.execute(
                 "DELETE FROM objects WHERE connector_id=? AND object_uri=?", (cid, task["old_uri"]))

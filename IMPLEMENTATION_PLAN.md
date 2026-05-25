@@ -168,8 +168,8 @@ design/                   # 设计文档（实现绝对依据）
 2. ✅ deletion：删文件 → deleted task → objects/Milvus 删 + search 不返回。
 3. ✅ 索引失败恢复：task failed + 该 object 不 indexed + 其他 task 不受影响 → 下次 add 恢复 indexed（file_state staged 重 yield + job 继承）。**robustness e2e 12/12**。
 4. ✅ circuit breaker/quota：`_process_with_retry`（错误分类 fatal=quota/auth vs retryable + 退避重试）+ `_run_job` 连续 fatal abort job（cancel 剩余 pending/running，error='circuit_breaker_tripped'）。**robustness e2e 15/15（A/B/C/D）**。
-5. (剩余，次要) cancel：per-object 边界（in-flight 跑完才停）。
-6. (剩余，次要) rename 零 re-embed：Phase 3 暂当重 embed；加 Milvus chunk_id rewrite 复用向量（design/04 §5.7.3）。
+5. (剩余，次要) cancel：per-object 边界 —— 同步 add 模型下无并发 cancel 场景，留到 Phase 5+ 后台 daemon。
+6. ✅ rename 零 re-embed：`milvus.get_chunks_by_object` → 改 chunk_id（新 uri）→ upsert + 删旧 + move artifact。**rename e2e 7/7（零新 embedding 调用，chunk count 不变）**。
 - 之后 Phase 8 矩阵、Phase 5 Rust CLI、Phase 10 需 key connector（查 SDK 文档写、不端到端测）。
 - 注意：web/github cat/ls 需 _open_path 支持 scheme URI（目前 file-only）；可在 Phase 7/收尾补。
 - index_filter(AST 白名单) 属结构化 per_row 场景，留 Phase 6。
