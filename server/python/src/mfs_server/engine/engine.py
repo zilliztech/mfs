@@ -15,6 +15,7 @@ import uuid
 from datetime import datetime, timezone
 
 from ..common.embedding import CachingEmbeddingClient
+from ..common.retrieval import build_filter, collapse_by_object, to_envelope
 from ..config import ServerConfig
 from ..connectors.base import ConnectorContext, ObjectConfig, SyncOptions
 from ..connectors.registry import get_plugin_cls, load_builtin
@@ -242,3 +243,26 @@ class Engine:
     def ctx_object_config(self, connector_id: str, relpath: str) -> ObjectConfig:
         # Phase 3: default config; connector TOML [[objects]] parsing comes later
         return ObjectConfig()
+
+    # --- search (design/06 §7) ---
+    async def search(self, query: str, connector_uri: str | None = None,
+                     object_prefix: str | None = None, mode: str = "hybrid", top_k: int = 10,
+                     chunk_kinds: list[str] | None = None, collapse: bool = False) -> list[dict]:
+        expr = build_filter(self.ns, connector_uri, object_prefix, chunk_kinds)
+        if mode == "keyword":
+            hits = await asyncio.to_thread(self.milvus.sparse_search, self.ns, query, top_k, expr)
+        else:
+            qvec = (await self.embed.batch_embed([query]))[0]
+            if mode == "semantic":
+                hits = await asyncio.to_thread(self.milvus.search_dense, self.ns, qvec, top_k, expr)
+            else:  # hybrid
+                hits = await asyncio.to_thread(
+                    self.milvus.hybrid_search, self.ns, qvec, query, top_k, expr,
+                    None, self.cfg.search.over_fetch_ratio)
+        envs = [to_envelope(h) for h in hits]
+        return collapse_by_object(envs) if collapse else envs
+
+    def resolve_connector_uri(self, target: str) -> tuple[str, str | None]:
+        """Map a user path/URI to (connector_uri, object_prefix) for search/grep scope."""
+        _, connector_uri, _, _ = self._resolve_target(target)
+        return connector_uri, None

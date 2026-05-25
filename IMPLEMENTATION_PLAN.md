@@ -145,7 +145,7 @@ design/                   # 设计文档（实现绝对依据）
 
 **下一步 Phase 4：检索 hybrid + 读命令 + HTTP API**：
 - ✅ milvus.py `hybrid_search`/`sparse_search` 已加 + **pymilvus API 已 Lite 验证**：keyword=`client.search(data=["text"], anns_field="sparse_vec")`（BM25 Function 自动转 sparse）；hybrid=`client.hybrid_search(reqs=[AnnSearchRequest(data=[qvec],anns_field="dense_vec",param={"metric_type":"COSINE"}), AnnSearchRequest(data=["text"],anns_field="sparse_vec",param={})], ranker=RRFRanker())`。BM25 distance 可为负，正常。
-1. `common/retrieval.py`（或 engine.search 方法）：调上面三方法（hybrid/semantic/keyword）+ build_filter(namespace/connector_uri/object_uri like prefix/chunk_kind in/metadata)+ envelope(design/03 §11: source/lines/content/score/locator/metadata)+ collapse by object_uri。
+- ✅ `common/retrieval.py`（build_filter/to_envelope/collapse_by_object）+ `engine.search`（hybrid/semantic/keyword）。**search modes e2e 14/14（Lite+Zilliz）**：召回正确、session>README、BM25 'redis' 命中、collapse 去重、envelope 格式对。
 2. grep 派发(design/05 §6)：pushdown(connector.grep)→BM25(sparse)→线性扫(connector.read)。
 3. 读命令(engine 方法)：ls/tree(objects+connector.list 刷新)、cat(--range/--locator/--meta)、head/tail、export、status。Phase 4 先 file 的 ls/cat/search/grep。
 4. `api/` FastAPI /v1 + `server/__main__.py`(mfs-server run/api/worker/reload)。
