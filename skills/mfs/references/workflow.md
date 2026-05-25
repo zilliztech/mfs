@@ -1,97 +1,73 @@
-# Search and Browse Workflow
+# Workflow: search → locate → browse (for large collections)
 
-MFS works best as an alternating loop:
+MFS shines on **large, indexed** collections. The index makes semantic + keyword
+search fast and high-recall, so you don't scan everything — you search to find
+*where*, then read the exact range to confirm *what*, then browse nearby only if
+needed.
 
-1. Locate candidates with search.
-2. Compare distinct candidate files.
-3. Browse the strongest candidates at controlled density.
-4. Verify exact lines before answering or editing.
+For a **small** collection or an exact string in a known file, this loop is
+overkill — just `grep`/`rg`/read. MFS's index adds little there.
 
-## Unknown Target
+## The loop
 
-Start with a natural-language query:
+1. **Search for candidates** — the index does the heavy lifting:
+   ```bash
+   mfs search "<what the user actually wants>" <path-or-uri> --top-k 10
+   ```
+   - default `hybrid` = dense (meaning) + BM25 (keywords), fused with RRF — best general default.
+   - `--mode semantic` when the query is conceptual and wording won't match literally.
+   - `--mode keyword` when you want BM25 term matching over the index.
+   - `--all` to search every registered connector; scope to a `<path>` to stay focused.
 
-```bash
-mfs search "<what the user is asking for>" <path> --top-k 10
-```
+2. **Locate the exact spot** from each result's envelope (see json-envelope.md):
+   - **text / code** hit carries `lines: [start, end]`:
+     ```bash
+     mfs cat <source> --range <start>:<end>
+     ```
+   - **structured** hit (DB row, issue, slack thread) carries a `locator` (pk / number / thread_ts), `lines` is null:
+     ```bash
+     mfs cat <source> --locator '{"pk":{"id":12}}'      # exact single record
+     ```
+     Prefer `locator` over guessing; it reopens the precise unit.
 
-If the first result is strong and the snippet answers the question, use it. If
-the answer depends on file-level context, inspect the file:
+3. **Browse nearby** to verify context before answering/editing:
+   ```bash
+   mfs cat --peek <file>     # heading/symbol skeleton (document/code only)
+   mfs cat --skim <file>     # + one-line summaries
+   mfs head -n 20 <uri>      # first records of a structured object
+   mfs tree <uri> -L 2       # structure of a subtree
+   ```
 
-```bash
-mfs cat --peek -H 20 -D 3 <candidate-file>
-mfs cat --skim -H 12 -D 3 -W 160 <candidate-file>
-```
+## Weak results → recover, don't thrash
 
-If the search result includes useful line numbers, read a small window:
+If top hits look off:
+1. Rewrite the query with domain synonyms / more specific terms.
+2. Raise `--top-k` to compare more distinct candidates.
+3. `mfs cat --peek` the top few to compare structure.
+4. Switch to literal `mfs grep` / `grep` only if the task has a literal anchor
+   (error code, identifier). Literal search is a *different* tool, not a stronger
+   version of semantic search — don't just grep the same vague words.
 
-```bash
-mfs cat -n <start>:<end> <candidate-file>
-```
-
-## Weak Search Results
-
-If search results look weak:
-
-1. Rewrite the query with synonyms or more domain terms.
-2. Increase `--top-k` to compare more distinct files.
-3. Use `mfs cat --peek` on the top candidates to compare structure.
-4. Use literal search only if the task has literal anchors or MFS cannot locate
-   a plausible semantic candidate. Prefer `grep` as the portable baseline; use
-   `rg` when it is available.
-
-Do not immediately grep the same vague words. Literal search is not a better
-version of semantic search; it is a different tool.
-
-## Known Scope
-
-When the user gives a directory, scope to it:
-
-```bash
-mfs search "<query>" ./docs --top-k 10
-mfs grep "<literal>" ./src
-```
-
-When the user asks across everything already indexed:
+## Scoping
 
 ```bash
-mfs search "<query>" --all --top-k 20
+mfs search "<q>" ./src --top-k 10            # local dir
+mfs search "<q>" postgres://prod/public/tickets   # one connector subtree
+mfs search "<q>" --all --top-k 20            # everything indexed
 ```
 
-Prefer path scopes when available. They reduce noise and help avoid answers
-from unrelated projects.
+## Exact lookups & big objects
 
-## Orientation
+- Exact identifier / error code / config key → `mfs grep "<literal>" <path>` (or `grep`/`rg`).
+- Single record by key → `mfs cat <source> --locator '{...}'`.
+- Whole large object for offline analysis → `mfs export <uri> <file>` then `jq`/`grep` locally
+  (don't `cat` a huge object — it's refused; use `--range`/`head`/`export`).
 
-Use tree for a cheap initial map, especially before broad edits or when the
-directory itself is unfamiliar:
+## Not-yet-indexed / progressive availability
 
+`mfs add` is async. Check readiness before trusting search:
 ```bash
-mfs tree --peek -L 2 <path>
+mfs status <uri>        # search: available | partial | building | unavailable
+mfs ls <uri> --json     # per-object search_status: indexed | partial | building | stale | not_indexed
 ```
-
-Then search. Do not spend many turns walking directories when a semantic search
-can locate the target directly.
-
-## Verification Before Acting
-
-Before final answers, edits, or file/path claims:
-
-- confirm the file path
-- inspect nearby lines with `mfs cat -n`
-- compare close candidates when titles or snippets overlap
-- check whether the prompt asks for multiple files or multiple facts
-
-For edits, use MFS to locate and understand. Use the normal editor or patch
-workflow to change files.
-
-## JSON for Automation
-
-Use `--json` when the output will be parsed by another tool:
-
-```bash
-mfs search "token refresh" ./src --json
-mfs cat --skim ./docs/auth.md --json
-```
-
-Human-readable output is usually better for interactive reasoning.
+While `building`, fall back to `grep` / `ls` / `cat`; switch to `search` once `available`.
