@@ -142,7 +142,7 @@ class MilvusStore:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         rows = self.client.query(collection_name=name, filter=expr or "chunk_id != ''",
-                                 output_fields=["count(*)"])
+                                 output_fields=["count(*)"], consistency_level="Strong")
         if rows and "count(*)" in rows[0]:
             return int(rows[0]["count(*)"])
         return 0

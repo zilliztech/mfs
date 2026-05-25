@@ -7,15 +7,20 @@ per-object atomic + job inheritance (design/02 §6.4 §7.1) are honored in struc
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import re
+import time
 import uuid
 from datetime import datetime, timezone
 
+from ..common.embedding import CachingEmbeddingClient
 from ..config import ServerConfig
 from ..connectors.base import ConnectorContext, ObjectConfig, SyncOptions
 from ..connectors.registry import get_plugin_cls, load_builtin
+from ..processors.text import chunk_body
 from ..storage.file_state import FileStateStore
+from ..storage.ids import chunk_id
 from ..storage.metadata import MetadataStore
 from ..storage.milvus import MilvusStore
 from ..storage.object_store import LocalObjectStore
@@ -37,6 +42,7 @@ class Engine:
         self.milvus = MilvusStore(cfg)
         self.object_store = LocalObjectStore(cfg)
         self.tx_cache = TransformationCache(cfg)
+        self.embed = CachingEmbeddingClient(cfg, self.tx_cache)
 
     async def startup(self) -> None:
         load_builtin()
@@ -159,22 +165,67 @@ class Engine:
                         "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
                         (_now(), str(e), t["id"]))
 
+    async def _read_text(self, plugin, relpath: str) -> str:
+        buf = bytearray()
+        async for chunk in plugin.read(relpath):
+            buf += chunk
+        return bytes(buf).decode("utf-8", errors="replace")
+
     async def _index_object(self, plugin, connector_uri: str, task: dict) -> None:
-        """Phase 2 stub: write objects/file_state. Phase 3 fills chunk/embed/Milvus."""
+        """Real chunk/embed/Milvus (design/04 §2 ⑤). document/code -> body chunks;
+        other kinds carry no chunks in Phase 3 (image VLM / pdf converter -> Phase 6).
+        per-object atomic: delete_by_object then upsert all of this object's chunks."""
         relpath = task["object_uri"]
         kind = task["change_kind"]
         cid = task["connector_id"]
+        ns = self.ns
+        full_uri = connector_uri + relpath
+
         if kind == "deleted":
             await self.meta.execute(
                 "DELETE FROM objects WHERE connector_id=? AND object_uri=?", (cid, relpath))
-            # Phase 3: self.milvus.delete_by_object(ns, connector_uri, connector_uri+relpath)
+            await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
             await plugin.on_object_deleted(relpath)
             return
 
+        if kind == "renamed" and task["old_uri"]:
+            # Phase 3: re-embed under new uri; chunk_id-rewrite vector reuse is a Phase 7 optimization
+            old_full = connector_uri + task["old_uri"]
+            await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, old_full)
+            await self.meta.execute(
+                "DELETE FROM objects WHERE connector_id=? AND object_uri=?", (cid, task["old_uri"]))
+
         st = await plugin.stat(relpath)
         okind = plugin.object_kind_of(relpath)
+        chunk_count = 0
+        search_status = "not_indexed"
         indexable = okind not in ("binary",)
-        chunk_count = 0   # Phase 3: real chunk/embed -> count
+
+        if okind in ("document", "code"):
+            text = await self._read_text(plugin, relpath)
+            ext = os.path.splitext(relpath)[1]
+            ocfg = self.ctx_object_config(cid, relpath)
+            pairs = chunk_body(text, okind, ext, self.cfg.chunk.chunk_size)
+            chunk_max = ocfg.chunk_max
+            partial = len(pairs) > chunk_max
+            if partial:
+                pairs = pairs[:chunk_max]
+            if pairs:
+                vecs = await self.embed.batch_embed([p[0] for p in pairs])
+                now_ms = int(time.time() * 1000)
+                rows = []
+                for (ctext, lines), vec in zip(pairs, vecs):
+                    rows.append({
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "body", None, lines),
+                        "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
+                        "locator": None, "lines": lines, "content": ctext[:65000],
+                        "dense_vec": vec, "chunk_kind": "body", "metadata": {}, "indexed_at": now_ms,
+                    })
+                await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
+                await asyncio.to_thread(self.milvus.upsert, ns, rows)
+                chunk_count = len(rows)
+                search_status = "partial" if partial else "indexed"
+
         await self.meta.execute(
             "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
             " fingerprint, indexable, last_seen, search_status, chunk_count, indexed_at) "
@@ -184,12 +235,10 @@ class Engine:
             " fingerprint=excluded.fingerprint, indexable=excluded.indexable, last_seen=excluded.last_seen, "
             " search_status=excluded.search_status, chunk_count=excluded.chunk_count, indexed_at=excluded.indexed_at",
             (cid, relpath, os.path.dirname(relpath) or "/", st.type, st.media_type, st.size_hint,
-             st.fingerprint, 1 if indexable else 0, _now(),
-             "indexed" if indexable else "not_indexed", chunk_count, _now()))
-
-        if kind == "renamed" and task["old_uri"]:
-            await self.meta.execute(
-                "DELETE FROM objects WHERE connector_id=? AND object_uri=?", (cid, task["old_uri"]))
-            # Phase 3: Milvus chunk_id rewrite old_uri -> relpath (reuse vectors)
+             st.fingerprint, 1 if indexable else 0, _now(), search_status, chunk_count, _now()))
 
         await plugin.on_object_indexed(relpath)
+
+    def ctx_object_config(self, connector_id: str, relpath: str) -> ObjectConfig:
+        # Phase 3: default config; connector TOML [[objects]] parsing comes later
+        return ObjectConfig()

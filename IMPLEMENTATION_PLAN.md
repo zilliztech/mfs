@@ -108,8 +108,8 @@ design/                   # 设计文档（实现绝对依据）
 - [x] Phase 0：环境诊断、`v0.4-impl` 从 main 分叉、design/ 带入、Rust 1.95 安装、本计划。
 - [x] Phase 1：地基（config / ids / metadata-sqlite / object_store / milvus / transformation_cache）— 冒烟测 **25/25，Lite + Zilliz 均通过**（`server/python/tests/phase1_storage_smoke.py`）。
 - [x] Phase 2：connector 框架 + file connector + engine/worker/queue — 组件测 14/14 + engine 端到端 10/10（add/幂等/增量）。
-- [ ] Phase 3：chunk/embed/Milvus + cache 闭环  ← **进行中**
-- [ ] Phase 4：检索 + 读命令 + HTTP API
+- [x] Phase 3：chunk/embed/Milvus + cache 闭环 — index+search e2e **14/14（Lite+Zilliz）**：召回正确 + force-index 0 新 API 调用(cache 全命中)。
+- [ ] Phase 4：检索 + 读命令 + HTTP API  ← **进行中**
 - [ ] Phase 5：Rust CLI
 - [ ] Phase 6：全 object_kind + web + github
 - [ ] Phase 7：健壮性 case
@@ -138,9 +138,15 @@ design/                   # 设计文档（实现绝对依据）
 
 **当前 `_index_object` 是 Phase 2 stub**：只 stat + 写 objects/file_state，chunk_count=0，不 chunk/embed/写 Milvus。Phase 3 填真逻辑。
 
-**下一步 Phase 3：真 processor（chunk/embed/Milvus）+ cache 闭环**：
-1. `common/embedding.py`：OpenAIEmbeddingProvider（openai SDK，text-embedding-3-small=dim 1536）+ BatchingEmbeddingClient + CachingEmbeddingClient（用 `tx_cache.batch_get/put`；key=`cache_key(sha1(text),'embedding','openai',model,version)`；dense_vec float32）。
-2. `processors/document.py`（Chonkie `RecursiveChunker(chunk_size=cfg.chunk.chunk_size)`）+ `processors/code.py`（`CodeChunker(language=by ext)`）。chunk→lines：start_index/end_index 是**字符偏移**，转行号 `content[:idx].count("\n")+1`。
-3. 填 `engine._index_object`：read 全文（plugin.read 拼 bytes→text）→ object_kind 选 chunker → chunks → CachingEmbeddingClient.batch_embed → **先 `milvus.delete_by_object` 再 upsert**（重建幂等）Milvus rows（chunk_id(ns,connector_uri,full_uri,'body',None,lines)/namespace_id/connector_uri/object_uri=full_uri/locator=None/lines/content/dense_vec/chunk_kind='body'/metadata/indexed_at）→ chunk_count 写 objects；search_status indexed/partial(chunk_max)。`full_uri = connector_uri + relpath`。
-   - Phase 3 只做 document+code；image(VLM)/pdf(converter)/text_blob 留 Phase 6。
-4. 验收（**需 OpenAI key → `bash -ic '... .venv/bin/python tests/phase3_*.py'`**）：add 临时 repo(.md/.py)→ Milvus chunks>0（Lite+Zilliz 都测）→ search_dense 召回正确 → 重跑/改文件验证 tx cache 命中（监控 objects.chunk_count / Milvus count / tx_cache.stats）。
+**Phase 3 完成**：`common/embedding.py`（CachingEmbeddingClient：OpenAI + tx cache memo，float32 packed，api_calls/cache_hits 监控）、`processors/text.py`（chunk_body：Chonkie Recursive/Code，字符偏移→行号）、engine `_index_object` 真实（read→chunk→embed→`delete_by_object`+`upsert`，per-object 原子，chunk_count/search_status）。测试 14/14（Lite+Zilliz）。
+- **count/search 都用 `consistency_level="Strong"`**（Zilliz serverless 必须，否则刚写查不到）。
+- rename Phase 3 暂当重 embed；chunk_id-rewrite 复用向量优化留 Phase 7。
+- image(VLM)/pdf(converter)/text_blob 索引留 Phase 6。
+
+**下一步 Phase 4：检索 hybrid + 读命令 + HTTP API**：
+1. `common/retrieval.py` + milvus.py 加 `hybrid_search`/`sparse_search`：hybrid(dense+BM25 RRF，pymilvus AnnSearchRequest+RRFRanker)、semantic(纯dense)、keyword(纯sparse)；跨 partition merge(over_fetch_ratio)；filter(namespace/connector_uri/object_uri prefix/chunk_kind/metadata)；collapse by object_uri。
+2. grep 派发(design/05 §6)：pushdown(connector.grep)→BM25(sparse)→线性扫(connector.read)。
+3. 读命令(engine 方法)：ls/tree(objects+connector.list 刷新)、cat(--range/--locator/--meta)、head/tail、export、status。Phase 4 先 file 的 ls/cat/search/grep。
+4. `api/` FastAPI /v1 + `server/__main__.py`(mfs-server run/api/worker/reload)。
+5. 验收：httpx 驱动 add/search/grep/ls/cat（Lite+Zilliz）；--mode hybrid/semantic/keyword；envelope 格式(design/03 §11)。
+- index_filter(AST 白名单) 属结构化 per_row 场景，留 Phase 6。
