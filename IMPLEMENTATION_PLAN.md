@@ -159,7 +159,17 @@ design/                   # 设计文档（实现绝对依据）
 1. ✅ `common/converter.py` CachingConverterClient（markitdown[all]，tx cache kind='convert'）+ converted_md artifact + cat 返回 md。**pdf/html e2e 10/10（Lite+Zilliz）**。注：**markitdown[all] 已装**（基础 markitdown 不含 pdf 依赖）；CONVERT_EXTS={pdf,docx,doc,pptx,ppt,xlsx,xls,html,htm}；fpdf2(dev) 生成测试 pdf。
 2. ✅ `common/vlm.py`（gpt-4o-mini vision，image_url base64 data URL — 已验证）→ vlm_description chunk + vlm_text artifact + cat 返回描述。**image e2e 8/8（Lite+Zilliz）**。至此 file connector 全 object_kind（md/code/pdf/docx/html/image）端到端通过。
 3. ✅ `connectors/web/`（aiohttp 爬 + markitdown 内联转 + ETag/304 + URL 规范化 + page md 存 converted_md artifact）+ engine.add(config=) 支持 + _resolve_target web/github。**web e2e 4/4（爬 example.com）**。注：`bash -ic` 跑测试要在 **bash -ic 内部 `cd /abs/server/python`**（交互 shell cwd 会漂移到 home）。web cat/ls 待 _open_path 支持 scheme URI（下轮）。
-4. `connectors/github/` 公开 repo（httpx GitHub REST `/repos/{o}/{r}/git/trees?recursive=1` + raw + issues/pulls，**查最新 REST API**；匿名 rate-limit 低，可选 GITHUB_TOKEN）。
-5. e2e（Lite+Zilliz）：pdf→md→search；png→VLM→search；web 公开站；github 公开小 repo。
-- 之后 Phase 7 健壮性（circuit breaker/checkpoint/deletion declare_enumeration/cancel/quota）、Phase 8 矩阵、Phase 5 Rust CLI、Phase 10 需 key 的 connector。
+4. ✅ `connectors/github/` 公开 repo code tree（`trees?recursive=1` + raw.githubusercontent + **GITHUB_TOKEN env**，匿名 rate-limit 已耗尽必须带 token）。**github e2e 5/5**（octocat/Spoon-Knife）。issues/pulls 待补。
+
+**Phase 6 端到端 connector 全部完成**：file（md/code/pdf/docx/html/image）+ web + github，对外要求的都端到端通过（多数 Lite+Zilliz 双测）。
+
+**下一步 Phase 7：健壮性 / 可靠性 case（用户重点）**：
+1. 重跑/换模型重建：改 embedding model → `add --force-index` → 全 re-embed（tx cache miss）；不变内容 force-index → cache 命中。换 converter/vlm 同理。
+2. deletion：full_scan connector（file/github）删文件 → 下次 add 检测 deleted → Milvus chunk 删除（declare_enumeration='full' 才删）；incremental(slack 类) 不删。验证 objects/Milvus 一致。
+3. 索引中断 + job 继承：sync 后 task 跑一半"崩"（mock 失败）→ task failed → 下次 add 过继 failed/pending task 重跑成功。监控 object_tasks 状态机。
+4. circuit breaker / quota：mock embedding 连续 fatal（429/402）→ N 次后 abort job，error 写 quota_exceeded。
+5. cancel：per-object 边界（in-flight task 跑完才停）。
+6. rename 零 re-embed（Phase 3 暂当重 embed → Phase 7 加 chunk_id rewrite 复用向量）。
+- 之后 Phase 8 矩阵、Phase 5 Rust CLI、Phase 10 需 key connector（查 SDK 文档写、不端到端测）。
+- 注意：web/github cat/ls 需 _open_path 支持 scheme URI（目前 file-only）；可在 Phase 7/收尾补。
 - index_filter(AST 白名单) 属结构化 per_row 场景，留 Phase 6。
