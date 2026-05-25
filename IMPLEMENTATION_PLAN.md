@@ -164,12 +164,12 @@ design/                   # 设计文档（实现绝对依据）
 **Phase 6 端到端 connector 全部完成**：file（md/code/pdf/docx/html/image）+ web + github，对外要求的都端到端通过（多数 Lite+Zilliz 双测）。
 
 **下一步 Phase 7：健壮性 / 可靠性 case（用户重点）**：
-1. 重跑/换模型重建：改 embedding model → `add --force-index` → 全 re-embed（tx cache miss）；不变内容 force-index → cache 命中。换 converter/vlm 同理。
-2. deletion：full_scan connector（file/github）删文件 → 下次 add 检测 deleted → Milvus chunk 删除（declare_enumeration='full' 才删）；incremental(slack 类) 不删。验证 objects/Milvus 一致。
-3. 索引中断 + job 继承：sync 后 task 跑一半"崩"（mock 失败）→ task failed → 下次 add 过继 failed/pending task 重跑成功。监控 object_tasks 状态机。
-4. circuit breaker / quota：mock embedding 连续 fatal（429/402）→ N 次后 abort job，error 写 quota_exceeded。
-5. cancel：per-object 边界（in-flight task 跑完才停）。
-6. rename 零 re-embed（Phase 3 暂当重 embed → Phase 7 加 chunk_id rewrite 复用向量）。
+1. ✅ 换模型 force-index：cache 失效重 embed（version bump 模拟）+ 再跑命中。
+2. ✅ deletion：删文件 → deleted task → objects/Milvus 删 + search 不返回。
+3. ✅ 索引失败恢复：task failed + 该 object 不 indexed + 其他 task 不受影响 → 下次 add 恢复 indexed（file_state staged 重 yield + job 继承）。**robustness e2e 12/12**。
+4. (剩余) circuit breaker/quota：`_run_job` 加 retry 退避 + 错误分类(retry-able 429/5xx vs fatal 401/402) + 连续 fatal abort job（error=quota/auth）。
+5. (剩余) cancel：per-object 边界。
+6. (剩余) rename 零 re-embed：Phase 3 暂当重 embed；加 Milvus chunk_id rewrite 复用向量（design/04 §5.7.3）。
 - 之后 Phase 8 矩阵、Phase 5 Rust CLI、Phase 10 需 key connector（查 SDK 文档写、不端到端测）。
 - 注意：web/github cat/ls 需 _open_path 支持 scheme URI（目前 file-only）；可在 Phase 7/收尾补。
 - index_filter(AST 白名单) 属结构化 per_row 场景，留 Phase 6。
