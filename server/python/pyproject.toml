@@ -18,6 +18,7 @@ dependencies = [
     "chonkie>=0.4",
     "markitdown>=0.0.1",
     "milvus-lite>=3.0",
+    "pathspec>=1.1.1",
 ]
 
 [project.optional-dependencies]

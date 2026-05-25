@@ -131,10 +131,15 @@ design/                   # 设计文档（实现绝对依据）
 - Zilliz 免费实例：测试用 shared 单张 `mfs_chunks`，**用完即 drop**（smoke test 已自动 drop 清理）。
 - Milvus 配置从 env：`MFS_MILVUS_URI/TOKEN` 优先，回落 `ZILLIZ_URI/ZILLIZ_API_KEY`（这俩在全局 env、非交互可读）；OpenAI key 在 `~/.bashrc` 交互段，跑需 OpenAI 的测试要 `bash -ic '...'` 或显式 export。
 - pymilvus 同步 API；engine/worker 用 `asyncio.to_thread` 包装。
+- **跑测试用 `cd server/python && timeout 60 .venv/bin/python tests/XXX.py` 前台**，不要 `uv run python`（会被 harness 判后台，且多进程抢同一临时 sqlite 会 hang）。需 OpenAI key 的测试用 `bash -ic`。每个测试用唯一/先清理的 db 路径避免竞争。
+- file_state.connector_id 有 FK→connectors(id)：测试/流程要先插 connectors 行再 sync。
 
-**下一步 Phase 2**：
-1. `connectors/base.py`：ConnectorPlugin(ABC) + Capabilities + PathStat/Entry/Range/ObjectChange/SyncOptions/GrepMatch/GrepOptions/HealthStatus + StateStore(Protocol) + ConnectorContext（含 `declare_enumeration` / `object_config_for`）。严格按 design/07 §3§4（注意：acl 已删、FileStat→PathStat、read/read_records 二选一、declare_enumeration 三值）。
-2. `connectors/registry.py`：URI scheme → plugin。
-3. `connectors/file/`：本机模式 scan + .gitignore/.mfsignore + stat-first(size+mtime→sha1) + file_state DAO + rename(inode/sha1 配对) + object_kind_of。
-4. `engine/` + `worker/`：connector_jobs/object_tasks 状态机；claim（SQLite 事务）；FIFO pick_next_job；**per-object 原子**（chunk 跨 task 攒批 embed、但 upsert+mark 按 task 边界，design/02 §6.4 改版）；job 继承（design/02 §7.1：新 job 过继 connector 名下 pending/failed task）。
-   - Phase 2 验收：内部 Python 入口 `add(./dir)` → objects/file_state 有行、job/task 走到 succeeded（embed/Milvus 写入留到 Phase 3，可先 stub processor）。
+**Phase 2 connector 框架已完成**：`base.py`（契约 + ConnectorContext + on_object_indexed/deleted hook）、`registry.py`、`storage/file_state.py`、`connectors/file/plugin.py`（本机 scan/ignore/stat-first/rename/sync）。组件测试 `tests/phase2_file_connector_smoke.py` 14/14。
+
+**下一步 Phase 2 剩余：engine + worker + queue**（验收 add 跑通）：
+- `engine/`：注册 connector（写 connectors 表）；`add` 入口 → 建 connector_job → 跑 `connector.sync()` → 每个 ObjectChange 建 object_task。
+- `ConnectorStateStore`（connector_state 表 + state_snapshot 暂存 + checkpoint/commit；engine 注入给 ctx.state）。
+- `worker/` + queue：claim（SQLite 事务）；FIFO pick_next_job；**per-object 原子**（chunk 跨 task 攒批 embed、upsert+mark 按 task 边界）；task 成功调 `plugin.on_object_indexed(relpath)`、更新 objects.search_status；job 继承（过继 connector 名下 pending/failed task）。
+- file plugin 注入：engine 构造后 `plugin.file_state = FileStateStore(meta, ns, connector_id)`。
+- object_task.object_uri 存【相对 path】（与 sync yield 一致）；Milvus object_uri = connector_uri + relpath（engine 拼）。
+- Phase 2 验收：内部 `add(./dir)` → connectors/objects/file_state 有行、job/task succeeded（embed/Milvus 留 Phase 3，processor 先 stub 直接 mark 成功）。
