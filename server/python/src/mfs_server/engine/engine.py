@@ -64,8 +64,12 @@ class Engine:
     # --- target resolution (Phase 2: file only) ---
     def _resolve_target(self, target: str) -> tuple[str, str, str, dict]:
         m = _SCHEME_RE.match(target)
-        if m and m.group(1) != "file":
-            raise NotImplementedError(f"connector scheme '{m.group(1)}' not yet implemented")
+        if m:
+            sch = m.group(1)
+            if sch in ("web", "github"):
+                return sch, target, sch, {}
+            if sch != "file":
+                raise NotImplementedError(f"connector scheme '{sch}' not yet implemented")
         # local path -> file connector
         abs_path = os.path.abspath(target)
         connector_uri = f"file://local{abs_path}"
@@ -101,9 +105,14 @@ class Engine:
         return plugin, ctx
 
     # --- add (register + sync + worker) ---
-    async def add(self, target: str, full: bool = False, since: str | None = None) -> str:
-        _, connector_uri, ctype, config = self._resolve_target(target)
-        cid = await self.register_or_get_connector(connector_uri, ctype, config)
+    async def add(self, target: str, config: dict | None = None, full: bool = False,
+                  since: str | None = None) -> str:
+        import json
+        _, connector_uri, ctype, default_config = self._resolve_target(target)
+        cfg_dict = config if config is not None else default_config
+        cid = await self.register_or_get_connector(connector_uri, ctype, cfg_dict)
+        row0 = await self.meta.fetchone("SELECT config_json FROM connectors WHERE id=?", (cid,))
+        stored_cfg = json.loads(row0["config_json"]) if row0 and row0["config_json"] else cfg_dict
 
         job_id = uuid.uuid4().hex
         await self.meta.execute(
@@ -117,7 +126,7 @@ class Engine:
             "WHERE connector_id=? AND status IN ('pending','failed') AND attempts < ?",
             (job_id, cid, self.cfg.worker.max_retries))
 
-        plugin, ctx = self._build_plugin(ctype, config, cid)
+        plugin, ctx = self._build_plugin(ctype, stored_cfg, cid)
         await plugin.connect()
         try:
             opts = SyncOptions(full=full, since=since)
@@ -218,6 +227,9 @@ class Engine:
                                         "converted_md", text.encode())
             else:
                 text = await self._read_text(plugin, relpath)
+                if connector_uri.startswith(("web://", "github://")):
+                    await asyncio.to_thread(self.object_store.put_artifact, ns, full_uri,
+                                            "converted_md", text.encode())
             ocfg = self.ctx_object_config(cid, relpath)
             pairs = chunk_body(text, okind, ext, self.cfg.chunk.chunk_size)
             chunk_max = ocfg.chunk_max
