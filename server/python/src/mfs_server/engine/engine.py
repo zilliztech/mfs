@@ -128,6 +128,7 @@ class Engine:
 
         plugin, ctx = self._build_plugin(ctype, stored_cfg, cid)
         await plugin.connect()
+        aborted: str | None = None
         try:
             opts = SyncOptions(full=full, since=since)
             async for ch in plugin.sync(opts):
@@ -137,7 +138,7 @@ class Engine:
                     " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
                     (tid, job_id, cid, ch.uri, ch.old_uri, ch.kind, "pending", plugin.task_priority(ch)))
 
-            await self._run_job(job_id, cid, connector_uri, plugin)
+            aborted = await self._run_job(job_id, cid, connector_uri, plugin)
             await ctx.state.commit()
         finally:
             await plugin.close()
@@ -147,9 +148,11 @@ class Engine:
             "SELECT status, count(*) AS n FROM object_tasks WHERE connector_job_id=? GROUP BY status", (job_id,))
         cmap = {r["status"]: r["n"] for r in counts}
         await self.meta.execute(
-            "UPDATE connector_jobs SET status='succeeded', finished_at=?, "
-            " total_objects=?, succeeded_objects=?, failed_objects=? WHERE id=?",
-            (_now(), sum(cmap.values()), cmap.get("succeeded", 0), cmap.get("failed", 0), job_id))
+            "UPDATE connector_jobs SET status=?, finished_at=?, error=?, "
+            " total_objects=?, succeeded_objects=?, failed_objects=?, cancelled_objects=? WHERE id=?",
+            ("failed" if aborted else "succeeded", _now(), aborted,
+             sum(cmap.values()), cmap.get("succeeded", 0), cmap.get("failed", 0),
+             cmap.get("cancelled", 0), job_id))
         return job_id
 
     async def _claim_batch(self, job_id: str, limit: int) -> list[dict]:
@@ -162,22 +165,71 @@ class Engine:
                 (_now(), r["id"]))
         return rows
 
-    async def _run_job(self, job_id: str, cid: str, connector_uri: str, plugin) -> None:
+    @staticmethod
+    def _classify_error(e: Exception) -> str:
+        """retryable (transient: 429 rate-limit / 5xx / timeout) vs fatal (structural:
+        quota exhausted / auth) — design/02 §7.1."""
+        m = str(e).lower()
+        fatal_markers = ("insufficient_quota", "quota", "invalid_api_key", "authentication",
+                         "unauthorized", "402", "401", "permission denied", "invalid x-api-key")
+        if any(k in m for k in fatal_markers):
+            return "fatal"
+        nm = type(e).__name__.lower()
+        if "authentication" in nm or "permissiondenied" in nm:
+            return "fatal"
+        return "retryable"
+
+    async def _process_with_retry(self, plugin, connector_uri: str, task: dict) -> str | None:
+        """Returns None on success, 'fatal', or 'retryable_exhausted'."""
+        import asyncio as _a
+        max_r = self.cfg.worker.max_retries
+        for attempt in range(max_r + 1):
+            try:
+                await self._index_object(plugin, connector_uri, task)
+                return None
+            except Exception as e:  # noqa: BLE001
+                kind = self._classify_error(e)
+                if kind == "fatal":
+                    await self.meta.execute(
+                        "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
+                        (_now(), f"fatal: {e}", task["id"]))
+                    return "fatal"
+                if attempt < max_r:
+                    await _a.sleep(self.cfg.worker.backoff_initial_ms / 1000)
+                    continue
+                await self.meta.execute(
+                    "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
+                    (_now(), str(e), task["id"]))
+                return "retryable_exhausted"
+        return "retryable_exhausted"
+
+    async def _run_job(self, job_id: str, cid: str, connector_uri: str, plugin) -> str | None:
+        """Returns None on normal completion, or a circuit-breaker reason string.
+        Consecutive fatal failures (design/02 §7.1) abort the job."""
+        threshold = self.cfg.worker.consecutive_fatal_threshold
+        consec_fatal = 0
         while True:
             tasks = await self._claim_batch(job_id, limit=64)
             if not tasks:
                 break
-            # Phase 3 will chunk all + batch-embed across tasks here; upsert+mark stays per-task.
             for t in tasks:
-                try:
-                    await self._index_object(plugin, connector_uri, t)
+                r = await self._process_with_retry(plugin, connector_uri, t)
+                if r is None:
                     await self.meta.execute(
                         "UPDATE object_tasks SET status='succeeded', finished_at=? WHERE id=?",
                         (_now(), t["id"]))
-                except Exception as e:  # noqa: BLE001
-                    await self.meta.execute(
-                        "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
-                        (_now(), str(e), t["id"]))
+                    consec_fatal = 0
+                elif r == "fatal":
+                    consec_fatal += 1
+                    if consec_fatal >= threshold:
+                        await self.meta.execute(
+                            "UPDATE object_tasks SET status='cancelled' "
+                            "WHERE connector_job_id=? AND status IN ('pending','running')",
+                            (job_id,))
+                        return "circuit_breaker_tripped"
+                else:
+                    consec_fatal = 0
+        return None
 
     async def _read_text(self, plugin, relpath: str) -> str:
         return (await self._read_bytes(plugin, relpath)).decode("utf-8", errors="replace")

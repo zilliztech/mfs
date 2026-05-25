@@ -31,6 +31,7 @@ def mkcfg(base):
     cfg.milvus.token = ""
     cfg.object_store.root = base + "_cache"
     cfg.transformation_cache.db_path = base + "_tx.db"
+    cfg.worker.backoff_initial_ms = 0      # no real backoff sleep in tests
     return cfg
 
 
@@ -107,12 +108,13 @@ async def case_c_failure_recovery():
         eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
         # monkeypatch _index_object to fail once on flaky.md
         orig = eng._index_object
-        state = {"failed_once": False}
+        state = {"count": 0}
 
         async def flaky_index(plugin, connector_uri, task):
-            if task["object_uri"] == "/flaky.md" and not state["failed_once"]:
-                state["failed_once"] = True
-                raise RuntimeError("simulated transient indexing failure")
+            if task["object_uri"] == "/flaky.md":
+                state["count"] += 1
+                if state["count"] <= eng.cfg.worker.max_retries + 1:  # exhaust retries on first add
+                    raise RuntimeError("simulated transient indexing failure")
             return await orig(plugin, connector_uri, task)
 
         eng._index_object = flaky_index
@@ -135,6 +137,35 @@ async def case_c_failure_recovery():
         await eng.shutdown(); shutil.rmtree(root, ignore_errors=True); os.system(f"rm -rf '{base}'*")
 
 
+async def case_d_circuit_breaker():
+    print("== D) circuit breaker on consecutive fatal (quota) ==")
+    root = tempfile.mkdtemp(prefix="mfs_p7d_")
+    for i in range(8):
+        open(f"{root}/f{i}.md", "w").write(f"# Doc {i}\n\nContent number {i} about distributed systems.\n")
+    base = f"/tmp/mfs_p7d_{os.getpid()}"
+    os.system(f"rm -rf '{base}'*")
+    eng = Engine(mkcfg(base))
+    await eng.startup()
+    try:
+        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+
+        async def quota_fail(texts):
+            raise RuntimeError("Error code: 429 - insufficient_quota: You exceeded your current quota")
+
+        eng.embed.batch_embed = quota_fail      # simulate API key out of quota
+        job = await eng.add(root)
+        jr = await eng.meta.fetchone("SELECT status, error FROM connector_jobs WHERE id=?", (job,))
+        check("D: job failed via circuit breaker", jr["status"] == "failed" and jr["error"] == "circuit_breaker_tripped")
+        cancelled = await eng.meta.fetchall("SELECT 1 FROM object_tasks WHERE connector_job_id=? AND status='cancelled'", (job,))
+        check("D: remaining tasks cancelled (not wastefully run)", len(cancelled) > 0)
+        failed = await eng.meta.fetchall("SELECT 1 FROM object_tasks WHERE connector_job_id=? AND status='failed'", (job,))
+        check("D: fatal failures reached threshold", len(failed) >= eng.cfg.worker.consecutive_fatal_threshold)
+    finally:
+        try: eng.milvus.drop_collection("default")
+        except Exception: pass
+        await eng.shutdown(); shutil.rmtree(root, ignore_errors=True); os.system(f"rm -rf '{base}'*")
+
+
 async def main():
     if not os.environ.get("OPENAI_API_KEY"):
         print("OPENAI_API_KEY not set — run via bash -ic")
@@ -142,6 +173,7 @@ async def main():
     await case_a_model_change()
     await case_b_deletion()
     await case_c_failure_recovery()
+    await case_d_circuit_breaker()
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
