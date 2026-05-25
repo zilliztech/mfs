@@ -157,7 +157,7 @@ design/                   # 设计文档（实现绝对依据）
 
 **下一步 Phase 6：object_kind 扩展 + web/github**：
 1. ✅ `common/converter.py` CachingConverterClient（markitdown[all]，tx cache kind='convert'）+ converted_md artifact + cat 返回 md。**pdf/html e2e 10/10（Lite+Zilliz）**。注：**markitdown[all] 已装**（基础 markitdown 不含 pdf 依赖）；CONVERT_EXTS={pdf,docx,doc,pptx,ppt,xlsx,xls,html,htm}；fpdf2(dev) 生成测试 pdf。
-2. `common/vlm.py` CachingVlmClient（OpenAI chat `gpt-4o-mini` vision，image base64 data URL，**查 chat.completions image_url 写法**）→ image → vlm_description chunk + vlm_text artifact。
+2. ✅ `common/vlm.py`（gpt-4o-mini vision，image_url base64 data URL — 已验证）→ vlm_description chunk + vlm_text artifact + cat 返回描述。**image e2e 8/8（Lite+Zilliz）**。至此 file connector 全 object_kind（md/code/pdf/docx/html/image）端到端通过。
 3. `connectors/web/` aiohttp+markitdown+ETag(self.state {url:etag})+URL 规范化(design/07 §10.7)。
 4. `connectors/github/` 公开 repo（httpx GitHub REST `/repos/{o}/{r}/git/trees?recursive=1` + raw + issues/pulls，**查最新 REST API**；匿名 rate-limit 低，可选 GITHUB_TOKEN）。
 5. e2e（Lite+Zilliz）：pdf→md→search；png→VLM→search；web 公开站；github 公开小 repo。

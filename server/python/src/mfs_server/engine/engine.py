@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from ..common.converter import CONVERT_EXTS, CachingConverterClient
 from ..common.embedding import CachingEmbeddingClient
 from ..common.retrieval import build_filter, collapse_by_object, to_envelope
+from ..common.vlm import CachingVlmClient
 from ..config import ServerConfig
 from ..connectors.base import ConnectorContext, ObjectConfig, SyncOptions
 from ..connectors.registry import get_plugin_cls, load_builtin
@@ -46,6 +47,7 @@ class Engine:
         self.tx_cache = TransformationCache(cfg)
         self.embed = CachingEmbeddingClient(cfg, self.tx_cache)
         self.converter = CachingConverterClient(cfg, self.tx_cache)
+        self.vlm = CachingVlmClient(cfg, self.tx_cache)
 
     async def startup(self) -> None:
         load_builtin()
@@ -238,6 +240,24 @@ class Engine:
                 chunk_count = len(rows)
                 search_status = "partial" if partial else "indexed"
 
+        elif okind == "image":
+            ext = os.path.splitext(relpath)[1].lower()
+            raw = await self._read_bytes(plugin, relpath)
+            desc = await self.vlm.describe(raw, ext)
+            await asyncio.to_thread(self.object_store.put_artifact, ns, full_uri, "vlm_text", desc.encode())
+            if desc.strip():
+                vec = (await self.embed.batch_embed([desc]))[0]
+                row = {
+                    "chunk_id": chunk_id(ns, connector_uri, full_uri, "vlm_description", None, None),
+                    "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
+                    "locator": None, "lines": None, "content": desc[:65000], "dense_vec": vec,
+                    "chunk_kind": "vlm_description", "metadata": {}, "indexed_at": int(time.time() * 1000),
+                }
+                await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
+                await asyncio.to_thread(self.milvus.upsert, ns, [row])
+                chunk_count = 1
+                search_status = "indexed"
+
         await self.meta.execute(
             "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
             " fingerprint, indexable, last_seen, search_status, chunk_count, indexed_at) "
@@ -325,6 +345,10 @@ class Engine:
                                               curi + rel, "converted_md")
                 if art is not None:
                     return art.decode("utf-8", errors="replace")
+            art_vlm = await asyncio.to_thread(self.object_store.get_artifact, self.ns,
+                                              curi + rel, "vlm_text")
+            if art_vlm is not None:        # image -> VLM description
+                return art_vlm.decode("utf-8", errors="replace")
             rg = Range(range[0], range[1]) if range else None
             buf = bytearray()
             async for ch in plugin.read(rel, rg):
