@@ -111,7 +111,7 @@ design/                   # 设计文档（实现绝对依据）
 - [x] Phase 3：chunk/embed/Milvus + cache 闭环 — index+search e2e **14/14（Lite+Zilliz）**：召回正确 + force-index 0 新 API 调用(cache 全命中)。
 - [x] Phase 4：检索(hybrid/semantic/keyword)+读命令(ls/cat/head/tail/grep BM25+linear)+HTTP API(/v1)+mfs-server entry — **search 14/14 / commands 10/10 / API 10/10**。
 - [ ] **Phase 6（提前）：pdf/image object_kind + web/github connector**  ← **进行中**
-- [ ] Phase 5：Rust CLI（后置 — HTTP API 已能驱动全部 e2e 测试）
+- [x] Phase 5：Rust CLI（clap + reqwest/rustls；add/search/grep/ls/cat/status；$MFS_API_URL）— **CLI e2e ALL PASS**（真 binary→server→检索）。注：reqwest 用 rustls-tls（native-tls 缺系统 OpenSSL）。
 - [ ] Phase 6 余：全 object_kind
 - [ ] Phase 7：健壮性 case
 - [ ] Phase 8：端到端矩阵（Zilliz × Lite）
