@@ -33,3 +33,7 @@ def load_builtin() -> None:
         from . import github  # noqa: F401
     except ImportError:
         pass
+    try:
+        from . import postgres  # noqa: F401
+    except ImportError:
+        pass

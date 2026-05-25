@@ -37,6 +37,36 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _match_object_config(objects_cfg: list, path: str) -> ObjectConfig:
+    """Find the [[objects]] entry whose `match` matches this path (design/06 §4),
+    first-match wins; default ObjectConfig otherwise."""
+    import fnmatch
+    fields = ObjectConfig.__dataclass_fields__
+    for o in objects_cfg:
+        m = o.get("match", "")
+        if m and (fnmatch.fnmatch(path, m) or fnmatch.fnmatch(path.lstrip("/"), m) or m in path):
+            return ObjectConfig(**{k: v for k, v in o.items() if k != "match" and k in fields})
+    return ObjectConfig()
+
+
+def _render_record(rec: dict, text_fields: list[str], template: str | None = None) -> str:
+    """Join configured text_fields into chunk content (design/06 §4 default template)."""
+    parts = []
+    for f in text_fields:
+        if "[]" in f or "[*]" in f:          # array field: comments[].body etc.
+            base = f.split("[")[0]
+            sub = f.split(".")[-1] if "." in f else None
+            arr = rec.get(base) or []
+            vals = [str(x.get(sub) if isinstance(x, dict) and sub else x) for x in arr]
+            if vals:
+                parts.append(f"{base}:\n- " + "\n- ".join(vals))
+        else:
+            v = rec.get(f)
+            if v is not None:
+                parts.append(f"{f}: {v}")
+    return "\n\n".join(parts)
+
+
 class Engine:
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
@@ -66,7 +96,7 @@ class Engine:
         m = _SCHEME_RE.match(target)
         if m:
             sch = m.group(1)
-            if sch in ("web", "github"):
+            if sch in ("web", "github", "postgres"):
                 return sch, target, sch, {}
             if sch != "file":
                 raise NotImplementedError(f"connector scheme '{sch}' not yet implemented")
@@ -93,8 +123,9 @@ class Engine:
         if cls is None:
             raise NotImplementedError(f"no plugin for {ctype}")
         state = ConnectorStateStore(self.meta, connector_id)
+        objects_cfg = config.get("objects", []) if isinstance(config, dict) else []
         ctx = ConnectorContext(state, connector_id, self.ns,
-                               object_config_resolver=lambda p: ObjectConfig())
+                               object_config_resolver=lambda p: _match_object_config(objects_cfg, p))
         if ctype == "file":
             from ..connectors.file.plugin import FileConfig
             plugin = cls(FileConfig(root=config["root"], client_id=config.get("client_id", "local")),
@@ -310,7 +341,7 @@ class Engine:
                 if connector_uri.startswith(("web://", "github://")):
                     await asyncio.to_thread(self.object_store.put_artifact, ns, full_uri,
                                             "converted_md", text.encode())
-            ocfg = self.ctx_object_config(cid, relpath)
+            ocfg = plugin.ctx.object_config_for(relpath)
             pairs = chunk_body(text, okind, ext, self.cfg.chunk.chunk_size)
             chunk_max = ocfg.chunk_max
             partial = len(pairs) > chunk_max
@@ -349,6 +380,36 @@ class Engine:
                 await asyncio.to_thread(self.milvus.upsert, ns, [row])
                 chunk_count = 1
                 search_status = "indexed"
+
+        elif okind in ("table_rows", "record_collection"):
+            ocfg = plugin.ctx.object_config_for(relpath)
+            records = plugin.read_records(relpath)
+            if records is not None and ocfg.text_fields:
+                pairs: list[tuple[str, dict | None]] = []
+                partial = False
+                i = 0
+                async for rec in records:
+                    text = _render_record(rec, ocfg.text_fields, ocfg.text_template)
+                    if text.strip():
+                        loc = {f: rec.get(f) for f in ocfg.locator_fields} if ocfg.locator_fields else {"_row": i}
+                        pairs.append((text, loc))
+                    i += 1
+                    if len(pairs) >= ocfg.chunk_max:
+                        partial = True
+                        break
+                if pairs:
+                    vecs = await self.embed.batch_embed([p[0] for p in pairs])
+                    now_ms = int(time.time() * 1000)
+                    rows = [{
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "row_text", loc, None),
+                        "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
+                        "locator": loc, "lines": None, "content": ctext[:65000], "dense_vec": vec,
+                        "chunk_kind": "row_text", "metadata": {}, "indexed_at": now_ms,
+                    } for (ctext, loc), vec in zip(pairs, vecs)]
+                    await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
+                    await asyncio.to_thread(self.milvus.upsert, ns, rows)
+                    chunk_count = len(rows)
+                    search_status = "partial" if partial else "indexed"
 
         await self.meta.execute(
             "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "

@@ -112,7 +112,10 @@ design/                   # 设计文档（实现绝对依据）
 - [x] Phase 4：检索(hybrid/semantic/keyword)+读命令(ls/cat/head/tail/grep BM25+linear)+HTTP API(/v1)+mfs-server entry — **search 14/14 / commands 10/10 / API 10/10**。
 - [ ] **Phase 6（提前）：pdf/image object_kind + web/github connector**  ← **进行中**
 - [x] Phase 5：Rust CLI（clap + reqwest/rustls；add/search/grep/ls/cat/status；$MFS_API_URL）— **CLI e2e ALL PASS**（真 binary→server→检索）。注：reqwest 用 rustls-tls（native-tls 缺系统 OpenSSL）。
-- [ ] Phase 6 余：全 object_kind
+- [x] engine **table_rows/record_collection pipeline**（read_records→per_row row_text chunk + text_fields 拼接 + locator(pk) + ObjectConfig 从 [[objects]] 解析）。
+- [x] **postgres connector**（asyncpg，结构化模板；本地 PG 端到端 7/7：per_row + locator + search）。PG14 装好、test db `mfstest`。注：asyncpg cursor 需在 transaction 内；dsn `postgresql:///mfstest?host=/var/run/postgresql`（peer auth）。
+- [ ] Phase 10 余：需 API key 的 SaaS connector（slack/discord/gmail/gdrive/notion/jira/linear/zendesk/salesforce/hubspot/feishu/mysql/mongo/s3/bigquery/snowflake）— 查最新 SDK/API 文档写、**暂不端到端测**（无 key）。
+- [ ] 其余：SDK(py/ts/go/java 从 openapi 生成)、deployments(docker/helm)、Skill bundle、server-rs 加速（PyO3）、cancel(daemon)。
 - [ ] Phase 7：健壮性 case
 - [ ] Phase 8：端到端矩阵（Zilliz × Lite）
 - [ ] Phase 9：server-rs 加速
