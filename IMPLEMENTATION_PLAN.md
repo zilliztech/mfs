@@ -109,9 +109,10 @@ design/                   # 设计文档（实现绝对依据）
 - [x] Phase 1：地基（config / ids / metadata-sqlite / object_store / milvus / transformation_cache）— 冒烟测 **25/25，Lite + Zilliz 均通过**（`server/python/tests/phase1_storage_smoke.py`）。
 - [x] Phase 2：connector 框架 + file connector + engine/worker/queue — 组件测 14/14 + engine 端到端 10/10（add/幂等/增量）。
 - [x] Phase 3：chunk/embed/Milvus + cache 闭环 — index+search e2e **14/14（Lite+Zilliz）**：召回正确 + force-index 0 新 API 调用(cache 全命中)。
-- [ ] Phase 4：检索 + 读命令 + HTTP API  ← **进行中**
-- [ ] Phase 5：Rust CLI
-- [ ] Phase 6：全 object_kind + web + github
+- [x] Phase 4：检索(hybrid/semantic/keyword)+读命令(ls/cat/head/tail/grep BM25+linear)+HTTP API(/v1)+mfs-server entry — **search 14/14 / commands 10/10 / API 10/10**。
+- [ ] **Phase 6（提前）：pdf/image object_kind + web/github connector**  ← **进行中**
+- [ ] Phase 5：Rust CLI（后置 — HTTP API 已能驱动全部 e2e 测试）
+- [ ] Phase 6 余：全 object_kind
 - [ ] Phase 7：健壮性 case
 - [ ] Phase 8：端到端矩阵（Zilliz × Lite）
 - [ ] Phase 9：server-rs 加速
@@ -148,5 +149,17 @@ design/                   # 设计文档（实现绝对依据）
 - ✅ `common/retrieval.py`（build_filter/to_envelope/collapse_by_object）+ `engine.search`（hybrid/semantic/keyword）。**search modes e2e 14/14（Lite+Zilliz）**：召回正确、session>README、BM25 'redis' 命中、collapse 去重、envelope 格式对。
 - ✅ grep 派发(engine.grep)：BM25 主路径 + linear fallback（not_indexed 走 connector.read 扫，行号）。commands e2e 10/10。pushdown 待结构化 connector(Phase 6)。
 - ✅ 读命令(engine 方法)：ls / cat(--range/--meta) / head / tail。cat --locator 待结构化(Phase 6)；export 简单可补；tree/status 待补。
-4. **(剩余) `api/` FastAPI /v1 路由 + `server/__main__.py`(mfs-server run/api/worker/reload)**。把 engine.add/search/grep/ls/cat 暴露成 HTTP；验收用 httpx 驱动。这是 Phase 4 最后一块。
+- ✅ `api/app.py` FastAPI /v1（server/info,add,search,grep,ls,cat,status,jobs）+ `server/__main__.py`(run/api 起 uvicorn；worker/reload stub)。HTTP API e2e 10/10。
+
+**Phase 4 完成**。server 端 add→index→search/grep/cat 全链路通（HTTP + 直接调）。
+
+**优先级调整**：Rust CLI(Phase 5) 后置——HTTP API 已能驱动全部 e2e；先补 server 端 connector 能力（用户核心诉求 file/pdf/图片/web/github 端到端 + 健壮性）。
+
+**下一步 Phase 6：object_kind 扩展 + web/github**：
+1. `common/converter.py` CachingConverterClient（markitdown，tx cache kind='convert'，key=sha1(bytes+converter+ver)）+ converted_md artifact。engine._index_object：document 且 ext∈{pdf,docx,pptx,xlsx,html} → 先 convert→md 再 chunk。`markitdown.convert(path).text_content`（已验证；可传 bytes 经 tempfile）。
+2. `common/vlm.py` CachingVlmClient（OpenAI chat `gpt-4o-mini` vision，image base64 data URL，**查 chat.completions image_url 写法**）→ image → vlm_description chunk + vlm_text artifact。
+3. `connectors/web/` aiohttp+markitdown+ETag(self.state {url:etag})+URL 规范化(design/07 §10.7)。
+4. `connectors/github/` 公开 repo（httpx GitHub REST `/repos/{o}/{r}/git/trees?recursive=1` + raw + issues/pulls，**查最新 REST API**；匿名 rate-limit 低，可选 GITHUB_TOKEN）。
+5. e2e（Lite+Zilliz）：pdf→md→search；png→VLM→search；web 公开站；github 公开小 repo。
+- 之后 Phase 7 健壮性（circuit breaker/checkpoint/deletion declare_enumeration/cancel/quota）、Phase 8 矩阵、Phase 5 Rust CLI、Phase 10 需 key 的 connector。
 - index_filter(AST 白名单) 属结构化 per_row 场景，留 Phase 6。
