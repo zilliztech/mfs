@@ -1,0 +1,177 @@
+"""Server configuration: load from server.toml (lookup chain) + env overrides.
+
+Lookup order (design/02 §3.1): --config arg -> $MFS_SERVER_CONFIG -> ./server.toml
+-> ~/.mfs/server.toml -> /etc/mfs/server.toml -> built-in defaults.
+"""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+from pydantic import BaseModel
+
+if sys.version_info < (3, 11):
+    import tomli as tomllib
+else:
+    import tomllib
+
+
+def mfs_home() -> Path:
+    home = Path(os.environ.get("MFS_HOME", str(Path.home() / ".mfs")))
+    home.mkdir(parents=True, exist_ok=True)
+    return home
+
+
+class MetadataConfig(BaseModel):
+    backend: str = "sqlite"          # sqlite | postgres
+    path: str = ""                   # sqlite file (default ~/.mfs/metadata.db)
+    dsn: str = ""                    # postgres DSN (env-resolvable)
+
+
+class ObjectStoreConfig(BaseModel):
+    backend: str = "local"           # local | s3 | r2 | minio
+    root: str = ""                   # local root (default ~/.mfs/cache)
+
+
+class MilvusConfig(BaseModel):
+    uri: str = ""                    # ~/.mfs/milvus.db (Lite) | https://*.zillizcloud.com
+    token: str = ""
+    collection_strategy: str = "shared"   # shared | per_namespace
+    num_partitions: int = 64
+
+
+class EmbeddingConfig(BaseModel):
+    provider: str = "openai"
+    model: str = "text-embedding-3-small"
+    dim: int = 1536
+    batch_size: int = 100
+    batch_max_wait_ms: int = 100
+
+
+class SummaryConfig(BaseModel):
+    enabled: str = "auto"            # auto | true | false
+    provider: str = "openai"
+    model: str = "gpt-4o-mini"
+    max_tokens: int = 800
+    min_size_kb: int = 8
+    batch_size: int = 20
+
+
+class VlmConfig(BaseModel):
+    provider: str = "openai"
+    model: str = "gpt-4o-mini"
+    prompt: str = "Describe this image in detail for search indexing."
+    batch_size: int = 10
+
+
+class ConverterConfig(BaseModel):
+    default: str = "markitdown"
+
+
+class TransformationCacheConfig(BaseModel):
+    enabled: bool = True
+    backend: str = "sqlite"          # sqlite | postgres
+    db_path: str = ""                # default ~/.mfs/transformation_cache.db
+    dsn: str = ""
+    max_size_gb: float = 5.0
+    eviction_interval_s: int = 600
+    write_flush_interval_s: float = 2.0
+    write_buffer_max: int = 5000
+    lookup_batch_size: int = 1000
+
+
+class ArtifactCacheConfig(BaseModel):
+    max_size_gb: float = 10.0
+    eviction: str = "lru"
+
+
+class WorkerConfig(BaseModel):
+    concurrency: str | int = "auto"     # auto | <int>; sqlite forced to 1
+    max_retries: int = 3
+    backoff_initial_ms: int = 1000
+    backoff_max_ms: int = 30000
+    consecutive_fatal_threshold: int = 5
+
+
+class ChunkConfig(BaseModel):
+    default_chunk_max: int = 1_000_000
+    chunk_size: int = 2048              # chonkie token budget
+
+
+class SearchConfig(BaseModel):
+    over_fetch_ratio: int = 3
+    max_partitions_per_query: int = 32
+
+
+class ServerConfig(BaseModel):
+    home: str = ""
+    namespace: str = "default"
+    metadata: MetadataConfig = MetadataConfig()
+    object_store: ObjectStoreConfig = ObjectStoreConfig()
+    milvus: MilvusConfig = MilvusConfig()
+    embedding: EmbeddingConfig = EmbeddingConfig()
+    summary: SummaryConfig = SummaryConfig()
+    vlm: VlmConfig = VlmConfig()
+    converter: ConverterConfig = ConverterConfig()
+    transformation_cache: TransformationCacheConfig = TransformationCacheConfig()
+    artifact_cache: ArtifactCacheConfig = ArtifactCacheConfig()
+    worker: WorkerConfig = WorkerConfig()
+    chunk: ChunkConfig = ChunkConfig()
+    search: SearchConfig = SearchConfig()
+
+    def resolve_defaults(self) -> "ServerConfig":
+        home = Path(self.home) if self.home else mfs_home()
+        home.mkdir(parents=True, exist_ok=True)
+        self.home = str(home)
+        if not self.metadata.path:
+            self.metadata.path = str(home / "metadata.db")
+        if not self.object_store.root:
+            self.object_store.root = str(home / "cache")
+        if not self.milvus.uri:
+            self.milvus.uri = str(home / "milvus.db")     # Lite default
+        if not self.transformation_cache.db_path:
+            self.transformation_cache.db_path = str(home / "transformation_cache.db")
+        return self
+
+
+def _find_config_path(explicit: str | None) -> Path | None:
+    candidates = [
+        explicit,
+        os.environ.get("MFS_SERVER_CONFIG"),
+        "./server.toml",
+        str(Path.home() / ".mfs" / "server.toml"),
+        "/etc/mfs/server.toml",
+    ]
+    for c in candidates:
+        if c and Path(c).is_file():
+            return Path(c)
+    return None
+
+
+def _apply_env_overrides(cfg: ServerConfig) -> None:
+    """Env overrides for dogfood: Milvus endpoint/token from env if not set in toml.
+
+    MFS_MILVUS_URI / MFS_MILVUS_TOKEN take precedence; falls back to ZILLIZ_URI /
+    ZILLIZ_API_KEY when those are set (so the existing Zilliz creds work out of the box).
+    OpenAI key is read by the openai SDK directly from OPENAI_API_KEY.
+    """
+    uri = os.environ.get("MFS_MILVUS_URI") or os.environ.get("ZILLIZ_URI")
+    token = os.environ.get("MFS_MILVUS_TOKEN") or os.environ.get("ZILLIZ_API_KEY")
+    if uri:
+        cfg.milvus.uri = uri
+    if token:
+        cfg.milvus.token = token
+
+
+def load_server_config(explicit: str | None = None, apply_env: bool = True) -> ServerConfig:
+    path = _find_config_path(explicit)
+    data: dict = {}
+    if path:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    cfg = ServerConfig(**data)
+    cfg.resolve_defaults()
+    if apply_env:
+        _apply_env_overrides(cfg)
+    return cfg
