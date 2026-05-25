@@ -156,7 +156,7 @@ design/                   # 设计文档（实现绝对依据）
 **优先级调整**：Rust CLI(Phase 5) 后置——HTTP API 已能驱动全部 e2e；先补 server 端 connector 能力（用户核心诉求 file/pdf/图片/web/github 端到端 + 健壮性）。
 
 **下一步 Phase 6：object_kind 扩展 + web/github**：
-1. `common/converter.py` CachingConverterClient（markitdown，tx cache kind='convert'，key=sha1(bytes+converter+ver)）+ converted_md artifact。engine._index_object：document 且 ext∈{pdf,docx,pptx,xlsx,html} → 先 convert→md 再 chunk。`markitdown.convert(path).text_content`（已验证；可传 bytes 经 tempfile）。
+1. ✅ `common/converter.py` CachingConverterClient（markitdown[all]，tx cache kind='convert'）+ converted_md artifact + cat 返回 md。**pdf/html e2e 10/10（Lite+Zilliz）**。注：**markitdown[all] 已装**（基础 markitdown 不含 pdf 依赖）；CONVERT_EXTS={pdf,docx,doc,pptx,ppt,xlsx,xls,html,htm}；fpdf2(dev) 生成测试 pdf。
 2. `common/vlm.py` CachingVlmClient（OpenAI chat `gpt-4o-mini` vision，image base64 data URL，**查 chat.completions image_url 写法**）→ image → vlm_description chunk + vlm_text artifact。
 3. `connectors/web/` aiohttp+markitdown+ETag(self.state {url:etag})+URL 规范化(design/07 §10.7)。
 4. `connectors/github/` 公开 repo（httpx GitHub REST `/repos/{o}/{r}/git/trees?recursive=1` + raw + issues/pulls，**查最新 REST API**；匿名 rate-limit 低，可选 GITHUB_TOKEN）。

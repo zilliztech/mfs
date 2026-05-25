@@ -14,6 +14,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
+from ..common.converter import CONVERT_EXTS, CachingConverterClient
 from ..common.embedding import CachingEmbeddingClient
 from ..common.retrieval import build_filter, collapse_by_object, to_envelope
 from ..config import ServerConfig
@@ -44,6 +45,7 @@ class Engine:
         self.object_store = LocalObjectStore(cfg)
         self.tx_cache = TransformationCache(cfg)
         self.embed = CachingEmbeddingClient(cfg, self.tx_cache)
+        self.converter = CachingConverterClient(cfg, self.tx_cache)
 
     async def startup(self) -> None:
         load_builtin()
@@ -167,10 +169,13 @@ class Engine:
                         (_now(), str(e), t["id"]))
 
     async def _read_text(self, plugin, relpath: str) -> str:
+        return (await self._read_bytes(plugin, relpath)).decode("utf-8", errors="replace")
+
+    async def _read_bytes(self, plugin, relpath: str) -> bytes:
         buf = bytearray()
         async for chunk in plugin.read(relpath):
             buf += chunk
-        return bytes(buf).decode("utf-8", errors="replace")
+        return bytes(buf)
 
     async def _index_object(self, plugin, connector_uri: str, task: dict) -> None:
         """Real chunk/embed/Milvus (design/04 §2 ⑤). document/code -> body chunks;
@@ -203,8 +208,14 @@ class Engine:
         indexable = okind not in ("binary",)
 
         if okind in ("document", "code"):
-            text = await self._read_text(plugin, relpath)
-            ext = os.path.splitext(relpath)[1]
+            ext = os.path.splitext(relpath)[1].lower()
+            if okind == "document" and ext in CONVERT_EXTS:
+                raw = await self._read_bytes(plugin, relpath)
+                text = await self.converter.convert(raw, ext)
+                await asyncio.to_thread(self.object_store.put_artifact, ns, full_uri,
+                                        "converted_md", text.encode())
+            else:
+                text = await self._read_text(plugin, relpath)
             ocfg = self.ctx_object_config(cid, relpath)
             pairs = chunk_body(text, okind, ext, self.cfg.chunk.chunk_size)
             chunk_max = ocfg.chunk_max
@@ -308,6 +319,12 @@ class Engine:
             if meta:
                 return {"source": curi + rel, "media_type": st.media_type,
                         "size_hint": st.size_hint, "fingerprint": st.fingerprint}
+            ext = os.path.splitext(rel)[1].lower()
+            if ext in CONVERT_EXTS:        # pdf/docx/html etc. -> return converted markdown
+                art = await asyncio.to_thread(self.object_store.get_artifact, self.ns,
+                                              curi + rel, "converted_md")
+                if art is not None:
+                    return art.decode("utf-8", errors="replace")
             rg = Range(range[0], range[1]) if range else None
             buf = bytearray()
             async for ch in plugin.read(rel, rg):
