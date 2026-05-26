@@ -181,10 +181,14 @@ class GitHubPlugin(ConnectorPlugin):
 
     def read_records(self, path: str, range: Optional[Range] = None):
         o, r = self._owner_repo()
+        cap = int(self._cfg("max_read_rows", 5000))
         if path == "/_meta/issues.jsonl":
             async def issues():
                 async with httpx.AsyncClient(headers=self._headers()) as c:
-                    for it in await self._paginated(c, f"{API}/repos/{o}/{r}/issues"):
+                    items = await self._paginated(c, f"{API}/repos/{o}/{r}/issues")
+                    if len(items) >= cap:
+                        self.ctx.declare_partial(path)        # hit cap -> partial recall
+                    for it in items:
                         if "pull_request" in it:        # the issues API also returns PRs
                             continue
                         yield self._flatten_issue(it)
@@ -192,7 +196,10 @@ class GitHubPlugin(ConnectorPlugin):
         if path == "/_meta/pulls.jsonl":
             async def pulls():
                 async with httpx.AsyncClient(headers=self._headers()) as c:
-                    for p in await self._paginated(c, f"{API}/repos/{o}/{r}/pulls"):
+                    items = await self._paginated(c, f"{API}/repos/{o}/{r}/pulls")
+                    if len(items) >= cap:
+                        self.ctx.declare_partial(path)
+                    for p in items:
                         yield self._flatten_pull(p)
             return pulls()
         return None

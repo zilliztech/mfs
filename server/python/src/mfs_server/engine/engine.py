@@ -241,9 +241,30 @@ class Engine:
         connector_uri = f"file://local{abs_path}"
         return "file", connector_uri, "file", {"root": abs_path, "client_id": "local"}
 
+    # secret-looking config keys: persisted only as a credential_ref (env:/secret:/file:/
+    # vault:); a raw inline value is redacted at rest so connectors.config_json never holds
+    # plaintext (design/07 credentials). Connections fall back to self.credential at runtime.
+    _SECRET_KEYS = ("token", "api_token", "access_token", "api_key", "password",
+                    "security_token", "app_secret", "client_secret", "secret", "credential")
+
+    @classmethod
+    def _redact_config(cls, config: dict) -> dict:
+        if not isinstance(config, dict):
+            return config
+        _REF = ("env:", "secret:", "file:", "vault:")
+        out = {}
+        for k, v in config.items():
+            if (k in cls._SECRET_KEYS and isinstance(v, str) and v
+                    and not v.startswith(_REF)):
+                out[k] = "<redacted: use credential_ref=env:VAR>"
+            else:
+                out[k] = v
+        return out
+
     async def register_or_get_connector(self, connector_uri: str, ctype: str, config: dict,
                                          overwrite_config: bool = False) -> str:
         import json
+        stored = self._redact_config(config)
         row = await self.meta.fetchone(
             "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=?", (self.ns, connector_uri))
         if row:
@@ -251,13 +272,13 @@ class Engine:
             # its stored config so changed text_fields / scope / credential_ref take effect.
             if overwrite_config:
                 await self.meta.execute(
-                    "UPDATE connectors SET config_json=? WHERE id=?", (json.dumps(config), row["id"]))
+                    "UPDATE connectors SET config_json=? WHERE id=?", (json.dumps(stored), row["id"]))
             return row["id"]
         cid = uuid.uuid4().hex
         await self.meta.execute(
             "INSERT INTO connectors (id, namespace_id, root_uri, type, status, config_json, registered_at) "
             "VALUES (?,?,?,?,?,?,?)",
-            (cid, self.ns, connector_uri, ctype, "active", json.dumps(config), _now()))
+            (cid, self.ns, connector_uri, ctype, "active", json.dumps(stored), _now()))
         return cid
 
     @staticmethod
@@ -324,9 +345,13 @@ class Engine:
         cid = await self.register_or_get_connector(connector_uri, ctype, cfg_dict,
                                                    overwrite_config=update_config)
         row0 = await self.meta.fetchone("SELECT config_json, status FROM connectors WHERE id=?", (cid,))
-        stored_cfg = json.loads(row0["config_json"]) if row0 and row0["config_json"] else cfg_dict
         if row0 and row0["status"] == "removing":
             raise ValueError("connector_removing")          # design/02 §6.4
+        # this session uses the caller's full config (raw secrets intact); the persisted copy
+        # is redacted. A later re-sync/worker rebuild reads the persisted config and resolves
+        # secrets from credential_ref (env) — so persistent runs must use credential_ref.
+        stored_cfg = cfg_dict if config is not None else (
+            json.loads(row0["config_json"]) if row0 and row0["config_json"] else cfg_dict)
 
         # one in-flight sync per connector (design/02 §6.4): the partial unique indexes
         # ux_jobs_one_running/queued enforce it; surface a clean sync_already_running
@@ -520,7 +545,14 @@ class Engine:
                     dst = _safe(staging, h["path"])
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     os.replace(src, dst)
-                snap[h["path"]] = [h.get("size"), h.get("mtime_ns"), h.get("inode"), h.get("sha1")]
+                    # record the snapshot ONLY when bytes actually landed. A rename hint that
+                    # the server rejected sent no bytes for the new path, so leaving snap[new]
+                    # would falsely claim the server has it (P0: phantom manifest entry).
+                    snap[h["path"]] = [h.get("size"), h.get("mtime_ns"), h.get("inode"), h.get("sha1")]
+                elif h["path"] in snap and snap[h["path"]][3] != h.get("sha1"):
+                    # absent bytes for a path the server doesn't already hold at this sha1
+                    # (e.g. rejected rename) -> drop it so the next manifest re-requests it
+                    snap.pop(h["path"], None)
             for d in deletions:             # 3) deletions
                 dp = _safe(staging, d)
                 if os.path.exists(dp):
@@ -623,9 +655,19 @@ class Engine:
         re-claims them. Best-effort — tolerate the rare one-queued-per-connector clash."""
         cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
         try:
-            await self.meta.execute(
-                "UPDATE connector_jobs SET status='queued' "
-                "WHERE status='running' AND heartbeat IS NOT NULL AND heartbeat < ?", (cutoff,))
+            stale = await self.meta.fetchall(
+                "SELECT id FROM connector_jobs WHERE status='running' "
+                "AND heartbeat IS NOT NULL AND heartbeat < ?", (cutoff,))
+            for j in stale:
+                # reset the dead worker's in-flight tasks back to pending FIRST, else the
+                # re-claiming worker sees only 'pending', finds none, and finalizes the job
+                # 'succeeded' while a task is still stuck 'running' (P1 crash-recovery gap).
+                await self.meta.execute(
+                    "UPDATE object_tasks SET status='pending' "
+                    "WHERE connector_job_id=? AND status='running'", (j["id"],))
+                await self.meta.execute(
+                    "UPDATE connector_jobs SET status='queued' WHERE id=? AND status='running'",
+                    (j["id"],))
         except Exception:  # noqa: BLE001
             pass
 
@@ -1404,13 +1446,15 @@ class Engine:
 
             # --- structured object: range pushdown over records (lazy, not materialized) ---
             if structured:
-                records = plugin.read_records(rel)
+                if range is None:
+                    # a bare cat would stream the whole table -> reject; the agent picks
+                    # head / cat --range / export (design/05 §, errors.md)
+                    raise ValueError("object_too_large_for_cat")
+                start, end = range[0], range[1]
+                # hand the range to the connector so a pushdown-capable one can LIMIT/OFFSET
+                # at the source; the engine still slices defensively for connectors that ignore it.
+                records = plugin.read_records(rel, Range(start, end))
                 if records is not None:
-                    if range is None:
-                        # a bare cat would stream the whole table -> reject; the agent picks
-                        # head / cat --range / export (design/05 §, errors.md)
-                        raise ValueError("object_too_large_for_cat")
-                    start, end = range[0], range[1]
                     out, i = [], 0
                     async for rec in records:
                         if i >= end:

@@ -144,6 +144,8 @@ class GmailPlugin(ConnectorPlugin):
                 page_token = resp.get("nextPageToken")
                 if not page_token:
                     break
+            if n >= limit:
+                self.ctx.declare_partial(path)        # hit max_read_rows -> partial recall
 
     async def fingerprint(self, path: str) -> Optional[str]:
         return None

@@ -206,8 +206,10 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         import json as _json
         rg = None
         if range:
-            a, b = range.split(":")
-            rg = (int(a), int(b))
+            a, _, b = range.partition(":")      # supports "a:b", "a:", ":b", "a"
+            start = int(a) if a.strip() else 0
+            end = int(b) if b.strip() else (2 ** 63 - 1)
+            rg = (start, end)
         loc = None
         if locator:
             try:

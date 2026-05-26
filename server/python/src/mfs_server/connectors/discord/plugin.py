@@ -116,6 +116,8 @@ class DiscordPlugin(ConnectorPlugin):
                     before = msgs[-1]["id"]      # oldest id of this (descending) page
                     if len(msgs) < 100:
                         break
+            if n >= limit:
+                self.ctx.declare_partial(path)        # hit max_read_rows -> partial recall
 
     async def fingerprint(self, path: str) -> Optional[str]:
         return None

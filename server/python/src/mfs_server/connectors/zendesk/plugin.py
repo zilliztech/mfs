@@ -112,6 +112,8 @@ class ZendeskPlugin(ConnectorPlugin):
                 url = (body.get("links") or {}).get("next") or url
                 if (body.get("links") or {}).get("next"):
                     after = None    # links.next already encodes the cursor
+            if n >= limit:
+                self.ctx.declare_partial(path)        # hit max_read_rows -> partial recall
 
     async def _read_comments(self) -> AsyncIterator[dict]:
         """All comments, tagged with ticket_id (Zendesk exposes comments per-ticket

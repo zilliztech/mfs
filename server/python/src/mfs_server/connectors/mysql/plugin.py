@@ -91,9 +91,13 @@ class MySQLPlugin(ConnectorPlugin):
         parts = self._parts(path)
         if len(parts) == 2 and parts[1] == "rows.jsonl":
             lim = self._cfg("max_read_rows", 100000)
+            t = safe_ident(parts[0])
             async with self._pool.acquire() as c:
                 async with c.cursor(aiomysql.DictCursor) as cur:
-                    await cur.execute(f"SELECT * FROM `{safe_ident(parts[0])}` LIMIT {lim}")
+                    await cur.execute(f"SELECT count(*) AS n FROM `{t}`")
+                    if (await cur.fetchone())["n"] > lim:
+                        self.ctx.declare_partial(path)        # capped -> search_status=partial
+                    await cur.execute(f"SELECT * FROM `{t}` LIMIT {lim}")
                     for r in await cur.fetchall():
                         yield r
         elif len(parts) == 2 and parts[1] == "schema.json":

@@ -83,6 +83,8 @@ class MongoPlugin(ConnectorPlugin):
         parts = self._parts(path)
         if len(parts) == 2 and parts[1] == "documents.jsonl":
             lim = self._cfg("max_read_docs", 100000)
+            if await self._db()[parts[0]].estimated_document_count() > lim:
+                self.ctx.declare_partial(path)        # capped -> search_status=partial
             cursor = self._db()[parts[0]].find(limit=lim)
             async for doc in cursor:
                 if "_id" in doc:

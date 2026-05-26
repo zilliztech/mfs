@@ -123,6 +123,8 @@ class SlackPlugin(ConnectorPlugin):
                 cursor = (resp.get("response_metadata") or {}).get("next_cursor")
                 if not cursor:
                     break
+            if n >= limit:
+                self.ctx.declare_partial(path)        # hit max_read_rows -> partial recall
         elif len(parts) == 1 and parts[0] == "users.jsonl":
             cursor = None
             while True:
