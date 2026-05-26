@@ -7,7 +7,8 @@ The code tree maps to file-like paths (object_kind reuses file's ext mapping). T
   _meta/issues.jsonl          all issues (record_collection)
   _meta/pulls.jsonl           all pull requests (record_collection)
   _meta/pulls/<n>/diff.patch  per-PR unified diff (document)
-Set config `index_meta=false` to skip issues/pulls.
+Set config `index_meta=true` to enable issues/pulls (off by default — they can be
+large and need text_fields config to be searchable).
 """
 from __future__ import annotations
 
@@ -80,7 +81,9 @@ class GitHubPlugin(ConnectorPlugin):
         return mt
 
     def _index_meta(self) -> bool:
-        return bool(self._cfg("index_meta", True))
+        # opt-in: issues/PRs can be huge and need text_fields config to be searchable,
+        # so the default connector indexes only the code tree.
+        return bool(self._cfg("index_meta", False))
 
     async def stat(self, path: str) -> PathStat:
         if path.startswith("/_meta"):

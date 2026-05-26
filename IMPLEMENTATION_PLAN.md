@@ -143,6 +143,13 @@ design/                   # 设计文档（实现绝对依据）
   - **多语言 SDK 重生成**：spec 加 cancelJob/uploadSource/density/process 后重跑 `sdks/generate.sh`，python SDK import + 新方法验证通过。
   - 装好：go1.23.4、maven3.6.3、docker compose v2.32.4、helm v3.21、MinIO 容器、boto3、fastembed。
   - **仍未做（按你指示跳过）**：7 需 key connector 真实 e2e、9 发版 CI、10 可观测性；另 watch（实时推送，需外部服务，非自闭环）。
+- [x] **Phase 12：二次查漏补缺（再查一遍剩余项，全做掉 + 实测）**。
+  - **cat --locator + 结构化 pushdown**：`_open_path` 泛化到所有 connector（scheme URI 也能 ls/cat/head）；`cat --locator '{...}'` 按 locator_fields/_row 重开单条结构化记录（locator_not_found 容错），结构化对象 cat --range/head 按记录惰性切片（不全量物化）。API+CLI `--locator`。e2e 6/6。
+  - **GitHub issues/PRs**：`_meta/issues.jsonl`+`pulls.jsonl`(record_collection，issues 过滤掉 PR)+`pulls/<n>/diff.patch`(document，Accept: vnd.github.diff)，分页+max_read_rows 上限，**默认 opt-in（index_meta=false）**避免大 repo 误索引上千 PR。对 octocat/Hello-World 真实 e2e 5/5。
+  - **connector 子命令**：`engine.probe/inspect/remove_connector`（remove 清 Milvus chunk + artifact + 全部 metadata 行）；API `POST /v1/connectors/probe`、`GET .../inspect`、`DELETE /v1/connectors`；CLI `connector add/probe/list/inspect/update/remove` + `mfs remove` 别名。e2e 10/10（remove 实测清空 DB 行 + Milvus）。
+  - **head_cache**（结构化前 100 行预缓存 artifact，head 走快路径）+ **enumeration 删除保护**（add 仅在 connector 声明 full 枚举时才入队 diff 删除）+ 删 ctx_object_config 死代码。e2e 4/4。
+  - 全矩阵扩到 **29 suite，29/29 通过**（修了一处回归：github 默认改 opt-in 后 Spoon-Knife code-tree 测试不再超时）。OpenAPI 重生成（13 路径，含 probe/inspect/remove/cancel/upload）。
+  - 至此 design 03/05/06 的命令面（含 cat --locator / 密度模式 / connector 子树）与 8 种 chunk_kind 全部落地；剩余仅 7/9/10 + watch（按指示跳过/非自闭环）。
 
 ### 当前 context 交接笔记
 （每次 context 结束前更新：做到哪、下一步、踩的坑）

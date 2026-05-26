@@ -9,7 +9,7 @@ blob SHA per file (re-add skips unchanged blobs). `search` over code/doc chunks;
 hits carry `lines` → `mfs cat <source> --range start:end`. Scope a search to the
 repo URI to stay within it.
 
-**Collaboration data under `_meta/`** (when `index_meta` is on, default):
+**Collaboration data under `_meta/`** (opt-in: set `index_meta=true`):
 - `_meta/issues.jsonl`, `_meta/pulls.jsonl` — record_collection. Declare
   `text_fields=["title","body"]`, `locator_fields=["number"]` in `[[objects]]` to
   index; a hit's `locator` is `{number: N}` → reopen with
