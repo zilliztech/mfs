@@ -20,7 +20,7 @@ envelope (`ResultEnvelope`: source / lines / content / score / locator / metadat
 Each SDK has a smoke test exercised against a live server (search→envelope, ls,
 cat, status, error mapping):
 
-- Python: `sdks/python/smoke_test.py` — 10/10
-- TypeScript: `sdks/typescript/smoke_test.cjs` — 9/9
-- Go: `sdks/go-smoke/` — 9/9
-- Java: `sdks/java-smoke/` — 9/9
+- Python: `sdks/smoke/python/smoke_test.py` — 10/10
+- TypeScript: `sdks/smoke/typescript/smoke_test.cjs` — 9/9
+- Go: `sdks/smoke/go/` — 9/9
+- Java: `sdks/smoke/java/` — 9/9

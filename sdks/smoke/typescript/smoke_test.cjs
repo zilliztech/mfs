@@ -1,5 +1,5 @@
 // TypeScript SDK smoke test (compiled CJS build) vs live mfs-server (127.0.0.1:8765).
-const { Configuration, ServerApi, RetrievalApi, BrowseApi } = require("./dist/index.js");
+const { Configuration, ServerApi, RetrievalApi, BrowseApi } = require("../../typescript/dist/index.js");
 
 let pass = 0, total = 0;
 function check(name, cond) { total++; if (cond) pass++; console.log(`  [${cond ? "OK" : "FAIL"}] ${name}`); }
