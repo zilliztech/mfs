@@ -187,8 +187,26 @@ enum ServeAction {
 #[derive(Serialize, Deserialize, Default)]
 struct ClientConfig {
     active: Option<String>,
+    /// Stable client identity (UUID), generated once. Survives hostname/container churn
+    /// — machine-id (hostname) is only used to decide local-vs-remote (design/02 §3.4).
+    #[serde(default)]
+    client_id: Option<String>,
     #[serde(default)]
     profiles: BTreeMap<String, Profile>,
+}
+
+/// Load (or generate + persist) the stable client_id from client.toml.
+fn client_id() -> String {
+    let mut cfg = load_client_cfg();
+    if let Some(id) = &cfg.client_id {
+        if !id.is_empty() { return id.clone(); }
+    }
+    let id = std::fs::read_to_string("/proc/sys/kernel/random/uuid").ok()
+        .map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+        .unwrap_or_else(|| format!("cid-{}", std::process::id()));
+    cfg.client_id = Some(id.clone());
+    let _ = save_client_cfg(&cfg);
+    id
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -439,7 +457,7 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
                process: bool, json: bool) -> Result<(), String> {
     use std::io::Write;
     let root = std::path::Path::new(target);
-    let client_id = client_hostname();
+    let client_id = client_id();        // stable UUID identity, not the hostname
     let name = root.file_name().and_then(|s| s.to_str())
         .ok_or_else(|| format!("cannot derive a name from {target}"))?.to_string();
 

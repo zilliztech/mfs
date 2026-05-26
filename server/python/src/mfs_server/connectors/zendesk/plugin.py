@@ -56,6 +56,9 @@ class ZendeskPlugin(ConnectorPlugin):
     def _parts(self, path: str) -> list[str]:
         return [p for p in path.strip("/").split("/") if p]
 
+    def preset_for(self, path: str):
+        return "zendesk.tickets" if path.endswith("/tickets/records.jsonl") else None
+
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith("records.jsonl") or path.endswith("comments.jsonl"):
             return "record_collection"

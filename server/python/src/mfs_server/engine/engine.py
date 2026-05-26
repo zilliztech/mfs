@@ -40,16 +40,16 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _match_object_config(objects_cfg: list, path: str) -> ObjectConfig:
-    """Find the [[objects]] entry whose `match` matches this path (design/06 §4),
-    first-match wins; default ObjectConfig otherwise."""
+def _match_object_config(objects_cfg: list, path: str) -> ObjectConfig | None:
+    """Find the user [[objects]] entry whose `match` matches this path (design/06 §4),
+    first-match wins; None when nothing matches (caller falls back to a built-in preset)."""
     import fnmatch
     fields = ObjectConfig.__dataclass_fields__
     for o in objects_cfg:
         m = o.get("match", "")
         if m and (fnmatch.fnmatch(path, m) or fnmatch.fnmatch(path.lstrip("/"), m) or m in path):
             return ObjectConfig(**{k: v for k, v in o.items() if k != "match" and k in fields})
-    return ObjectConfig()
+    return None
 
 
 _CODE_SYMBOL = re.compile(r"^\s*(def |class |func |fn |public |private |func\(|type )")
@@ -283,8 +283,7 @@ class Engine:
             credential = cred_a if cred_a is not None else cred_b
         objects_cfg = config.get("objects", []) if isinstance(config, dict) else []
         state = ConnectorStateStore(self.meta, connector_id)
-        ctx = ConnectorContext(state, connector_id, self.ns,
-                               object_config_resolver=lambda p: _match_object_config(objects_cfg, p))
+        ctx = ConnectorContext(state, connector_id, self.ns, object_config_resolver=None)
         if ctype == "file":
             from ..connectors.file.plugin import FileConfig
             plugin = cls(FileConfig(root=config["root"], client_id=config.get("client_id", "local")),
@@ -292,6 +291,17 @@ class Engine:
             plugin.file_state = FileStateStore(self.meta, self.ns, connector_id)
         else:
             plugin = cls(config, credential, ctx=ctx)
+
+        # resolver: user [[objects]] match wins; else the connector's built-in preset
+        # (design/06 §5) so SaaS sources are searchable with zero config.
+        def _resolve_cfg(p: str) -> ObjectConfig:
+            user = _match_object_config(objects_cfg, p)
+            if user is not None:
+                return user
+            preset_key = plugin.preset_for(p)
+            from ..connectors.base import preset_object_config
+            return preset_object_config(preset_key) or ObjectConfig() if preset_key else ObjectConfig()
+        ctx._resolver = _resolve_cfg
         return plugin, ctx
 
     # --- add (register + sync + worker) ---
@@ -310,14 +320,24 @@ class Engine:
         cfg_dict = config if config is not None else default_config
         cid = await self.register_or_get_connector(connector_uri, ctype, cfg_dict,
                                                    overwrite_config=config is not None)
-        row0 = await self.meta.fetchone("SELECT config_json FROM connectors WHERE id=?", (cid,))
+        row0 = await self.meta.fetchone("SELECT config_json, status FROM connectors WHERE id=?", (cid,))
         stored_cfg = json.loads(row0["config_json"]) if row0 and row0["config_json"] else cfg_dict
+        if row0 and row0["status"] == "removing":
+            raise ValueError("connector_removing")          # design/02 §6.4
 
+        # one in-flight sync per connector (design/02 §6.4): the partial unique indexes
+        # ux_jobs_one_running/queued enforce it; surface a clean sync_already_running
+        # instead of a raw IntegrityError/500.
         job_id = uuid.uuid4().hex
-        await self.meta.execute(
-            "INSERT INTO connector_jobs (id, namespace_id, connector_id, op_kind, trigger, status, "
-            " started_at, heartbeat) VALUES (?,?,?,?,?,?,?,?)",
-            (job_id, self.ns, cid, "sync", "manual", "running" if process else "queued", _now(), _now()))
+        try:
+            await self.meta.execute(
+                "INSERT INTO connector_jobs (id, namespace_id, connector_id, op_kind, trigger, status, "
+                " started_at, heartbeat) VALUES (?,?,?,?,?,?,?,?)",
+                (job_id, self.ns, cid, "sync", "manual", "running" if process else "queued", _now(), _now()))
+        except Exception as e:  # noqa: BLE001 - unique-violation on one-running/queued-per-connector
+            if "unique" in str(e).lower() or "constraint" in str(e).lower():
+                raise ValueError("sync_already_running") from e
+            raise
 
         # job inheritance: take over this connector's leftover pending/failed tasks (design/02 §7.1)
         await self.meta.execute(
@@ -334,8 +354,10 @@ class Engine:
                 # deletion safety (design/02 §7.4): only honor full-set diff deletes when
                 # the connector declared a complete enumeration this run; on incremental /
                 # explicit_only a "missing" object is unknown, not deleted.
-                if ch.kind == "deleted" and ctx.enumeration_mode != "full":
-                    continue
+                if ch.kind == "deleted" and (
+                        ctx.enumeration_mode != "full"
+                        or getattr(plugin.CAPABILITIES, "delete_detection", "") == "never"):
+                    continue        # never-delete connectors (slack/gmail) keep the index
                 tid = uuid.uuid4().hex
                 await self.meta.execute(
                     "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
@@ -1131,8 +1153,17 @@ class Engine:
         if not row:
             return False
         cid = row["id"]
+        # preempt any in-flight sync (design/02 §6.4): mark removing so new syncs are
+        # rejected (connector_removing), and cancel running/queued jobs so a worker stops
+        # at its next per-object boundary before we tear down the data underneath it.
         await self.meta.execute(
             "UPDATE connectors SET status='removing' WHERE id=?", (cid,))
+        await self.meta.execute(
+            "UPDATE object_tasks SET status='cancelled' "
+            "WHERE connector_id=? AND status IN ('pending','running')", (cid,))
+        await self.meta.execute(
+            "UPDATE connector_jobs SET status='cancelled', finished_at=? "
+            "WHERE connector_id=? AND status IN ('running','queued')", (_now(), cid))
         # 1. Milvus chunks for this connector partition
         await asyncio.to_thread(self.milvus.delete_by_connector, self.ns, connector_uri)
         # 2. best-effort artifact bytes per object

@@ -56,6 +56,13 @@ class GitHubPlugin(ConnectorPlugin):
         resp = await client.get(f"{API}/repos/{o}/{r}")
         return resp.json()["default_branch"]
 
+    def preset_for(self, path: str):
+        if path.endswith("issues.jsonl"):
+            return "github.issues"
+        if path.endswith("pulls.jsonl"):
+            return "github.pulls"
+        return None
+
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.startswith("/_meta/"):
             if path.endswith(".jsonl"):

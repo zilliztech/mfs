@@ -92,6 +92,9 @@ class GmailPlugin(ConnectorPlugin):
             labels = [lb for lb in labels if lb["name"] in cfg or lb["id"] in cfg]
         return labels
 
+    def preset_for(self, path: str):
+        return "gmail.messages" if path.endswith("messages.jsonl") else None
+
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith("messages.jsonl"):
             return "message_stream"

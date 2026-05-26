@@ -151,6 +151,46 @@ class ObjectConfig:
     max_text_chars: Optional[int] = None
 
 
+# Built-in presets for public SaaS / message connectors (design/06 §5): users get a
+# searchable index without writing [[objects]] config. Keys are <connector>.<object>.
+PRESETS: dict[str, dict] = {
+    "github.issues": dict(
+        text_fields=["title", "body", "comments[].body"],
+        metadata_fields=["state", "labels[*]", "author", "assignees[*]", "updated_at"],
+        locator_fields=["number"], chunk_strategy="per_row"),
+    "github.pulls": dict(
+        text_fields=["title", "body", "reviews[].body", "comments[].body"],
+        metadata_fields=["state", "draft", "labels[*]", "author", "merged_at", "updated_at"],
+        locator_fields=["number"], chunk_strategy="per_row"),
+    "slack.messages": dict(
+        chunk_strategy="per_group", group_by="thread_ts", session_idle_min=10,
+        text_fields=["text"], metadata_fields=["channel", "user", "ts"],
+        locator_fields=["thread_ts"]),
+    "discord.messages": dict(
+        chunk_strategy="per_group", group_by="thread_id", session_idle_min=10,
+        text_fields=["content"], metadata_fields=["channel_id", "author", "timestamp"],
+        locator_fields=["thread_id"]),
+    "gmail.messages": dict(
+        chunk_strategy="per_group", group_by="threadId",
+        text_fields=["subject", "from", "to", "body", "snippet"],
+        metadata_fields=["from", "to", "date", "labelIds[*]"],
+        locator_fields=["threadId", "id"]),
+    "zendesk.tickets": dict(
+        text_fields=["subject", "description"],
+        metadata_fields=["status", "priority", "tags[*]", "updated_at"],
+        locator_fields=["id"], chunk_strategy="per_row"),
+}
+
+
+def preset_object_config(key: str) -> Optional["ObjectConfig"]:
+    """Build an ObjectConfig from a named preset, dropping keys ObjectConfig doesn't model."""
+    p = PRESETS.get(key)
+    if not p:
+        return None
+    fields = ObjectConfig.__dataclass_fields__
+    return ObjectConfig(**{k: v for k, v in p.items() if k in fields})
+
+
 class StateStore(Protocol):
     """Persistent per-connector KV (connector_state table). Not in-memory."""
     async def get(self, key: str) -> Any | None: ...
@@ -246,6 +286,12 @@ class ConnectorPlugin(ABC):
 
     async def search(self, query: str, path: str, options: Any) -> Optional[AsyncIterator[Any]]:
         return None     # framework default: Milvus recall
+
+    def preset_for(self, path: str) -> Optional[str]:
+        """Built-in preset KEY for this path (design/06 §5), used when the user didn't
+        configure [[objects]]. Returns a PRESETS key (e.g. 'github.issues') or None.
+        SaaS / message connectors override."""
+        return None
 
     def chunk_plan(self, path: str) -> Optional[dict]:
         return None

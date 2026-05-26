@@ -30,6 +30,8 @@ _CODE_SUGGESTIONS = {
     "tail_unsupported": ["head", "cat --range"],
     "locator_not_found": ["re-search; the record may have changed"],
     "since_unsupported": ["drop --since"],
+    "sync_already_running": ["status <uri>", "job cancel <id>"],
+    "connector_removing": ["wait for removal to finish, then retry"],
     "connector_unhealthy": ["check credentials/connectivity"],
     "not_found": ["check the URI"],
 }
@@ -91,7 +93,9 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             job_id = await eng().add(body.target, config=body.config, full=body.full,
                                      since=body.since, process=body.process)
         except ValueError as e:
-            raise HTTPException(400, str(e))     # e.g. since_unsupported -> error envelope
+            code = str(e)
+            status = 409 if code in ("sync_already_running", "connector_removing") else 400
+            raise HTTPException(status, code)        # -> error envelope
         return AddResponse(job_id=job_id)
 
     @app.post("/v1/jobs/{job_id}/cancel", response_model=CancelResponse,

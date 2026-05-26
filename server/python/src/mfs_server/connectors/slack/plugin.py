@@ -77,6 +77,9 @@ class SlackPlugin(ConnectorPlugin):
     def _channel_id(dir_name: str) -> str:
         return dir_name.rsplit("__", 1)[-1]
 
+    def preset_for(self, path: str):
+        return "slack.messages" if path.endswith("messages.jsonl") else None
+
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith("messages.jsonl"):
             return "message_stream"
