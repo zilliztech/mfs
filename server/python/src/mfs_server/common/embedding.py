@@ -41,9 +41,15 @@ class CachingEmbeddingClient:
 
     def _ensure_client(self):
         if self._client is None:
-            if self.provider != "openai":
-                raise RuntimeError(f"embedding provider {self.provider} not supported")
             self._client = AsyncOpenAI()
+        return self._client
+
+    def _ensure_onnx(self):
+        """Local ONNX embedding via fastembed (onnxruntime; no API key). Model is
+        downloaded + cached on first use."""
+        if self._client is None:
+            from fastembed import TextEmbedding
+            self._client = TextEmbedding(model_name=self.model)
         return self._client
 
     def _key(self, text: str) -> str:
@@ -77,6 +83,14 @@ class CachingEmbeddingClient:
         return result  # type: ignore[return-value]
 
     async def _embed_api(self, texts: list[str]) -> list[list[float]]:
+        if self.provider == "onnx":
+            import asyncio
+            model = self._ensure_onnx()
+            vecs = await asyncio.to_thread(lambda: [v.tolist() for v in model.embed(texts)])
+            self.api_calls += len(texts)
+            return vecs
+        if self.provider != "openai":
+            raise RuntimeError(f"embedding provider {self.provider} not supported")
         client = self._ensure_client()
         out: list[list[float]] = []
         for i in range(0, len(texts), self.batch_size):
