@@ -110,6 +110,129 @@
         }
       }
     },
+    "/v1/connectors/probe": {
+      "post": {
+        "tags": [
+          "connectors"
+        ],
+        "summary": "Probe",
+        "operationId": "probeConnector",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProbeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProbeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connectors/inspect": {
+      "get": {
+        "tags": [
+          "connectors"
+        ],
+        "summary": "Inspect",
+        "operationId": "inspectConnector",
+        "parameters": [
+          {
+            "name": "target",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/connectors": {
+      "delete": {
+        "tags": [
+          "connectors"
+        ],
+        "summary": "Remove",
+        "operationId": "removeConnector",
+        "parameters": [
+          {
+            "name": "target",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Target"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/upload": {
       "post": {
         "tags": [
@@ -871,6 +994,77 @@
           "entries"
         ],
         "title": "LsResponse"
+      },
+      "ProbeRequest": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target"
+        ],
+        "title": "ProbeRequest"
+      },
+      "ProbeResponse": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "target",
+          "type",
+          "ok"
+        ],
+        "title": "ProbeResponse"
+      },
+      "RemoveResponse": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "removed": {
+            "type": "boolean",
+            "title": "Removed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target",
+          "removed"
+        ],
+        "title": "RemoveResponse"
       },
       "ResultEnvelope": {
         "properties": {

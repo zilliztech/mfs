@@ -690,6 +690,74 @@ class Engine:
         _, connector_uri, _, _ = self._resolve_target(target)
         return connector_uri, None
 
+    # --- connector management (design/03 §3: probe / inspect / remove) ---
+    async def probe(self, target: str, config: dict | None = None) -> dict:
+        """Try-connect a connector without registering or writing state."""
+        _, connector_uri, ctype, default_config = self._resolve_target(target)
+        cfg_dict = config if config is not None else default_config
+        plugin, _ = self._build_plugin(ctype, cfg_dict, "probe-" + uuid.uuid4().hex)
+        try:
+            await plugin.connect()
+            hs = await plugin.healthcheck()
+            return {"target": connector_uri, "type": ctype, "ok": hs.ok, "detail": hs.detail}
+        except Exception as e:  # noqa: BLE001
+            return {"target": connector_uri, "type": ctype, "ok": False, "detail": str(e)}
+        finally:
+            try:
+                await plugin.close()
+            except Exception:  # noqa: BLE001
+                pass
+
+    async def inspect(self, target: str) -> dict | None:
+        """Connector row + object/job summary (design/03 §3 inspect)."""
+        _, connector_uri, _, _ = self._resolve_target(target)
+        row = await self.meta.fetchone(
+            "SELECT id, root_uri, type, status, registered_at FROM connectors "
+            "WHERE namespace_id=? AND root_uri=?", (self.ns, connector_uri))
+        if not row:
+            return None
+        cid = row["id"]
+        objs = await self.meta.fetchall(
+            "SELECT search_status, count(*) AS n FROM objects WHERE connector_id=? GROUP BY search_status", (cid,))
+        jobs = await self.meta.fetchall(
+            "SELECT status, count(*) AS n FROM connector_jobs WHERE connector_id=? GROUP BY status", (cid,))
+        total = await self.meta.fetchone(
+            "SELECT count(*) AS n, sum(chunk_count) AS chunks FROM objects WHERE connector_id=?", (cid,))
+        return {**dict(row),
+                "objects": {o["search_status"]: o["n"] for o in objs},
+                "object_count": total["n"] or 0, "chunk_count": total["chunks"] or 0,
+                "jobs": {j["status"]: j["n"] for j in jobs}}
+
+    async def remove_connector(self, target: str) -> bool:
+        """Remove a connector and everything it owns: Milvus chunks, artifacts, and all
+        metadata rows (objects / tasks / jobs / state / file_state) (design/03 §3 remove)."""
+        _, connector_uri, _, _ = self._resolve_target(target)
+        row = await self.meta.fetchone(
+            "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=?", (self.ns, connector_uri))
+        if not row:
+            return False
+        cid = row["id"]
+        await self.meta.execute(
+            "UPDATE connectors SET status='removing' WHERE id=?", (cid,))
+        # 1. Milvus chunks for this connector partition
+        await asyncio.to_thread(self.milvus.delete_by_connector, self.ns, connector_uri)
+        # 2. best-effort artifact bytes per object
+        objs = await self.meta.fetchall("SELECT object_uri FROM objects WHERE connector_id=?", (cid,))
+        for o in objs:
+            full = connector_uri + o["object_uri"]
+            for kind in ("converted_md", "vlm_text"):
+                try:
+                    await asyncio.to_thread(self.object_store.delete_artifact, self.ns, full, kind)
+                except Exception:  # noqa: BLE001
+                    pass
+        # 3. metadata rows
+        for tbl, col in (("object_tasks", "connector_id"), ("connector_jobs", "connector_id"),
+                         ("objects", "connector_id"), ("connector_state", "connector_id"),
+                         ("file_state", "connector_id")):
+            await self.meta.execute(f"DELETE FROM {tbl} WHERE {col}=?", (cid,))
+        await self.meta.execute("DELETE FROM connectors WHERE id=?", (cid,))
+        return True
+
     # --- read commands (design/05) — any connector ---
     async def _open_path(self, path: str):
         """(connector_id, connector_uri, relpath, plugin) for the registered connector

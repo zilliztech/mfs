@@ -29,6 +29,23 @@ class CancelResponse(BaseModel):
     cancelled: bool
 
 
+class ProbeRequest(BaseModel):
+    target: str
+    config: Optional[dict[str, Any]] = None
+
+
+class ProbeResponse(BaseModel):
+    target: str
+    type: str
+    ok: bool
+    detail: str = ""
+
+
+class RemoveResponse(BaseModel):
+    target: str
+    removed: bool
+
+
 class AddResponse(BaseModel):
     job_id: str = Field(..., description="sync job id; poll GET /v1/jobs/{job_id}")
 

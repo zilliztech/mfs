@@ -92,6 +92,8 @@ enum Cmd {
         #[command(subcommand)]
         action: ConnectorAction,
     },
+    /// Remove a connector + everything it owns (alias for `connector remove`)
+    Remove { target: String },
     /// Client profile (endpoint) management — ~/.mfs/client.toml
     Profile {
         #[command(subcommand)]
@@ -114,8 +116,18 @@ enum JobAction {
 
 #[derive(Subcommand)]
 enum ConnectorAction {
+    /// Register + sync a connector (alias: `mfs add`)
+    Add { target: String },
+    /// Try-connect a connector without registering
+    Probe { target: String },
     /// List registered connectors
     List,
+    /// Show a connector's objects/jobs summary
+    Inspect { target: String },
+    /// Re-sync a connector (alias: `mfs add <uri>`)
+    Update { target: String },
+    /// Remove a connector and everything it owns
+    Remove { target: String },
 }
 
 #[derive(Subcommand)]
@@ -281,6 +293,15 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             }
         },
         Cmd::Connector { action } => match action {
+            ConnectorAction::Add { target } | ConnectorAction::Update { target } => {
+                let v = post(client, &format!("{base}/v1/add"), &serde_json::json!({"target": target}))?;
+                println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
+            }
+            ConnectorAction::Probe { target } => {
+                let v = post(client, &format!("{base}/v1/connectors/probe"), &serde_json::json!({"target": target}))?;
+                println!("{}  ok={}  {}", v["type"].as_str().unwrap_or("?"),
+                         v["ok"].as_bool().unwrap_or(false), v["detail"].as_str().unwrap_or(""));
+            }
             ConnectorAction::List => {
                 let v = get(client, &format!("{base}/v1/status"), &[])?;
                 if cli.json { println!("{}", v["connectors"]); return Ok(()); }
@@ -289,10 +310,24 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                              c["status"].as_str().unwrap_or("?"), c["root_uri"].as_str().unwrap_or("?"));
                 }
             }
+            ConnectorAction::Inspect { target } => {
+                let v = get(client, &format!("{base}/v1/connectors/inspect"), &[("target", target.clone())])?;
+                println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
+            }
+            ConnectorAction::Remove { target } => return remove_connector(client, base, target),
         },
+        Cmd::Remove { target } => return remove_connector(client, base, target),
         Cmd::Profile { action } => return profile_cmd(action),
         Cmd::Serve { action } => return serve_cmd(action),
     }
+    Ok(())
+}
+
+fn remove_connector(client: &reqwest::blocking::Client, base: &str, target: &str) -> Result<(), String> {
+    let resp = client.delete(format!("{base}/v1/connectors"))
+        .query(&[("target", target)]).send().map_err(|e| e.to_string())?;
+    let v = parse(resp)?;
+    println!("removed: {}", v["removed"].as_bool().unwrap_or(false));
     Ok(())
 }
 

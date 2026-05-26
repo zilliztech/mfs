@@ -13,7 +13,8 @@ from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
 from .models import (
     AddRequest, AddResponse, CancelResponse, CatMeta, CatResponse, GrepResponse,
-    JobResponse, LsResponse, SearchResponse, ServerInfo, StatusResponse,
+    JobResponse, LsResponse, ProbeRequest, ProbeResponse, RemoveResponse,
+    SearchResponse, ServerInfo, StatusResponse,
 )
 
 
@@ -51,6 +52,23 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     async def cancel_job(job_id: str) -> CancelResponse:
         ok = await eng().cancel_job(job_id)
         return CancelResponse(job_id=job_id, cancelled=ok)
+
+    @app.post("/v1/connectors/probe", response_model=ProbeResponse,
+              operation_id="probeConnector", tags=["connectors"])
+    async def probe(body: ProbeRequest) -> ProbeResponse:
+        return ProbeResponse(**await eng().probe(body.target, body.config))
+
+    @app.get("/v1/connectors/inspect", operation_id="inspectConnector", tags=["connectors"])
+    async def inspect(target: str):
+        out = await eng().inspect(target)
+        if out is None:
+            raise HTTPException(404, "connector not found")
+        return out
+
+    @app.delete("/v1/connectors", response_model=RemoveResponse,
+                operation_id="removeConnector", tags=["connectors"])
+    async def remove(target: str) -> RemoveResponse:
+        return RemoveResponse(target=target, removed=await eng().remove_connector(target))
 
     @app.post("/v1/upload", response_model=AddResponse, operation_id="uploadSource", tags=["ingest"])
     async def upload(request: Request, name: str, process: bool = True) -> AddResponse:
