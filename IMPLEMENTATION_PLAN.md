@@ -122,11 +122,13 @@ design/                   # 设计文档（实现绝对依据）
   - **SDK 接口均查最新官方文档/GitHub 确认**（不凭记忆）：见各 plugin.py 顶部 docstring 标注的验证来源。
   - **offline 单元测试 52/52**（`tests/phase10_connectors_unit.py`：object_kind 路由 + 虚拟路径 layout + 解析 helper，stub 网络枚举方法，零连接零 key）。
   - pyproject 加 optional extras（slack/notion/jira/salesforce/hubspot/bigquery/snowflake/s3/google/feishu + `all-connectors` 聚合）；`uv sync --extra all-connectors --extra dev` 装好，20 scheme 全部 import+register 通过。registry.load_builtin 改 importlib 循环（缺 SDK 自动 skip）；engine._resolve_target 加全部 scheme。
-- [ ] 其余：SDK(py/ts/go/java)、deployments(docker/helm)、Skill bundle、server-rs 加速、cancel(daemon)。
-- [ ] 其余：SDK(py/ts/go/java 从 openapi 生成)、deployments(docker/helm)、Skill bundle、server-rs 加速（PyO3）、cancel(daemon)。
+- [x] **protocol/OpenAPI + 多语言 SDK**：FastAPI 路由加 pydantic typed models（`api/models.py`，ResultEnvelope 等）→ 导出 `protocol/openapi.yaml`（OpenAPI 3.1，8 路径，operationId）+ `protocol/schemas/openapi.json` + `protocol/errors.md`。`sdks/{python,typescript,go,java}` 由 openapi-generator 7.22 生成（`sdks/generate.sh` 可复现），按 tag 分 Server/Ingest/Retrieval/Browse Api。**4 个 SDK 全部对真实 server 端到端测过**（启 mfs-server Lite+OpenAI，跑 search→envelope/ls/cat/status/4xx）：python 10/10、typescript 9/9、go 9/9、java 9/9。装了 go1.23.4 + maven 3.6.3。
+- [x] **server-rs（PyO3 加速）**：maturin crate `mfs-server-rs`（pyo3 0.22 abi3-py310 + walkdir/regex/serde_json）暴露 scan_dir/linear_grep_file/jsonl_record_count/jsonl_field_texts。`common/accel.py` 包纯 Python fallback（`HAVE_NATIVE`）—— 装不装 wheel 行为一致。engine.grep 线性扫直接走 accelerator 读本机文件。`maturin develop --release` 装入 venv；accel parity **10/10**（native==pure-Python），commands e2e 10/10（native grep）。
+- [x] **deployments**：`deployments/docker/Dockerfile`（单镜像 run|api|worker，data volume，EXTRAS build-arg）—— **真实 build + 跑通**：AIO 容器 serve /v1 + 完整 add→search→ls（Lite+OpenAI）。`compose/docker-compose.yml` AIO 形态（compose config valid + 起容器健康）。`helm/mfs`（api+worker Deployment + Service + 探针 + secret env + NOTES，lint clean + template 渲染）。装了 docker compose v2.32.4 + helm v3.21。**健壮性修复**：embedding/vlm 的 OpenAI client 改懒加载 → server 无 OPENAI_API_KEY 也能启动（browse-only），compose 实测 4s 起来。
+- [x] **Skill connector references 补全**：`skills/mfs/references/connectors/` 共 20 个（原 file/web/github/postgres + 新增 mysql/mongo/bigquery/snowflake/s3/gdrive/slack/discord/gmail/feishu/notion/jira/linear/zendesk/salesforce/hubspot），各含 layout/object_kind/locator/cat 行为/search-grep/config+auth。SKILL.md §4 列全。
 - [x] Phase 7：健壮性 case（见上）
-- [ ] Phase 8：端到端矩阵（Zilliz × Lite）
-- [ ] Phase 9：server-rs 加速
+- [x] **Phase 8：端到端矩阵全跑** —— `tests/run_matrix.sh` 串行跑 18 个 suite（Zilliz 5-collection 上限故串行）：accel/connectors-unit 无 key；storage/index/search-modes/converter/vlm 在 **Lite + Zilliz 双跑**；commands/api/web/github/rename/robustness/message_stream 在 Lite；postgres/mysql 打本地库。**18/18 ALL GREEN**。
+- [x] Phase 9：server-rs 加速（见上）
 - [x] Phase 10：全 connector（见上）
 
 ### 当前 context 交接笔记
