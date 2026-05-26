@@ -1145,6 +1145,67 @@ class Engine:
             except Exception:  # noqa: BLE001
                 pass
 
+    async def estimate(self, target: str, config: dict | None = None,
+                       sample_objects: int = 3, sample_records: int = 1000) -> dict:
+        """Zero-billing pre-flight estimate (design/04 §3): enumerate the object set
+        (metadata-only) and run the chunker + local tokenizer on a small sample to
+        extrapolate physical work (chunks / tokens). Never calls the embedding API or
+        writes Milvus — the user sees the prompt before any money is spent. Returns
+        physical quantities only (no $/time, per design)."""
+        from ..processors.text import chunk_body
+        _, connector_uri, ctype, default_config = self._resolve_target(target)
+        cfg_dict = config if config is not None else default_config
+        plugin, _ = self._build_plugin(ctype, cfg_dict, "estimate-" + uuid.uuid4().hex)
+        await plugin.connect()
+        try:
+            obj_uris: list[str] = []
+            async for ch in plugin.sync(SyncOptions(full=True)):
+                if ch.kind != "deleted":
+                    obj_uris.append(ch.uri)
+                if len(obj_uris) >= 200000:
+                    break
+            total = len(obj_uris)
+            try:
+                import tiktoken
+                enc = tiktoken.get_encoding("cl100k_base")
+                ntok = lambda s: len(enc.encode(s))      # noqa: E731
+            except Exception:  # noqa: BLE001 - tokenizer unavailable -> ~4 chars/token
+                ntok = lambda s: max(1, len(s) // 4)      # noqa: E731
+            s_chunks = s_tokens = s_objs = 0
+            for rel in obj_uris[:sample_objects]:
+                okind = plugin.object_kind_of(rel)
+                texts: list[str] = []
+                if okind in ("document", "code", "text_blob"):
+                    ext = os.path.splitext(rel)[1].lower()
+                    text = await self._read_text(plugin, rel)
+                    texts = [t for t, _ in chunk_body(text, okind, ext, self.cfg.chunk.chunk_size)]
+                elif okind in ("table_rows", "record_collection", "message_stream"):
+                    ocfg = plugin.ctx.object_config_for(rel)
+                    records = plugin.read_records(rel)
+                    if records is not None and ocfg.text_fields:
+                        n = 0
+                        async for rec in records:
+                            t = _render_record(rec, ocfg.text_fields, ocfg.text_template)
+                            if t.strip():
+                                texts.append(t)
+                            n += 1
+                            if n >= sample_records:
+                                break
+                if texts:
+                    s_chunks += len(texts)
+                    s_tokens += sum(ntok(t) for t in texts)
+                s_objs += 1
+            per_chunks = (s_chunks / s_objs) if s_objs else 0
+            per_tokens = (s_tokens / s_objs) if s_objs else 0
+            return {"target": connector_uri, "type": ctype, "objects": total,
+                    "sampled_objects": s_objs, "est_chunks": int(per_chunks * total),
+                    "est_tokens": int(per_tokens * total)}
+        finally:
+            try:
+                await plugin.close()
+            except Exception:  # noqa: BLE001
+                pass
+
     async def inspect(self, target: str) -> dict | None:
         """Connector row + object/job summary (design/03 §3 inspect)."""
         _, connector_uri, _, _ = self._resolve_target(target)

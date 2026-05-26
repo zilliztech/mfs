@@ -41,6 +41,9 @@ enum Cmd {
         /// Never upload; have the server read the path itself (shared fs)
         #[arg(long)]
         no_upload: bool,
+        /// Skip the pre-flight estimate/confirm prompt for external connectors
+        #[arg(long, short = 'y')]
+        yes: bool,
     },
     /// Semantic + keyword search
     Search {
@@ -115,6 +118,11 @@ enum Cmd {
         #[command(subcommand)]
         action: ProfileAction,
     },
+    /// Show client/server config
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
     /// Manage a local mfs-server process
     Serve {
         #[command(subcommand)]
@@ -124,10 +132,18 @@ enum Cmd {
 
 #[derive(Subcommand)]
 enum JobAction {
+    /// List recent jobs
+    List,
     /// Show a job by id
     Show { job_id: String },
     /// Cancel a running/queued job
     Cancel { job_id: String },
+}
+
+#[derive(Subcommand)]
+enum ConfigAction {
+    /// Show resolved endpoint + server info
+    Show,
 }
 
 #[derive(Subcommand)]
@@ -183,6 +199,11 @@ enum ServeAction {
     },
     /// Stop the local mfs-server
     Stop,
+    /// Restart the local mfs-server
+    Restart {
+        #[arg(long, default_value = "127.0.0.1:8765")]
+        bind: String,
+    },
     /// Is the local mfs-server running?
     Status,
     /// Tail the local server log
@@ -291,17 +312,34 @@ fn main() {
 
 fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), String> {
     match &cli.cmd {
-        Cmd::Add { target, config, since, force_index, no_process, upload, no_upload } => {
+        Cmd::Add { target, config, since, force_index, no_process, upload, no_upload, yes } => {
+            let is_local = std::path::Path::new(target).exists();
+            // zero-billing estimate + confirm before indexing an external connector
+            // (design/04 §3): the user sees physical work before any embedding spend.
+            if !is_local && !yes {
+                let mut eb = serde_json::json!({"target": target});
+                if let Some(c) = config { eb["config"] = load_config_file(c)?; }
+                let est = post(client, &format!("{base}/v1/connectors/estimate"), &eb)?;
+                println!("Connector: {target}");
+                println!("Discovered: {} objects", est["objects"]);
+                println!("Estimated (local chunker + tokenizer only — no embedding API calls):");
+                println!("  chunks: ~{}", est["est_chunks"]);
+                println!("  tokens: ~{}  (apply your provider's per-token rate to estimate $)",
+                         est["est_tokens"]);
+                if !confirm("Continue? [y/N] ")? {
+                    println!("aborted.");
+                    return Ok(());
+                }
+            }
             // local/remote decision (design/02 §4.2): when the target is a real local path
             // and the server runs on a different host (no shared fs), bundle the tree and
             // upload it instead of asking the server to read a path it can't see. --upload
             // forces it on the same host; --no-upload always has the server read the path.
-            let is_local_path = std::path::Path::new(target).exists();
             let do_upload = if *no_upload {
                 false
             } else if *upload {
-                is_local_path
-            } else if is_local_path {
+                is_local
+            } else if is_local {
                 let server_mid = get(client, &format!("{base}/v1/server/info"), &[])
                     .ok().and_then(|v| v["machine_id"].as_str().map(String::from)).unwrap_or_default();
                 let client_host = client_hostname();
@@ -383,6 +421,14 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
         }
         Cmd::Job { action } => match action {
+            JobAction::List => {
+                let v = get(client, &format!("{base}/v1/jobs"), &[])?;
+                if cli.json { println!("{v}"); return Ok(()); }
+                for j in v.as_array().unwrap_or(&vec![]) {
+                    println!("{:8}  {:10}  {}", j["status"].as_str().unwrap_or("?"),
+                             j["op_kind"].as_str().unwrap_or("?"), j["id"].as_str().unwrap_or("?"));
+                }
+            }
             JobAction::Show { job_id } => {
                 let v = get(client, &format!("{base}/v1/jobs/{job_id}"), &[])?;
                 println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
@@ -422,9 +468,31 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
         },
         Cmd::Remove { target } => return remove_connector(client, base, target),
         Cmd::Profile { action } => return profile_cmd(action),
+        Cmd::Config { action } => match action {
+            ConfigAction::Show => {
+                println!("endpoint: {base}");
+                let cfg = load_client_cfg();
+                println!("active profile: {}", cfg.active.as_deref().unwrap_or("(none)"));
+                println!("client_id: {}", client_id());
+                match get(client, &format!("{base}/v1/server/info"), &[]) {
+                    Ok(v) => println!("server: {}", serde_json::to_string(&v).unwrap_or_default()),
+                    Err(e) => println!("server: unreachable ({e})"),
+                }
+            }
+        },
         Cmd::Serve { action } => return serve_cmd(action),
     }
     Ok(())
+}
+
+/// Prompt on stderr/stdout and read a yes/no from stdin.
+fn confirm(prompt: &str) -> Result<bool, String> {
+    use std::io::Write;
+    print!("{prompt}");
+    std::io::stdout().flush().ok();
+    let mut s = String::new();
+    std::io::stdin().read_line(&mut s).map_err(|e| e.to_string())?;
+    Ok(matches!(s.trim().to_lowercase().as_str(), "y" | "yes"))
 }
 
 /// Best-effort client machine id (matches the server's socket.gethostname()).
@@ -674,6 +742,13 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
             }
             None => println!("not running"),
         },
+        ServeAction::Restart { bind } => {
+            if let Some(pid) = read_pid(&pid_file) {
+                let _ = std::process::Command::new("kill").arg(pid.to_string()).status();
+                let _ = std::fs::remove_file(&pid_file);
+            }
+            return serve_cmd(&ServeAction::Start { bind: bind.clone() });
+        }
         ServeAction::Status => match read_pid(&pid_file) {
             Some(pid) if pid_alive(pid) => println!("running (pid {pid})"),
             _ => println!("not running"),

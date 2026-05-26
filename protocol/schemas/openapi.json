@@ -151,6 +151,48 @@
         }
       }
     },
+    "/v1/connectors/estimate": {
+      "post": {
+        "tags": [
+          "connectors"
+        ],
+        "summary": "Estimate",
+        "description": "Zero-billing pre-flight estimate (design/04 \u00a73): object/chunk/token counts via\nmetadata + a local chunker/tokenizer dry-run. No embedding API calls.",
+        "operationId": "estimateConnector",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProbeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstimateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/connectors/inspect": {
       "get": {
         "tags": [
@@ -692,6 +734,53 @@
         }
       }
     },
+    "/v1/jobs": {
+      "get": {
+        "tags": [
+          "ingest"
+        ],
+        "summary": "List Jobs",
+        "operationId": "listJobs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobResponse"
+                  },
+                  "title": "Response Listjobs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/jobs/{job_id}": {
       "get": {
         "tags": [
@@ -906,6 +995,48 @@
           "path"
         ],
         "title": "DeletionCandidate"
+      },
+      "EstimateResponse": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "objects": {
+            "type": "integer",
+            "title": "Objects",
+            "description": "total objects discovered (metadata-only count)"
+          },
+          "sampled_objects": {
+            "type": "integer",
+            "title": "Sampled Objects",
+            "description": "objects actually sampled for the dry-run"
+          },
+          "est_chunks": {
+            "type": "integer",
+            "title": "Est Chunks",
+            "description": "extrapolated chunk count (\u00b150%)"
+          },
+          "est_tokens": {
+            "type": "integer",
+            "title": "Est Tokens",
+            "description": "extrapolated token count; apply your provider rate for $"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target",
+          "type",
+          "objects",
+          "sampled_objects",
+          "est_chunks",
+          "est_tokens"
+        ],
+        "title": "EstimateResponse"
       },
       "GrepMatchModel": {
         "properties": {

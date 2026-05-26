@@ -49,6 +49,15 @@ class RemoveResponse(BaseModel):
     removed: bool
 
 
+class EstimateResponse(BaseModel):
+    target: str
+    type: str
+    objects: int = Field(..., description="total objects discovered (metadata-only count)")
+    sampled_objects: int = Field(..., description="objects actually sampled for the dry-run")
+    est_chunks: int = Field(..., description="extrapolated chunk count (±50%)")
+    est_tokens: int = Field(..., description="extrapolated token count; apply your provider rate for $")
+
+
 class AddResponse(BaseModel):
     job_id: str = Field(..., description="sync job id; poll GET /v1/jobs/{job_id}")
 

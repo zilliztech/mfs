@@ -14,9 +14,9 @@ from fastapi.responses import JSONResponse
 from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
 from .models import (
-    AddRequest, AddResponse, CancelResponse, CatMeta, CatResponse, GrepResponse,
-    JobResponse, LsResponse, ManifestRequest, ManifestResponse, ProbeRequest,
-    ProbeResponse, RemoveResponse, SearchResponse, ServerInfo, StatusResponse,
+    AddRequest, AddResponse, CancelResponse, CatMeta, CatResponse, EstimateResponse,
+    GrepResponse, JobResponse, LsResponse, ManifestRequest, ManifestResponse,
+    ProbeRequest, ProbeResponse, RemoveResponse, SearchResponse, ServerInfo, StatusResponse,
 )
 
 # Canonical error codes -> suggested next actions (protocol/errors.md). The endpoints
@@ -119,6 +119,13 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
               operation_id="probeConnector", tags=["connectors"])
     async def probe(body: ProbeRequest) -> ProbeResponse:
         return ProbeResponse(**await eng().probe(body.target, body.config))
+
+    @app.post("/v1/connectors/estimate", response_model=EstimateResponse,
+              operation_id="estimateConnector", tags=["connectors"])
+    async def estimate(body: ProbeRequest) -> EstimateResponse:
+        """Zero-billing pre-flight estimate (design/04 §3): object/chunk/token counts via
+        metadata + a local chunker/tokenizer dry-run. No embedding API calls."""
+        return EstimateResponse(**await eng().estimate(body.target, body.config))
 
     @app.get("/v1/connectors/inspect", operation_id="inspectConnector", tags=["connectors"])
     async def inspect(target: str):
@@ -234,6 +241,12 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             "SELECT status, count(*) AS n FROM connector_jobs GROUP BY status")
         return StatusResponse(connectors=[dict(c) for c in conns],
                               jobs={j["status"]: j["n"] for j in jobs})
+
+    @app.get("/v1/jobs", response_model=list[JobResponse], operation_id="listJobs", tags=["ingest"])
+    async def list_jobs(limit: int = 20) -> list[JobResponse]:
+        rows = await eng().meta.fetchall(
+            "SELECT * FROM connector_jobs ORDER BY started_at DESC LIMIT ?", (limit,))
+        return [JobResponse(**{k: dict(r).get(k) for k in JobResponse.model_fields}) for r in rows]
 
     @app.get("/v1/jobs/{job_id}", response_model=JobResponse, operation_id="getJob", tags=["ingest"])
     async def job(job_id: str) -> JobResponse:
