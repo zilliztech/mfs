@@ -44,6 +44,7 @@ class BrowseApi:
         path: StrictStr,
         range: Optional[StrictStr] = None,
         meta: Optional[StrictBool] = None,
+        density: Optional[StrictStr] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -66,6 +67,8 @@ class BrowseApi:
         :type range: str
         :param meta:
         :type meta: bool
+        :param density:
+        :type density: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -92,6 +95,7 @@ class BrowseApi:
             path=path,
             range=range,
             meta=meta,
+            density=density,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -119,6 +123,7 @@ class BrowseApi:
         path: StrictStr,
         range: Optional[StrictStr] = None,
         meta: Optional[StrictBool] = None,
+        density: Optional[StrictStr] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -141,6 +146,8 @@ class BrowseApi:
         :type range: str
         :param meta:
         :type meta: bool
+        :param density:
+        :type density: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -167,6 +174,7 @@ class BrowseApi:
             path=path,
             range=range,
             meta=meta,
+            density=density,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -194,6 +202,7 @@ class BrowseApi:
         path: StrictStr,
         range: Optional[StrictStr] = None,
         meta: Optional[StrictBool] = None,
+        density: Optional[StrictStr] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -216,6 +225,8 @@ class BrowseApi:
         :type range: str
         :param meta:
         :type meta: bool
+        :param density:
+        :type density: str
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -242,6 +253,7 @@ class BrowseApi:
             path=path,
             range=range,
             meta=meta,
+            density=density,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -264,6 +276,7 @@ class BrowseApi:
         path,
         range,
         meta,
+        density,
         _request_auth,
         _content_type,
         _headers,
@@ -297,6 +310,10 @@ class BrowseApi:
         if meta is not None:
             
             _query_params.append(('meta', meta))
+            
+        if density is not None:
+            
+            _query_params.append(('density', density))
             
         # process the header parameters
         # process the form parameters

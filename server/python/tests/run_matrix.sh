@@ -25,6 +25,13 @@ declare -a TESTS=(
   phase10_message_stream_smoke.py # Lite (thread_aggregate)
   phase10_postgres_smoke.py       # local PG
   phase10_mysql_smoke.py          # local MariaDB
+  phase11_pg_backend_smoke.py     # PG metadata + tx_cache backend
+  phase11_s3_objectstore_smoke.py # S3/MinIO object store
+  phase11_worker_smoke.py         # worker daemon + cancel
+  phase11_upload_smoke.py         # CS upload flow
+  phase11_summary_smoke.py        # summary/schema/directory chunk_kinds
+  phase11_filter_density_smoke.py # index_filter + cat density
+  phase11_onnx_embedding_smoke.py # local onnx embedding (no key)
 )
 PASS=0; FAIL=0; SKIP=0
 declare -a FAILED=()

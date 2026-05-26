@@ -28,6 +28,7 @@ type ApiCatRequest struct {
 	path *string
 	range_ *string
 	meta *bool
+	density *string
 }
 
 func (r ApiCatRequest) Path(path string) ApiCatRequest {
@@ -42,6 +43,11 @@ func (r ApiCatRequest) Range_(range_ string) ApiCatRequest {
 
 func (r ApiCatRequest) Meta(meta bool) ApiCatRequest {
 	r.meta = &meta
+	return r
+}
+
+func (r ApiCatRequest) Density(density string) ApiCatRequest {
+	r.density = &density
 	return r
 }
 
@@ -96,6 +102,9 @@ func (a *BrowseAPIService) CatExecute(r ApiCatRequest) (*CatResponse, *http.Resp
 		var defaultValue bool = false
 		parameterAddToHeaderOrQuery(localVarQueryParams, "meta", defaultValue, "form", "")
 		r.meta = &defaultValue
+	}
+	if r.density != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "density", r.density, "form", "")
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

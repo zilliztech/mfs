@@ -10,7 +10,7 @@ All URIs are relative to *http://127.0.0.1:8765*
 
 <a id="cat"></a>
 # **cat**
-> CatResponse cat(path, range, meta)
+> CatResponse cat(path, range, meta, density)
 
 Cat
 
@@ -32,8 +32,9 @@ public class Example {
     String path = "path_example"; // String | 
     String range = "range_example"; // String | 
     Boolean meta = false; // Boolean | 
+    String density = "density_example"; // String | 
     try {
-      CatResponse result = apiInstance.cat(path, range, meta);
+      CatResponse result = apiInstance.cat(path, range, meta, density);
       System.out.println(result);
     } catch (ApiException e) {
       System.err.println("Exception when calling BrowseApi#cat");
@@ -53,6 +54,7 @@ public class Example {
 | **path** | **String**|  | |
 | **range** | **String**|  | [optional] |
 | **meta** | **Boolean**|  | [optional] [default to false] |
+| **density** | **String**|  | [optional] |
 
 ### Return type
 

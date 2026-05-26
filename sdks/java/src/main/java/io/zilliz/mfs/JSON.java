@@ -98,6 +98,7 @@ public class JSON {
         gsonBuilder.registerTypeAdapter(byte[].class, byteArrayAdapter);
         gsonBuilder.registerTypeAdapterFactory(new io.zilliz.mfs.model.AddRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.zilliz.mfs.model.AddResponse.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.zilliz.mfs.model.CancelResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.zilliz.mfs.model.CatResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.zilliz.mfs.model.ConnectorRow.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.zilliz.mfs.model.GrepMatchModel.CustomTypeAdapterFactory());

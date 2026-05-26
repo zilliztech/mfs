@@ -19,11 +19,8 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-import io.zilliz.mfs.model.GrepMatchModel;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -49,42 +46,58 @@ import java.util.Set;
 import io.zilliz.mfs.JSON;
 
 /**
- * GrepResponse
+ * CancelResponse
  */
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-05-26T04:25:09.503817Z[Etc/UTC]", comments = "Generator version: 7.22.0")
-public class GrepResponse {
-  public static final String SERIALIZED_NAME_RESULTS = "results";
-  @SerializedName(SERIALIZED_NAME_RESULTS)
+public class CancelResponse {
+  public static final String SERIALIZED_NAME_JOB_ID = "job_id";
+  @SerializedName(SERIALIZED_NAME_JOB_ID)
   @javax.annotation.Nonnull
-  private List<GrepMatchModel> results = new ArrayList<>();
+  private String jobId;
 
-  public GrepResponse() {
+  public static final String SERIALIZED_NAME_CANCELLED = "cancelled";
+  @SerializedName(SERIALIZED_NAME_CANCELLED)
+  @javax.annotation.Nonnull
+  private Boolean cancelled;
+
+  public CancelResponse() {
   }
 
-  public GrepResponse results(@javax.annotation.Nonnull List<GrepMatchModel> results) {
-    this.results = results;
-    return this;
-  }
-
-  public GrepResponse addResultsItem(GrepMatchModel resultsItem) {
-    if (this.results == null) {
-      this.results = new ArrayList<>();
-    }
-    this.results.add(resultsItem);
+  public CancelResponse jobId(@javax.annotation.Nonnull String jobId) {
+    this.jobId = jobId;
     return this;
   }
 
   /**
-   * Get results
-   * @return results
+   * Get jobId
+   * @return jobId
    */
   @javax.annotation.Nonnull
-  public List<GrepMatchModel> getResults() {
-    return results;
+  public String getJobId() {
+    return jobId;
   }
 
-  public void setResults(@javax.annotation.Nonnull List<GrepMatchModel> results) {
-    this.results = results;
+  public void setJobId(@javax.annotation.Nonnull String jobId) {
+    this.jobId = jobId;
+  }
+
+
+  public CancelResponse cancelled(@javax.annotation.Nonnull Boolean cancelled) {
+    this.cancelled = cancelled;
+    return this;
+  }
+
+  /**
+   * Get cancelled
+   * @return cancelled
+   */
+  @javax.annotation.Nonnull
+  public Boolean getCancelled() {
+    return cancelled;
+  }
+
+  public void setCancelled(@javax.annotation.Nonnull Boolean cancelled) {
+    this.cancelled = cancelled;
   }
 
 
@@ -97,20 +110,22 @@ public class GrepResponse {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    GrepResponse grepResponse = (GrepResponse) o;
-    return Objects.equals(this.results, grepResponse.results);
+    CancelResponse cancelResponse = (CancelResponse) o;
+    return Objects.equals(this.jobId, cancelResponse.jobId) &&
+        Objects.equals(this.cancelled, cancelResponse.cancelled);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(results);
+    return Objects.hash(jobId, cancelled);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class GrepResponse {\n");
-    sb.append("    results: ").append(toIndentedString(results)).append("\n");
+    sb.append("class CancelResponse {\n");
+    sb.append("    jobId: ").append(toIndentedString(jobId)).append("\n");
+    sb.append("    cancelled: ").append(toIndentedString(cancelled)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -129,49 +144,42 @@ public class GrepResponse {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("results"));
+    openapiFields = new HashSet<String>(Arrays.asList("job_id", "cancelled"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("results"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("job_id", "cancelled"));
   }
 
   /**
    * Validates the JSON Element and throws an exception if issues found
    *
    * @param jsonElement JSON Element
-   * @throws IOException if the JSON Element is invalid with respect to GrepResponse
+   * @throws IOException if the JSON Element is invalid with respect to CancelResponse
    */
   public static void validateJsonElement(JsonElement jsonElement) throws IOException {
       if (jsonElement == null) {
-        if (!GrepResponse.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
-          throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "The required field(s) %s in GrepResponse is not found in the empty JSON string", GrepResponse.openapiRequiredFields.toString()));
+        if (!CancelResponse.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
+          throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "The required field(s) %s in CancelResponse is not found in the empty JSON string", CancelResponse.openapiRequiredFields.toString()));
         }
       }
 
       Set<Map.Entry<String, JsonElement>> entries = jsonElement.getAsJsonObject().entrySet();
       // check to see if the JSON string contains additional fields
       for (Map.Entry<String, JsonElement> entry : entries) {
-        if (!GrepResponse.openapiFields.contains(entry.getKey())) {
-          throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "The field `%s` in the JSON string is not defined in the `GrepResponse` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
+        if (!CancelResponse.openapiFields.contains(entry.getKey())) {
+          throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "The field `%s` in the JSON string is not defined in the `CancelResponse` properties. JSON: %s", entry.getKey(), jsonElement.toString()));
         }
       }
 
       // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : GrepResponse.openapiRequiredFields) {
+      for (String requiredField : CancelResponse.openapiRequiredFields) {
         if (jsonElement.getAsJsonObject().get(requiredField) == null) {
           throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "The required field `%s` is not found in the JSON string: %s", requiredField, jsonElement.toString()));
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
-      if (jsonObj.get("results") != null) {
-        if (!jsonObj.get("results").isJsonArray()) {
-          throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `results` to be an array in the JSON string but got `%s`", jsonObj.get("results").toString()));
-        }
-        JsonArray jsonArrayresults = jsonObj.getAsJsonArray("results");
-        // validate the required field `results` (array)
-        for (int i = 0; i < jsonArrayresults.size(); i++) {
-          GrepMatchModel.validateJsonElement(jsonArrayresults.get(i));
-        }
+      if (!jsonObj.get("job_id").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format(java.util.Locale.ROOT, "Expected the field `job_id` to be a primitive type in the JSON string but got `%s`", jsonObj.get("job_id").toString()));
       }
   }
 
@@ -179,22 +187,22 @@ public class GrepResponse {
     @SuppressWarnings("unchecked")
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-       if (!GrepResponse.class.isAssignableFrom(type.getRawType())) {
-         return null; // this class only serializes 'GrepResponse' and its subtypes
+       if (!CancelResponse.class.isAssignableFrom(type.getRawType())) {
+         return null; // this class only serializes 'CancelResponse' and its subtypes
        }
        final TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
-       final TypeAdapter<GrepResponse> thisAdapter
-                        = gson.getDelegateAdapter(this, TypeToken.get(GrepResponse.class));
+       final TypeAdapter<CancelResponse> thisAdapter
+                        = gson.getDelegateAdapter(this, TypeToken.get(CancelResponse.class));
 
-       return (TypeAdapter<T>) new TypeAdapter<GrepResponse>() {
+       return (TypeAdapter<T>) new TypeAdapter<CancelResponse>() {
            @Override
-           public void write(JsonWriter out, GrepResponse value) throws IOException {
+           public void write(JsonWriter out, CancelResponse value) throws IOException {
              JsonObject obj = thisAdapter.toJsonTree(value).getAsJsonObject();
              elementAdapter.write(out, obj);
            }
 
            @Override
-           public GrepResponse read(JsonReader in) throws IOException {
+           public CancelResponse read(JsonReader in) throws IOException {
              JsonElement jsonElement = elementAdapter.read(in);
              validateJsonElement(jsonElement);
              return thisAdapter.fromJsonTree(jsonElement);
@@ -205,18 +213,18 @@ public class GrepResponse {
   }
 
   /**
-   * Create an instance of GrepResponse given an JSON string
+   * Create an instance of CancelResponse given an JSON string
    *
    * @param jsonString JSON string
-   * @return An instance of GrepResponse
-   * @throws IOException if the JSON string is invalid with respect to GrepResponse
+   * @return An instance of CancelResponse
+   * @throws IOException if the JSON string is invalid with respect to CancelResponse
    */
-  public static GrepResponse fromJson(String jsonString) throws IOException {
-    return JSON.getGson().fromJson(jsonString, GrepResponse.class);
+  public static CancelResponse fromJson(String jsonString) throws IOException {
+    return JSON.getGson().fromJson(jsonString, CancelResponse.class);
   }
 
   /**
-   * Convert an instance of GrepResponse to an JSON string
+   * Convert an instance of CancelResponse to an JSON string
    *
    * @return JSON string
    */

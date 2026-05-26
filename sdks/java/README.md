@@ -2,7 +2,7 @@
 
 MFS
 - API version: 0.4.0
-  - Build date: 2026-05-26T02:38:54.821889Z[Etc/UTC]
+  - Build date: 2026-05-26T04:25:09.503817Z[Etc/UTC]
   - Generator version: 7.22.0
 
 Multi-source File-like Search — HTTP /v1 control plane.
@@ -96,8 +96,9 @@ public class Example {
     String path = "path_example"; // String | 
     String range = "range_example"; // String | 
     Boolean meta = false; // Boolean | 
+    String density = "density_example"; // String | 
     try {
-      CatResponse result = apiInstance.cat(path, range, meta);
+      CatResponse result = apiInstance.cat(path, range, meta, density);
       System.out.println(result);
     } catch (ApiException e) {
       System.err.println("Exception when calling BrowseApi#cat");
@@ -120,7 +121,9 @@ Class | Method | HTTP request | Description
 *BrowseApi* | [**cat**](docs/BrowseApi.md#cat) | **GET** /v1/cat | Cat
 *BrowseApi* | [**ls**](docs/BrowseApi.md#ls) | **GET** /v1/ls | Ls
 *IngestApi* | [**addSource**](docs/IngestApi.md#addSource) | **POST** /v1/add | Add
+*IngestApi* | [**cancelJob**](docs/IngestApi.md#cancelJob) | **POST** /v1/jobs/{job_id}/cancel | Cancel Job
 *IngestApi* | [**getJob**](docs/IngestApi.md#getJob) | **GET** /v1/jobs/{job_id} | Job
+*IngestApi* | [**uploadSource**](docs/IngestApi.md#uploadSource) | **POST** /v1/upload | Upload
 *RetrievalApi* | [**grep**](docs/RetrievalApi.md#grep) | **GET** /v1/grep | Grep
 *RetrievalApi* | [**search**](docs/RetrievalApi.md#search) | **GET** /v1/search | Search
 *ServerApi* | [**getServerInfo**](docs/ServerApi.md#getServerInfo) | **GET** /v1/server/info | Server Info
@@ -131,6 +134,7 @@ Class | Method | HTTP request | Description
 
  - [AddRequest](docs/AddRequest.md)
  - [AddResponse](docs/AddResponse.md)
+ - [CancelResponse](docs/CancelResponse.md)
  - [CatResponse](docs/CatResponse.md)
  - [ConnectorRow](docs/ConnectorRow.md)
  - [GrepMatchModel](docs/GrepMatchModel.md)

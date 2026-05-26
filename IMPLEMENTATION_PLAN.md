@@ -130,6 +130,19 @@ design/                   # 设计文档（实现绝对依据）
 - [x] **Phase 8：端到端矩阵全跑** —— `tests/run_matrix.sh` 串行跑 18 个 suite（Zilliz 5-collection 上限故串行）：accel/connectors-unit 无 key；storage/index/search-modes/converter/vlm 在 **Lite + Zilliz 双跑**；commands/api/web/github/rename/robustness/message_stream 在 Lite；postgres/mysql 打本地库。**18/18 ALL GREEN**。
 - [x] Phase 9：server-rs 加速（见上）
 - [x] Phase 10：全 connector（见上）
+- [x] **Phase 11：闭环补全（可自闭环的剩余项全部做掉 + 实测）**。全量回归矩阵扩到 **25 suite，25/25 ALL GREEN**。
+  - **PG 后端**：metadata + transformation_cache 支持 postgres(asyncpg)，`?`→`$n` 翻译 + PG DDL 适配（BLOB→BYTEA、INTEGER→BIGINT、now()::text 默认）；本地 PG 端到端 6/6。env `MFS_METADATA_DSN` 切换。
+  - **object store S3/MinIO**：`S3ObjectStore`(boto3) + `make_object_store` 工厂，对本地 MinIO 容器端到端 5/5（artifact 真落桶、cat 从 S3 读回）。env `MFS_OBJECT_STORE_*`。
+  - **worker daemon + cancel + reload**：`add(process=False)` 入队 'queued'；`run_worker_once/forever` 出队处理；`cancel_job`(per-object 边界，`_run_job` 每批检查)；`mfs-server worker/reload`；API `POST /v1/jobs/{id}/cancel`。worker+cancel e2e 12/12。
+  - **CS upload flow**：`ingest_upload`(tar→staging→index，zip-slip 防护) + `POST /v1/upload`；e2e 4/4。
+  - **summary chunk_kinds**：`common/summary.py`(gpt-4o-mini,懒加载,tx cache) → 大文档 `summary` + `schema_summary` + `directory_summary`，补齐 8 种 chunk_kind；e2e 4/4。
+  - **index_filter 受限 AST**：`common/filter_ast.py` 白名单求值（names→record，仅比较/布尔/成员/字面量，拒绝 call/属性/算术，非 eval）；**cat 密度模式** peek/skim/deep（+density_unsupported 400）；e2e 13/13（含 4 个注入拒绝）。
+  - **onnx 本地 embedding**：provider='onnx'(fastembed/onnxruntime,无需 key)；**OPENAI_API_KEY 全程未设**下索引+语义检索 5/5（完全本地闭环）。`mfs-server[embedding-onnx]`。
+  - **Rust CLI 补全**：tree/head/tail/export/job(show|cancel)/connector list/profile(add|use|list,~/.mfs/client.toml)/serve(start|stop|status|logs,真实进程生命周期)；对真实 server e2e 10/10 + serve 生命周期实测。
+  - **OpenAI client 懒加载**：embedding/vlm/summary 都懒建 client → server 无 key 也能起（browse-only），compose 实测。
+  - **多语言 SDK 重生成**：spec 加 cancelJob/uploadSource/density/process 后重跑 `sdks/generate.sh`，python SDK import + 新方法验证通过。
+  - 装好：go1.23.4、maven3.6.3、docker compose v2.32.4、helm v3.21、MinIO 容器、boto3、fastembed。
+  - **仍未做（按你指示跳过）**：7 需 key connector 真实 e2e、9 发版 CI、10 可观测性；另 watch（实时推送，需外部服务，非自闭环）。
 
 ### 当前 context 交接笔记
 （每次 context 结束前更新：做到哪、下一步、踩的坑）

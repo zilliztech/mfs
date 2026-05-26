@@ -79,6 +79,7 @@ public class BrowseApi {
      * @param path  (required)
      * @param range  (optional)
      * @param meta  (optional, default to false)
+     * @param density  (optional)
      * @param _callback Callback for upload/download progress
      * @return Call to execute
      * @throws ApiException If fail to serialize the request body object
@@ -90,7 +91,7 @@ public class BrowseApi {
         <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call catCall(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String range, @javax.annotation.Nullable Boolean meta, final ApiCallback _callback) throws ApiException {
+    public okhttp3.Call catCall(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String range, @javax.annotation.Nullable Boolean meta, @javax.annotation.Nullable String density, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -127,6 +128,10 @@ public class BrowseApi {
             localVarQueryParams.addAll(localVarApiClient.parameterToPair("meta", meta));
         }
 
+        if (density != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("density", density));
+        }
+
         final String[] localVarAccepts = {
             "application/json"
         };
@@ -147,13 +152,13 @@ public class BrowseApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call catValidateBeforeCall(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String range, @javax.annotation.Nullable Boolean meta, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call catValidateBeforeCall(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String range, @javax.annotation.Nullable Boolean meta, @javax.annotation.Nullable String density, final ApiCallback _callback) throws ApiException {
         // verify the required parameter 'path' is set
         if (path == null) {
             throw new ApiException("Missing the required parameter 'path' when calling cat(Async)");
         }
 
-        return catCall(path, range, meta, _callback);
+        return catCall(path, range, meta, density, _callback);
 
     }
 
@@ -163,6 +168,7 @@ public class BrowseApi {
      * @param path  (required)
      * @param range  (optional)
      * @param meta  (optional, default to false)
+     * @param density  (optional)
      * @return CatResponse
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
@@ -173,8 +179,8 @@ public class BrowseApi {
         <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
      </table>
      */
-    public CatResponse cat(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String range, @javax.annotation.Nullable Boolean meta) throws ApiException {
-        ApiResponse<CatResponse> localVarResp = catWithHttpInfo(path, range, meta);
+    public CatResponse cat(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String range, @javax.annotation.Nullable Boolean meta, @javax.annotation.Nullable String density) throws ApiException {
+        ApiResponse<CatResponse> localVarResp = catWithHttpInfo(path, range, meta, density);
         return localVarResp.getData();
     }
 
@@ -184,6 +190,7 @@ public class BrowseApi {
      * @param path  (required)
      * @param range  (optional)
      * @param meta  (optional, default to false)
+     * @param density  (optional)
      * @return ApiResponse&lt;CatResponse&gt;
      * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
      * @http.response.details
@@ -194,8 +201,8 @@ public class BrowseApi {
         <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
      </table>
      */
-    public ApiResponse<CatResponse> catWithHttpInfo(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String range, @javax.annotation.Nullable Boolean meta) throws ApiException {
-        okhttp3.Call localVarCall = catValidateBeforeCall(path, range, meta, null);
+    public ApiResponse<CatResponse> catWithHttpInfo(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String range, @javax.annotation.Nullable Boolean meta, @javax.annotation.Nullable String density) throws ApiException {
+        okhttp3.Call localVarCall = catValidateBeforeCall(path, range, meta, density, null);
         Type localVarReturnType = new TypeToken<CatResponse>(){}.getType();
         return localVarApiClient.execute(localVarCall, localVarReturnType);
     }
@@ -206,6 +213,7 @@ public class BrowseApi {
      * @param path  (required)
      * @param range  (optional)
      * @param meta  (optional, default to false)
+     * @param density  (optional)
      * @param _callback The callback to be executed when the API call finishes
      * @return The request call
      * @throws ApiException If fail to process the API call, e.g. serializing the request body object
@@ -217,9 +225,9 @@ public class BrowseApi {
         <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
      </table>
      */
-    public okhttp3.Call catAsync(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String range, @javax.annotation.Nullable Boolean meta, final ApiCallback<CatResponse> _callback) throws ApiException {
+    public okhttp3.Call catAsync(@javax.annotation.Nonnull String path, @javax.annotation.Nullable String range, @javax.annotation.Nullable Boolean meta, @javax.annotation.Nullable String density, final ApiCallback<CatResponse> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = catValidateBeforeCall(path, range, meta, _callback);
+        okhttp3.Call localVarCall = catValidateBeforeCall(path, range, meta, density, _callback);
         Type localVarReturnType = new TypeToken<CatResponse>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;

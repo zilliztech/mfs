@@ -37,6 +37,12 @@ export interface AddRequest {
      * @memberof AddRequest
      */
     since?: string | null;
+    /**
+     * True: index inline now; False: enqueue for a worker
+     * @type {boolean}
+     * @memberof AddRequest
+     */
+    process?: boolean;
 }
 
 /**
@@ -60,6 +66,7 @@ export function AddRequestFromJSONTyped(json: any, ignoreDiscriminator: boolean)
         'target': json['target'],
         'full': json['full'] == null ? undefined : json['full'],
         'since': json['since'] == null ? undefined : json['since'],
+        'process': json['process'] == null ? undefined : json['process'],
     };
 }
 
@@ -77,6 +84,7 @@ export function AddRequestToJSONTyped(value?: AddRequest | null, ignoreDiscrimin
         'target': value['target'],
         'full': value['full'],
         'since': value['since'],
+        'process': value['process'],
     };
 }
 

@@ -11,7 +11,7 @@ Method | HTTP request | Description
 
 ## Cat
 
-> CatResponse Cat(ctx).Path(path).Range_(range_).Meta(meta).Execute()
+> CatResponse Cat(ctx).Path(path).Range_(range_).Meta(meta).Density(density).Execute()
 
 Cat
 
@@ -31,10 +31,11 @@ func main() {
 	path := "path_example" // string | 
 	range_ := "range__example" // string |  (optional)
 	meta := true // bool |  (optional) (default to false)
+	density := "density_example" // string |  (optional)
 
 	configuration := openapiclient.NewConfiguration()
 	apiClient := openapiclient.NewAPIClient(configuration)
-	resp, r, err := apiClient.BrowseAPI.Cat(context.Background()).Path(path).Range_(range_).Meta(meta).Execute()
+	resp, r, err := apiClient.BrowseAPI.Cat(context.Background()).Path(path).Range_(range_).Meta(meta).Density(density).Execute()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error when calling `BrowseAPI.Cat``: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
@@ -58,6 +59,7 @@ Name | Type | Description  | Notes
  **path** | **string** |  | 
  **range_** | **string** |  | 
  **meta** | **bool** |  | [default to false]
+ **density** | **string** |  | 
 
 ### Return type
 

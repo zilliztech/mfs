@@ -24,6 +24,11 @@ import {
     AddResponseToJSON,
 } from '../models/AddResponse';
 import {
+    type CancelResponse,
+    CancelResponseFromJSON,
+    CancelResponseToJSON,
+} from '../models/CancelResponse';
+import {
     type HTTPValidationError,
     HTTPValidationErrorFromJSON,
     HTTPValidationErrorToJSON,
@@ -38,8 +43,17 @@ export interface AddSourceRequest {
     addRequest: AddRequest;
 }
 
+export interface CancelJobRequest {
+    jobId: string;
+}
+
 export interface GetJobRequest {
     jobId: string;
+}
+
+export interface UploadSourceRequest {
+    name: string;
+    process?: boolean;
 }
 
 /**
@@ -95,6 +109,51 @@ export class IngestApi extends runtime.BaseAPI {
     }
 
     /**
+     * Creates request options for cancelJob without sending the request
+     */
+    async cancelJobRequestOpts(requestParameters: CancelJobRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['jobId'] == null) {
+            throw new runtime.RequiredError(
+                'jobId',
+                'Required parameter "jobId" was null or undefined when calling cancelJob().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/v1/jobs/{job_id}/cancel`;
+        urlPath = urlPath.replace('{job_id}', encodeURIComponent(String(requestParameters['jobId'])));
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * Cancel Job
+     */
+    async cancelJobRaw(requestParameters: CancelJobRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CancelResponse>> {
+        const requestOptions = await this.cancelJobRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CancelResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Cancel Job
+     */
+    async cancelJob(requestParameters: CancelJobRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CancelResponse> {
+        const response = await this.cancelJobRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Creates request options for getJob without sending the request
      */
     async getJobRequestOpts(requestParameters: GetJobRequest): Promise<runtime.RequestOpts> {
@@ -136,6 +195,60 @@ export class IngestApi extends runtime.BaseAPI {
      */
     async getJob(requestParameters: GetJobRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<JobResponse> {
         const response = await this.getJobRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates request options for uploadSource without sending the request
+     */
+    async uploadSourceRequestOpts(requestParameters: UploadSourceRequest): Promise<runtime.RequestOpts> {
+        if (requestParameters['name'] == null) {
+            throw new runtime.RequiredError(
+                'name',
+                'Required parameter "name" was null or undefined when calling uploadSource().'
+            );
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters['name'] != null) {
+            queryParameters['name'] = requestParameters['name'];
+        }
+
+        if (requestParameters['process'] != null) {
+            queryParameters['process'] = requestParameters['process'];
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+
+        let urlPath = `/v1/upload`;
+
+        return {
+            path: urlPath,
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        };
+    }
+
+    /**
+     * CS upload flow: POST a tar(.gz) of a tree as the raw body (?name=<label>); the server stages + indexes it. For client/server without a shared filesystem.
+     * Upload
+     */
+    async uploadSourceRaw(requestParameters: UploadSourceRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AddResponse>> {
+        const requestOptions = await this.uploadSourceRequestOpts(requestParameters);
+        const response = await this.request(requestOptions, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AddResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * CS upload flow: POST a tar(.gz) of a tree as the raw body (?name=<label>); the server stages + indexes it. For client/server without a shared filesystem.
+     * Upload
+     */
+    async uploadSource(requestParameters: UploadSourceRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AddResponse> {
+        const response = await this.uploadSourceRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

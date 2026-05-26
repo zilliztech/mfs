@@ -70,10 +70,11 @@ with mfs_sdk.ApiClient(configuration) as api_client:
     path = 'path_example' # str | 
     range = 'range_example' # str |  (optional)
     meta = False # bool |  (optional) (default to False)
+    density = 'density_example' # str |  (optional)
 
     try:
         # Cat
-        api_response = api_instance.cat(path, range=range, meta=meta)
+        api_response = api_instance.cat(path, range=range, meta=meta, density=density)
         print("The response of BrowseApi->cat:\n")
         pprint(api_response)
     except ApiException as e:
@@ -90,7 +91,9 @@ Class | Method | HTTP request | Description
 *BrowseApi* | [**cat**](docs/BrowseApi.md#cat) | **GET** /v1/cat | Cat
 *BrowseApi* | [**ls**](docs/BrowseApi.md#ls) | **GET** /v1/ls | Ls
 *IngestApi* | [**add_source**](docs/IngestApi.md#add_source) | **POST** /v1/add | Add
+*IngestApi* | [**cancel_job**](docs/IngestApi.md#cancel_job) | **POST** /v1/jobs/{job_id}/cancel | Cancel Job
 *IngestApi* | [**get_job**](docs/IngestApi.md#get_job) | **GET** /v1/jobs/{job_id} | Job
+*IngestApi* | [**upload_source**](docs/IngestApi.md#upload_source) | **POST** /v1/upload | Upload
 *RetrievalApi* | [**grep**](docs/RetrievalApi.md#grep) | **GET** /v1/grep | Grep
 *RetrievalApi* | [**search**](docs/RetrievalApi.md#search) | **GET** /v1/search | Search
 *ServerApi* | [**get_server_info**](docs/ServerApi.md#get_server_info) | **GET** /v1/server/info | Server Info
@@ -101,6 +104,7 @@ Class | Method | HTTP request | Description
 
  - [AddRequest](docs/AddRequest.md)
  - [AddResponse](docs/AddResponse.md)
+ - [CancelResponse](docs/CancelResponse.md)
  - [CatResponse](docs/CatResponse.md)
  - [ConnectorRow](docs/ConnectorRow.md)
  - [GrepMatchModel](docs/GrepMatchModel.md)

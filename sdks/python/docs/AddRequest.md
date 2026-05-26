@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **target** | **str** | path or connector URI to register + index | 
 **full** | **bool** | force full re-index (ignore caches/fingerprints) | [optional] [default to False]
 **since** | **str** | only index changes since this cursor/date | [optional] 
+**process** | **bool** | True: index inline now; False: enqueue for a worker | [optional] [default to True]
 
 ## Example
 

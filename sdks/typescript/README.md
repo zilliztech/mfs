@@ -31,6 +31,8 @@ async function example() {
     range: range_example,
     // boolean (optional)
     meta: true,
+    // string (optional)
+    density: density_example,
   } satisfies CatRequest;
 
   try {
@@ -57,7 +59,9 @@ All URIs are relative to *http://127.0.0.1:8765*
 *BrowseApi* | [**cat**](docs/BrowseApi.md#cat) | **GET** /v1/cat | Cat
 *BrowseApi* | [**ls**](docs/BrowseApi.md#ls) | **GET** /v1/ls | Ls
 *IngestApi* | [**addSource**](docs/IngestApi.md#addsource) | **POST** /v1/add | Add
+*IngestApi* | [**cancelJob**](docs/IngestApi.md#canceljob) | **POST** /v1/jobs/{job_id}/cancel | Cancel Job
 *IngestApi* | [**getJob**](docs/IngestApi.md#getjob) | **GET** /v1/jobs/{job_id} | Job
+*IngestApi* | [**uploadSource**](docs/IngestApi.md#uploadsource) | **POST** /v1/upload | Upload
 *RetrievalApi* | [**grep**](docs/RetrievalApi.md#grep) | **GET** /v1/grep | Grep
 *RetrievalApi* | [**search**](docs/RetrievalApi.md#search) | **GET** /v1/search | Search
 *ServerApi* | [**getServerInfo**](docs/ServerApi.md#getserverinfo) | **GET** /v1/server/info | Server Info
@@ -68,6 +72,7 @@ All URIs are relative to *http://127.0.0.1:8765*
 
 - [AddRequest](docs/AddRequest.md)
 - [AddResponse](docs/AddResponse.md)
+- [CancelResponse](docs/CancelResponse.md)
 - [CatResponse](docs/CatResponse.md)
 - [ConnectorRow](docs/ConnectorRow.md)
 - [GrepMatchModel](docs/GrepMatchModel.md)

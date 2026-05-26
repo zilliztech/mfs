@@ -33,6 +33,7 @@ export interface CatRequest {
     path: string;
     range?: string | null;
     meta?: boolean;
+    density?: string | null;
 }
 
 export interface LsRequest {
@@ -67,6 +68,10 @@ export class BrowseApi extends runtime.BaseAPI {
 
         if (requestParameters['meta'] != null) {
             queryParameters['meta'] = requestParameters['meta'];
+        }
+
+        if (requestParameters['density'] != null) {
+            queryParameters['density'] = requestParameters['density'];
         }
 
         const headerParameters: runtime.HTTPHeaders = {};

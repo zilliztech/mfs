@@ -4,8 +4,7 @@ info:
   title: MFS
   version: 0.4.0
 servers:
-- description: local mfs-server
-  url: http://127.0.0.1:8765
+- url: http://127.0.0.1:8765
 paths:
   /v1/server/info:
     get:
@@ -48,6 +47,78 @@ paths:
       tags:
       - ingest
       x-content-type: application/json
+      x-accepts:
+      - application/json
+  /v1/jobs/{job_id}/cancel:
+    post:
+      operationId: cancelJob
+      parameters:
+      - explode: false
+        in: path
+        name: job_id
+        required: true
+        schema:
+          title: Job Id
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancelResponse"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      summary: Cancel Job
+      tags:
+      - ingest
+      x-accepts:
+      - application/json
+  /v1/upload:
+    post:
+      description: |-
+        CS upload flow: POST a tar(.gz) of a tree as the raw body (?name=<label>);
+        the server stages + indexes it. For client/server without a shared filesystem.
+      operationId: uploadSource
+      parameters:
+      - explode: true
+        in: query
+        name: name
+        required: true
+        schema:
+          title: Name
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: process
+        required: false
+        schema:
+          default: true
+          title: Process
+          type: boolean
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddResponse"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      summary: Upload
+      tags:
+      - ingest
       x-accepts:
       - application/json
   /v1/search:
@@ -212,6 +283,14 @@ paths:
           title: Meta
           type: boolean
         style: form
+      - explode: true
+        in: query
+        name: density
+        required: false
+        schema:
+          nullable: true
+          type: string
+        style: form
       responses:
         "200":
           content:
@@ -279,6 +358,7 @@ components:
   schemas:
     AddRequest:
       example:
+        process: true
         target: target
         full: false
         since: since
@@ -296,6 +376,11 @@ components:
           description: only index changes since this cursor/date
           nullable: true
           type: string
+        process:
+          default: true
+          description: "True: index inline now; False: enqueue for a worker"
+          title: Process
+          type: boolean
       required:
       - target
       title: AddRequest
@@ -310,6 +395,21 @@ components:
       required:
       - job_id
       title: AddResponse
+    CancelResponse:
+      example:
+        job_id: job_id
+        cancelled: true
+      properties:
+        job_id:
+          title: Job Id
+          type: string
+        cancelled:
+          title: Cancelled
+          type: boolean
+      required:
+      - cancelled
+      - job_id
+      title: CancelResponse
     CatResponse:
       example:
         source: source

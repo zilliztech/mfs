@@ -535,7 +535,7 @@ class Configuration:
         return [
             {
                 'url': "http://127.0.0.1:8765",
-                'description': "local mfs-server",
+                'description': "No description provided",
             }
         ]
 

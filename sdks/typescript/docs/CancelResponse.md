@@ -1,28 +1,24 @@
 
-# AddRequest
+# CancelResponse
 
 
 ## Properties
 
 Name | Type
 ------------ | -------------
-`target` | string
-`full` | boolean
-`since` | string
-`process` | boolean
+`jobId` | string
+`cancelled` | boolean
 
 ## Example
 
 ```typescript
-import type { AddRequest } from '@mfs/sdk'
+import type { CancelResponse } from '@mfs/sdk'
 
 // TODO: Update the object below with actual values
 const example = {
-  "target": null,
-  "full": null,
-  "since": null,
-  "process": null,
-} satisfies AddRequest
+  "jobId": null,
+  "cancelled": null,
+} satisfies CancelResponse
 
 console.log(example)
 
@@ -31,7 +27,7 @@ const exampleJSON: string = JSON.stringify(example)
 console.log(exampleJSON)
 
 // Parse the JSON string back to an object
-const exampleParsed = JSON.parse(exampleJSON) as AddRequest
+const exampleParsed = JSON.parse(exampleJSON) as CancelResponse
 console.log(exampleParsed)
 ```
 

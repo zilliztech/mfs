@@ -11,7 +11,7 @@ All URIs are relative to *http://127.0.0.1:8765*
 
 ## cat
 
-> CatResponse cat(path, range, meta)
+> CatResponse cat(path, range, meta, density)
 
 Cat
 
@@ -35,6 +35,8 @@ async function example() {
     range: range_example,
     // boolean (optional)
     meta: true,
+    // string (optional)
+    density: density_example,
   } satisfies CatRequest;
 
   try {
@@ -57,6 +59,7 @@ example().catch(console.error);
 | **path** | `string` |  | [Defaults to `undefined`] |
 | **range** | `string` |  | [Optional] [Defaults to `undefined`] |
 | **meta** | `boolean` |  | [Optional] [Defaults to `false`] |
+| **density** | `string` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 

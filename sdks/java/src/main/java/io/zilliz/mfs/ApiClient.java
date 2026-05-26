@@ -65,7 +65,7 @@ public class ApiClient {
     protected List<ServerConfiguration> servers = new ArrayList<ServerConfiguration>(Arrays.asList(
     new ServerConfiguration(
       "http://127.0.0.1:8765",
-      "local mfs-server",
+      "No description provided",
       new HashMap<String, ServerVariable>()
     )
   ));

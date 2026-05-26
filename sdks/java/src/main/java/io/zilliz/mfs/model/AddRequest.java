@@ -49,7 +49,7 @@ import io.zilliz.mfs.JSON;
 /**
  * AddRequest
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-05-26T02:38:54.821889Z[Etc/UTC]", comments = "Generator version: 7.22.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-05-26T04:25:09.503817Z[Etc/UTC]", comments = "Generator version: 7.22.0")
 public class AddRequest {
   public static final String SERIALIZED_NAME_TARGET = "target";
   @SerializedName(SERIALIZED_NAME_TARGET)
@@ -65,6 +65,11 @@ public class AddRequest {
   @SerializedName(SERIALIZED_NAME_SINCE)
   @javax.annotation.Nullable
   private String since;
+
+  public static final String SERIALIZED_NAME_PROCESS = "process";
+  @SerializedName(SERIALIZED_NAME_PROCESS)
+  @javax.annotation.Nullable
+  private Boolean process = true;
 
   public AddRequest() {
   }
@@ -126,6 +131,25 @@ public class AddRequest {
   }
 
 
+  public AddRequest process(@javax.annotation.Nullable Boolean process) {
+    this.process = process;
+    return this;
+  }
+
+  /**
+   * True: index inline now; False: enqueue for a worker
+   * @return process
+   */
+  @javax.annotation.Nullable
+  public Boolean getProcess() {
+    return process;
+  }
+
+  public void setProcess(@javax.annotation.Nullable Boolean process) {
+    this.process = process;
+  }
+
+
 
   @Override
   public boolean equals(Object o) {
@@ -138,7 +162,8 @@ public class AddRequest {
     AddRequest addRequest = (AddRequest) o;
     return Objects.equals(this.target, addRequest.target) &&
         Objects.equals(this.full, addRequest.full) &&
-        Objects.equals(this.since, addRequest.since);
+        Objects.equals(this.since, addRequest.since) &&
+        Objects.equals(this.process, addRequest.process);
   }
 
   private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
@@ -147,7 +172,7 @@ public class AddRequest {
 
   @Override
   public int hashCode() {
-    return Objects.hash(target, full, since);
+    return Objects.hash(target, full, since, process);
   }
 
   private static <T> int hashCodeNullable(JsonNullable<T> a) {
@@ -164,6 +189,7 @@ public class AddRequest {
     sb.append("    target: ").append(toIndentedString(target)).append("\n");
     sb.append("    full: ").append(toIndentedString(full)).append("\n");
     sb.append("    since: ").append(toIndentedString(since)).append("\n");
+    sb.append("    process: ").append(toIndentedString(process)).append("\n");
     sb.append("}");
     return sb.toString();
   }
@@ -182,7 +208,7 @@ public class AddRequest {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("target", "full", "since"));
+    openapiFields = new HashSet<String>(Arrays.asList("target", "full", "since", "process"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("target"));

@@ -29,6 +29,7 @@ import java.io.IOException;
 
 import io.zilliz.mfs.model.AddRequest;
 import io.zilliz.mfs.model.AddResponse;
+import io.zilliz.mfs.model.CancelResponse;
 import io.zilliz.mfs.model.HTTPValidationError;
 import io.zilliz.mfs.model.JobResponse;
 
@@ -207,6 +208,137 @@ public class IngestApi {
         return localVarCall;
     }
     /**
+     * Build call for cancelJob
+     * @param jobId  (required)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Successful Response </td><td>  -  </td></tr>
+        <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call cancelJobCall(@javax.annotation.Nonnull String jobId, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/v1/jobs/{job_id}/cancel"
+            .replace("{" + "job_id" + "}", localVarApiClient.escapeString(jobId.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call cancelJobValidateBeforeCall(@javax.annotation.Nonnull String jobId, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'jobId' is set
+        if (jobId == null) {
+            throw new ApiException("Missing the required parameter 'jobId' when calling cancelJob(Async)");
+        }
+
+        return cancelJobCall(jobId, _callback);
+
+    }
+
+    /**
+     * Cancel Job
+     * 
+     * @param jobId  (required)
+     * @return CancelResponse
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Successful Response </td><td>  -  </td></tr>
+        <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public CancelResponse cancelJob(@javax.annotation.Nonnull String jobId) throws ApiException {
+        ApiResponse<CancelResponse> localVarResp = cancelJobWithHttpInfo(jobId);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Cancel Job
+     * 
+     * @param jobId  (required)
+     * @return ApiResponse&lt;CancelResponse&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Successful Response </td><td>  -  </td></tr>
+        <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<CancelResponse> cancelJobWithHttpInfo(@javax.annotation.Nonnull String jobId) throws ApiException {
+        okhttp3.Call localVarCall = cancelJobValidateBeforeCall(jobId, null);
+        Type localVarReturnType = new TypeToken<CancelResponse>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Cancel Job (asynchronously)
+     * 
+     * @param jobId  (required)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Successful Response </td><td>  -  </td></tr>
+        <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call cancelJobAsync(@javax.annotation.Nonnull String jobId, final ApiCallback<CancelResponse> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = cancelJobValidateBeforeCall(jobId, _callback);
+        Type localVarReturnType = new TypeToken<CancelResponse>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
      * Build call for getJob
      * @param jobId  (required)
      * @param _callback Callback for upload/download progress
@@ -334,6 +466,148 @@ public class IngestApi {
 
         okhttp3.Call localVarCall = getJobValidateBeforeCall(jobId, _callback);
         Type localVarReturnType = new TypeToken<JobResponse>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+    /**
+     * Build call for uploadSource
+     * @param name  (required)
+     * @param process  (optional, default to true)
+     * @param _callback Callback for upload/download progress
+     * @return Call to execute
+     * @throws ApiException If fail to serialize the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Successful Response </td><td>  -  </td></tr>
+        <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call uploadSourceCall(@javax.annotation.Nonnull String name, @javax.annotation.Nullable Boolean process, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/v1/upload";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        if (name != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("name", name));
+        }
+
+        if (process != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("process", process));
+        }
+
+        final String[] localVarAccepts = {
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] {  };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call uploadSourceValidateBeforeCall(@javax.annotation.Nonnull String name, @javax.annotation.Nullable Boolean process, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'name' is set
+        if (name == null) {
+            throw new ApiException("Missing the required parameter 'name' when calling uploadSource(Async)");
+        }
+
+        return uploadSourceCall(name, process, _callback);
+
+    }
+
+    /**
+     * Upload
+     * CS upload flow: POST a tar(.gz) of a tree as the raw body (?name&#x3D;&lt;label&gt;); the server stages + indexes it. For client/server without a shared filesystem.
+     * @param name  (required)
+     * @param process  (optional, default to true)
+     * @return AddResponse
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Successful Response </td><td>  -  </td></tr>
+        <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public AddResponse uploadSource(@javax.annotation.Nonnull String name, @javax.annotation.Nullable Boolean process) throws ApiException {
+        ApiResponse<AddResponse> localVarResp = uploadSourceWithHttpInfo(name, process);
+        return localVarResp.getData();
+    }
+
+    /**
+     * Upload
+     * CS upload flow: POST a tar(.gz) of a tree as the raw body (?name&#x3D;&lt;label&gt;); the server stages + indexes it. For client/server without a shared filesystem.
+     * @param name  (required)
+     * @param process  (optional, default to true)
+     * @return ApiResponse&lt;AddResponse&gt;
+     * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Successful Response </td><td>  -  </td></tr>
+        <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public ApiResponse<AddResponse> uploadSourceWithHttpInfo(@javax.annotation.Nonnull String name, @javax.annotation.Nullable Boolean process) throws ApiException {
+        okhttp3.Call localVarCall = uploadSourceValidateBeforeCall(name, process, null);
+        Type localVarReturnType = new TypeToken<AddResponse>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    /**
+     * Upload (asynchronously)
+     * CS upload flow: POST a tar(.gz) of a tree as the raw body (?name&#x3D;&lt;label&gt;); the server stages + indexes it. For client/server without a shared filesystem.
+     * @param name  (required)
+     * @param process  (optional, default to true)
+     * @param _callback The callback to be executed when the API call finishes
+     * @return The request call
+     * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> Successful Response </td><td>  -  </td></tr>
+        <tr><td> 422 </td><td> Validation Error </td><td>  -  </td></tr>
+     </table>
+     */
+    public okhttp3.Call uploadSourceAsync(@javax.annotation.Nonnull String name, @javax.annotation.Nullable Boolean process, final ApiCallback<AddResponse> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = uploadSourceValidateBeforeCall(name, process, _callback);
+        Type localVarReturnType = new TypeToken<AddResponse>(){}.getType();
         localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
         return localVarCall;
     }

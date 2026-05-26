@@ -17,21 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 from pydantic_core import to_jsonable_python
 
-class AddRequest(BaseModel):
+class CancelResponse(BaseModel):
     """
-    AddRequest
+    CancelResponse
     """ # noqa: E501
-    target: StrictStr = Field(description="path or connector URI to register + index")
-    full: Optional[StrictBool] = Field(default=False, description="force full re-index (ignore caches/fingerprints)")
-    since: Optional[StrictStr] = Field(default=None, description="only index changes since this cursor/date")
-    process: Optional[StrictBool] = Field(default=True, description="True: index inline now; False: enqueue for a worker")
-    __properties: ClassVar[List[str]] = ["target", "full", "since", "process"]
+    job_id: StrictStr
+    cancelled: StrictBool
+    __properties: ClassVar[List[str]] = ["job_id", "cancelled"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -51,7 +49,7 @@ class AddRequest(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of AddRequest from a JSON string"""
+        """Create an instance of CancelResponse from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,16 +70,11 @@ class AddRequest(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # set to None if since (nullable) is None
-        # and model_fields_set contains the field
-        if self.since is None and "since" in self.model_fields_set:
-            _dict['since'] = None
-
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of AddRequest from a dict"""
+        """Create an instance of CancelResponse from a dict"""
         if obj is None:
             return None
 
@@ -89,10 +82,8 @@ class AddRequest(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "target": obj.get("target"),
-            "full": obj.get("full") if obj.get("full") is not None else False,
-            "since": obj.get("since"),
-            "process": obj.get("process") if obj.get("process") is not None else True
+            "job_id": obj.get("job_id"),
+            "cancelled": obj.get("cancelled")
         })
         return _obj
 

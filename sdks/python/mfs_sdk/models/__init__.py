@@ -15,6 +15,7 @@
 # import models into model package
 from mfs_sdk.models.add_request import AddRequest
 from mfs_sdk.models.add_response import AddResponse
+from mfs_sdk.models.cancel_response import CancelResponse
 from mfs_sdk.models.cat_response import CatResponse
 from mfs_sdk.models.connector_row import ConnectorRow
 from mfs_sdk.models.grep_match_model import GrepMatchModel

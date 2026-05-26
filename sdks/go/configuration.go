@@ -91,7 +91,7 @@ func NewConfiguration() *Configuration {
 		Servers:          ServerConfigurations{
 			{
 				URL: "http://127.0.0.1:8765",
-				Description: "local mfs-server",
+				Description: "No description provided",
 			},
 		},
 		OperationServers: map[string]ServerConfigurations{

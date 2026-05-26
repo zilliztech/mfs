@@ -33,6 +33,7 @@ __all__ = [
     "ApiException",
     "AddRequest",
     "AddResponse",
+    "CancelResponse",
     "CatResponse",
     "ConnectorRow",
     "GrepMatchModel",
@@ -69,6 +70,7 @@ from mfs_sdk.exceptions import ApiException as ApiException
 # import models into sdk package
 from mfs_sdk.models.add_request import AddRequest as AddRequest
 from mfs_sdk.models.add_response import AddResponse as AddResponse
+from mfs_sdk.models.cancel_response import CancelResponse as CancelResponse
 from mfs_sdk.models.cat_response import CatResponse as CatResponse
 from mfs_sdk.models.connector_row import ConnectorRow as ConnectorRow
 from mfs_sdk.models.grep_match_model import GrepMatchModel as GrepMatchModel

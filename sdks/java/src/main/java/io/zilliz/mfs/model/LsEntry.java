@@ -49,7 +49,7 @@ import io.zilliz.mfs.JSON;
 /**
  * LsEntry
  */
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-05-26T02:38:54.821889Z[Etc/UTC]", comments = "Generator version: 7.22.0")
+@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-05-26T04:25:09.503817Z[Etc/UTC]", comments = "Generator version: 7.22.0")
 public class LsEntry {
   public static final String SERIALIZED_NAME_NAME = "name";
   @SerializedName(SERIALIZED_NAME_NAME)

@@ -27,6 +27,8 @@ type AddRequest struct {
 	Full *bool `json:"full,omitempty"`
 	// only index changes since this cursor/date
 	Since NullableString `json:"since,omitempty"`
+	// True: index inline now; False: enqueue for a worker
+	Process *bool `json:"process,omitempty"`
 }
 
 type _AddRequest AddRequest
@@ -40,6 +42,8 @@ func NewAddRequest(target string) *AddRequest {
 	this.Target = target
 	var full bool = false
 	this.Full = &full
+	var process bool = true
+	this.Process = &process
 	return &this
 }
 
@@ -50,6 +54,8 @@ func NewAddRequestWithDefaults() *AddRequest {
 	this := AddRequest{}
 	var full bool = false
 	this.Full = &full
+	var process bool = true
+	this.Process = &process
 	return &this
 }
 
@@ -151,6 +157,38 @@ func (o *AddRequest) UnsetSince() {
 	o.Since.Unset()
 }
 
+// GetProcess returns the Process field value if set, zero value otherwise.
+func (o *AddRequest) GetProcess() bool {
+	if o == nil || IsNil(o.Process) {
+		var ret bool
+		return ret
+	}
+	return *o.Process
+}
+
+// GetProcessOk returns a tuple with the Process field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AddRequest) GetProcessOk() (*bool, bool) {
+	if o == nil || IsNil(o.Process) {
+		return nil, false
+	}
+	return o.Process, true
+}
+
+// HasProcess returns a boolean if a field has been set.
+func (o *AddRequest) HasProcess() bool {
+	if o != nil && !IsNil(o.Process) {
+		return true
+	}
+
+	return false
+}
+
+// SetProcess gets a reference to the given bool and assigns it to the Process field.
+func (o *AddRequest) SetProcess(v bool) {
+	o.Process = &v
+}
+
 func (o AddRequest) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -167,6 +205,9 @@ func (o AddRequest) ToMap() (map[string]interface{}, error) {
 	}
 	if o.Since.IsSet() {
 		toSerialize["since"] = o.Since.Get()
+	}
+	if !IsNil(o.Process) {
+		toSerialize["process"] = o.Process
 	}
 	return toSerialize, nil
 }

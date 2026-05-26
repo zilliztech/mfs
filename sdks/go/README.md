@@ -74,7 +74,9 @@ Class | Method | HTTP request | Description
 *BrowseAPI* | [**Cat**](docs/BrowseAPI.md#cat) | **Get** /v1/cat | Cat
 *BrowseAPI* | [**Ls**](docs/BrowseAPI.md#ls) | **Get** /v1/ls | Ls
 *IngestAPI* | [**AddSource**](docs/IngestAPI.md#addsource) | **Post** /v1/add | Add
+*IngestAPI* | [**CancelJob**](docs/IngestAPI.md#canceljob) | **Post** /v1/jobs/{job_id}/cancel | Cancel Job
 *IngestAPI* | [**GetJob**](docs/IngestAPI.md#getjob) | **Get** /v1/jobs/{job_id} | Job
+*IngestAPI* | [**UploadSource**](docs/IngestAPI.md#uploadsource) | **Post** /v1/upload | Upload
 *RetrievalAPI* | [**Grep**](docs/RetrievalAPI.md#grep) | **Get** /v1/grep | Grep
 *RetrievalAPI* | [**Search**](docs/RetrievalAPI.md#search) | **Get** /v1/search | Search
 *ServerAPI* | [**GetServerInfo**](docs/ServerAPI.md#getserverinfo) | **Get** /v1/server/info | Server Info
@@ -85,6 +87,7 @@ Class | Method | HTTP request | Description
 
  - [AddRequest](docs/AddRequest.md)
  - [AddResponse](docs/AddResponse.md)
+ - [CancelResponse](docs/CancelResponse.md)
  - [CatResponse](docs/CatResponse.md)
  - [ConnectorRow](docs/ConnectorRow.md)
  - [GrepMatchModel](docs/GrepMatchModel.md)

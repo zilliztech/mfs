@@ -9,7 +9,7 @@ Method | HTTP request | Description
 
 
 # **cat**
-> CatResponse cat(path, range=range, meta=meta)
+> CatResponse cat(path, range=range, meta=meta, density=density)
 
 Cat
 
@@ -36,10 +36,11 @@ with mfs_sdk.ApiClient(configuration) as api_client:
     path = 'path_example' # str | 
     range = 'range_example' # str |  (optional)
     meta = False # bool |  (optional) (default to False)
+    density = 'density_example' # str |  (optional)
 
     try:
         # Cat
-        api_response = api_instance.cat(path, range=range, meta=meta)
+        api_response = api_instance.cat(path, range=range, meta=meta, density=density)
         print("The response of BrowseApi->cat:\n")
         pprint(api_response)
     except Exception as e:
@@ -56,6 +57,7 @@ Name | Type | Description  | Notes
  **path** | **str**|  | 
  **range** | **str**|  | [optional] 
  **meta** | **bool**|  | [optional] [default to False]
+ **density** | **str**|  | [optional] 
 
 ### Return type
 

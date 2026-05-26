@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 **Target** | **string** | path or connector URI to register + index | 
 **Full** | Pointer to **bool** | force full re-index (ignore caches/fingerprints) | [optional] [default to false]
 **Since** | Pointer to **NullableString** | only index changes since this cursor/date | [optional] 
+**Process** | Pointer to **bool** | True: index inline now; False: enqueue for a worker | [optional] [default to true]
 
 ## Methods
 
@@ -107,6 +108,31 @@ HasSince returns a boolean if a field has been set.
 `func (o *AddRequest) UnsetSince()`
 
 UnsetSince ensures that no value is present for Since, not even an explicit nil
+### GetProcess
+
+`func (o *AddRequest) GetProcess() bool`
+
+GetProcess returns the Process field if non-nil, zero value otherwise.
+
+### GetProcessOk
+
+`func (o *AddRequest) GetProcessOk() (*bool, bool)`
+
+GetProcessOk returns a tuple with the Process field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetProcess
+
+`func (o *AddRequest) SetProcess(v bool)`
+
+SetProcess sets Process field to given value.
+
+### HasProcess
+
+`func (o *AddRequest) HasProcess() bool`
+
+HasProcess returns a boolean if a field has been set.
+
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

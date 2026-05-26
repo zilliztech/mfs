@@ -2,6 +2,7 @@
 /* eslint-disable */
 export * from './AddRequest';
 export * from './AddResponse';
+export * from './CancelResponse';
 export * from './CatResponse';
 export * from './ConnectorRow';
 export * from './GrepMatchModel';
