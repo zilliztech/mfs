@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from ..common.converter import CONVERT_EXTS, CachingConverterClient
 from ..common.embedding import CachingEmbeddingClient
 from ..common.retrieval import build_filter, collapse_by_object, to_envelope
+from ..common.summary import CachingSummaryClient
 from ..common.vlm import CachingVlmClient
 from ..config import ServerConfig
 from ..connectors.base import ConnectorContext, ObjectConfig, SyncOptions
@@ -78,6 +79,7 @@ class Engine:
         self.embed = CachingEmbeddingClient(cfg, self.tx_cache)
         self.converter = CachingConverterClient(cfg, self.tx_cache)
         self.vlm = CachingVlmClient(cfg, self.tx_cache)
+        self.summary = CachingSummaryClient(cfg, self.tx_cache)
 
     async def startup(self) -> None:
         load_builtin()
@@ -459,6 +461,18 @@ class Engine:
                         "locator": None, "lines": lines, "content": ctext[:65000],
                         "dense_vec": vec, "chunk_kind": "body", "metadata": {}, "indexed_at": now_ms,
                     })
+                # extra whole-object `summary` chunk for large docs (design/06 §6): one
+                # condensed chunk improves recall for holistic queries.
+                if self.summary.should_summarize(text):
+                    summ = await self.summary.summarize(text, "summary")
+                    if summ.strip():
+                        svec = (await self.embed.batch_embed([summ]))[0]
+                        rows.append({
+                            "chunk_id": chunk_id(ns, connector_uri, full_uri, "summary", None, None),
+                            "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
+                            "locator": None, "lines": None, "content": summ[:65000],
+                            "dense_vec": svec, "chunk_kind": "summary", "metadata": {}, "indexed_at": now_ms,
+                        })
                 await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
                 await asyncio.to_thread(self.milvus.upsert, ns, rows)
                 chunk_count = len(rows)
@@ -557,6 +571,47 @@ class Engine:
                     await asyncio.to_thread(self.milvus.upsert, ns, rows)
                     chunk_count = len(rows)
                     search_status = "partial" if partial else "indexed"
+
+        elif okind == "table_schema" and self.summary.enabled != "false":
+            # schema_summary chunk: an LLM description of the table/collection schema
+            records = plugin.read_records(relpath)
+            schema_obj = None
+            if records is not None:
+                async for r in records:
+                    schema_obj = r
+                    break
+            if schema_obj is not None:
+                import json as _json
+                summ = await self.summary.summarize(_json.dumps(schema_obj, default=str), "schema_summary")
+                if summ.strip():
+                    vec = (await self.embed.batch_embed([summ]))[0]
+                    row = {
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "schema_summary", None, None),
+                        "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
+                        "locator": None, "lines": None, "content": summ[:65000], "dense_vec": vec,
+                        "chunk_kind": "schema_summary", "metadata": {}, "indexed_at": int(time.time() * 1000)}
+                    await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
+                    await asyncio.to_thread(self.milvus.upsert, ns, [row])
+                    chunk_count = 1
+                    search_status = "indexed"
+
+        elif okind == "directory" and self.summary.enabled != "false":
+            # directory_summary chunk: an LLM description of a folder node from its listing
+            entries = await plugin.list(relpath)
+            listing = "\n".join(f"{e.type}\t{e.name}" for e in entries)
+            if listing.strip():
+                summ = await self.summary.summarize(listing, "directory_summary")
+                if summ.strip():
+                    vec = (await self.embed.batch_embed([summ]))[0]
+                    row = {
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "directory_summary", None, None),
+                        "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
+                        "locator": None, "lines": None, "content": summ[:65000], "dense_vec": vec,
+                        "chunk_kind": "directory_summary", "metadata": {}, "indexed_at": int(time.time() * 1000)}
+                    await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
+                    await asyncio.to_thread(self.milvus.upsert, ns, [row])
+                    chunk_count = 1
+                    search_status = "indexed"
 
         await self.meta.execute(
             "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
