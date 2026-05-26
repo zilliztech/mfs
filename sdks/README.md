@@ -8,8 +8,6 @@ Programmatic clients for the MFS HTTP `/v1` control plane, generated from
 |---|---|---|---|
 | Python | [`python/`](python) | `python` (urllib3) | `pip install mfs-sdk` |
 | TypeScript | [`typescript/`](typescript) | `typescript-fetch` | `npm install @mfs/sdk` |
-| Go | [`go/`](go) | `go` | `go get github.com/zilliztech/mfs-sdk-go` |
-| Java | [`java/`](java) | `java` (okhttp-gson) | `io.zilliz:mfs-sdk` |
 
 APIs are grouped by tag: `ServerApi` (info/status), `IngestApi` (add/job),
 `RetrievalApi` (search/grep), `BrowseApi` (ls/cat). All return the typed result
@@ -22,5 +20,3 @@ cat, status, error mapping):
 
 - Python: `sdks/smoke/python/smoke_test.py` — 10/10
 - TypeScript: `sdks/smoke/typescript/smoke_test.cjs` — 9/9
-- Go: `sdks/smoke/go/` — 9/9
-- Java: `sdks/smoke/java/` — 9/9

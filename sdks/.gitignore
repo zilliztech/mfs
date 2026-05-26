@@ -5,10 +5,5 @@ python/build/
 python/dist/
 typescript/node_modules/
 typescript/dist/
-smoke/go/go.sum
-java/target/
-smoke/java/target/
 **/.openapi-generator/
-smoke/go/mfssmoke
-smoke/go/mfssmoke.exe
 smoke/**/node_modules/
