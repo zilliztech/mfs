@@ -70,6 +70,13 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         return JSONResponse(status_code=422, content={
             "code": "validation_error", "detail": str(exc), "suggestions": ["fix request shape"]})
 
+    @app.exception_handler(Exception)
+    async def _unhandled_exc(_request: Request, exc: Exception) -> JSONResponse:
+        """Any uncaught error still returns the stable envelope so SDKs can switch on
+        `code` instead of parsing a raw 500 body."""
+        return JSONResponse(status_code=500, content={
+            "code": "internal_error", "detail": str(exc), "suggestions": []})
+
     def eng() -> Engine:
         return app.state.engine
 

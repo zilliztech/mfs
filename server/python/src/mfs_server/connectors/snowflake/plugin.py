@@ -133,12 +133,36 @@ class SnowflakePlugin(ConnectorPlugin):
             yield {"database": db, "schema": schema, "table": table,
                    "columns": [{"name": c["COLUMN_NAME"], "type": c["DATA_TYPE"]} for c in cols]}
 
+    _CURSOR_CANDIDATES = ("updated_at", "modified_at", "last_modified", "updated", "modified", "mtime")
+
+    async def _cursor_col(self, db: str, schema: str, table: str) -> Optional[str]:
+        """The table's change-cursor column (configured `cursor_column` or a common
+        timestamp name) so the fingerprint catches in-place updates, not just count."""
+        cols = await self._query(
+            f'SELECT column_name FROM "{safe_ident(db)}".information_schema.columns '
+            "WHERE table_schema=%s AND table_name=%s", (schema, table))
+        names = {c["COLUMN_NAME"].lower(): c["COLUMN_NAME"] for c in cols}
+        configured = self._cfg("cursor_column")
+        if configured and configured.lower() in names:
+            return names[configured.lower()]
+        for cand in self._CURSOR_CANDIDATES:
+            if cand in names:
+                return names[cand]
+        return None
+
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
         if len(parts) == 5 and parts[2] == "tables" and parts[4] == "rows.jsonl":
-            rows = await self._query(
-                f'SELECT count(*) AS n FROM "{safe_ident(parts[0])}"."{safe_ident(parts[1])}"."{safe_ident(parts[3])}"')
-            return f"count:{rows[0]['N']}" if rows else None
+            db, schema, table = safe_ident(parts[0]), safe_ident(parts[1]), safe_ident(parts[3])
+            cur_col = await self._cursor_col(parts[0], parts[1], parts[3])
+            rows = await self._query(f'SELECT count(*) AS n FROM "{db}"."{schema}"."{table}"')
+            cnt = rows[0]["N"] if rows else 0
+            mx = None
+            if cur_col:
+                m = await self._query(
+                    f'SELECT max("{safe_ident(cur_col)}") AS m FROM "{db}"."{schema}"."{table}"')
+                mx = m[0]["M"] if m else None
+            return f"count:{cnt}|{cur_col}:{mx}" if cur_col else f"count:{cnt}"
         return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:

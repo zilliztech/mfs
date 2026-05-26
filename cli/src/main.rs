@@ -29,14 +29,14 @@ enum Cmd {
         /// Only index changes since this cursor/date (connectors with a time cursor)
         #[arg(long)]
         since: Option<String>,
-        /// Force full re-index
-        #[arg(long)]
-        full: bool,
+        /// Force full re-index (ignore caches/fingerprints)
+        #[arg(long, visible_alias = "full")]
+        force_index: bool,
         /// Enqueue for a worker instead of indexing inline
         #[arg(long)]
         no_process: bool,
         /// Bundle + upload the tree to the server even on the same host (no shared fs)
-        #[arg(long)]
+        #[arg(long, visible_alias = "force-upload")]
         upload: bool,
         /// Never upload; have the server read the path itself (shared fs)
         #[arg(long)]
@@ -45,7 +45,11 @@ enum Cmd {
     /// Semantic + keyword search
     Search {
         query: String,
+        /// Path/URI to scope the search to (required unless --all)
         path: Option<String>,
+        /// Search the whole namespace instead of a scoped path
+        #[arg(long)]
+        all: bool,
         #[arg(long, default_value = "hybrid")]
         mode: String,
         #[arg(long, default_value_t = 10)]
@@ -240,7 +244,7 @@ fn main() {
 
 fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), String> {
     match &cli.cmd {
-        Cmd::Add { target, config, since, full, no_process, upload, no_upload } => {
+        Cmd::Add { target, config, since, force_index, no_process, upload, no_upload } => {
             // local/remote decision (design/02 §4.2): when the target is a real local path
             // and the server runs on a different host (no shared fs), bundle the tree and
             // upload it instead of asking the server to read a path it can't see. --upload
@@ -261,13 +265,16 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             if do_upload {
                 return upload_path(client, base, target, !no_process, cli.json);
             }
-            let mut body = serde_json::json!({"target": target, "full": full, "process": !no_process});
+            let mut body = serde_json::json!({"target": target, "full": force_index, "process": !no_process});
             if let Some(c) = config { body["config"] = load_config_file(c)?; }
             if let Some(s) = since { body["since"] = Value::String(s.clone()); }
             let v = post(client, &format!("{base}/v1/add"), &body)?;
             if cli.json { println!("{v}"); } else { println!("job: {}", v["job_id"].as_str().unwrap_or("?")); }
         }
-        Cmd::Search { query, path, mode, top_k } => {
+        Cmd::Search { query, path, all, mode, top_k } => {
+            if path.is_none() && !all {
+                return Err("specify a path to scope the search, or --all for the whole namespace".into());
+            }
             let mut q = vec![("q", query.clone()), ("mode", mode.clone()), ("top_k", top_k.to_string())];
             if let Some(p) = path { q.push(("path", p.clone())); }
             let v = get(client, &format!("{base}/v1/search"), &q)?;

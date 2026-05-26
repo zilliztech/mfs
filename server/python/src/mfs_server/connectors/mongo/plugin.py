@@ -93,11 +93,26 @@ class MongoPlugin(ConnectorPlugin):
             doc = await self._db()[parts[0]].find_one()
             yield {"collection": parts[0], "fields": sorted((doc or {}).keys())}
 
+    _CURSOR_CANDIDATES = ("updatedAt", "updated_at", "modifiedAt", "modified_at", "lastModified", "mtime")
+
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
         if len(parts) == 2 and parts[1] == "documents.jsonl":
-            cnt = await self._db()[parts[0]].estimated_document_count()
-            return f"count:{cnt}"
+            coll = self._db()[parts[0]]
+            cnt = await coll.estimated_document_count()
+            # documents have no fixed schema; use a configured/common update-timestamp
+            # field so edits that keep the count are still detected (else count only).
+            field = self._cfg("cursor_field")
+            if not field:
+                doc = await coll.find_one()
+                field = next((c for c in self._CURSOR_CANDIDATES if doc and c in doc), None)
+            mx = None
+            if field:
+                async for r in await coll.aggregate(
+                        [{"$group": {"_id": None, "m": {"$max": f"${field}"}}}]):
+                    mx = str(r.get("m"))
+                    break
+            return f"count:{cnt}|{field}:{mx}" if field else f"count:{cnt}"
         return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:

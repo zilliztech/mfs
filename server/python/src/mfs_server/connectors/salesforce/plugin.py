@@ -109,8 +109,19 @@ class SalesforcePlugin(ConnectorPlugin):
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
         if len(parts) == 2 and parts[1] == "records.jsonl":
-            res = await asyncio.to_thread(self._sf.query, f"SELECT COUNT() FROM {safe_ident(parts[0])}")
-            return f"total:{res.get('totalSize', 0)}"
+            obj = safe_ident(parts[0])
+            res = await asyncio.to_thread(self._sf.query, f"SELECT COUNT() FROM {obj}")
+            total = res.get("totalSize", 0)
+            # SystemModstamp is a standard audit field on (virtually) every SObject;
+            # max() catches in-place record edits that leave the count unchanged.
+            mx = None
+            try:
+                m = await asyncio.to_thread(self._sf.query, f"SELECT MAX(SystemModstamp) m FROM {obj}")
+                recs = m.get("records") or []
+                mx = recs[0].get("m") if recs else None
+            except Exception:  # noqa: BLE001 - object without SystemModstamp -> count only
+                mx = None
+            return f"total:{total}|modstamp:{mx}" if mx is not None else f"total:{total}"
         return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:

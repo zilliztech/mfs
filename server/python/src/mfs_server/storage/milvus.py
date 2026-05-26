@@ -16,6 +16,13 @@ from pymilvus import AnnSearchRequest, DataType, Function, FunctionType, MilvusC
 from ..config import ServerConfig
 
 
+def _lit(v: str) -> str:
+    """Escape a value for a double-quoted Milvus expr literal. connector_uri/object_uri
+    derive from user paths/URIs, so an unescaped `"` or `\\` could break out of the
+    literal and corrupt the delete/query scope. Mirrors common.retrieval._lit."""
+    return str(v).replace("\\", "\\\\").replace('"', '\\"')
+
+
 class MilvusStore:
     def __init__(self, cfg: ServerConfig):
         self.uri = cfg.milvus.uri
@@ -127,15 +134,15 @@ class MilvusStore:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         flt = (
-            f'namespace_id == "{namespace_id}" and connector_uri == "{connector_uri}" '
-            f'and object_uri == "{object_uri}"'
+            f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}" '
+            f'and object_uri == "{_lit(object_uri)}"'
         )
         self.client.delete(collection_name=name, filter=flt)
 
     def delete_by_connector(self, namespace_id: str, connector_uri: str) -> None:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
-        flt = f'namespace_id == "{namespace_id}" and connector_uri == "{connector_uri}"'
+        flt = f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}"'
         self.client.delete(collection_name=name, filter=flt)
 
     def count(self, namespace_id: str, expr: str = "") -> int:
@@ -152,8 +159,8 @@ class MilvusStore:
         vectors, zero re-embed; design/04 §5.7.3)."""
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
-        flt = (f'namespace_id == "{namespace_id}" and connector_uri == "{connector_uri}" '
-               f'and object_uri == "{object_uri}"')
+        flt = (f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}" '
+               f'and object_uri == "{_lit(object_uri)}"')
         return self.client.query(
             collection_name=name, filter=flt,
             output_fields=["content", "dense_vec", "chunk_kind", "locator", "lines", "metadata", "indexed_at"],

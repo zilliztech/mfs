@@ -13,7 +13,7 @@ import os
 import re
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from ..common.converter import CONVERT_EXTS, CachingConverterClient
 from ..common.embedding import CachingEmbeddingClient
@@ -156,11 +156,17 @@ class Engine:
         connector_uri = f"file://local{abs_path}"
         return "file", connector_uri, "file", {"root": abs_path, "client_id": "local"}
 
-    async def register_or_get_connector(self, connector_uri: str, ctype: str, config: dict) -> str:
+    async def register_or_get_connector(self, connector_uri: str, ctype: str, config: dict,
+                                         overwrite_config: bool = False) -> str:
         import json
         row = await self.meta.fetchone(
             "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=?", (self.ns, connector_uri))
         if row:
+            # `mfs connector update --config` re-registers an existing connector: refresh
+            # its stored config so changed text_fields / scope / credential_ref take effect.
+            if overwrite_config:
+                await self.meta.execute(
+                    "UPDATE connectors SET config_json=? WHERE id=?", (json.dumps(config), row["id"]))
             return row["id"]
         cid = uuid.uuid4().hex
         await self.meta.execute(
@@ -187,7 +193,10 @@ class Engine:
         credential = None
         if isinstance(config, dict):
             config = {k: self._resolve_ref(v) for k, v in config.items()}
-            credential = config.pop("_credential_ref", None)
+            # design name is `credential_ref`; accept `_credential_ref` as a legacy alias
+            cred_a = config.pop("credential_ref", None)
+            cred_b = config.pop("_credential_ref", None)
+            credential = cred_a if cred_a is not None else cred_b
         objects_cfg = config.get("objects", []) if isinstance(config, dict) else []
         state = ConnectorStateStore(self.meta, connector_id)
         ctx = ConnectorContext(state, connector_id, self.ns,
@@ -215,7 +224,8 @@ class Engine:
             if cls is not None and not getattr(cls.CAPABILITIES, "cursor_kind", None):
                 raise ValueError("since_unsupported")
         cfg_dict = config if config is not None else default_config
-        cid = await self.register_or_get_connector(connector_uri, ctype, cfg_dict)
+        cid = await self.register_or_get_connector(connector_uri, ctype, cfg_dict,
+                                                   overwrite_config=config is not None)
         row0 = await self.meta.fetchone("SELECT config_json FROM connectors WHERE id=?", (cid,))
         stored_cfg = json.loads(row0["config_json"]) if row0 and row0["config_json"] else cfg_dict
 
@@ -359,12 +369,42 @@ class Engine:
         await self._finalize_job(job["id"], aborted)
         return job["id"]
 
-    async def run_worker_forever(self, poll_interval: float = 1.0) -> None:
-        """Daemon loop: drain the queued-job queue, sleep when idle."""
-        while True:
-            jid = await self.run_worker_once()
-            if jid is None:
-                await asyncio.sleep(poll_interval)
+    def _resolve_concurrency(self, concurrency=None) -> int:
+        c = concurrency if concurrency is not None else self.cfg.worker.concurrency
+        if c == "auto":
+            return max(1, (os.cpu_count() or 2))
+        try:
+            return max(1, int(c))
+        except (TypeError, ValueError):
+            return 1
+
+    async def _reclaim_stale_jobs(self, stale_after_s: int = 120) -> None:
+        """Housekeeping (design/02 §5): a job whose worker died keeps status='running'
+        with a stale heartbeat forever. Reset such jobs to 'queued' so a live worker
+        re-claims them. Best-effort — tolerate the rare one-queued-per-connector clash."""
+        cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
+        try:
+            await self.meta.execute(
+                "UPDATE connector_jobs SET status='queued' "
+                "WHERE status='running' AND heartbeat IS NOT NULL AND heartbeat < ?", (cutoff,))
+        except Exception:  # noqa: BLE001
+            pass
+
+    async def run_worker_forever(self, poll_interval: float = 1.0, concurrency=None) -> None:
+        """Drain the queued-job queue with `concurrency` parallel workers. Each worker
+        atomically claims a distinct job (the conditional claim is race-free), so N
+        connectors' sync jobs run in parallel. Idle workers run a housekeeping pass that
+        reclaims jobs orphaned by a crashed worker (stale heartbeat)."""
+        n = self._resolve_concurrency(concurrency)
+
+        async def _loop() -> None:
+            while True:
+                jid = await self.run_worker_once()
+                if jid is None:
+                    await self._reclaim_stale_jobs()
+                    await asyncio.sleep(poll_interval)
+
+        await asyncio.gather(*[_loop() for _ in range(n)])
 
     async def _claim_batch(self, job_id: str, limit: int) -> list[dict]:
         """Claim up to `limit` pending tasks. Each is taken with a conditional UPDATE
@@ -430,6 +470,9 @@ class Engine:
             jrow = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (job_id,))
             if jrow and jrow["status"] == "cancelled":
                 return "cancelled"
+            # heartbeat so housekeeping doesn't reclaim a job this worker is actively running
+            await self.meta.execute(
+                "UPDATE connector_jobs SET heartbeat=? WHERE id=?", (_now(), job_id))
             tasks = await self._claim_batch(job_id, limit=64)
             if not tasks:
                 break
@@ -465,20 +508,35 @@ class Engine:
     #     in artifact_cache, with LRU size eviction ---
     async def _put_artifact(self, ns: str, object_uri: str, kind: str, data: bytes) -> str:
         """Store artifact bytes and record/refresh its artifact_cache row (size +
-        timestamps), then run a throttled LRU sweep so the cache stays under budget."""
+        content fingerprint + timestamps), then run a throttled LRU sweep so the cache
+        stays under budget. fingerprint = sha1(bytes) — lets a re-build detect a
+        no-op (same content) and gives a stale-check handle (design/02 §10.2)."""
+        import hashlib
         path = await asyncio.to_thread(self.object_store.put_artifact, ns, object_uri, kind, data)
         now = _now()
+        fp = hashlib.sha1(data).hexdigest()
         await self.meta.execute(
             "INSERT INTO artifact_cache (namespace_id, object_uri, artifact_kind, storage_path, "
-            " size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?) "
+            " fingerprint, size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?,?) "
             "ON CONFLICT(namespace_id, object_uri, artifact_kind) DO UPDATE SET "
-            " storage_path=excluded.storage_path, size_bytes=excluded.size_bytes, "
-            " built_at=excluded.built_at, last_accessed=excluded.last_accessed",
-            (ns, object_uri, kind, str(path), len(data), now, now))
+            " storage_path=excluded.storage_path, fingerprint=excluded.fingerprint, "
+            " size_bytes=excluded.size_bytes, built_at=excluded.built_at, last_accessed=excluded.last_accessed",
+            (ns, object_uri, kind, str(path), fp, len(data), now, now))
         self._artifact_writes += 1
         if self._artifact_writes % 16 == 0:
             await self._evict_artifacts_if_needed(ns)
         return path
+
+    async def _drop_artifacts(self, ns: str, object_uri: str) -> None:
+        """Delete all cached artifacts of an object (bytes + artifact_cache rows) — on
+        object deletion so the cache doesn't retain orphaned bytes (design/02 §10.2)."""
+        for kind in ("converted_md", "vlm_text", "head_cache"):
+            try:
+                await asyncio.to_thread(self.object_store.delete_artifact, ns, object_uri, kind)
+            except Exception:  # noqa: BLE001
+                pass
+        await self.meta.execute(
+            "DELETE FROM artifact_cache WHERE namespace_id=? AND object_uri=?", (ns, object_uri))
 
     async def _read_artifact(self, ns: str, object_uri: str, kind: str) -> bytes | None:
         """Fetch artifact bytes and bump last_accessed (LRU recency) when present."""
@@ -532,6 +590,7 @@ class Engine:
             await self.meta.execute(
                 "DELETE FROM objects WHERE connector_id=? AND object_uri=?", (cid, relpath))
             await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
+            await self._drop_artifacts(ns, full_uri)      # purge cached artifact bytes too
             await plugin.on_object_deleted(relpath)
             return
 
@@ -878,14 +937,7 @@ class Engine:
         # 2. best-effort artifact bytes per object
         objs = await self.meta.fetchall("SELECT object_uri FROM objects WHERE connector_id=?", (cid,))
         for o in objs:
-            full = connector_uri + o["object_uri"]
-            for kind in ("converted_md", "vlm_text", "head_cache"):
-                try:
-                    await asyncio.to_thread(self.object_store.delete_artifact, self.ns, full, kind)
-                except Exception:  # noqa: BLE001
-                    pass
-            await self.meta.execute(
-                "DELETE FROM artifact_cache WHERE namespace_id=? AND object_uri=?", (self.ns, full))
+            await self._drop_artifacts(self.ns, connector_uri + o["object_uri"])
         # 3. metadata rows
         for tbl, col in (("object_tasks", "connector_id"), ("connector_jobs", "connector_id"),
                          ("objects", "connector_id"), ("connector_state", "connector_id"),

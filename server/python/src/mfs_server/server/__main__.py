@@ -52,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"mfs-server worker: polling queue (metadata={cfg.metadata.backend}, "
                   f"concurrency={args.concurrency})", flush=True)
             try:
-                await eng.run_worker_forever()
+                await eng.run_worker_forever(concurrency=args.concurrency)
             finally:
                 await eng.shutdown()
 
