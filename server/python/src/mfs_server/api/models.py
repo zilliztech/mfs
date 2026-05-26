@@ -53,6 +53,34 @@ class AddResponse(BaseModel):
     job_id: str = Field(..., description="sync job id; poll GET /v1/jobs/{job_id}")
 
 
+class ManifestFile(BaseModel):
+    path: str = Field(..., description="path relative to the upload root")
+    size: int
+    mtime_ns: int
+    inode: Optional[int] = None
+
+
+class ManifestRequest(BaseModel):
+    client_id: str = Field(..., description="client machine id (scopes the staging area)")
+    name: str = Field(..., description="upload label (the root dir name)")
+    files: list[ManifestFile] = Field(default_factory=list, description="stat-only manifest")
+
+
+class DeletionCandidate(BaseModel):
+    path: str
+    size: Optional[int] = None
+    inode: Optional[int] = None
+    sha1: Optional[str] = None
+
+
+class ManifestResponse(BaseModel):
+    connector_uri: str
+    staging: str
+    need_sha1: list[str] = Field(default_factory=list, description="paths whose bytes the server needs")
+    deletion_candidates: list[DeletionCandidate] = Field(
+        default_factory=list, description="server-known paths absent from the manifest (for rename pairing)")
+
+
 class ResultEnvelope(BaseModel):
     """One search/grep hit (design/06 §7). Outer shape is stable across connectors;
     locator + metadata.fields are per-connector but documented."""

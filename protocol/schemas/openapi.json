@@ -286,6 +286,110 @@
         }
       }
     },
+    "/v1/files/manifest": {
+      "post": {
+        "tags": [
+          "ingest"
+        ],
+        "summary": "Files Manifest",
+        "description": "Manifest-diff upload step \u2461: stat-only manifest in, need_sha1 + deletion\ncandidates out (design/02 \u00a74.2). No bytes transferred here.",
+        "operationId": "filesManifest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManifestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/files/upload": {
+      "put": {
+        "tags": [
+          "ingest"
+        ],
+        "summary": "Files Upload",
+        "description": "Manifest-diff upload step \u2463: PUT a tar(.gz) carrying a `.mfs-meta.json`\nmember (hashes/renames/deletions) + the changed file bytes. The server applies\nit to the staging area and triggers the file-connector sync.",
+        "operationId": "filesUpload",
+        "parameters": [
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Client Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "process",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Process"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/search": {
       "get": {
         "tags": [
@@ -757,6 +861,52 @@
         ],
         "title": "ConnectorRow"
       },
+      "DeletionCandidate": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "inode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inode"
+          },
+          "sha1": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "DeletionCandidate"
+      },
       "GrepMatchModel": {
         "properties": {
           "source": {
@@ -1049,6 +1199,103 @@
           "entries"
         ],
         "title": "LsResponse"
+      },
+      "ManifestFile": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "path relative to the upload root"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "mtime_ns": {
+            "type": "integer",
+            "title": "Mtime Ns"
+          },
+          "inode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "size",
+          "mtime_ns"
+        ],
+        "title": "ManifestFile"
+      },
+      "ManifestRequest": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "title": "Client Id",
+            "description": "client machine id (scopes the staging area)"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "upload label (the root dir name)"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestFile"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "stat-only manifest"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "name"
+        ],
+        "title": "ManifestRequest"
+      },
+      "ManifestResponse": {
+        "properties": {
+          "connector_uri": {
+            "type": "string",
+            "title": "Connector Uri"
+          },
+          "staging": {
+            "type": "string",
+            "title": "Staging"
+          },
+          "need_sha1": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Need Sha1",
+            "description": "paths whose bytes the server needs"
+          },
+          "deletion_candidates": {
+            "items": {
+              "$ref": "#/components/schemas/DeletionCandidate"
+            },
+            "type": "array",
+            "title": "Deletion Candidates",
+            "description": "server-known paths absent from the manifest (for rename pairing)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "connector_uri",
+          "staging"
+        ],
+        "title": "ManifestResponse"
       },
       "ProbeRequest": {
         "properties": {

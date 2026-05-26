@@ -390,32 +390,135 @@ fn client_hostname() -> String {
         .unwrap_or_default()
 }
 
-/// Bundle a local tree into a tar.gz and POST it to /v1/upload (CS upload flow,
-/// design/02 §4.2) — for a client/server that don't share a filesystem.
+/// One file's stat from the client scan.
+struct ScanEntry { rel: String, size: u64, mtime_ns: i128, inode: u64 }
+
+/// Walk a directory (skipping noisy dirs) collecting per-file stat (rel path, size,
+/// mtime_ns, inode). Mirrors the server file connector's default ignores roughly.
+fn scan_tree(root: &std::path::Path) -> Result<Vec<ScanEntry>, String> {
+    use std::os::unix::fs::MetadataExt;
+    const SKIP: &[&str] = &[".git", "node_modules", "__pycache__", ".venv", "venv",
+                            ".mypy_cache", ".pytest_cache", ".ruff_cache", ".idea", ".vscode"];
+    let mut out = Vec::new();
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        let rd = std::fs::read_dir(&dir).map_err(|e| format!("scan {}: {e}", dir.display()))?;
+        for ent in rd {
+            let ent = ent.map_err(|e| e.to_string())?;
+            let path = ent.path();
+            let md = ent.metadata().map_err(|e| e.to_string())?;
+            let name = ent.file_name().to_string_lossy().to_string();
+            if md.is_dir() {
+                if !SKIP.contains(&name.as_str()) { stack.push(path); }
+            } else if md.is_file() {
+                let rel = path.strip_prefix(root).map_err(|e| e.to_string())?
+                    .to_string_lossy().replace('\\', "/");
+                out.push(ScanEntry {
+                    rel, size: md.size(),
+                    mtime_ns: md.mtime() as i128 * 1_000_000_000 + md.mtime_nsec() as i128,
+                    inode: md.ino(),
+                });
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn sha1_file(path: &std::path::Path) -> Result<String, String> {
+    use sha1::{Digest, Sha1};
+    let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
+    let mut h = Sha1::new();
+    h.update(&bytes);
+    Ok(format!("{:x}", h.finalize()))
+}
+
+/// Manifest-diff upload (design/02 §4.2): scan -> POST /v1/files/manifest -> sha1 the
+/// needed files + pair renames by (inode,size,sha1) -> PUT /v1/files/upload a tar.gz
+/// carrying `.mfs-meta.json` + only the changed bytes. The client keeps no state.
 fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
                process: bool, json: bool) -> Result<(), String> {
-    let p = std::path::Path::new(target);
-    let name = p.file_name().and_then(|s| s.to_str())
+    use std::io::Write;
+    let root = std::path::Path::new(target);
+    let client_id = client_hostname();
+    let name = root.file_name().and_then(|s| s.to_str())
         .ok_or_else(|| format!("cannot derive a name from {target}"))?.to_string();
-    let parent = p.parent().filter(|x| !x.as_os_str().is_empty())
-        .map(|x| x.to_path_buf()).unwrap_or_else(|| std::path::PathBuf::from("."));
-    let tmp = std::env::temp_dir().join(format!("mfs-upload-{}.tar.gz", std::process::id()));
-    // -C parent <name>: archive paths are relative to the dir, so the server stages
-    // <name>/... cleanly (the server re-validates every member against zip-slip).
-    let status = std::process::Command::new("tar")
-        .arg("-czf").arg(&tmp).arg("-C").arg(&parent).arg(&name)
-        .status().map_err(|e| format!("tar failed (is it installed?): {e}"))?;
-    if !status.success() {
-        return Err("tar failed to bundle the tree".into());
+
+    // ① scan (stat only)
+    let entries = scan_tree(root)?;
+    let files: Vec<Value> = entries.iter().map(|e| serde_json::json!(
+        {"path": e.rel, "size": e.size, "mtime_ns": e.mtime_ns.to_string(), "inode": e.inode})).collect();
+
+    // ② manifest diff
+    let mf = post(client, &format!("{base}/v1/files/manifest"),
+                  &serde_json::json!({"client_id": client_id, "name": name, "files": files}))?;
+    let need: std::collections::HashSet<String> = mf["need_sha1"].as_array().unwrap_or(&vec![])
+        .iter().filter_map(|v| v.as_str().map(String::from)).collect();
+    let del_cands = mf["deletion_candidates"].as_array().cloned().unwrap_or_default();
+
+    // ③ sha1 the needed files; pair renames against deletion candidates (inode+size+sha1)
+    let by_rel: std::collections::HashMap<&str, &ScanEntry> =
+        entries.iter().map(|e| (e.rel.as_str(), e)).collect();
+    let mut hashes: Vec<Value> = Vec::new();
+    let mut sha_of: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    for rel in &need {
+        let e = by_rel[rel.as_str()];
+        let sha = sha1_file(&root.join(rel))?;
+        sha_of.insert(rel.clone(), sha.clone());
+        hashes.push(serde_json::json!(
+            {"path": rel, "sha1": sha, "size": e.size, "mtime_ns": e.mtime_ns.to_string(), "inode": e.inode}));
     }
-    let data = std::fs::read(&tmp).map_err(|e| e.to_string())?;
-    let _ = std::fs::remove_file(&tmp);
-    let resp = client.post(format!("{base}/v1/upload"))
-        .query(&[("name", name.as_str()), ("process", &process.to_string())])
+    let mut renames: Vec<Value> = Vec::new();
+    let mut consumed_old: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut renamed_new: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for rel in &need {
+        let e = by_rel[rel.as_str()];
+        let sha = &sha_of[rel];
+        for dc in &del_cands {
+            let old = dc["path"].as_str().unwrap_or("");
+            if old.is_empty() || consumed_old.contains(old) { continue; }
+            let same = dc["sha1"].as_str() == Some(sha.as_str())
+                && dc["inode"].as_u64() == Some(e.inode)
+                && dc["size"].as_u64() == Some(e.size);
+            if same {
+                renames.push(serde_json::json!({"old": old, "new": rel, "sha1": sha}));
+                consumed_old.insert(old.to_string());
+                renamed_new.insert(rel.clone());
+                break;
+            }
+        }
+    }
+    let deletions: Vec<String> = del_cands.iter()
+        .filter_map(|dc| dc["path"].as_str().map(String::from))
+        .filter(|p| !consumed_old.contains(p)).collect();
+
+    // ④ build tar.gz: .mfs-meta.json + changed bytes (renamed files send no bytes)
+    let meta = serde_json::json!({"hashes": hashes, "renames": renames, "deletions": deletions});
+    let buf = Vec::new();
+    let enc = flate2::write::GzEncoder::new(buf, flate2::Compression::default());
+    let mut tar = tar::Builder::new(enc);
+    let meta_bytes = serde_json::to_vec(&meta).map_err(|e| e.to_string())?;
+    let mut hdr = tar::Header::new_gnu();
+    hdr.set_size(meta_bytes.len() as u64); hdr.set_mode(0o644); hdr.set_cksum();
+    tar.append_data(&mut hdr, ".mfs-meta.json", &meta_bytes[..]).map_err(|e| e.to_string())?;
+    for rel in &need {
+        if renamed_new.contains(rel) { continue; }     // moved on the server, no bytes
+        tar.append_path_with_name(root.join(rel), rel).map_err(|e| e.to_string())?;
+    }
+    let gz = tar.into_inner().map_err(|e| e.to_string())?;
+    let data = gz.finish().map_err(|e| e.to_string())?;
+    let _ = std::io::stdout().flush();
+
+    let resp = client.put(format!("{base}/v1/files/upload"))
+        .query(&[("client_id", client_id.as_str()), ("name", name.as_str()),
+                 ("process", &process.to_string())])
         .body(data).send().map_err(|e| e.to_string())?;
     let v = parse(resp)?;
     if json { println!("{v}"); }
-    else { println!("uploaded {} -> job {}", name, v["job_id"].as_str().unwrap_or("?")); }
+    else {
+        println!("uploaded {} changed, {} renamed, {} deleted -> job {}",
+                 need.len() - renamed_new.len(), renames.len(), deletions.len(),
+                 v["job_id"].as_str().unwrap_or("?"));
+    }
     Ok(())
 }
 

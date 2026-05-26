@@ -385,6 +385,100 @@ class Engine:
         _, connector_uri, _, _ = self._resolve_target(staging_str)
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging_str}
 
+    # --- manifest-diff upload protocol (design/02 §4.2) ---
+    def _staging_root(self, client_id: str, name: str) -> str:
+        import hashlib
+        sub = hashlib.sha1(f"{client_id}:{name}".encode()).hexdigest()[:16]
+        return os.path.realpath(str(self.object_store.files_root(self.ns, sub)))
+
+    async def _staging_connector(self, client_id: str, name: str):
+        """(staging_dir, connector_uri, connector_id) for a client's upload target,
+        registering the file connector rooted at the staging dir if needed."""
+        staging = self._staging_root(client_id, name)
+        _, connector_uri, _, _ = self._resolve_target(staging)
+        cid = await self.register_or_get_connector(
+            connector_uri, "file", {"root": staging, "client_id": client_id})
+        return staging, connector_uri, cid
+
+    async def files_manifest(self, client_id: str, name: str, files: list[dict]) -> dict:
+        """Step ② (design/02 §4.2): client posts a stat-only manifest; server diffs it
+        against the last upload snapshot (client-view, in connector_state) and returns
+        which paths' bytes it needs + deletion candidates (with stored sha1/inode so the
+        client can pair renames). The client holds no persistent state."""
+        staging, connector_uri, cid = await self._staging_connector(client_id, name)
+        state = ConnectorStateStore(self.meta, cid)
+        snap = await state.get("upload_manifest") or {}
+        client = {f["path"]: f for f in files}
+        need_sha1 = [
+            p for p, f in client.items()
+            if (p not in snap) or snap[p][0] != f.get("size") or snap[p][1] != f.get("mtime_ns")]
+        deletion_candidates = [
+            {"path": p, "size": v[0], "inode": v[2], "sha1": v[3]}
+            for p, v in snap.items() if p not in client]
+        return {"connector_uri": connector_uri, "staging": staging,
+                "need_sha1": need_sha1, "deletion_candidates": deletion_candidates}
+
+    async def files_upload(self, client_id: str, name: str, bundle: bytes,
+                           process: bool = True) -> dict:
+        """Step ④ (design/02 §4.2): apply the client's bundle to the staging area in one
+        commit — renames (mv, zero re-embed downstream), changed bytes, deletions — then
+        update the snapshot and trigger the file-connector sync (normal stat-diff index).
+        The bundle is a tar(.gz) carrying a `.mfs-meta.json` member
+        {hashes, renames, deletions} plus the changed file bytes. zip-slip guarded."""
+        import io
+        import json as _json
+        import tarfile
+
+        staging, connector_uri, cid = await self._staging_connector(client_id, name)
+        state = ConnectorStateStore(self.meta, cid)
+        snap = await state.get("upload_manifest") or {}
+
+        def _safe(rel: str) -> str:
+            dest = os.path.realpath(os.path.join(staging, rel.lstrip("/")))
+            if dest != staging and not dest.startswith(staging + os.sep):
+                raise ValueError(f"unsafe path in archive: {rel}")
+            return dest
+
+        with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:*") as tf:
+            members = tf.getmembers()
+            for m in members:
+                if m.issym() or m.islnk():
+                    raise ValueError(f"links not allowed in upload: {m.name}")
+                if m.name != ".mfs-meta.json":
+                    _safe(m.name)
+            mm = next((m for m in members if m.name == ".mfs-meta.json"), None)
+            meta = _json.loads(tf.extractfile(mm).read().decode()) if mm else {}
+            hashes = meta.get("hashes", [])
+            renames = meta.get("renames", [])
+            deletions = meta.get("deletions", [])
+            # 1) renames: mv staging old->new (bytes already on server from a prior upload)
+            for r in renames:
+                op, npth = _safe(r["old"]), _safe(r["new"])
+                if os.path.exists(op):
+                    os.makedirs(os.path.dirname(npth), exist_ok=True)
+                    os.replace(op, npth)
+                if r["old"] in snap:
+                    snap[r["new"]] = snap.pop(r["old"])
+            # 2) extract changed file bytes into staging
+            for m in members:
+                if m.name == ".mfs-meta.json" or m.isdir():
+                    continue
+                _safe(m.name)
+                tf.extract(m, staging)
+            # 3) deletions: rm staging file
+            for d in deletions:
+                dp = _safe(d)
+                if os.path.exists(dp):
+                    os.remove(dp)
+                snap.pop(d, None)
+            # 4) refresh the client-view snapshot from the uploaded hashes
+            for h in hashes:
+                snap[h["path"]] = [h.get("size"), h.get("mtime_ns"), h.get("inode"), h.get("sha1")]
+        await state.set("upload_manifest", snap)
+        await state.commit()
+        job_id = await self.add(staging, process=process)
+        return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
+
     async def _finalize_job(self, job_id: str, aborted: str | None) -> None:
         """Set terminal job status + per-status object counts (design/02 §7)."""
         counts = await self.meta.fetchall(

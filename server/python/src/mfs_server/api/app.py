@@ -15,8 +15,8 @@ from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
 from .models import (
     AddRequest, AddResponse, CancelResponse, CatMeta, CatResponse, GrepResponse,
-    JobResponse, LsResponse, ProbeRequest, ProbeResponse, RemoveResponse,
-    SearchResponse, ServerInfo, StatusResponse,
+    JobResponse, LsResponse, ManifestRequest, ManifestResponse, ProbeRequest,
+    ProbeResponse, RemoveResponse, SearchResponse, ServerInfo, StatusResponse,
 )
 
 # Canonical error codes -> suggested next actions (protocol/errors.md). The endpoints
@@ -126,6 +126,31 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             raise HTTPException(400, "empty upload body")
         try:
             out = await eng().ingest_upload(name, data, process=process)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return AddResponse(job_id=out["job_id"])
+
+    @app.post("/v1/files/manifest", response_model=ManifestResponse,
+              operation_id="filesManifest", tags=["ingest"])
+    async def files_manifest(body: ManifestRequest) -> ManifestResponse:
+        """Manifest-diff upload step ②: stat-only manifest in, need_sha1 + deletion
+        candidates out (design/02 §4.2). No bytes transferred here."""
+        out = await eng().files_manifest(body.client_id, body.name,
+                                         [f.model_dump() for f in body.files])
+        return ManifestResponse(**out)
+
+    @app.put("/v1/files/upload", response_model=AddResponse,
+             operation_id="filesUpload", tags=["ingest"])
+    async def files_upload(request: Request, client_id: str, name: str,
+                           process: bool = True) -> AddResponse:
+        """Manifest-diff upload step ④: PUT a tar(.gz) carrying a `.mfs-meta.json`
+        member (hashes/renames/deletions) + the changed file bytes. The server applies
+        it to the staging area and triggers the file-connector sync."""
+        data = await request.body()
+        if not data:
+            raise HTTPException(400, "empty upload body")
+        try:
+            out = await eng().files_upload(client_id, name, data, process=process)
         except ValueError as e:
             raise HTTPException(400, str(e))
         return AddResponse(job_id=out["job_id"])
