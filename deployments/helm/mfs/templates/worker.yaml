@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-worker
+  labels: {{- include "mfs.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mfs
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mfs
+        app.kubernetes.io/component: worker
+    spec:
+      containers:
+        - name: worker
+          image: {{ include "mfs.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["worker", "--concurrency", "auto"]
+          env: {{- include "mfs.env" . | nindent 12 }}
+          resources: {{- toYaml .Values.worker.resources | nindent 12 }}

@@ -33,10 +33,18 @@ class CachingEmbeddingClient:
         self.dim = cfg.embedding.dim
         self.batch_size = cfg.embedding.batch_size
         self.tx_cache = tx_cache
-        self._client = AsyncOpenAI() if self.provider == "openai" else None
+        self._client = None      # lazy: built on first API call so the server boots
+        # without OPENAI_API_KEY (browse/ls/cat/grep don't need embeddings)
         # observability
         self.api_calls = 0
         self.cache_hits = 0
+
+    def _ensure_client(self):
+        if self._client is None:
+            if self.provider != "openai":
+                raise RuntimeError(f"embedding provider {self.provider} not supported")
+            self._client = AsyncOpenAI()
+        return self._client
 
     def _key(self, text: str) -> str:
         return cache_key(sha1_hex(text.encode()), "embedding", self.provider, self.model, self.version)
@@ -69,11 +77,11 @@ class CachingEmbeddingClient:
         return result  # type: ignore[return-value]
 
     async def _embed_api(self, texts: list[str]) -> list[list[float]]:
-        assert self._client is not None, f"provider {self.provider} not supported"
+        client = self._ensure_client()
         out: list[list[float]] = []
         for i in range(0, len(texts), self.batch_size):
             batch = texts[i : i + self.batch_size]
-            resp = await self._client.embeddings.create(model=self.model, input=batch)
+            resp = await client.embeddings.create(model=self.model, input=batch)
             self.api_calls += len(batch)
             out.extend([d.embedding for d in resp.data])
         return out

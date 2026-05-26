@@ -23,9 +23,16 @@ class CachingVlmClient:
         self.provider = "openai"
         self.version = "1"
         self.tx_cache = tx_cache
-        self._client = AsyncOpenAI() if cfg.vlm.provider == "openai" else None
+        self._client = None      # lazy: built on first call (server boots w/o OPENAI key)
         self.api_calls = 0
         self.cache_hits = 0
+
+    def _ensure_client(self):
+        if self._client is None:
+            if self.provider != "openai":
+                raise RuntimeError("vlm provider not supported")
+            self._client = AsyncOpenAI()
+        return self._client
 
     def mime_for(self, ext: str) -> str:
         return _MIME.get(ext.lower(), "image/png")
@@ -36,10 +43,10 @@ class CachingVlmClient:
         if cached[key] is not None:
             self.cache_hits += 1
             return cached[key].decode("utf-8", errors="replace")
-        assert self._client is not None, f"vlm provider not supported"
+        client = self._ensure_client()
         b64 = base64.b64encode(data).decode()
         url = f"data:{self.mime_for(ext)};base64,{b64}"
-        resp = await self._client.chat.completions.create(
+        resp = await client.chat.completions.create(
             model=self.model, max_tokens=400,
             messages=[{"role": "user", "content": [
                 {"type": "text", "text": self.prompt},

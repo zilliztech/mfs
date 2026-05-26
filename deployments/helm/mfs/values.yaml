@@ -1,0 +1,40 @@
+# MFS Helm values (design/10 §4.4)
+image:
+  repository: ghcr.io/zilliztech/mfs-server
+  tag: "0.4.0"
+  pullPolicy: IfNotPresent
+
+api:
+  replicas: 2
+  port: 8765
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits: { cpu: "1", memory: "1Gi" }
+
+worker:
+  replicas: 4
+  resources:
+    requests: { cpu: "500m", memory: "1Gi" }
+    limits: { cpu: "2", memory: "2Gi" }
+
+# search backend: Milvus via Zilliz Cloud (managed). Self-hosted Milvus is out of
+# scope for v0.4 (see design/10 §4.3).
+search:
+  type: zilliz
+  uri: ""          # https://xxx.zillizcloud.com
+  # token is read from the secret below
+
+# metadata: postgres (set dsn) or sqlite (single-replica only)
+metadata:
+  type: postgres
+  dsn: "postgresql://mfs:mfs@mfs-postgres:5432/mfs"
+
+objectStore:
+  type: s3
+  endpoint: ""
+  bucket: "mfs"
+
+# secret holding ZILLIZ_TOKEN / OPENAI_API_KEY / object-store creds
+existingSecret: "mfs-secrets"
+
+env: {}

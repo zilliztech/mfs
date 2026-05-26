@@ -1,0 +1,22 @@
+MFS {{ .Chart.AppVersion }} installed as release "{{ .Release.Name }}".
+
+API service:  {{ .Release.Name }}-api:{{ .Values.api.port }}  (replicas: {{ .Values.api.replicas }})
+Workers:      {{ .Release.Name }}-worker                      (replicas: {{ .Values.worker.replicas }})
+
+This chart renders the scalable api/worker topology (design/10 §4.4). It expects:
+
+  1. Milvus via Zilliz Cloud  — set search.uri and the `zilliz-token` key in
+     secret "{{ .Values.existingSecret }}" (managed Milvus; self-hosting is out of scope).
+  2. A shared metadata backend (metadata.type=postgres, metadata.dsn=...) and the
+     standalone worker daemon. These land after v0.4 — until then run the all-in-one
+     server (`mfs-server run`, SQLite + Milvus Lite on a volume, see deployments/compose).
+
+Create the secret first:
+  kubectl create secret generic {{ .Values.existingSecret }} \
+    --from-literal=zilliz-token=$ZILLIZ_TOKEN \
+    --from-literal=openai-api-key=$OPENAI_API_KEY
+
+Check readiness:
+  kubectl get pods -l app.kubernetes.io/name=mfs
+  kubectl port-forward svc/{{ .Release.Name }}-api {{ .Values.api.port }}:{{ .Values.api.port }}
+  curl localhost:{{ .Values.api.port }}/v1/server/info
