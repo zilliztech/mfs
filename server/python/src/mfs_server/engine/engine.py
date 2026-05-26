@@ -690,11 +690,34 @@ class Engine:
         _, connector_uri, _, _ = self._resolve_target(target)
         return connector_uri, None
 
-    # --- read commands (design/05) — Phase 4 file connector ---
+    # --- read commands (design/05) — any connector ---
     async def _open_path(self, path: str):
-        """(connector_id, connector_uri, relpath, plugin) for the registered file
-        connector whose root is the longest prefix of the abs path."""
+        """(connector_id, connector_uri, relpath, plugin) for the registered connector
+        whose root is the longest prefix of `path`. Handles both local file paths
+        (file connector) and scheme URIs (postgres://, github://, ...)."""
         import json
+        m = _SCHEME_RE.match(path)
+        if m and m.group(1) != "file":
+            # scheme URI -> match registered connector by root_uri prefix
+            rows = await self.meta.fetchall(
+                "SELECT * FROM connectors WHERE namespace_id=?", (self.ns,))
+            best, best_root = None, ""
+            for r in rows:
+                ru = r["root_uri"]
+                if "://" not in ru:
+                    continue
+                if path == ru or path.startswith(ru.rstrip("/") + "/"):
+                    if len(ru) > len(best_root):
+                        best, best_root = r, ru
+            if best is None:
+                raise ValueError(f"path not under any registered connector: {path}")
+            rel = path[len(best_root):] or "/"
+            if not rel.startswith("/"):
+                rel = "/" + rel
+            plugin, _ = self._build_plugin(best["type"], json.loads(best["config_json"]), best["id"])
+            await plugin.connect()
+            return best["id"], best["root_uri"], rel, plugin
+        # local file path -> file connector whose root is the longest prefix
         abs_path = os.path.abspath(path)
         rows = await self.meta.fetchall(
             "SELECT * FROM connectors WHERE namespace_id=? AND type='file'", (self.ns,))
@@ -721,8 +744,17 @@ class Engine:
         return [{"name": e.name, "type": e.type, "media_type": e.media_type, "size_hint": e.size_hint}
                 for e in entries]
 
+    @staticmethod
+    def _locator_matches(rec: dict, ocfg, idx: int, locator: dict) -> bool:
+        if "_row" in locator:
+            return idx == int(locator["_row"])
+        keys = ocfg.locator_fields or list(locator.keys())
+        return all(str(rec.get(k)) == str(locator.get(k)) for k in keys if k in locator)
+
     async def cat(self, path: str, range: tuple[int, int] | None = None, meta: bool = False,
-                  density: str | None = None):
+                  density: str | None = None, locator: dict | None = None):
+        import json as _json
+
         from ..connectors.base import Range
         _, curi, rel, plugin = await self._open_path(path)
         try:
@@ -732,6 +764,38 @@ class Engine:
             if meta:
                 return {"source": curi + rel, "media_type": st.media_type,
                         "size_hint": st.size_hint, "fingerprint": st.fingerprint}
+            okind = plugin.object_kind_of(rel)
+            structured = okind in ("table_rows", "record_collection", "message_stream")
+
+            # --- locator: reopen a single structured record (design/05 §3, 06 §3) ---
+            if locator is not None:
+                records = plugin.read_records(rel)
+                if records is None:
+                    raise ValueError("range_unsupported")     # not a structured object
+                ocfg = plugin.ctx.object_config_for(rel)
+                i = 0
+                async for rec in records:
+                    if self._locator_matches(rec, ocfg, i, locator):
+                        return {"source": curi + rel, "locator": locator,
+                                "content": _json.dumps(rec, default=str, ensure_ascii=False)}
+                    i += 1
+                raise ValueError("locator_not_found")
+
+            # --- structured object: head/range pushdown over records (lazy, not materialized) ---
+            if structured:
+                records = plugin.read_records(rel)
+                if records is not None:
+                    start = range[0] if range else 0
+                    end = range[1] if range else start + 200      # default cap for a bare cat
+                    out, i = [], 0
+                    async for rec in records:
+                        if i >= end:
+                            break
+                        if i >= start:
+                            out.append(_json.dumps(rec, default=str, ensure_ascii=False))
+                        i += 1
+                    return "\n".join(out)
+
             ext = os.path.splitext(rel)[1].lower()
             text: str | None = None
             if ext in CONVERT_EXTS:        # pdf/docx/html etc. -> return converted markdown

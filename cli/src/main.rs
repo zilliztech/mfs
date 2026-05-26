@@ -56,6 +56,9 @@ enum Cmd {
         range: Option<String>,
         #[arg(long)]
         meta: bool,
+        /// Reopen a single structured record by its locator JSON, e.g. '{"pk":{"id":12}}'
+        #[arg(long)]
+        locator: Option<String>,
         /// Skeleton view: headings/symbols only
         #[arg(long)]
         peek: bool,
@@ -238,10 +241,11 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             println!("{path}");
             tree(client, base, path, *depth, "")?;
         }
-        Cmd::Cat { path, range, meta, peek, skim } => {
+        Cmd::Cat { path, range, meta, locator, peek, skim } => {
             let mut q = vec![("path", path.clone())];
             if let Some(r) = range { q.push(("range", r.clone())); }
             if *meta { q.push(("meta", "true".to_string())); }
+            if let Some(l) = locator { q.push(("locator", l.clone())); }
             if *peek { q.push(("density", "peek".to_string())); }
             if *skim { q.push(("density", "skim".to_string())); }
             let v = get(client, &format!("{base}/v1/cat"), &q)?;

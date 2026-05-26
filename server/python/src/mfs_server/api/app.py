@@ -89,23 +89,35 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     @app.get("/v1/cat", operation_id="cat", tags=["browse"],
              response_model=None, responses={200: {"model": CatResponse}})
     async def cat(path: str, range: str | None = None, meta: bool = False,
-                  density: str | None = None):
+                  density: str | None = None, locator: str | None = None):
+        import json as _json
         rg = None
         if range:
             a, b = range.split(":")
             rg = (int(a), int(b))
+        loc = None
+        if locator:
+            try:
+                loc = _json.loads(locator)
+            except ValueError:
+                raise HTTPException(400, "invalid locator JSON")
         try:
-            out = await eng().cat(path, range=rg, meta=meta, density=density)
+            out = await eng().cat(path, range=rg, meta=meta, density=density, locator=loc)
         except IsADirectoryError:
             raise HTTPException(400, "is_directory")
         except ValueError as e:
-            if str(e) == "density_unsupported":
-                raise HTTPException(400, "density_unsupported")
-            raise HTTPException(404, str(e))
+            code = str(e)
+            if code in ("density_unsupported", "range_unsupported"):
+                raise HTTPException(400, code)
+            if code == "locator_not_found":
+                raise HTTPException(404, "locator_not_found")
+            raise HTTPException(404, code)
         except FileNotFoundError as e:
             raise HTTPException(404, str(e))
         if meta:
             return CatMeta(**out) if isinstance(out, dict) else out
+        if isinstance(out, dict):     # locator hit -> {source, locator, content}
+            return CatResponse(source=out.get("source", path), content=out.get("content", ""))
         return CatResponse(source=path, content=out)
 
     @app.get("/v1/status", response_model=StatusResponse, operation_id="status", tags=["server"])
