@@ -84,10 +84,14 @@ class LsEntry(BaseModel):
     type: str = Field(..., description="file | dir")
     media_type: Optional[str] = None
     size_hint: Optional[int] = None
+    path: Optional[str] = Field(None, description="full object URI — feed to cat/search")
+    search_status: Optional[str] = Field(None, description="indexed | partial | not_indexed | null if unseen")
+    indexable: Optional[bool] = Field(None, description="whether this object is eligible for indexing")
 
 
 class LsResponse(BaseModel):
     entries: list[LsEntry]
+    capabilities: dict[str, Any] = Field(default_factory=dict, description="connector capabilities (sync/object)")
 
 
 class CatResponse(BaseModel):

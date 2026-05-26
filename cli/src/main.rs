@@ -26,12 +26,21 @@ enum Cmd {
         /// Connector config TOML (schemas, [[objects]], _credential_ref, ...)
         #[arg(long)]
         config: Option<String>,
+        /// Only index changes since this cursor/date (connectors with a time cursor)
+        #[arg(long)]
+        since: Option<String>,
         /// Force full re-index
         #[arg(long)]
         full: bool,
         /// Enqueue for a worker instead of indexing inline
         #[arg(long)]
         no_process: bool,
+        /// Bundle + upload the tree to the server even on the same host (no shared fs)
+        #[arg(long)]
+        upload: bool,
+        /// Never upload; have the server read the path itself (shared fs)
+        #[arg(long)]
+        no_upload: bool,
     },
     /// Semantic + keyword search
     Search {
@@ -231,9 +240,30 @@ fn main() {
 
 fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), String> {
     match &cli.cmd {
-        Cmd::Add { target, config, full, no_process } => {
+        Cmd::Add { target, config, since, full, no_process, upload, no_upload } => {
+            // local/remote decision (design/02 §4.2): when the target is a real local path
+            // and the server runs on a different host (no shared fs), bundle the tree and
+            // upload it instead of asking the server to read a path it can't see. --upload
+            // forces it on the same host; --no-upload always has the server read the path.
+            let is_local_path = std::path::Path::new(target).exists();
+            let do_upload = if *no_upload {
+                false
+            } else if *upload {
+                is_local_path
+            } else if is_local_path {
+                let server_mid = get(client, &format!("{base}/v1/server/info"), &[])
+                    .ok().and_then(|v| v["machine_id"].as_str().map(String::from)).unwrap_or_default();
+                let client_host = client_hostname();
+                !server_mid.is_empty() && !client_host.is_empty() && server_mid != client_host
+            } else {
+                false
+            };
+            if do_upload {
+                return upload_path(client, base, target, !no_process, cli.json);
+            }
             let mut body = serde_json::json!({"target": target, "full": full, "process": !no_process});
             if let Some(c) = config { body["config"] = load_config_file(c)?; }
+            if let Some(s) = since { body["since"] = Value::String(s.clone()); }
             let v = post(client, &format!("{base}/v1/add"), &body)?;
             if cli.json { println!("{v}"); } else { println!("job: {}", v["job_id"].as_str().unwrap_or("?")); }
         }
@@ -340,6 +370,45 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
         Cmd::Profile { action } => return profile_cmd(action),
         Cmd::Serve { action } => return serve_cmd(action),
     }
+    Ok(())
+}
+
+/// Best-effort client machine id (matches the server's socket.gethostname()).
+fn client_hostname() -> String {
+    std::process::Command::new("hostname").output().ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| std::env::var("HOSTNAME").ok())
+        .unwrap_or_default()
+}
+
+/// Bundle a local tree into a tar.gz and POST it to /v1/upload (CS upload flow,
+/// design/02 §4.2) — for a client/server that don't share a filesystem.
+fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
+               process: bool, json: bool) -> Result<(), String> {
+    let p = std::path::Path::new(target);
+    let name = p.file_name().and_then(|s| s.to_str())
+        .ok_or_else(|| format!("cannot derive a name from {target}"))?.to_string();
+    let parent = p.parent().filter(|x| !x.as_os_str().is_empty())
+        .map(|x| x.to_path_buf()).unwrap_or_else(|| std::path::PathBuf::from("."));
+    let tmp = std::env::temp_dir().join(format!("mfs-upload-{}.tar.gz", std::process::id()));
+    // -C parent <name>: archive paths are relative to the dir, so the server stages
+    // <name>/... cleanly (the server re-validates every member against zip-slip).
+    let status = std::process::Command::new("tar")
+        .arg("-czf").arg(&tmp).arg("-C").arg(&parent).arg(&name)
+        .status().map_err(|e| format!("tar failed (is it installed?): {e}"))?;
+    if !status.success() {
+        return Err("tar failed to bundle the tree".into());
+    }
+    let data = std::fs::read(&tmp).map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_file(&tmp);
+    let resp = client.post(format!("{base}/v1/upload"))
+        .query(&[("name", name.as_str()), ("process", &process.to_string())])
+        .body(data).send().map_err(|e| e.to_string())?;
+    let v = parse(resp)?;
+    if json { println!("{v}"); }
+    else { println!("uploaded {} -> job {}", name, v["job_id"].as_str().unwrap_or("?")); }
     Ok(())
 }
 

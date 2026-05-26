@@ -223,6 +223,23 @@ class MetadataStore:
         await self._db.execute(sql, params)
         await self._db.commit()
 
+    async def execute_rowcount(self, sql: str, params: Sequence[Any] = ()) -> int:
+        """Like execute() but returns the number of affected rows. Enables race-free
+        claims across workers: a conditional UPDATE (... WHERE status='queued') wins
+        only when it actually flips the row (rowcount == 1). PG row-locks the UPDATE,
+        SQLite serializes writers — both make the claim atomic without SKIP LOCKED."""
+        if self.is_pg:
+            async with self._pool.acquire() as c:
+                status = await c.execute(_qmark_to_dollar(sql), *params)
+            try:
+                return int(status.split()[-1])      # asyncpg command tag, e.g. "UPDATE 1"
+            except (ValueError, IndexError, AttributeError):
+                return 0
+        assert self._db is not None
+        cur = await self._db.execute(sql, params)
+        await self._db.commit()
+        return cur.rowcount
+
     async def executemany(self, sql: str, rows: Sequence[Sequence[Any]]) -> None:
         if self.is_pg:
             async with self._pool.acquire() as c:

@@ -983,6 +983,42 @@
               }
             ],
             "title": "Size Hint"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path",
+            "description": "full object URI \u2014 feed to cat/search"
+          },
+          "search_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Search Status",
+            "description": "indexed | partial | not_indexed | null if unseen"
+          },
+          "indexable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indexable",
+            "description": "whether this object is eligible for indexing"
           }
         },
         "type": "object",
@@ -1000,6 +1036,12 @@
             },
             "type": "array",
             "title": "Entries"
+          },
+          "capabilities": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Capabilities",
+            "description": "connector capabilities (sync/object)"
           }
         },
         "type": "object",

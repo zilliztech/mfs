@@ -106,14 +106,38 @@ class MySQLPlugin(ConnectorPlugin):
                     cols = await cur.fetchall()
             yield {"table": parts[0], "columns": cols}
 
+    async def _cursor_col(self, table: str) -> Optional[str]:
+        """Pick the table's change-cursor column (configured `cursor_column` or a common
+        timestamp name present) to strengthen the fingerprint against in-place updates."""
+        async with self._pool.acquire() as c:
+            async with c.cursor() as cur:
+                await cur.execute(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_schema=%s AND table_name=%s", (self._cfg("database"), table))
+                names = {r[0].lower(): r[0] for r in await cur.fetchall()}
+        configured = self._cfg("cursor_column")
+        if configured and configured.lower() in names:
+            return names[configured.lower()]
+        for cand in ("updated_at", "modified_at", "last_modified", "updated", "modified", "mtime"):
+            if cand in names:
+                return names[cand]
+        return None
+
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
         if len(parts) == 2 and parts[1] == "rows.jsonl":
+            t = safe_ident(parts[0])
+            cur_col = await self._cursor_col(parts[0])
             async with self._pool.acquire() as c:
                 async with c.cursor() as cur:
-                    await cur.execute(f"SELECT count(*) FROM `{safe_ident(parts[0])}`")
+                    await cur.execute(f"SELECT count(*) FROM `{t}`")
                     cnt = (await cur.fetchone())[0]
-            return f"count:{cnt}"
+                    mx = None
+                    if cur_col:
+                        await cur.execute(f"SELECT max(`{safe_ident(cur_col)}`) FROM `{t}`")
+                        mx = (await cur.fetchone())[0]
+            # count alone misses in-place updates; max(cursor) catches content changes too
+            return f"count:{cnt}|{cur_col}:{mx}" if cur_col else f"count:{cnt}"
         return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:

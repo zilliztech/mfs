@@ -80,8 +80,11 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.post("/v1/add", response_model=AddResponse, operation_id="addSource", tags=["ingest"])
     async def add(body: AddRequest) -> AddResponse:
-        job_id = await eng().add(body.target, config=body.config, full=body.full,
-                                 since=body.since, process=body.process)
+        try:
+            job_id = await eng().add(body.target, config=body.config, full=body.full,
+                                     since=body.since, process=body.process)
+        except ValueError as e:
+            raise HTTPException(400, str(e))     # e.g. since_unsupported -> error envelope
         return AddResponse(job_id=job_id)
 
     @app.post("/v1/jobs/{job_id}/cancel", response_model=CancelResponse,
@@ -138,7 +141,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     @app.get("/v1/ls", response_model=LsResponse, operation_id="ls", tags=["browse"])
     async def ls(path: str) -> LsResponse:
         try:
-            return LsResponse(entries=await eng().ls(path))
+            return LsResponse(**await eng().ls(path))
         except (FileNotFoundError, NotADirectoryError, ValueError) as e:
             raise HTTPException(404, str(e))
 

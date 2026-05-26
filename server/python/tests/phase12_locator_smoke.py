@@ -109,7 +109,7 @@ async def main():
         check("head -n 1 -> first record", json.loads(h.strip().splitlines()[0])["id"] == 10)
 
         # ls now works on a structured connector too
-        entries = await eng.ls("memcat://t/tickets")
+        entries = (await eng.ls("memcat://t/tickets"))["entries"]
         check("ls lists rows.jsonl on structured connector",
               any(e["name"] == "rows.jsonl" for e in entries))
     finally:

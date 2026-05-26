@@ -125,6 +125,7 @@ class Engine:
         self.converter = CachingConverterClient(cfg, self.tx_cache)
         self.vlm = CachingVlmClient(cfg, self.tx_cache)
         self.summary = CachingSummaryClient(cfg, self.tx_cache)
+        self._artifact_writes = 0      # throttles LRU eviction sweeps (design/02 §10.2)
 
     async def startup(self) -> None:
         load_builtin()
@@ -208,6 +209,11 @@ class Engine:
         standalone worker (design/02 §5) to pick up via run_worker_*()."""
         import json
         _, connector_uri, ctype, default_config = self._resolve_target(target)
+        # --since requires a time cursor; reject early on connectors without one (errors.md)
+        if since:
+            cls = get_plugin_cls(ctype)
+            if cls is not None and not getattr(cls.CAPABILITIES, "cursor_kind", None):
+                raise ValueError("since_unsupported")
         cfg_dict = config if config is not None else default_config
         cid = await self.register_or_get_connector(connector_uri, ctype, cfg_dict)
         row0 = await self.meta.fetchone("SELECT config_json FROM connectors WHERE id=?", (cid,))
@@ -319,17 +325,19 @@ class Engine:
         return True
 
     async def _claim_queued_job(self) -> dict | None:
-        """Atomically claim the oldest queued job (best-effort; single-worker safe,
-        partial unique index guards one-running-per-connector)."""
-        row = await self.meta.fetchone(
-            "SELECT * FROM connector_jobs WHERE status='queued' ORDER BY started_at LIMIT 1")
-        if not row:
-            return None
-        await self.meta.execute(
-            "UPDATE connector_jobs SET status='running', heartbeat=? WHERE id=? AND status='queued'",
-            (_now(), row["id"]))
-        chk = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (row["id"],))
-        return row if (chk and chk["status"] == "running") else None
+        """Atomically claim the oldest queued job. Multi-worker safe: the claim is a
+        conditional UPDATE guarded on status='queued', and we take the job only when
+        *this* worker's UPDATE flipped the row (rowcount == 1). Two workers racing the
+        same job -> only one's UPDATE matches; the loser tries the next candidate."""
+        candidates = await self.meta.fetchall(
+            "SELECT * FROM connector_jobs WHERE status='queued' ORDER BY started_at LIMIT 8")
+        for row in candidates:
+            won = await self.meta.execute_rowcount(
+                "UPDATE connector_jobs SET status='running', heartbeat=? WHERE id=? AND status='queued'",
+                (_now(), row["id"]))
+            if won == 1:
+                return row
+        return None
 
     async def run_worker_once(self) -> str | None:
         """Claim + process one queued job. Returns its id, or None if queue empty."""
@@ -359,14 +367,20 @@ class Engine:
                 await asyncio.sleep(poll_interval)
 
     async def _claim_batch(self, job_id: str, limit: int) -> list[dict]:
+        """Claim up to `limit` pending tasks. Each is taken with a conditional UPDATE
+        guarded on status='pending'; only rows this worker actually flipped (rowcount
+        == 1) are returned, so concurrent workers never double-process a task."""
         rows = await self.meta.fetchall(
             "SELECT * FROM object_tasks WHERE connector_job_id=? AND status='pending' "
             "ORDER BY priority ASC, started_at ASC LIMIT ?", (job_id, limit))
+        claimed = []
         for r in rows:
-            await self.meta.execute(
-                "UPDATE object_tasks SET status='running', started_at=?, attempts=attempts+1 WHERE id=?",
-                (_now(), r["id"]))
-        return rows
+            won = await self.meta.execute_rowcount(
+                "UPDATE object_tasks SET status='running', started_at=?, attempts=attempts+1 "
+                "WHERE id=? AND status='pending'", (_now(), r["id"]))
+            if won == 1:
+                claimed.append(r)
+        return claimed
 
     @staticmethod
     def _classify_error(e: Exception) -> str:
@@ -447,6 +461,63 @@ class Engine:
             buf += chunk
         return bytes(buf)
 
+    # --- artifact cache (design/02 §10.2): bytes in the object store + a metadata row
+    #     in artifact_cache, with LRU size eviction ---
+    async def _put_artifact(self, ns: str, object_uri: str, kind: str, data: bytes) -> str:
+        """Store artifact bytes and record/refresh its artifact_cache row (size +
+        timestamps), then run a throttled LRU sweep so the cache stays under budget."""
+        path = await asyncio.to_thread(self.object_store.put_artifact, ns, object_uri, kind, data)
+        now = _now()
+        await self.meta.execute(
+            "INSERT INTO artifact_cache (namespace_id, object_uri, artifact_kind, storage_path, "
+            " size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?) "
+            "ON CONFLICT(namespace_id, object_uri, artifact_kind) DO UPDATE SET "
+            " storage_path=excluded.storage_path, size_bytes=excluded.size_bytes, "
+            " built_at=excluded.built_at, last_accessed=excluded.last_accessed",
+            (ns, object_uri, kind, str(path), len(data), now, now))
+        self._artifact_writes += 1
+        if self._artifact_writes % 16 == 0:
+            await self._evict_artifacts_if_needed(ns)
+        return path
+
+    async def _read_artifact(self, ns: str, object_uri: str, kind: str) -> bytes | None:
+        """Fetch artifact bytes and bump last_accessed (LRU recency) when present."""
+        data = await asyncio.to_thread(self.object_store.get_artifact, ns, object_uri, kind)
+        if data is not None:
+            await self.meta.execute(
+                "UPDATE artifact_cache SET last_accessed=? "
+                "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
+                (_now(), ns, object_uri, kind))
+        return data
+
+    async def _evict_artifacts_if_needed(self, ns: str) -> int:
+        """Evict least-recently-accessed artifacts until total bytes fall under
+        artifact_cache.max_size_gb. Returns the number evicted."""
+        max_bytes = int(self.cfg.artifact_cache.max_size_gb * (1 << 30))
+        row = await self.meta.fetchone(
+            "SELECT sum(size_bytes) AS total FROM artifact_cache WHERE namespace_id=?", (ns,))
+        total = (row and row["total"]) or 0
+        if total <= max_bytes:
+            return 0
+        victims = await self.meta.fetchall(
+            "SELECT object_uri, artifact_kind, size_bytes FROM artifact_cache "
+            "WHERE namespace_id=? ORDER BY last_accessed ASC", (ns,))
+        evicted = 0
+        for v in victims:
+            if total <= max_bytes:
+                break
+            try:
+                await asyncio.to_thread(self.object_store.delete_artifact, ns,
+                                        v["object_uri"], v["artifact_kind"])
+            except Exception:  # noqa: BLE001
+                pass
+            await self.meta.execute(
+                "DELETE FROM artifact_cache WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
+                (ns, v["object_uri"], v["artifact_kind"]))
+            total -= v["size_bytes"] or 0
+            evicted += 1
+        return evicted
+
     async def _index_object(self, plugin, connector_uri: str, task: dict) -> None:
         """Real chunk/embed/Milvus (design/04 §2 ⑤). document/code -> body chunks;
         other kinds carry no chunks in Phase 3 (image VLM / pdf converter -> Phase 6).
@@ -516,13 +587,11 @@ class Engine:
             if okind == "document" and ext in CONVERT_EXTS:
                 raw = await self._read_bytes(plugin, relpath)
                 text = await self.converter.convert(raw, ext)
-                await asyncio.to_thread(self.object_store.put_artifact, ns, full_uri,
-                                        "converted_md", text.encode())
+                await self._put_artifact(ns, full_uri, "converted_md", text.encode())
             else:
                 text = await self._read_text(plugin, relpath)
                 if connector_uri.startswith(("web://", "github://")):
-                    await asyncio.to_thread(self.object_store.put_artifact, ns, full_uri,
-                                            "converted_md", text.encode())
+                    await self._put_artifact(ns, full_uri, "converted_md", text.encode())
             ocfg = plugin.ctx.object_config_for(relpath)
             pairs = chunk_body(text, okind, ext, self.cfg.chunk.chunk_size)
             chunk_max = ocfg.chunk_max
@@ -561,7 +630,7 @@ class Engine:
             ext = os.path.splitext(relpath)[1].lower()
             raw = await self._read_bytes(plugin, relpath)
             desc = await self.vlm.describe(raw, ext)
-            await asyncio.to_thread(self.object_store.put_artifact, ns, full_uri, "vlm_text", desc.encode())
+            await self._put_artifact(ns, full_uri, "vlm_text", desc.encode())
             if desc.strip():
                 vec = (await self.embed.batch_embed([desc]))[0]
                 row = {
@@ -651,8 +720,7 @@ class Engine:
                         partial = True
                         break
                 if head_buf:        # pre-cache first rows so `head` is fast without re-querying
-                    await asyncio.to_thread(self.object_store.put_artifact, ns, full_uri,
-                                            "head_cache", ("\n".join(head_buf)).encode())
+                    await self._put_artifact(ns, full_uri, "head_cache", ("\n".join(head_buf)).encode())
                 if pairs:
                     vecs = await self.embed.batch_embed([p[0] for p in pairs])
                     now_ms = int(time.time() * 1000)
@@ -811,11 +879,13 @@ class Engine:
         objs = await self.meta.fetchall("SELECT object_uri FROM objects WHERE connector_id=?", (cid,))
         for o in objs:
             full = connector_uri + o["object_uri"]
-            for kind in ("converted_md", "vlm_text"):
+            for kind in ("converted_md", "vlm_text", "head_cache"):
                 try:
                     await asyncio.to_thread(self.object_store.delete_artifact, self.ns, full, kind)
                 except Exception:  # noqa: BLE001
                     pass
+            await self.meta.execute(
+                "DELETE FROM artifact_cache WHERE namespace_id=? AND object_uri=?", (self.ns, full))
         # 3. metadata rows
         for tbl, col in (("object_tasks", "connector_id"), ("connector_jobs", "connector_id"),
                          ("objects", "connector_id"), ("connector_state", "connector_id"),
@@ -875,14 +945,29 @@ class Engine:
         await plugin.connect()
         return row["id"], row["root_uri"], rel, plugin
 
-    async def ls(self, path: str) -> list[dict]:
-        _, _, rel, plugin = await self._open_path(path)
+    async def ls(self, path: str) -> dict:
+        """List children, each enriched with its full path + index state from the
+        objects table, plus the connector's capabilities (design/03 §11 ls)."""
+        cid, curi, rel, plugin = await self._open_path(path)
         try:
             entries = await plugin.list(rel)
+            caps = plugin.CAPABILITIES.to_dict()
         finally:
             await plugin.close()
-        return [{"name": e.name, "type": e.type, "media_type": e.media_type, "size_hint": e.size_hint}
-                for e in entries]
+        out = []
+        base = rel.rstrip("/")
+        for e in entries:
+            child_rel = f"{base}/{e.name}" if base else "/" + e.name
+            row = await self.meta.fetchone(
+                "SELECT search_status, indexable FROM objects WHERE connector_id=? AND object_uri=?",
+                (cid, child_rel))
+            out.append({
+                "name": e.name, "type": e.type, "media_type": e.media_type, "size_hint": e.size_hint,
+                "path": curi + child_rel,
+                "search_status": row["search_status"] if row else None,
+                "indexable": (bool(row["indexable"]) if row and row["indexable"] is not None else None),
+            })
+        return {"entries": out, "capabilities": caps}
 
     @staticmethod
     def _locator_matches(rec: dict, ocfg, idx: int, locator: dict) -> bool:
@@ -939,13 +1024,11 @@ class Engine:
             ext = os.path.splitext(rel)[1].lower()
             text: str | None = None
             if ext in CONVERT_EXTS:        # pdf/docx/html etc. -> return converted markdown
-                art = await asyncio.to_thread(self.object_store.get_artifact, self.ns,
-                                              curi + rel, "converted_md")
+                art = await self._read_artifact(self.ns, curi + rel, "converted_md")
                 if art is not None:
                     text = art.decode("utf-8", errors="replace")
             if text is None:
-                art_vlm = await asyncio.to_thread(self.object_store.get_artifact, self.ns,
-                                                  curi + rel, "vlm_text")
+                art_vlm = await self._read_artifact(self.ns, curi + rel, "vlm_text")
                 if art_vlm is not None:    # image -> VLM description
                     return art_vlm.decode("utf-8", errors="replace")
             if text is None:
@@ -969,8 +1052,7 @@ class Engine:
             _, curi, rel, plugin = await self._open_path(path)
             try:
                 if plugin.object_kind_of(rel) in ("table_rows", "record_collection", "message_stream"):
-                    art = await asyncio.to_thread(self.object_store.get_artifact, self.ns,
-                                                  curi + rel, "head_cache")
+                    art = await self._read_artifact(self.ns, curi + rel, "head_cache")
                     if art is not None:
                         return "\n".join(art.decode("utf-8", errors="replace").splitlines()[:n])
             finally:

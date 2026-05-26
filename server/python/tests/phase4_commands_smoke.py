@@ -48,7 +48,7 @@ async def main():
         await eng.add(root)
 
         # ls
-        ls = await eng.ls(root)
+        ls = (await eng.ls(root))["entries"]
         names = {e["name"] for e in ls}
         check("ls lists auth.md/src/events.log", {"auth.md", "src", "events.log"} <= names)
 

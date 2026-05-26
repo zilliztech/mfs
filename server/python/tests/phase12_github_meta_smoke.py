@@ -54,7 +54,7 @@ async def main():
               len(diffs) >= 1 and any(d["chunk_count"] >= 1 for d in diffs))
 
         # ls the _meta subtree via the generalized browse path
-        entries = await eng.ls("github://hello/_meta")
+        entries = (await eng.ls("github://hello/_meta"))["entries"]
         names = {e["name"] for e in entries}
         check("ls _meta shows issues/pulls", {"issues.jsonl", "pulls.jsonl"} <= names)
 

@@ -104,13 +104,34 @@ class PostgresPlugin(ConnectorPlugin):
                     "WHERE table_schema=$1 AND table_name=$2 ORDER BY ordinal_position", parts[0], parts[1])
             yield {"schema": parts[0], "table": parts[1], "columns": [dict(x) for x in cols]}
 
+    async def _cursor_col(self, schema: str, table: str) -> Optional[str]:
+        """Pick the table's change-cursor column: the configured `cursor_column`, else
+        the first of a few common timestamp names actually present. Used to strengthen
+        the fingerprint so a row UPDATE (same count) is still detected."""
+        async with self._pool.acquire() as c:
+            rows = await c.fetch(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema=$1 AND table_name=$2", schema, table)
+        names = {r["column_name"].lower(): r["column_name"] for r in rows}
+        configured = self._cfg("cursor_column")
+        if configured and configured.lower() in names:
+            return names[configured.lower()]
+        for cand in ("updated_at", "modified_at", "last_modified", "updated", "modified", "mtime"):
+            if cand in names:
+                return names[cand]
+        return None
+
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
         if len(parts) == 3 and parts[2] == "rows.jsonl":
             schema, table = safe_ident(parts[0]), safe_ident(parts[1])
+            cur_col = await self._cursor_col(parts[0], parts[1])
             async with self._pool.acquire() as c:
                 cnt = await c.fetchval(f'SELECT count(*) FROM "{schema}"."{table}"')
-            return f"count:{cnt}"
+                mx = await c.fetchval(
+                    f'SELECT max("{safe_ident(cur_col)}") FROM "{schema}"."{table}"') if cur_col else None
+            # count alone misses in-place updates; max(cursor) catches content changes too
+            return f"count:{cnt}|{cur_col}:{mx}" if cur_col else f"count:{cnt}"
         return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
