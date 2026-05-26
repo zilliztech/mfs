@@ -68,6 +68,48 @@
         }
       }
     },
+    "/v1/jobs/{job_id}/cancel": {
+      "post": {
+        "tags": [
+          "ingest"
+        ],
+        "summary": "Cancel Job",
+        "operationId": "cancelJob",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/search": {
       "get": {
         "tags": [
@@ -407,6 +449,12 @@
             ],
             "title": "Since",
             "description": "only index changes since this cursor/date"
+          },
+          "process": {
+            "type": "boolean",
+            "title": "Process",
+            "description": "True: index inline now; False: enqueue for a worker",
+            "default": true
           }
         },
         "type": "object",
@@ -428,6 +476,24 @@
           "job_id"
         ],
         "title": "AddResponse"
+      },
+      "CancelResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "cancelled": {
+            "type": "boolean",
+            "title": "Cancelled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "cancelled"
+        ],
+        "title": "CancelResponse"
       },
       "CatResponse": {
         "properties": {

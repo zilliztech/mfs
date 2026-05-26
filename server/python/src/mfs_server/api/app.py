@@ -12,8 +12,8 @@ from fastapi import FastAPI, HTTPException
 from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
 from .models import (
-    AddRequest, AddResponse, CatMeta, CatResponse, GrepResponse, JobResponse,
-    LsResponse, SearchResponse, ServerInfo, StatusResponse,
+    AddRequest, AddResponse, CancelResponse, CatMeta, CatResponse, GrepResponse,
+    JobResponse, LsResponse, SearchResponse, ServerInfo, StatusResponse,
 )
 
 
@@ -43,8 +43,14 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.post("/v1/add", response_model=AddResponse, operation_id="addSource", tags=["ingest"])
     async def add(body: AddRequest) -> AddResponse:
-        job_id = await eng().add(body.target, full=body.full, since=body.since)
+        job_id = await eng().add(body.target, full=body.full, since=body.since, process=body.process)
         return AddResponse(job_id=job_id)
+
+    @app.post("/v1/jobs/{job_id}/cancel", response_model=CancelResponse,
+              operation_id="cancelJob", tags=["ingest"])
+    async def cancel_job(job_id: str) -> CancelResponse:
+        ok = await eng().cancel_job(job_id)
+        return CancelResponse(job_id=job_id, cancelled=ok)
 
     @app.get("/v1/search", response_model=SearchResponse, operation_id="search", tags=["retrieval"])
     async def search(q: str, path: str | None = None, mode: str = "hybrid",

@@ -37,13 +37,44 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "worker":
-        # Phase 5: standalone worker polling the DB queue. v0.4 Phase 4 processes tasks
-        # inline within `add`, so a separate worker is not yet required.
-        print("standalone worker not yet implemented (tasks processed inline in `add` for now)")
+        # Standalone worker: poll the DB queue and process queued jobs (design/02 §5).
+        # Use with `mfs add --no-process` / API enqueue so ingestion runs out-of-band.
+        import asyncio
+
+        from ..config import load_server_config
+        from ..engine.engine import Engine
+
+        cfg = load_server_config(args.config)
+        eng = Engine(cfg)
+
+        async def run() -> None:
+            await eng.startup()
+            print(f"mfs-server worker: polling queue (metadata={cfg.metadata.backend}, "
+                  f"concurrency={args.concurrency})", flush=True)
+            try:
+                await eng.run_worker_forever()
+            finally:
+                await eng.shutdown()
+
+        try:
+            asyncio.run(run())
+        except KeyboardInterrupt:
+            print("worker stopped")
         return 0
 
     if args.cmd == "reload":
-        print("reload not yet implemented; restart the process to apply server.toml changes")
+        # Validate server.toml and report the resolved backends. (Hot-reload of a
+        # running process needs a control socket; restart to apply — design/10 §7.)
+        from ..config import load_server_config
+
+        try:
+            cfg = load_server_config(args.config)
+        except Exception as e:  # noqa: BLE001
+            print(f"config invalid: {e}")
+            return 1
+        print(f"config OK — milvus={'lite' if not cfg.milvus.uri.startswith('http') else 'remote'}, "
+              f"metadata={cfg.metadata.backend}, object_store={cfg.object_store.backend}. "
+              "Restart the server process to apply changes.")
         return 0
 
     return 1

@@ -140,7 +140,10 @@ class Engine:
 
     # --- add (register + sync + worker) ---
     async def add(self, target: str, config: dict | None = None, full: bool = False,
-                  since: str | None = None) -> str:
+                  since: str | None = None, process: bool = True) -> str:
+        """Register + sync + enqueue tasks. process=True (AIO default): run the job
+        inline and return when done. process=False: leave the job 'queued' for a
+        standalone worker (design/02 §5) to pick up via run_worker_*()."""
         import json
         _, connector_uri, ctype, default_config = self._resolve_target(target)
         cfg_dict = config if config is not None else default_config
@@ -152,7 +155,7 @@ class Engine:
         await self.meta.execute(
             "INSERT INTO connector_jobs (id, namespace_id, connector_id, op_kind, trigger, status, "
             " started_at, heartbeat) VALUES (?,?,?,?,?,?,?,?)",
-            (job_id, self.ns, cid, "sync", "manual", "running", _now(), _now()))
+            (job_id, self.ns, cid, "sync", "manual", "running" if process else "queued", _now(), _now()))
 
         # job inheritance: take over this connector's leftover pending/failed tasks (design/02 §7.1)
         await self.meta.execute(
@@ -171,23 +174,88 @@ class Engine:
                     "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
                     " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
                     (tid, job_id, cid, ch.uri, ch.old_uri, ch.kind, "pending", plugin.task_priority(ch)))
-
-            aborted = await self._run_job(job_id, cid, connector_uri, plugin)
             await ctx.state.commit()
+            if not process:
+                return job_id        # leave queued for a worker
+            aborted = await self._run_job(job_id, cid, connector_uri, plugin)
         finally:
             await plugin.close()
 
-        # finalize job counts
+        await self._finalize_job(job_id, aborted)
+        return job_id
+
+    async def _finalize_job(self, job_id: str, aborted: str | None) -> None:
+        """Set terminal job status + per-status object counts (design/02 §7)."""
         counts = await self.meta.fetchall(
             "SELECT status, count(*) AS n FROM object_tasks WHERE connector_job_id=? GROUP BY status", (job_id,))
         cmap = {r["status"]: r["n"] for r in counts}
+        jrow = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (job_id,))
+        if jrow and jrow["status"] == "cancelled":
+            status = "cancelled"
+        elif aborted:
+            status = "failed"
+        else:
+            status = "succeeded"
         await self.meta.execute(
             "UPDATE connector_jobs SET status=?, finished_at=?, error=?, "
             " total_objects=?, succeeded_objects=?, failed_objects=?, cancelled_objects=? WHERE id=?",
-            ("failed" if aborted else "succeeded", _now(), aborted,
+            (status, _now(), aborted,
              sum(cmap.values()), cmap.get("succeeded", 0), cmap.get("failed", 0),
              cmap.get("cancelled", 0), job_id))
-        return job_id
+
+    # --- standalone worker (design/02 §5): poll DB queue, process queued jobs ---
+    async def cancel_job(self, job_id: str) -> bool:
+        """Cancel a job: mark it + its pending/running tasks cancelled. A running
+        worker stops at the next per-object boundary (checked in _run_job)."""
+        row = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (job_id,))
+        if not row or row["status"] in ("succeeded", "failed", "cancelled"):
+            return False
+        await self.meta.execute(
+            "UPDATE object_tasks SET status='cancelled' "
+            "WHERE connector_job_id=? AND status IN ('pending','running')", (job_id,))
+        await self.meta.execute(
+            "UPDATE connector_jobs SET status='cancelled', finished_at=? WHERE id=?", (_now(), job_id))
+        return True
+
+    async def _claim_queued_job(self) -> dict | None:
+        """Atomically claim the oldest queued job (best-effort; single-worker safe,
+        partial unique index guards one-running-per-connector)."""
+        row = await self.meta.fetchone(
+            "SELECT * FROM connector_jobs WHERE status='queued' ORDER BY started_at LIMIT 1")
+        if not row:
+            return None
+        await self.meta.execute(
+            "UPDATE connector_jobs SET status='running', heartbeat=? WHERE id=? AND status='queued'",
+            (_now(), row["id"]))
+        chk = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (row["id"],))
+        return row if (chk and chk["status"] == "running") else None
+
+    async def run_worker_once(self) -> str | None:
+        """Claim + process one queued job. Returns its id, or None if queue empty."""
+        import json
+        job = await self._claim_queued_job()
+        if not job:
+            return None
+        cid = job["connector_id"]
+        crow = await self.meta.fetchone("SELECT root_uri, type, config_json FROM connectors WHERE id=?", (cid,))
+        connector_uri, ctype = crow["root_uri"], crow["type"]
+        stored_cfg = json.loads(crow["config_json"]) if crow["config_json"] else {}
+        plugin, _ = self._build_plugin(ctype, stored_cfg, cid)
+        await plugin.connect()
+        aborted: str | None = None
+        try:
+            aborted = await self._run_job(job["id"], cid, connector_uri, plugin)
+        finally:
+            await plugin.close()
+        await self._finalize_job(job["id"], aborted)
+        return job["id"]
+
+    async def run_worker_forever(self, poll_interval: float = 1.0) -> None:
+        """Daemon loop: drain the queued-job queue, sleep when idle."""
+        while True:
+            jid = await self.run_worker_once()
+            if jid is None:
+                await asyncio.sleep(poll_interval)
 
     async def _claim_batch(self, job_id: str, limit: int) -> list[dict]:
         rows = await self.meta.fetchall(
@@ -243,6 +311,10 @@ class Engine:
         threshold = self.cfg.worker.consecutive_fatal_threshold
         consec_fatal = 0
         while True:
+            # per-object cancel boundary: stop if the job was cancelled externally
+            jrow = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (job_id,))
+            if jrow and jrow["status"] == "cancelled":
+                return "cancelled"
             tasks = await self._claim_batch(job_id, limit=64)
             if not tasks:
                 break
