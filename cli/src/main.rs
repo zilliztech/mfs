@@ -23,6 +23,9 @@ enum Cmd {
     /// Register + sync a path or connector URI
     Add {
         target: String,
+        /// Connector config TOML (schemas, [[objects]], _credential_ref, ...)
+        #[arg(long)]
+        config: Option<String>,
         /// Force full re-index
         #[arg(long)]
         full: bool,
@@ -117,15 +120,27 @@ enum JobAction {
 #[derive(Subcommand)]
 enum ConnectorAction {
     /// Register + sync a connector (alias: `mfs add`)
-    Add { target: String },
+    Add {
+        target: String,
+        #[arg(long)]
+        config: Option<String>,
+    },
     /// Try-connect a connector without registering
-    Probe { target: String },
+    Probe {
+        target: String,
+        #[arg(long)]
+        config: Option<String>,
+    },
     /// List registered connectors
     List,
     /// Show a connector's objects/jobs summary
     Inspect { target: String },
     /// Re-sync a connector (alias: `mfs add <uri>`)
-    Update { target: String },
+    Update {
+        target: String,
+        #[arg(long)]
+        config: Option<String>,
+    },
     /// Remove a connector and everything it owns
     Remove { target: String },
 }
@@ -216,8 +231,9 @@ fn main() {
 
 fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), String> {
     match &cli.cmd {
-        Cmd::Add { target, full, no_process } => {
-            let body = serde_json::json!({"target": target, "full": full, "process": !no_process});
+        Cmd::Add { target, config, full, no_process } => {
+            let mut body = serde_json::json!({"target": target, "full": full, "process": !no_process});
+            if let Some(c) = config { body["config"] = load_config_file(c)?; }
             let v = post(client, &format!("{base}/v1/add"), &body)?;
             if cli.json { println!("{v}"); } else { println!("job: {}", v["job_id"].as_str().unwrap_or("?")); }
         }
@@ -293,12 +309,16 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             }
         },
         Cmd::Connector { action } => match action {
-            ConnectorAction::Add { target } | ConnectorAction::Update { target } => {
-                let v = post(client, &format!("{base}/v1/add"), &serde_json::json!({"target": target}))?;
+            ConnectorAction::Add { target, config } | ConnectorAction::Update { target, config } => {
+                let mut body = serde_json::json!({"target": target});
+                if let Some(c) = config { body["config"] = load_config_file(c)?; }
+                let v = post(client, &format!("{base}/v1/add"), &body)?;
                 println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
             }
-            ConnectorAction::Probe { target } => {
-                let v = post(client, &format!("{base}/v1/connectors/probe"), &serde_json::json!({"target": target}))?;
+            ConnectorAction::Probe { target, config } => {
+                let mut body = serde_json::json!({"target": target});
+                if let Some(c) = config { body["config"] = load_config_file(c)?; }
+                let v = post(client, &format!("{base}/v1/connectors/probe"), &body)?;
                 println!("{}  ok={}  {}", v["type"].as_str().unwrap_or("?"),
                          v["ok"].as_bool().unwrap_or(false), v["detail"].as_str().unwrap_or(""));
             }
@@ -321,6 +341,13 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
         Cmd::Serve { action } => return serve_cmd(action),
     }
     Ok(())
+}
+
+/// Load a connector config TOML file and convert it to a JSON value for the /v1/add body.
+fn load_config_file(path: &str) -> Result<Value, String> {
+    let text = std::fs::read_to_string(path).map_err(|e| format!("read {path}: {e}"))?;
+    let toml_val: toml::Value = toml::from_str(&text).map_err(|e| format!("parse {path}: {e}"))?;
+    serde_json::to_value(toml_val).map_err(|e| e.to_string())
 }
 
 fn remove_connector(client: &reqwest::blocking::Client, base: &str, target: &str) -> Result<(), String> {
@@ -461,7 +488,11 @@ fn parse(resp: reqwest::blocking::Response) -> Result<Value, String> {
     let status = resp.status();
     let v: Value = resp.json().map_err(|e| e.to_string())?;
     if !status.is_success() {
-        return Err(format!("{}: {}", status, v.get("detail").and_then(|d| d.as_str()).unwrap_or("request failed")));
+        // surface the stable error `code` (errors.md) alongside the human detail
+        let code = v.get("code").and_then(|c| c.as_str()).unwrap_or("");
+        let detail = v.get("detail").and_then(|d| d.as_str()).unwrap_or("request failed");
+        return Err(if code.is_empty() { format!("{status}: {detail}") }
+                   else { format!("{status} [{code}]: {detail}") });
     }
     Ok(v)
 }

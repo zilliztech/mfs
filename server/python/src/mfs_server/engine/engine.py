@@ -82,8 +82,21 @@ def _density_view(text: str, ext: str, density: str) -> str:
     return "\n".join(out)
 
 
+class _SafeDict(dict):
+    """format_map() helper: render unknown {field} placeholders as empty, not KeyError."""
+    def __missing__(self, key):  # noqa: D401
+        return ""
+
+
 def _render_record(rec: dict, text_fields: list[str], template: str | None = None) -> str:
-    """Join configured text_fields into chunk content (design/06 §4 default template)."""
+    """Render a record into chunk content (design/06 §4). With a text_template, do
+    `{field}` substitution from the record (missing fields -> empty); otherwise join
+    the configured text_fields with the default template."""
+    if template:
+        try:
+            return template.format_map(_SafeDict(rec))
+        except Exception:  # noqa: BLE001 - malformed template -> fall back to default join
+            pass
     parts = []
     for f in text_fields:
         if "[]" in f or "[*]" in f:          # array field: comments[].body etc.
@@ -155,21 +168,36 @@ class Engine:
             (cid, self.ns, connector_uri, ctype, "active", json.dumps(config), _now()))
         return cid
 
+    @staticmethod
+    def _resolve_ref(v):
+        """Resolve an `env:VAR` reference to its environment value (design/07 credential
+        ref). Non-ref values pass through unchanged."""
+        if isinstance(v, str) and v.startswith("env:"):
+            return os.environ.get(v[4:], "")
+        return v
+
     def _build_plugin(self, ctype: str, config: dict, connector_id: str):
         cls = get_plugin_cls(ctype)
         if cls is None:
             raise NotImplementedError(f"no plugin for {ctype}")
-        state = ConnectorStateStore(self.meta, connector_id)
+        # Resolve credential references at build time so secrets live in the environment,
+        # not in connectors.config_json (design/07). The stored config keeps the `env:VAR`
+        # ref / `_credential_ref`; only this in-memory copy carries resolved values.
+        credential = None
+        if isinstance(config, dict):
+            config = {k: self._resolve_ref(v) for k, v in config.items()}
+            credential = config.pop("_credential_ref", None)
         objects_cfg = config.get("objects", []) if isinstance(config, dict) else []
+        state = ConnectorStateStore(self.meta, connector_id)
         ctx = ConnectorContext(state, connector_id, self.ns,
                                object_config_resolver=lambda p: _match_object_config(objects_cfg, p))
         if ctype == "file":
             from ..connectors.file.plugin import FileConfig
             plugin = cls(FileConfig(root=config["root"], client_id=config.get("client_id", "local")),
-                         None, ctx=ctx)
+                         credential, ctx=ctx)
             plugin.file_state = FileStateStore(self.meta, self.ns, connector_id)
         else:
-            plugin = cls(config, None, ctx=ctx)
+            plugin = cls(config, credential, ctx=ctx)
         return plugin, ctx
 
     # --- add (register + sync + worker) ---
@@ -213,13 +241,21 @@ class Engine:
                     "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
                     " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
                     (tid, job_id, cid, ch.uri, ch.old_uri, ch.kind, "pending", plugin.task_priority(ch)))
-            await ctx.state.commit()
             if not process:
-                return job_id        # leave queued for a worker
+                # enqueue model: a standalone worker (separate process) won't re-run
+                # sync, so the enumerated cursor must persist now. Work isn't lost on a
+                # later failure — tasks are durable and job inheritance retries them.
+                await ctx.state.commit()
+                return job_id
             aborted = await self._run_job(job_id, cid, connector_uri, plugin)
         finally:
             await plugin.close()
 
+        # commit connector cursor/state only after the inline job actually succeeded
+        # (design/02 §7 ③): a mid-pipeline failure (embed/Milvus) must not advance the
+        # cursor past objects that never got indexed.
+        if aborted is None:
+            await ctx.state.commit()
         await self._finalize_job(job_id, aborted)
         return job_id
 
@@ -467,9 +503,15 @@ class Engine:
         okind = plugin.object_kind_of(relpath)
         chunk_count = 0
         search_status = "not_indexed"
-        indexable = okind not in ("binary",)
+        top_cfg = plugin.ctx.object_config_for(relpath)
+        # `indexable` is binary-vs-not by object_kind, AND can be opted out per
+        # [[objects]] config (design/06 §4 indexable=false): record the object so it
+        # shows in ls/inspect, but skip all chunk/embed/Milvus work.
+        indexable = okind not in ("binary",) and top_cfg.indexable
 
-        if okind in ("document", "code"):
+        if not indexable:
+            pass        # binary / opted-out: metadata-only, no chunk/embed (gated below)
+        elif okind in ("document", "code"):
             ext = os.path.splitext(relpath)[1].lower()
             if okind == "document" and ext in CONVERT_EXTS:
                 raw = await self._read_bytes(plugin, relpath)
@@ -587,7 +629,7 @@ class Engine:
                 if ocfg.index_filter:
                     from ..common.filter_ast import compile_filter
                     predicate = compile_filter(ocfg.index_filter)   # restricted AST, not eval
-                pairs: list[tuple[str, dict | None]] = []
+                pairs: list[tuple[str, dict | None, dict]] = []
                 head_buf: list[str] = []        # first N raw records -> head_cache artifact
                 partial = False
                 i = 0
@@ -600,7 +642,10 @@ class Engine:
                     text = _render_record(rec, ocfg.text_fields, ocfg.text_template)
                     if text.strip():
                         loc = {f: rec.get(f) for f in ocfg.locator_fields} if ocfg.locator_fields else {"_row": i}
-                        pairs.append((text, loc))
+                        # carry configured metadata_fields onto the chunk so search hits
+                        # surface them in metadata.fields (design/06 §4 metadata_fields)
+                        meta = {f: rec.get(f) for f in ocfg.metadata_fields} if ocfg.metadata_fields else {}
+                        pairs.append((text, loc, meta))
                     i += 1
                     if len(pairs) >= ocfg.chunk_max:
                         partial = True
@@ -615,8 +660,8 @@ class Engine:
                         "chunk_id": chunk_id(ns, connector_uri, full_uri, "row_text", loc, None),
                         "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
                         "locator": loc, "lines": None, "content": ctext[:65000], "dense_vec": vec,
-                        "chunk_kind": "row_text", "metadata": {}, "indexed_at": now_ms,
-                    } for (ctext, loc), vec in zip(pairs, vecs)]
+                        "chunk_kind": "row_text", "metadata": meta, "indexed_at": now_ms,
+                    } for (ctext, loc, meta), vec in zip(pairs, vecs)]
                     await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
                     await asyncio.to_thread(self.milvus.upsert, ns, rows)
                     chunk_count = len(rows)
@@ -694,10 +739,22 @@ class Engine:
         envs = [to_envelope(h) for h in hits]
         return collapse_by_object(envs) if collapse else envs
 
-    def resolve_connector_uri(self, target: str) -> tuple[str, str | None]:
-        """Map a user path/URI to (connector_uri, object_prefix) for search/grep scope."""
-        _, connector_uri, _, _ = self._resolve_target(target)
-        return connector_uri, None
+    async def resolve_connector_uri(self, target: str) -> tuple[str, str | None]:
+        """Map a user path/URI to (connector_uri, object_prefix) for search/grep scope.
+        Matches the registered connector whose root is the longest prefix of `target`,
+        so `search q /repo/src` (after `add /repo`) scopes to the /src subtree instead
+        of fabricating a brand-new connector_uri that would match no indexed chunks."""
+        match = await self._match_connector(target)
+        if match is None:
+            # not under any registered connector: fall back to literal resolution so an
+            # exact connector root still scopes correctly (object_prefix unknown -> None).
+            _, connector_uri, _, _ = self._resolve_target(target)
+            return connector_uri, None
+        row, rel = match
+        connector_uri = row["root_uri"]
+        # stored chunk object_uri == connector_uri + relpath, so prefix on the full URI
+        object_prefix = (connector_uri + rel) if rel not in ("", "/") else None
+        return connector_uri, object_prefix
 
     # --- connector management (design/03 §3: probe / inspect / remove) ---
     async def probe(self, target: str, config: dict | None = None) -> dict:
@@ -768,16 +825,15 @@ class Engine:
         return True
 
     # --- read commands (design/05) — any connector ---
-    async def _open_path(self, path: str):
-        """(connector_id, connector_uri, relpath, plugin) for the registered connector
-        whose root is the longest prefix of `path`. Handles both local file paths
-        (file connector) and scheme URIs (postgres://, github://, ...)."""
-        import json
+    async def _match_connector(self, path: str) -> tuple[dict, str] | None:
+        """Find the registered connector whose root is the longest prefix of `path`;
+        return (connector_row, relpath) or None. Shared by _open_path (read commands)
+        and resolve_connector_uri (search/grep scope). Handles local file paths (file
+        connector) and scheme URIs (postgres://, github://, ...)."""
+        rows = await self.meta.fetchall(
+            "SELECT * FROM connectors WHERE namespace_id=?", (self.ns,))
         m = _SCHEME_RE.match(path)
         if m and m.group(1) != "file":
-            # scheme URI -> match registered connector by root_uri prefix
-            rows = await self.meta.fetchall(
-                "SELECT * FROM connectors WHERE namespace_id=?", (self.ns,))
             best, best_root = None, ""
             for r in rows:
                 ru = r["root_uri"]
@@ -787,30 +843,37 @@ class Engine:
                     if len(ru) > len(best_root):
                         best, best_root = r, ru
             if best is None:
-                raise ValueError(f"path not under any registered connector: {path}")
+                return None
             rel = path[len(best_root):] or "/"
             if not rel.startswith("/"):
                 rel = "/" + rel
-            plugin, _ = self._build_plugin(best["type"], json.loads(best["config_json"]), best["id"])
-            await plugin.connect()
-            return best["id"], best["root_uri"], rel, plugin
+            return best, rel
         # local file path -> file connector whose root is the longest prefix
         abs_path = os.path.abspath(path)
-        rows = await self.meta.fetchall(
-            "SELECT * FROM connectors WHERE namespace_id=? AND type='file'", (self.ns,))
-        best = None
-        best_root = ""
+        best, best_root = None, ""
         for r in rows:
+            if r["type"] != "file":
+                continue
             root_abs = r["root_uri"].replace("file://local", "", 1)
             if abs_path == root_abs or abs_path.startswith(root_abs.rstrip("/") + "/"):
                 if len(root_abs) > len(best_root):
                     best, best_root = r, root_abs
         if best is None:
-            raise ValueError(f"path not under any registered connector: {path}")
+            return None
         rel = "/" if abs_path == best_root else "/" + os.path.relpath(abs_path, best_root)
-        plugin, _ = self._build_plugin("file", json.loads(best["config_json"]), best["id"])
+        return best, rel
+
+    async def _open_path(self, path: str):
+        """(connector_id, connector_uri, relpath, plugin) for the registered connector
+        whose root is the longest prefix of `path`."""
+        import json
+        match = await self._match_connector(path)
+        if match is None:
+            raise ValueError(f"path not under any registered connector: {path}")
+        row, rel = match
+        plugin, _ = self._build_plugin(row["type"], json.loads(row["config_json"]), row["id"])
         await plugin.connect()
-        return best["id"], best["root_uri"], rel, plugin
+        return row["id"], row["root_uri"], rel, plugin
 
     async def ls(self, path: str) -> list[dict]:
         _, _, rel, plugin = await self._open_path(path)

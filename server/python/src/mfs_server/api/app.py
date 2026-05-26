@@ -8,6 +8,8 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
@@ -16,6 +18,24 @@ from .models import (
     JobResponse, LsResponse, ProbeRequest, ProbeResponse, RemoveResponse,
     SearchResponse, ServerInfo, StatusResponse,
 )
+
+# Canonical error codes -> suggested next actions (protocol/errors.md). The endpoints
+# raise HTTPException with the canonical code as `detail` for these cases; the handler
+# below turns that into the stable {code, detail, suggestions} envelope SDKs switch on.
+_CODE_SUGGESTIONS = {
+    "object_too_large_for_cat": ["head", "cat --range", "export"],
+    "is_directory": ["ls", "tree"],
+    "range_unsupported": ["cat --meta", "export"],
+    "density_unsupported": ["head", "cat --range"],
+    "tail_unsupported": ["head", "cat --range"],
+    "locator_not_found": ["re-search; the record may have changed"],
+    "since_unsupported": ["drop --since"],
+    "connector_unhealthy": ["check credentials/connectivity"],
+    "not_found": ["check the URI"],
+}
+# HTTP status -> code when `detail` isn't already a canonical code (human strings).
+_STATUS_CODE = {400: "bad_request", 404: "not_found", 409: "conflict",
+                422: "validation_error", 502: "connector_unhealthy"}
 
 
 def create_app(cfg: ServerConfig | None = None) -> FastAPI:
@@ -34,6 +54,22 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     app = FastAPI(title="MFS", version="0.4.0", lifespan=lifespan,
                   description="Multi-source File-like Search — HTTP /v1 control plane.")
 
+    @app.exception_handler(HTTPException)
+    async def _http_exc(_request: Request, exc: HTTPException) -> JSONResponse:
+        """Wrap HTTPException into the {code, detail, suggestions} envelope (errors.md).
+        When `detail` is already a canonical code, surface it as `code`; otherwise derive
+        `code` from the HTTP status and keep the human string as `detail`."""
+        detail = exc.detail if isinstance(exc.detail, str) else "error"
+        code = detail if detail in _CODE_SUGGESTIONS else _STATUS_CODE.get(exc.status_code, "error")
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"code": code, "detail": detail, "suggestions": _CODE_SUGGESTIONS.get(code, [])})
+
+    @app.exception_handler(RequestValidationError)
+    async def _val_exc(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        return JSONResponse(status_code=422, content={
+            "code": "validation_error", "detail": str(exc), "suggestions": ["fix request shape"]})
+
     def eng() -> Engine:
         return app.state.engine
 
@@ -44,7 +80,8 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.post("/v1/add", response_model=AddResponse, operation_id="addSource", tags=["ingest"])
     async def add(body: AddRequest) -> AddResponse:
-        job_id = await eng().add(body.target, full=body.full, since=body.since, process=body.process)
+        job_id = await eng().add(body.target, config=body.config, full=body.full,
+                                 since=body.since, process=body.process)
         return AddResponse(job_id=job_id)
 
     @app.post("/v1/jobs/{job_id}/cancel", response_model=CancelResponse,
@@ -87,10 +124,11 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     async def search(q: str, path: str | None = None, mode: str = "hybrid",
                      top_k: int = 10, collapse: bool = False) -> SearchResponse:
         connector_uri = None
+        object_prefix = None
         if path:
-            connector_uri, _ = eng().resolve_connector_uri(path)
-        results = await eng().search(q, connector_uri=connector_uri, mode=mode,
-                                     top_k=top_k, collapse=collapse)
+            connector_uri, object_prefix = await eng().resolve_connector_uri(path)
+        results = await eng().search(q, connector_uri=connector_uri, object_prefix=object_prefix,
+                                     mode=mode, top_k=top_k, collapse=collapse)
         return SearchResponse(results=results)
 
     @app.get("/v1/grep", response_model=GrepResponse, operation_id="grep", tags=["retrieval"])

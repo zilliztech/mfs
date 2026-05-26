@@ -19,6 +19,9 @@ class ServerInfo(BaseModel):
 
 class AddRequest(BaseModel):
     target: str = Field(..., description="path or connector URI to register + index")
+    config: Optional[dict[str, Any]] = Field(
+        None, description="connector config ([[objects]], schemas, _credential_ref, ...); "
+                          "the CLI loads this from --config <file.toml>")
     full: bool = Field(False, description="force full re-index (ignore caches/fingerprints)")
     since: Optional[str] = Field(None, description="only index changes since this cursor/date")
     process: bool = Field(True, description="True: index inline now; False: enqueue for a worker")

@@ -35,7 +35,7 @@ async def main():
         check("probe ok=True for a local dir", pr["ok"] is True and pr["type"] == "file")
 
         await eng.add(repo)
-        curi, _ = eng.resolve_connector_uri(repo)
+        curi, _ = await eng.resolve_connector_uri(repo)
 
         ins = await eng.inspect(repo)
         check("inspect: 2 objects, chunks>0", ins and ins["object_count"] == 2 and ins["chunk_count"] >= 2)

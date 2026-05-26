@@ -640,6 +640,19 @@
             "title": "Target",
             "description": "path or connector URI to register + index"
           },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "connector config ([[objects]], schemas, _credential_ref, ...); the CLI loads this from --config <file.toml>"
+          },
           "full": {
             "type": "boolean",
             "title": "Full",
@@ -1240,10 +1253,5 @@
         "title": "ValidationError"
       }
     }
-  },
-  "servers": [
-    {
-      "url": "http://127.0.0.1:8765"
-    }
-  ]
+  }
 }

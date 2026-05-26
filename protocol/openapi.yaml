@@ -397,6 +397,14 @@ components:
           type: string
           title: Target
           description: path or connector URI to register + index
+        config:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Config
+          description: connector config ([[objects]], schemas, _credential_ref, ...); the CLI loads this
+            from --config <file.toml>
         full:
           type: boolean
           title: Full
@@ -699,8 +707,7 @@ components:
       required:
       - source
       title: ResultEnvelope
-      description: 'One search/grep hit (design/06 §7). Outer shape is stable across
-        connectors;
+      description: 'One search/grep hit (design/06 §7). Outer shape is stable across connectors;
 
         locator + metadata.fields are per-connector but documented.'
     SearchResponse:
@@ -777,5 +784,3 @@ components:
       - msg
       - type
       title: ValidationError
-servers:
-- url: http://127.0.0.1:8765
