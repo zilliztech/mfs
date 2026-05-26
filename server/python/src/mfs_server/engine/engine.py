@@ -26,7 +26,7 @@ from ..storage.file_state import FileStateStore
 from ..storage.ids import chunk_id
 from ..storage.metadata import MetadataStore
 from ..storage.milvus import MilvusStore
-from ..storage.object_store import LocalObjectStore
+from ..storage.object_store import make_object_store
 from ..storage.transformation_cache import TransformationCache
 from .state import ConnectorStateStore
 
@@ -73,7 +73,7 @@ class Engine:
         self.ns = cfg.namespace
         self.meta = MetadataStore(cfg)
         self.milvus = MilvusStore(cfg)
-        self.object_store = LocalObjectStore(cfg)
+        self.object_store = make_object_store(cfg)
         self.tx_cache = TransformationCache(cfg)
         self.embed = CachingEmbeddingClient(cfg, self.tx_cache)
         self.converter = CachingConverterClient(cfg, self.tx_cache)
