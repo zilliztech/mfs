@@ -98,7 +98,7 @@ Agents should prefer `--json` and read the stable envelope (`source / lines / co
 ## 4. Route to the right reference
 
 - **How to drive search→locate→browse, weak-result recovery, scoping** → [references/workflow.md](references/workflow.md)
-- **What a given connector exposes** (paths, object names, cat behavior, limits) → `references/connectors/<scheme>.md` (e.g. `file.md`, `postgres.md`, `web.md`, `github.md`). Read the one matching the URI scheme you're working with before guessing its layout.
+- **What a given connector exposes** (paths, object names, locator shape, cat behavior, limits) → `references/connectors/<scheme>.md`. Read the one matching the URI scheme before guessing its layout. Available: `file`, `web`, `github`, `postgres`, `mysql`, `mongo`, `bigquery`, `snowflake`, `s3`, `gdrive`, `slack`, `discord`, `gmail`, `feishu`, `notion`, `jira`, `linear`, `zendesk`, `salesforce`, `hubspot`.
 - **Result envelope fields & how to reopen a hit** → [references/json-envelope.md](references/json-envelope.md)
 - **Error codes & recovery** → [references/error-codes.md](references/error-codes.md)
 
