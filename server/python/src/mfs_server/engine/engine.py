@@ -250,25 +250,35 @@ class Engine:
         connector_uri = f"file://local{abs_path}"
         return "file", connector_uri, "file", {"root": abs_path, "client_id": "local"}
 
-    # secret-looking config keys: persisted only as a credential_ref (env:/secret:/file:/
-    # vault:); a raw inline value is redacted at rest so connectors.config_json never holds
-    # plaintext (design/07 credentials). Connections fall back to self.credential at runtime.
-    _SECRET_KEYS = ("token", "api_token", "access_token", "api_key", "password",
-                    "security_token", "app_secret", "client_secret", "secret", "credential")
+    # substrings that mark a config key as holding a secret. Matched case-insensitively
+    # anywhere in the key, and recursively (nested OAuth token dicts, lists), so e.g.
+    # secret_access_key / refresh_token / client_secret are all caught (design/07).
+    _SECRET_SUBSTRINGS = ("token", "secret", "password", "passwd", "apikey", "api_key",
+                          "access_key", "private_key", "refresh", "credential")
+    _CRED_REF_PREFIXES = ("env:", "secret:", "file:", "vault:")
+    _REDACTED = "<redacted: use credential_ref=env:VAR>"
 
     @classmethod
-    def _redact_config(cls, config: dict) -> dict:
-        if not isinstance(config, dict):
-            return config
-        _REF = ("env:", "secret:", "file:", "vault:")
-        out = {}
-        for k, v in config.items():
-            if (k in cls._SECRET_KEYS and isinstance(v, str) and v
-                    and not v.startswith(_REF)):
-                out[k] = "<redacted: use credential_ref=env:VAR>"
-            else:
-                out[k] = v
-        return out
+    def _is_secret_key(cls, key: str) -> bool:
+        kl = str(key).lower()
+        return any(s in kl for s in cls._SECRET_SUBSTRINGS)
+
+    @classmethod
+    def _redact_config(cls, value, key_is_secret: bool = False):
+        """Recursively redact raw inline secrets from a config before persistence. A
+        credential_ref (env:/secret:/file:/vault:) is kept; anything else under a
+        secret-looking key is replaced. Recurses into dicts/lists so nested OAuth token
+        dicts don't leak (design/07)."""
+        if isinstance(value, dict):
+            return {k: cls._redact_config(v, cls._is_secret_key(k)) for k, v in value.items()}
+        if isinstance(value, list):
+            return [cls._redact_config(v, key_is_secret) for v in value]
+        if key_is_secret:
+            if isinstance(value, str) and value.startswith(cls._CRED_REF_PREFIXES):
+                return value                     # a safe credential reference
+            if value not in (None, "", [], {}):
+                return cls._REDACTED
+        return value
 
     async def register_or_get_connector(self, connector_uri: str, ctype: str, config: dict,
                                          overwrite_config: bool = False) -> str:
@@ -363,35 +373,44 @@ class Engine:
         stored_cfg = cfg_dict if config is not None else (
             json.loads(row0["config_json"]) if row0 and row0["config_json"] else cfg_dict)
 
-        # one in-flight sync per connector (design/02 §6.4): the partial unique indexes
-        # ux_jobs_one_running/queued enforce it; surface a clean sync_already_running
-        # instead of a raw IntegrityError/500.
+        job_id = await self._open_sync_job(cid, process)
+        return await self._drain_job(job_id, cid, connector_uri, ctype, stored_cfg,
+                                     full, since, process)
+
+    async def _open_sync_job(self, cid: str, process: bool) -> str:
+        """Reserve the one-in-flight-sync slot for a connector (design/02 §6.4) and inherit
+        its leftover tasks. Raises connector_removing / sync_already_running. Callers that
+        mutate state (e.g. upload) MUST call this BEFORE mutating, so a rejected sync leaves
+        nothing half-applied."""
+        row = await self.meta.fetchone("SELECT status FROM connectors WHERE id=?", (cid,))
+        if row and row["status"] == "removing":
+            raise ValueError("connector_removing")
         job_id = uuid.uuid4().hex
         try:
             await self.meta.execute(
                 "INSERT INTO connector_jobs (id, namespace_id, connector_id, op_kind, trigger, status, "
                 " started_at, heartbeat) VALUES (?,?,?,?,?,?,?,?)",
                 (job_id, self.ns, cid, "sync", "manual", "running" if process else "queued", _now(), _now()))
-        except Exception as e:  # noqa: BLE001 - unique-violation on one-running/queued-per-connector
+        except Exception as e:  # noqa: BLE001 - unique-violation: one running/queued per connector
             if "unique" in str(e).lower() or "constraint" in str(e).lower():
                 raise ValueError("sync_already_running") from e
             raise
-
-        # job inheritance: take over this connector's leftover pending/failed tasks (design/02 §7.1)
         await self.meta.execute(
             "UPDATE object_tasks SET connector_job_id=?, status='pending' "
             "WHERE connector_id=? AND status IN ('pending','failed') AND attempts < ?",
             (job_id, cid, self.cfg.worker.max_retries))
+        return job_id
 
+    async def _drain_job(self, job_id: str, cid: str, connector_uri: str, ctype: str,
+                         stored_cfg: dict, full: bool, since: str | None, process: bool) -> str:
+        """Run a reserved sync job: enumerate (plugin.sync) -> enqueue object_tasks ->
+        process inline (process=True) or leave queued for a worker."""
         plugin, ctx = self._build_plugin(ctype, stored_cfg, cid)
         await plugin.connect()
         aborted: str | None = None
         try:
             opts = SyncOptions(full=full, since=since)
             async for ch in plugin.sync(opts):
-                # deletion safety (design/02 §7.4): only honor full-set diff deletes when
-                # the connector declared a complete enumeration this run; on incremental /
-                # explicit_only a "missing" object is unknown, not deleted.
                 if ch.kind == "deleted" and (
                         ctx.enumeration_mode == "incremental"
                         or getattr(plugin.CAPABILITIES, "delete_detection", "") == "never"):
@@ -404,10 +423,9 @@ class Engine:
                     " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
                     (tid, job_id, cid, ch.uri, ch.old_uri, ch.kind, "pending", plugin.task_priority(ch)))
             if not process:
-                # enqueue model: stash the staged connector state on the job instead of
-                # committing it now. The worker commits it only after the job's tasks all
-                # succeed (design/02 §7 ③), so a failed background job doesn't advance the
-                # cursor past objects that never got indexed.
+                # enqueue model: stash staged state on the job; the worker commits it only
+                # after the job succeeds (design/02 §7 ③), so a failed background job doesn't
+                # advance the cursor past objects that never got indexed.
                 await self.meta.execute(
                     "UPDATE connector_jobs SET state_snapshot=? WHERE id=?",
                     (json.dumps(ctx.state.snapshot()), job_id))
@@ -415,10 +433,6 @@ class Engine:
             aborted = await self._run_job(job_id, cid, connector_uri, plugin)
         finally:
             await plugin.close()
-
-        # commit connector cursor/state only after the inline job actually succeeded
-        # (design/02 §7 ③): a mid-pipeline failure (embed/Milvus) must not advance the
-        # cursor past objects that never got indexed.
         if aborted is None:
             await ctx.state.commit()
         await self._finalize_job(job_id, aborted)
@@ -538,7 +552,13 @@ class Engine:
                         got = hashlib.sha1(open(_safe(tmp, m.name), "rb").read()).hexdigest()
                         if got != h["sha1"]:
                             raise ValueError(f"sha1 mismatch for {m.name}")
-            # --- validated; apply to staging + file_state (status='staged') ---
+
+            # bundle fully validated in temp; NOW reserve the sync slot. If a sync is
+            # already in flight this raises sync_already_running and the staging area +
+            # file_state are still untouched (design/02 §4.2 single-commit intent).
+            job_id = await self._open_sync_job(cid, process)
+
+            # --- apply to staging + file_state (status='staged') ---
             for r in renames:               # 1) renames: verify server sha1, mv, carry file_state
                 old, new = _norm_rel(r["old"]), _norm_rel(r["new"])
                 prev = await fs.get(old)
@@ -569,7 +589,9 @@ class Engine:
                                     prev["sha1"], status="deleted")
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-        job_id = await self.add(connector_uri, process=process)
+        crow = await self.meta.fetchone("SELECT config_json FROM connectors WHERE id=?", (cid,))
+        stored_cfg = _json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
+        await self._drain_job(job_id, cid, connector_uri, "file", stored_cfg, False, None, process)
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
 
     async def _finalize_job(self, job_id: str, aborted: str | None) -> None:
@@ -748,15 +770,22 @@ class Engine:
                 return "retryable_exhausted"
         return "retryable_exhausted"
 
+    async def _should_stop(self, job_id: str, cid: str) -> bool:
+        """A task boundary must stop the job if it was cancelled OR its connector is being
+        removed — so no _index_object runs (writing Milvus) after teardown begins."""
+        jr = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (job_id,))
+        if jr and jr["status"] == "cancelled":
+            return True
+        cr = await self.meta.fetchone("SELECT status FROM connectors WHERE id=?", (cid,))
+        return bool(cr and cr["status"] == "removing")
+
     async def _run_job(self, job_id: str, cid: str, connector_uri: str, plugin) -> str | None:
         """Returns None on normal completion, or a circuit-breaker reason string.
         Consecutive fatal failures (design/02 §7.1) abort the job."""
         threshold = self.cfg.worker.consecutive_fatal_threshold
         consec_fatal = 0
         while True:
-            # per-object cancel boundary: stop if the job was cancelled externally
-            jrow = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (job_id,))
-            if jrow and jrow["status"] == "cancelled":
+            if await self._should_stop(job_id, cid):
                 return "cancelled"
             # heartbeat so housekeeping doesn't reclaim a job this worker is actively running
             await self.meta.execute(
@@ -765,12 +794,10 @@ class Engine:
             if not tasks:
                 break
             for t in tasks:
-                # re-check the cancel boundary before EACH task (not just per batch): a
-                # concurrent remove/cancel can land mid-batch, and we must not keep writing
-                # chunks for a connector that's being torn down (design/02 §6.4 §7).
-                jr = await self.meta.fetchone(
-                    "SELECT status FROM connector_jobs WHERE id=?", (job_id,))
-                if jr and jr["status"] == "cancelled":
+                # re-check the stop boundary before EACH task (not just per batch): a
+                # concurrent cancel/remove can land mid-batch, and we must not keep writing
+                # chunks for a connector being torn down (design/02 §6.4 §7).
+                if await self._should_stop(job_id, cid):
                     return "cancelled"
                 r = await self._process_with_retry(plugin, connector_uri, t)
                 if r is None:
@@ -1314,30 +1341,27 @@ class Engine:
         if not row:
             return False
         cid = row["id"]
-        # preempt any in-flight sync (design/02 §6.4): mark removing so new syncs are
-        # rejected (connector_removing), and cancel running/queued jobs so a worker stops
-        # at its next per-object boundary before we tear down the data underneath it.
+        # preempt any in-flight sync (design/02 §6.4). Mark 'removing' (new syncs ->
+        # connector_removing; a running worker observes it at its next task boundary via
+        # _should_stop and exits). Cancel only the not-yet-started work (queued job +
+        # pending tasks). Crucially DON'T flip the running job ourselves — its status
+        # leaving 'running' is the signal that the worker has exited _run_job and no
+        # _index_object is mid-write; only then is it safe to delete the data.
         await self.meta.execute(
             "UPDATE connectors SET status='removing' WHERE id=?", (cid,))
         await self.meta.execute(
             "UPDATE object_tasks SET status='cancelled' "
-            "WHERE connector_id=? AND status IN ('pending','running')", (cid,))
+            "WHERE connector_id=? AND status='pending'", (cid,))
         await self.meta.execute(
             "UPDATE connector_jobs SET status='cancelled', finished_at=? "
             "WHERE connector_id=? AND status='queued'", (_now(), cid))
-        # wait for a running sync to actually stop at its next per-object boundary before we
-        # delete data underneath it (design/02 §6.4): the worker re-checks 'cancelled' each
-        # task and exits, so this is short. Bounded poll so remove can't hang forever.
-        for _ in range(100):       # ~10s max
+        for _ in range(100):       # ~10s bounded wait for the worker to leave 'running'
             running = await self.meta.fetchone(
                 "SELECT 1 FROM connector_jobs WHERE connector_id=? AND status='running'", (cid,))
             if not running:
                 break
-            await self.meta.execute(
-                "UPDATE connector_jobs SET status='cancelled', finished_at=? "
-                "WHERE connector_id=? AND status='running'", (_now(), cid))
             await asyncio.sleep(0.1)
-        # 1. Milvus chunks for this connector partition
+        # 1. Milvus chunks for this connector partition (worker has now stopped writing)
         await asyncio.to_thread(self.milvus.delete_by_connector, self.ns, connector_uri)
         # 2. best-effort artifact bytes per object
         objs = await self.meta.fetchall("SELECT object_uri FROM objects WHERE connector_id=?", (cid,))
