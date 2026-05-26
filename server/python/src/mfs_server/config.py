@@ -114,6 +114,7 @@ class SearchConfig(BaseModel):
 class ServerConfig(BaseModel):
     home: str = ""
     namespace: str = "default"
+    auth_token: str = ""             # when set, /v1 requires Authorization: Bearer <token>
     metadata: MetadataConfig = MetadataConfig()
     object_store: ObjectStoreConfig = ObjectStoreConfig()
     milvus: MilvusConfig = MilvusConfig()
@@ -163,6 +164,10 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
     ZILLIZ_API_KEY when those are set (so the existing Zilliz creds work out of the box).
     OpenAI key is read by the openai SDK directly from OPENAI_API_KEY.
     """
+    api_token = os.environ.get("MFS_API_TOKEN")
+    if api_token:
+        cfg.auth_token = api_token
+
     uri = os.environ.get("MFS_MILVUS_URI") or os.environ.get("ZILLIZ_URI")
     token = os.environ.get("MFS_MILVUS_TOKEN") or os.environ.get("ZILLIZ_API_KEY")
     if uri:

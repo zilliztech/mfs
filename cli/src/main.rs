@@ -163,7 +163,13 @@ enum ProfileAction {
     /// List profiles
     List,
     /// Add (or update) a profile
-    Add { name: String, url: String },
+    Add {
+        name: String,
+        url: String,
+        /// Bearer token for remote auth (literal or env:VAR)
+        #[arg(long)]
+        token: Option<String>,
+    },
     /// Set the active profile
     Use { name: String },
 }
@@ -212,6 +218,29 @@ fn client_id() -> String {
 #[derive(Serialize, Deserialize, Clone)]
 struct Profile {
     url: String,
+    /// Bearer token for remote auth; literal or `env:VAR` (design/02 §11.2).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    token: Option<String>,
+}
+
+/// Active Bearer token: $MFS_API_TOKEN, else the active profile's token (env: resolved).
+fn auth_token() -> Option<String> {
+    if let Ok(t) = std::env::var("MFS_API_TOKEN") {
+        if !t.is_empty() { return Some(t); }
+    }
+    let cfg = load_client_cfg();
+    let raw = cfg.active.as_ref().and_then(|a| cfg.profiles.get(a)).and_then(|p| p.token.clone())?;
+    Some(match raw.strip_prefix("env:") {
+        Some(var) => std::env::var(var).unwrap_or_default(),
+        None => raw,
+    })
+}
+
+fn with_auth(rb: reqwest::blocking::RequestBuilder) -> reqwest::blocking::RequestBuilder {
+    match auth_token() {
+        Some(t) if !t.is_empty() => rb.bearer_auth(t),
+        _ => rb,
+    }
 }
 
 fn mfs_home() -> PathBuf {
@@ -526,10 +555,10 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
     let data = gz.finish().map_err(|e| e.to_string())?;
     let _ = std::io::stdout().flush();
 
-    let resp = client.put(format!("{base}/v1/files/upload"))
+    let resp = with_auth(client.put(format!("{base}/v1/files/upload"))
         .query(&[("client_id", client_id.as_str()), ("name", name.as_str()),
                  ("process", &process.to_string())])
-        .body(data).send().map_err(|e| e.to_string())?;
+        .body(data)).send().map_err(|e| e.to_string())?;
     let v = parse(resp)?;
     if json { println!("{v}"); }
     else {
@@ -548,8 +577,8 @@ fn load_config_file(path: &str) -> Result<Value, String> {
 }
 
 fn remove_connector(client: &reqwest::blocking::Client, base: &str, target: &str) -> Result<(), String> {
-    let resp = client.delete(format!("{base}/v1/connectors"))
-        .query(&[("target", target)]).send().map_err(|e| e.to_string())?;
+    let resp = with_auth(client.delete(format!("{base}/v1/connectors"))
+        .query(&[("target", target)])).send().map_err(|e| e.to_string())?;
     let v = parse(resp)?;
     println!("removed: {}", v["removed"].as_bool().unwrap_or(false));
     Ok(())
@@ -596,11 +625,11 @@ fn profile_cmd(action: &ProfileAction) -> Result<(), String> {
             }
             if cfg.profiles.is_empty() { println!("(no profiles; using {})", base_url()); }
         }
-        ProfileAction::Add { name, url } => {
-            cfg.profiles.insert(name.clone(), Profile { url: url.clone() });
+        ProfileAction::Add { name, url, token } => {
+            cfg.profiles.insert(name.clone(), Profile { url: url.clone(), token: token.clone() });
             if cfg.active.is_none() { cfg.active = Some(name.clone()); }
             save_client_cfg(&cfg)?;
-            println!("profile '{name}' -> {url}");
+            println!("profile '{name}' -> {url}{}", if token.is_some() { " (token set)" } else { "" });
         }
         ProfileAction::Use { name } => {
             if !cfg.profiles.contains_key(name) {
@@ -672,12 +701,12 @@ fn pid_alive(pid: u32) -> bool {
 }
 
 fn get(client: &reqwest::blocking::Client, url: &str, q: &[(&str, String)]) -> Result<Value, String> {
-    let resp = client.get(url).query(q).send().map_err(|e| e.to_string())?;
+    let resp = with_auth(client.get(url).query(q)).send().map_err(|e| e.to_string())?;
     parse(resp)
 }
 
 fn post(client: &reqwest::blocking::Client, url: &str, body: &Value) -> Result<Value, String> {
-    let resp = client.post(url).json(body).send().map_err(|e| e.to_string())?;
+    let resp = with_auth(client.post(url).json(body)).send().map_err(|e| e.to_string())?;
     parse(resp)
 }
 

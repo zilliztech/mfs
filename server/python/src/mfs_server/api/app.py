@@ -56,6 +56,17 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     app = FastAPI(title="MFS", version="0.4.0", lifespan=lifespan,
                   description="Multi-source File-like Search — HTTP /v1 control plane.")
 
+    if cfg.auth_token:
+        @app.middleware("http")
+        async def _auth(request: Request, call_next):
+            """Bearer-token gate (design/02 §5.3 / §11.2): when auth_token is configured,
+            every request — loopback included — must carry Authorization: Bearer <token>."""
+            if request.headers.get("authorization", "") != f"Bearer {cfg.auth_token}":
+                return JSONResponse(status_code=401, content={
+                    "code": "unauthorized", "detail": "missing or invalid bearer token",
+                    "suggestions": ["set a profile token (Authorization: Bearer <token>)"]})
+            return await call_next(request)
+
     @app.exception_handler(HTTPException)
     async def _http_exc(_request: Request, exc: HTTPException) -> JSONResponse:
         """Wrap HTTPException into the {code, detail, suggestions} envelope (errors.md).

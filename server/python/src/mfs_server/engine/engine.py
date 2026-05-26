@@ -447,55 +447,76 @@ class Engine:
         update the snapshot and trigger the file-connector sync (normal stat-diff index).
         The bundle is a tar(.gz) carrying a `.mfs-meta.json` member
         {hashes, renames, deletions} plus the changed file bytes. zip-slip guarded."""
+        import hashlib
         import io
         import json as _json
+        import shutil
         import tarfile
+        import tempfile
 
         staging, connector_uri, cid = await self._staging_connector(client_id, name)
         state = ConnectorStateStore(self.meta, cid)
         snap = await state.get("upload_manifest") or {}
 
-        def _safe(rel: str) -> str:
-            dest = os.path.realpath(os.path.join(staging, rel.lstrip("/")))
-            if dest != staging and not dest.startswith(staging + os.sep):
+        def _safe(root: str, rel: str) -> str:
+            dest = os.path.realpath(os.path.join(root, rel.lstrip("/")))
+            if dest != root and not dest.startswith(root + os.sep):
                 raise ValueError(f"unsafe path in archive: {rel}")
             return dest
 
-        with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:*") as tf:
-            members = tf.getmembers()
-            for m in members:
-                if m.issym() or m.islnk():
-                    raise ValueError(f"links not allowed in upload: {m.name}")
-                if m.name != ".mfs-meta.json":
-                    _safe(m.name)
-            mm = next((m for m in members if m.name == ".mfs-meta.json"), None)
-            meta = _json.loads(tf.extractfile(mm).read().decode()) if mm else {}
-            hashes = meta.get("hashes", [])
-            renames = meta.get("renames", [])
-            deletions = meta.get("deletions", [])
-            # 1) renames: mv staging old->new (bytes already on server from a prior upload)
-            for r in renames:
-                op, npth = _safe(r["old"]), _safe(r["new"])
+        # Stage into a temp dir and validate *before* touching the real staging area, so a
+        # malformed/tampered bundle (bad sha1, zip-slip) can't leave it half-written
+        # (design/02 §4.2 single-commit intent). Apply to staging only after all checks pass.
+        tmp = tempfile.mkdtemp(prefix=".upload-", dir=os.path.dirname(staging))
+        try:
+            with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:*") as tf:
+                members = tf.getmembers()
+                for m in members:
+                    if m.issym() or m.islnk():
+                        raise ValueError(f"links not allowed in upload: {m.name}")
+                    if m.name != ".mfs-meta.json":
+                        _safe(staging, m.name)      # validate against the real root too
+                        _safe(tmp, m.name)
+                mm = next((m for m in members if m.name == ".mfs-meta.json"), None)
+                meta = _json.loads(tf.extractfile(mm).read().decode()) if mm else {}
+                hashes = {h["path"]: h for h in meta.get("hashes", [])}
+                renames = meta.get("renames", [])
+                deletions = meta.get("deletions", [])
+                for m in members:
+                    if m.name == ".mfs-meta.json" or m.isdir():
+                        continue
+                    tf.extract(m, tmp)
+                # verify sha1 of every extracted payload against the declared hash
+                for m in members:
+                    if m.name == ".mfs-meta.json" or m.isdir():
+                        continue
+                    h = hashes.get(m.name) or hashes.get("/" + m.name)
+                    if h and h.get("sha1"):
+                        got = hashlib.sha1(open(_safe(tmp, m.name), "rb").read()).hexdigest()
+                        if got != h["sha1"]:
+                            raise ValueError(f"sha1 mismatch for {m.name}")
+            # --- all validated; now apply to staging ---
+            for r in renames:               # 1) renames: mv staging old->new (bytes already there)
+                op, npth = _safe(staging, r["old"]), _safe(staging, r["new"])
                 if os.path.exists(op):
                     os.makedirs(os.path.dirname(npth), exist_ok=True)
                     os.replace(op, npth)
                 if r["old"] in snap:
                     snap[r["new"]] = snap.pop(r["old"])
-            # 2) extract changed file bytes into staging
-            for m in members:
-                if m.name == ".mfs-meta.json" or m.isdir():
-                    continue
-                _safe(m.name)
-                tf.extract(m, staging)
-            # 3) deletions: rm staging file
-            for d in deletions:
-                dp = _safe(d)
+            for h in hashes.values():       # 2) move validated bytes into staging (atomic per file)
+                src = _safe(tmp, h["path"])
+                if os.path.exists(src):
+                    dst = _safe(staging, h["path"])
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    os.replace(src, dst)
+                snap[h["path"]] = [h.get("size"), h.get("mtime_ns"), h.get("inode"), h.get("sha1")]
+            for d in deletions:             # 3) deletions
+                dp = _safe(staging, d)
                 if os.path.exists(dp):
                     os.remove(dp)
                 snap.pop(d, None)
-            # 4) refresh the client-view snapshot from the uploaded hashes
-            for h in hashes:
-                snap[h["path"]] = [h.get("size"), h.get("mtime_ns"), h.get("inode"), h.get("sha1")]
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
         await state.set("upload_manifest", snap)
         await state.commit()
         job_id = await self.add(staging, process=process)
