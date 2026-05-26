@@ -1,0 +1,18 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "mfs-server-rs"
+version = "0.4.0"
+description = "MFS server hot-path acceleration (PyO3): directory scan, JSONL streaming, linear grep"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[tool.maturin]
+# abi3 wheel — one wheel per platform works across CPython >= 3.10
+features = ["pyo3/extension-module"]
+module-name = "mfs_server_rs"

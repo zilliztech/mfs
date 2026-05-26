@@ -1,0 +1,21 @@
+[package]
+name = "mfs-server-rs"
+version = "0.4.0"
+edition = "2021"
+description = "MFS server hot-path acceleration (PyO3): directory scan, JSONL streaming, linear grep"
+license = "Apache-2.0"
+
+[lib]
+name = "mfs_server_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module", "abi3-py310"] }
+walkdir = "2.5"
+regex = "1.10"
+serde_json = "1.0"
+memchr = "2.7"
+
+[profile.release]
+opt-level = 3
+lto = true

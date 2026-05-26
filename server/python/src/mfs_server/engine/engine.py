@@ -569,8 +569,10 @@ class Engine:
 
     async def grep(self, pattern: str, path: str, top_k: int = 100, regex: bool = False) -> list[dict]:
         """Dispatch: pushdown (file: none) -> BM25 (indexed scope) -> linear scan
-        (not_indexed objects in scope). design/05 §6."""
-        import re as _re
+        (not_indexed objects in scope). design/05 §6. The linear scan uses the native
+        accelerator (mfs_server_rs) when the object is a real local file, else falls
+        back to reading bytes + pure-Python regex."""
+        from ..common import accel
         cid, curi, rel, plugin = await self._open_path(path)
         scope_prefix = (curi + rel) if rel != "/" else None
         try:
@@ -583,7 +585,7 @@ class Engine:
                 results.append({"source": e.get("object_uri"), "lines": e.get("lines"),
                                 "content": e.get("content"), "via": "bm25"})
             # 2c linear scan over not_indexed objects in scope (file connector)
-            rx = _re.compile(pattern if regex else _re.escape(pattern))
+            root_abs = curi.replace("file://local", "", 1) if curi.startswith("file://local") else None
             like = (rel.rstrip("/") + "%") if rel != "/" else "%"
             not_idx = await self.meta.fetchall(
                 "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed' "
@@ -591,14 +593,24 @@ class Engine:
             for o in not_idx[:50]:
                 relp = o["object_uri"]
                 try:
-                    buf = bytearray()
-                    async for ch in plugin.read(relp):
-                        buf += ch
-                    text = bytes(buf).decode("utf-8", errors="replace")
-                    for i, line in enumerate(text.splitlines(), 1):
-                        if rx.search(line):
-                            results.append({"source": curi + relp, "lines": [i, i],
+                    abs_file = (root_abs + relp) if root_abs else None
+                    if abs_file and os.path.isfile(abs_file):
+                        # native (or pure-Python) streaming grep straight off disk
+                        for ln, line in await asyncio.to_thread(
+                                accel.linear_grep_file, abs_file, pattern,
+                                False, regex, 200):
+                            results.append({"source": curi + relp, "lines": [ln, ln],
                                             "content": line, "via": "linear"})
+                    else:
+                        rx = re.compile(pattern if regex else re.escape(pattern))
+                        buf = bytearray()
+                        async for ch in plugin.read(relp):
+                            buf += ch
+                        text = bytes(buf).decode("utf-8", errors="replace")
+                        for i, line in enumerate(text.splitlines(), 1):
+                            if rx.search(line):
+                                results.append({"source": curi + relp, "lines": [i, i],
+                                                "content": line, "via": "linear"})
                 except Exception:  # noqa: BLE001
                     pass
             return results

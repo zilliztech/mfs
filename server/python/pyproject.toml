@@ -71,6 +71,11 @@ target-version = "py310"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+# Native hot-path acceleration lives in server-rs/ (PyO3, built with maturin:
+# `cd server-rs && maturin develop --release`). It is OPTIONAL at runtime —
+# mfs_server.common.accel falls back to pure Python when the wheel isn't installed.
+# A release ships it as a per-platform wheel bundled with mfs-server (design/10 §6).
+
 [dependency-groups]
 dev = [
     "fpdf2>=2.8.7",
