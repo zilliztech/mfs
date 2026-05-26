@@ -257,6 +257,22 @@ fn auth_token() -> Option<String> {
     })
 }
 
+/// A remote endpoint (non-loopback) means the server can't see local paths. Rewrite an
+/// existing local path to its stable upload identity file://<client_id><abs> so browse/
+/// search/remove hit the connector created by `mfs add --upload` (design/02 §3.4).
+fn is_remote(base: &str) -> bool {
+    !(base.contains("127.0.0.1") || base.contains("localhost") || base.contains("[::1]"))
+}
+
+fn remote_path(base: &str, path: &str) -> String {
+    if is_remote(base) {
+        if let Ok(abs) = std::fs::canonicalize(path) {
+            return format!("file://{}{}", client_id(), abs.to_string_lossy());
+        }
+    }
+    path.to_string()
+}
+
 fn with_auth(rb: reqwest::blocking::RequestBuilder) -> reqwest::blocking::RequestBuilder {
     match auth_token() {
         Some(t) if !t.is_empty() => rb.bearer_auth(t),
@@ -361,7 +377,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 return Err("specify a path to scope the search, or --all for the whole namespace".into());
             }
             let mut q = vec![("q", query.clone()), ("mode", mode.clone()), ("top_k", top_k.to_string())];
-            if let Some(p) = path { q.push(("path", p.clone())); }
+            if let Some(p) = path { q.push(("path", remote_path(base, p))); }
             let v = get(client, &format!("{base}/v1/search"), &q)?;
             if cli.json { println!("{v}"); return Ok(()); }
             for hit in v["results"].as_array().unwrap_or(&vec![]) {
@@ -373,7 +389,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             }
         }
         Cmd::Grep { pattern, path } => {
-            let v = get(client, &format!("{base}/v1/grep"), &[("pattern", pattern.clone()), ("path", path.clone())])?;
+            let v = get(client, &format!("{base}/v1/grep"), &[("pattern", pattern.clone()), ("path", remote_path(base, path))])?;
             if cli.json { println!("{v}"); return Ok(()); }
             for hit in v["results"].as_array().unwrap_or(&vec![]) {
                 println!("{}: {}", hit["source"].as_str().unwrap_or("?"),
@@ -381,18 +397,19 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             }
         }
         Cmd::Ls { path } => {
-            let v = get(client, &format!("{base}/v1/ls"), &[("path", path.clone())])?;
+            let v = get(client, &format!("{base}/v1/ls"), &[("path", remote_path(base, path))])?;
             if cli.json { println!("{v}"); return Ok(()); }
             print_entries(&v);
         }
         Cmd::Tree { path, depth } => {
-            let v = get(client, &format!("{base}/v1/ls"), &[("path", path.clone())])?;
+            let rp = remote_path(base, path);
+            let v = get(client, &format!("{base}/v1/ls"), &[("path", rp.clone())])?;
             if cli.json { println!("{v}"); return Ok(()); }
             println!("{path}");
-            tree(client, base, path, *depth, "")?;
+            tree(client, base, &rp, *depth, "")?;
         }
         Cmd::Cat { path, range, meta, locator, peek, skim } => {
-            let mut q = vec![("path", path.clone())];
+            let mut q = vec![("path", remote_path(base, path))];
             if let Some(r) = range { q.push(("range", r.clone())); }
             if *meta { q.push(("meta", "true".to_string())); }
             if let Some(l) = locator { q.push(("locator", l.clone())); }
@@ -404,17 +421,17 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
         }
         Cmd::Head { path, lines } => {
             let v = get(client, &format!("{base}/v1/head"),
-                        &[("path", path.clone()), ("n", lines.to_string())])?;
+                        &[("path", remote_path(base, path)), ("n", lines.to_string())])?;
             if cli.json { println!("{v}"); } else { println!("{}", v["content"].as_str().unwrap_or("")); }
         }
         Cmd::Tail { path, lines } => {
             let v = get(client, &format!("{base}/v1/tail"),
-                        &[("path", path.clone()), ("n", lines.to_string())])?;
+                        &[("path", remote_path(base, path)), ("n", lines.to_string())])?;
             if cli.json { println!("{v}"); } else { println!("{}", v["content"].as_str().unwrap_or("")); }
         }
         Cmd::Export { path, out } => {
             // export returns the FULL object (no row cap / size guard), unlike cat
-            let v = get(client, &format!("{base}/v1/export"), &[("path", path.clone())])?;
+            let v = get(client, &format!("{base}/v1/export"), &[("path", remote_path(base, path))])?;
             let text = v["content"].as_str().unwrap_or("");
             std::fs::write(out, text).map_err(|e| e.to_string())?;
             println!("exported {} bytes -> {}", text.len(), out);
@@ -567,8 +584,9 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
     use std::io::Write;
     let root = std::path::Path::new(target);
     let client_id = client_id();        // stable UUID identity, not the hostname
-    let name = root.file_name().and_then(|s| s.to_str())
-        .ok_or_else(|| format!("cannot derive a name from {target}"))?.to_string();
+    // absolute path is the connector's stable identity file://<client_id><abs>
+    let abs_root = std::fs::canonicalize(root).map_err(|e| e.to_string())?
+        .to_string_lossy().to_string();
 
     // ① scan (stat only)
     let entries = scan_tree(root)?;
@@ -577,7 +595,7 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
 
     // ② manifest diff
     let mf = post(client, &format!("{base}/v1/files/manifest"),
-                  &serde_json::json!({"client_id": client_id, "name": name, "files": files}))?;
+                  &serde_json::json!({"client_id": client_id, "root": abs_root, "files": files}))?;
     let need: std::collections::HashSet<String> = mf["need_sha1"].as_array().unwrap_or(&vec![])
         .iter().filter_map(|v| v.as_str().map(String::from)).collect();
     let del_cands = mf["deletion_candidates"].as_array().cloned().unwrap_or_default();
@@ -636,7 +654,7 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
     let _ = std::io::stdout().flush();
 
     let resp = with_auth(client.put(format!("{base}/v1/files/upload"))
-        .query(&[("client_id", client_id.as_str()), ("name", name.as_str()),
+        .query(&[("client_id", client_id.as_str()), ("root", abs_root.as_str()),
                  ("process", &process.to_string())])
         .body(data)).send().map_err(|e| e.to_string())?;
     let v = parse(resp)?;
@@ -657,8 +675,9 @@ fn load_config_file(path: &str) -> Result<Value, String> {
 }
 
 fn remove_connector(client: &reqwest::blocking::Client, base: &str, target: &str) -> Result<(), String> {
+    let target = remote_path(base, target);     // local path -> upload identity when remote
     let resp = with_auth(client.delete(format!("{base}/v1/connectors"))
-        .query(&[("target", target)])).send().map_err(|e| e.to_string())?;
+        .query(&[("target", target.as_str())])).send().map_err(|e| e.to_string())?;
     let v = parse(resp)?;
     println!("removed: {}", v["removed"].as_bool().unwrap_or(false));
     Ok(())

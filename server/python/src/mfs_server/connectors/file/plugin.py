@@ -48,8 +48,9 @@ TEXTBLOB_EXT = {".json", ".csv", ".tsv", ".log", ".jsonl", ".ndjson", ".yaml", "
 
 @dataclass
 class FileConfig:
-    root: str                # real absolute directory (server-side scope)
+    root: str                # real absolute directory (server-side scope / upload staging)
     client_id: str = "local"
+    upload_mode: bool = False    # CS upload: index file_state 'staged' rows, no physical re-scan
 
 
 class FilePlugin(ConnectorPlugin):
@@ -191,6 +192,23 @@ class FilePlugin(ConnectorPlugin):
     # --- sync (core: stat-first + rename pairing) ---
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
         assert self.file_state is not None, "file_state not injected"
+
+        # CS upload mode (design/02 §4.2 ⑤): the manifest/upload commit already wrote
+        # file_state ('staged' = needs index, 'deleted' = needs removal), and the bytes are
+        # in the staging dir. Don't physically re-scan (client mtime != staging mtime would
+        # cause needless re-hashing) — just yield the staged/deleted rows.
+        if getattr(self.config, "upload_mode", False):
+            self.ctx.declare_enumeration("explicit_only")
+            for row in await self.file_state.all_rows():
+                if row["status"] == "deleted":
+                    yield ObjectChange(uri=row["path"], kind="deleted")
+                elif row["status"] == "staged":
+                    if row["renamed_from"]:
+                        yield ObjectChange(uri=row["path"], kind="renamed", old_uri=row["renamed_from"])
+                    else:
+                        yield ObjectChange(uri=row["path"], kind="added")
+            return
+
         self.ctx.declare_enumeration("full")        # file scans whole tree every time
 
         spec = self._load_ignore()

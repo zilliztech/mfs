@@ -71,8 +71,8 @@ class ManifestFile(BaseModel):
 
 
 class ManifestRequest(BaseModel):
-    client_id: str = Field(..., description="client machine id (scopes the staging area)")
-    name: str = Field(..., description="upload label (the root dir name)")
+    client_id: str = Field(..., description="stable client id (from client.toml) — connector identity")
+    root: str = Field(..., description="client absolute path of the upload root (identity + scope)")
     files: list[ManifestFile] = Field(default_factory=list, description="stat-only manifest")
 
 

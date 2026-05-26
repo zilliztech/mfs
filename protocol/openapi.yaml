@@ -254,12 +254,12 @@ paths:
         schema:
           type: string
           title: Client Id
-      - name: name
+      - name: root
         in: query
         required: true
         schema:
           type: string
-          title: Name
+          title: Root
       - name: process
         in: query
         required: false
@@ -953,11 +953,11 @@ components:
         client_id:
           type: string
           title: Client Id
-          description: client machine id (scopes the staging area)
-        name:
+          description: stable client id (from client.toml) — connector identity
+        root:
           type: string
-          title: Name
-          description: upload label (the root dir name)
+          title: Root
+          description: client absolute path of the upload root (identity + scope)
         files:
           items:
             $ref: '#/components/schemas/ManifestFile'
@@ -967,7 +967,7 @@ components:
       type: object
       required:
       - client_id
-      - name
+      - root
       title: ManifestRequest
     ManifestResponse:
       properties:

@@ -41,6 +41,11 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _norm_rel(p: str) -> str:
+    """Connector-relative path with a single leading '/' (file_state / object_uri convention)."""
+    return "/" + p.lstrip("/")
+
+
 def _match_object_config(objects_cfg: list, path: str) -> ObjectConfig | None:
     """Find the user [[objects]] entry whose `match` matches this path (design/06 §4),
     first-match wins; None when nothing matches (caller falls back to a built-in preset)."""
@@ -236,6 +241,10 @@ class Engine:
                 return sch, target, sch, {}
             if sch != "file":
                 raise NotImplementedError(f"connector scheme '{sch}' not yet implemented")
+        # logical upload identity file://<client_id><abs> (client_id != local): the real
+        # config (staging root) lives on the already-registered connector, so return bare.
+        if target.startswith("file://") and not target.startswith("file://local"):
+            return "file", target, "file", {}
         # local path -> file connector
         abs_path = os.path.abspath(target)
         connector_uri = f"file://local{abs_path}"
@@ -308,7 +317,8 @@ class Engine:
         ctx = ConnectorContext(state, connector_id, self.ns, object_config_resolver=None)
         if ctype == "file":
             from ..connectors.file.plugin import FileConfig
-            plugin = cls(FileConfig(root=config["root"], client_id=config.get("client_id", "local")),
+            plugin = cls(FileConfig(root=config["root"], client_id=config.get("client_id", "local"),
+                                    upload_mode=config.get("upload_mode", False)),
                          credential, ctx=ctx)
             plugin.file_state = FileStateStore(self.meta, self.ns, connector_id)
         else:
@@ -383,9 +393,11 @@ class Engine:
                 # the connector declared a complete enumeration this run; on incremental /
                 # explicit_only a "missing" object is unknown, not deleted.
                 if ch.kind == "deleted" and (
-                        ctx.enumeration_mode != "full"
+                        ctx.enumeration_mode == "incremental"
                         or getattr(plugin.CAPABILITIES, "delete_detection", "") == "never"):
-                    continue        # never-delete connectors (slack/gmail) keep the index
+                    # only the unsafe 'incremental' mode skips deletes; 'full' (diff) and
+                    # 'explicit_only' (yielded events, e.g. upload) honor them (design/02 §7.4)
+                    continue        # never-delete connectors (slack/gmail) also keep the index
                 tid = uuid.uuid4().hex
                 await self.meta.execute(
                     "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
@@ -438,46 +450,51 @@ class Engine:
         _, connector_uri, _, _ = self._resolve_target(staging_str)
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging_str}
 
-    # --- manifest-diff upload protocol (design/02 §4.2) ---
-    def _staging_root(self, client_id: str, name: str) -> str:
+    # --- manifest-diff upload protocol (design/02 §4.2): stable identity
+    #     file://<client_id><abs-root>, byte-diff + index-diff both on the file_state table ---
+    def _staging_root(self, client_id: str, root: str) -> str:
         import hashlib
-        sub = hashlib.sha1(f"{client_id}:{name}".encode()).hexdigest()[:16]
+        sub = hashlib.sha1(f"{client_id}:{root}".encode()).hexdigest()[:16]
         return os.path.realpath(str(self.object_store.files_root(self.ns, sub)))
 
-    async def _staging_connector(self, client_id: str, name: str):
-        """(staging_dir, connector_uri, connector_id) for a client's upload target,
-        registering the file connector rooted at the staging dir if needed."""
-        staging = self._staging_root(client_id, name)
-        _, connector_uri, _, _ = self._resolve_target(staging)
+    async def _staging_connector(self, client_id: str, root: str):
+        """(staging_dir, connector_uri, connector_id). The connector's stable identity is
+        file://<client_id><client-abs-root> so the user can later search / remove by the
+        original local path; the bytes physically live in a server-side staging dir."""
+        staging = self._staging_root(client_id, root)
+        connector_uri = f"file://{client_id}{root}"
         cid = await self.register_or_get_connector(
-            connector_uri, "file", {"root": staging, "client_id": client_id})
+            connector_uri, "file", {"root": staging, "client_id": client_id, "upload_mode": True})
         return staging, connector_uri, cid
 
-    async def files_manifest(self, client_id: str, name: str, files: list[dict]) -> dict:
-        """Step ② (design/02 §4.2): client posts a stat-only manifest; server diffs it
-        against the last upload snapshot (client-view, in connector_state) and returns
-        which paths' bytes it needs + deletion candidates (with stored sha1/inode so the
-        client can pair renames). The client holds no persistent state."""
-        staging, connector_uri, cid = await self._staging_connector(client_id, name)
-        state = ConnectorStateStore(self.meta, cid)
-        snap = await state.get("upload_manifest") or {}
-        client = {f["path"]: f for f in files}
+    async def files_manifest(self, client_id: str, root: str, files: list[dict]) -> dict:
+        """Step ② (design/02 §4.2): diff the client's stat-only manifest against the
+        server-side file_state (the same table the file connector uses) and return which
+        paths' bytes are needed + deletion candidates (with sha1/inode for rename pairing)."""
+        staging, connector_uri, cid = await self._staging_connector(client_id, root)
+        fs = FileStateStore(self.meta, self.ns, cid)
+        # file_state stores connector-relative paths with a leading '/' (same convention as
+        # the file connector, so object_uri = connector_uri + path joins cleanly); the client
+        # speaks slash-less relpaths, so normalize on the boundary.
+        prev = {r["path"]: r for r in await fs.all_rows()}      # keys '/auth.md'
+        client = {f["path"]: f for f in files}                  # keys 'auth.md'
         need_sha1 = [
             p for p, f in client.items()
-            if (p not in snap) or snap[p][0] != f.get("size") or snap[p][1] != f.get("mtime_ns")]
+            if _norm_rel(p) not in prev or prev[_norm_rel(p)]["size"] != f.get("size")
+            or prev[_norm_rel(p)]["mtime_ns"] != f.get("mtime_ns")]
         deletion_candidates = [
-            {"path": p, "size": v[0], "inode": v[2], "sha1": v[3]}
-            for p, v in snap.items() if p not in client]
+            {"path": p.lstrip("/"), "size": r["size"], "inode": r["inode"], "sha1": r["sha1"]}
+            for p, r in prev.items() if p.lstrip("/") not in client]
         return {"connector_uri": connector_uri, "staging": staging,
                 "need_sha1": need_sha1, "deletion_candidates": deletion_candidates}
 
-    async def files_upload(self, client_id: str, name: str, bundle: bytes,
+    async def files_upload(self, client_id: str, root: str, bundle: bytes,
                            process: bool = True) -> dict:
-        """Step ④ (design/02 §4.2): apply the client's bundle to the staging area in one
-        commit — renames (mv, zero re-embed downstream), changed bytes, deletions — then
-        update the snapshot and trigger the file-connector sync (normal stat-diff index).
-        The bundle is a tar(.gz) carrying a `.mfs-meta.json` member
-        {hashes, renames, deletions} plus the changed file bytes. zip-slip guarded."""
+        """Step ④ (design/02 §4.2): validate the bundle in a temp dir (sha1), then in one
+        commit apply renames / changed bytes / deletions to the staging area and UPSERT
+        file_state (status='staged'); the file connector then indexes the staged rows.
+        The bundle is a tar(.gz) carrying a `.mfs-meta.json` {hashes,renames,deletions}
+        member plus the changed file bytes. zip-slip + sha1 guarded."""
         import hashlib
         import io
         import json as _json
@@ -485,19 +502,15 @@ class Engine:
         import tarfile
         import tempfile
 
-        staging, connector_uri, cid = await self._staging_connector(client_id, name)
-        state = ConnectorStateStore(self.meta, cid)
-        snap = await state.get("upload_manifest") or {}
+        staging, connector_uri, cid = await self._staging_connector(client_id, root)
+        fs = FileStateStore(self.meta, self.ns, cid)
 
-        def _safe(root: str, rel: str) -> str:
-            dest = os.path.realpath(os.path.join(root, rel.lstrip("/")))
-            if dest != root and not dest.startswith(root + os.sep):
+        def _safe(base: str, rel: str) -> str:
+            dest = os.path.realpath(os.path.join(base, rel.lstrip("/")))
+            if dest != base and not dest.startswith(base + os.sep):
                 raise ValueError(f"unsafe path in archive: {rel}")
             return dest
 
-        # Stage into a temp dir and validate *before* touching the real staging area, so a
-        # malformed/tampered bundle (bad sha1, zip-slip) can't leave it half-written
-        # (design/02 §4.2 single-commit intent). Apply to staging only after all checks pass.
         tmp = tempfile.mkdtemp(prefix=".upload-", dir=os.path.dirname(staging))
         try:
             with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:*") as tf:
@@ -506,7 +519,7 @@ class Engine:
                     if m.issym() or m.islnk():
                         raise ValueError(f"links not allowed in upload: {m.name}")
                     if m.name != ".mfs-meta.json":
-                        _safe(staging, m.name)      # validate against the real root too
+                        _safe(staging, m.name)
                         _safe(tmp, m.name)
                 mm = next((m for m in members if m.name == ".mfs-meta.json"), None)
                 meta = _json.loads(tf.extractfile(mm).read().decode()) if mm else {}
@@ -517,8 +530,7 @@ class Engine:
                     if m.name == ".mfs-meta.json" or m.isdir():
                         continue
                     tf.extract(m, tmp)
-                # verify sha1 of every extracted payload against the declared hash
-                for m in members:
+                for m in members:           # verify each payload's sha1 before touching staging
                     if m.name == ".mfs-meta.json" or m.isdir():
                         continue
                     h = hashes.get(m.name) or hashes.get("/" + m.name)
@@ -526,43 +538,38 @@ class Engine:
                         got = hashlib.sha1(open(_safe(tmp, m.name), "rb").read()).hexdigest()
                         if got != h["sha1"]:
                             raise ValueError(f"sha1 mismatch for {m.name}")
-            # --- all validated; now apply to staging ---
-            for r in renames:               # 1) renames: mv staging old->new (bytes already there)
-                prev = snap.get(r["old"])
-                # verify the rename hint against the server-side sha1 (design/02 §4.2 ④b):
-                # only honor it when our stored content hash matches; else reject and let the
-                # client re-send the bytes as a normal change next round.
-                if not prev or prev[3] != r.get("sha1"):
-                    continue
+            # --- validated; apply to staging + file_state (status='staged') ---
+            for r in renames:               # 1) renames: verify server sha1, mv, carry file_state
+                old, new = _norm_rel(r["old"]), _norm_rel(r["new"])
+                prev = await fs.get(old)
+                if not prev or prev["sha1"] != r.get("sha1"):
+                    continue                # reject -> client re-sends bytes next round
                 op, npth = _safe(staging, r["old"]), _safe(staging, r["new"])
                 if os.path.exists(op):
                     os.makedirs(os.path.dirname(npth), exist_ok=True)
                     os.replace(op, npth)
-                snap[r["new"]] = snap.pop(r["old"])
-            for h in hashes.values():       # 2) move validated bytes into staging (atomic per file)
+                await fs.delete(old)
+                await fs.upsert(new, prev["size"], prev["mtime_ns"], prev["inode"],
+                                prev["sha1"], status="staged", renamed_from=old)
+            for h in hashes.values():       # 2) changed bytes -> staging + file_state staged
                 src = _safe(tmp, h["path"])
                 if os.path.exists(src):
                     dst = _safe(staging, h["path"])
                     os.makedirs(os.path.dirname(dst), exist_ok=True)
                     os.replace(src, dst)
-                    # record the snapshot ONLY when bytes actually landed. A rename hint that
-                    # the server rejected sent no bytes for the new path, so leaving snap[new]
-                    # would falsely claim the server has it (P0: phantom manifest entry).
-                    snap[h["path"]] = [h.get("size"), h.get("mtime_ns"), h.get("inode"), h.get("sha1")]
-                elif h["path"] in snap and snap[h["path"]][3] != h.get("sha1"):
-                    # absent bytes for a path the server doesn't already hold at this sha1
-                    # (e.g. rejected rename) -> drop it so the next manifest re-requests it
-                    snap.pop(h["path"], None)
-            for d in deletions:             # 3) deletions
-                dp = _safe(staging, d)
+                    await fs.upsert(_norm_rel(h["path"]), h.get("size"), h.get("mtime_ns"),
+                                    h.get("inode"), h.get("sha1"), status="staged")
+            for d in deletions:             # 3) deletions: mark file_state 'deleted' so the sync
+                dp = _safe(staging, d)      #    drops the index, then on_object_deleted drops the row
                 if os.path.exists(dp):
                     os.remove(dp)
-                snap.pop(d, None)
+                prev = await fs.get(_norm_rel(d))
+                if prev:
+                    await fs.upsert(_norm_rel(d), prev["size"], prev["mtime_ns"], prev["inode"],
+                                    prev["sha1"], status="deleted")
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-        await state.set("upload_manifest", snap)
-        await state.commit()
-        job_id = await self.add(staging, process=process)
+        job_id = await self.add(connector_uri, process=process)
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
 
     async def _finalize_job(self, job_id: str, aborted: str | None) -> None:
@@ -1317,7 +1324,19 @@ class Engine:
             "WHERE connector_id=? AND status IN ('pending','running')", (cid,))
         await self.meta.execute(
             "UPDATE connector_jobs SET status='cancelled', finished_at=? "
-            "WHERE connector_id=? AND status IN ('running','queued')", (_now(), cid))
+            "WHERE connector_id=? AND status='queued'", (_now(), cid))
+        # wait for a running sync to actually stop at its next per-object boundary before we
+        # delete data underneath it (design/02 §6.4): the worker re-checks 'cancelled' each
+        # task and exits, so this is short. Bounded poll so remove can't hang forever.
+        for _ in range(100):       # ~10s max
+            running = await self.meta.fetchone(
+                "SELECT 1 FROM connector_jobs WHERE connector_id=? AND status='running'", (cid,))
+            if not running:
+                break
+            await self.meta.execute(
+                "UPDATE connector_jobs SET status='cancelled', finished_at=? "
+                "WHERE connector_id=? AND status='running'", (_now(), cid))
+            await asyncio.sleep(0.1)
         # 1. Milvus chunks for this connector partition
         await asyncio.to_thread(self.milvus.delete_by_connector, self.ns, connector_uri)
         # 2. best-effort artifact bytes per object
@@ -1340,8 +1359,10 @@ class Engine:
         connector) and scheme URIs (postgres://, github://, ...)."""
         rows = await self.meta.fetchall(
             "SELECT * FROM connectors WHERE namespace_id=?", (self.ns,))
-        m = _SCHEME_RE.match(path)
-        if m and m.group(1) != "file":
+        # Any URI (postgres://, web://, file://<client_id><abs>, file://local<abs>) ->
+        # longest registered root_uri prefix. Covers upload connectors registered under
+        # their stable file://<client_id> identity (design/02 §3.4).
+        if "://" in path:
             best, best_root = None, ""
             for r in rows:
                 ru = r["root_uri"]
@@ -1356,7 +1377,7 @@ class Engine:
             if not rel.startswith("/"):
                 rel = "/" + rel
             return best, rel
-        # local file path -> file connector whose root is the longest prefix
+        # bare local filesystem path -> file://local connector whose root is the longest prefix
         abs_path = os.path.abspath(path)
         best, best_root = None, ""
         for r in rows:

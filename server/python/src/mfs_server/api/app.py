@@ -157,13 +157,13 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     async def files_manifest(body: ManifestRequest) -> ManifestResponse:
         """Manifest-diff upload step ②: stat-only manifest in, need_sha1 + deletion
         candidates out (design/02 §4.2). No bytes transferred here."""
-        out = await eng().files_manifest(body.client_id, body.name,
+        out = await eng().files_manifest(body.client_id, body.root,
                                          [f.model_dump() for f in body.files])
         return ManifestResponse(**out)
 
     @app.put("/v1/files/upload", response_model=AddResponse,
              operation_id="filesUpload", tags=["ingest"])
-    async def files_upload(request: Request, client_id: str, name: str,
+    async def files_upload(request: Request, client_id: str, root: str,
                            process: bool = True) -> AddResponse:
         """Manifest-diff upload step ④: PUT a tar(.gz) carrying a `.mfs-meta.json`
         member (hashes/renames/deletions) + the changed file bytes. The server applies
@@ -172,7 +172,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         if not data:
             raise HTTPException(400, "empty upload body")
         try:
-            out = await eng().files_upload(client_id, name, data, process=process)
+            out = await eng().files_upload(client_id, root, data, process=process)
         except ValueError as e:
             raise HTTPException(400, str(e))
         return AddResponse(job_id=out["job_id"])
