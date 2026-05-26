@@ -74,4 +74,5 @@ testpaths = ["tests"]
 [dependency-groups]
 dev = [
     "fpdf2>=2.8.7",
+    "maturin>=1.13.3",
 ]
