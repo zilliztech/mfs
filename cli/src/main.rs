@@ -403,17 +403,20 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             if *meta { println!("{v}"); } else { println!("{}", v["content"].as_str().unwrap_or("")); }
         }
         Cmd::Head { path, lines } => {
-            let text = cat_text(client, base, path)?;
-            for l in text.lines().take(*lines) { println!("{l}"); }
+            let v = get(client, &format!("{base}/v1/head"),
+                        &[("path", path.clone()), ("n", lines.to_string())])?;
+            if cli.json { println!("{v}"); } else { println!("{}", v["content"].as_str().unwrap_or("")); }
         }
         Cmd::Tail { path, lines } => {
-            let text = cat_text(client, base, path)?;
-            let all: Vec<&str> = text.lines().collect();
-            for l in all.iter().skip(all.len().saturating_sub(*lines)) { println!("{l}"); }
+            let v = get(client, &format!("{base}/v1/tail"),
+                        &[("path", path.clone()), ("n", lines.to_string())])?;
+            if cli.json { println!("{v}"); } else { println!("{}", v["content"].as_str().unwrap_or("")); }
         }
         Cmd::Export { path, out } => {
-            let text = cat_text(client, base, path)?;
-            std::fs::write(out, &text).map_err(|e| e.to_string())?;
+            // export returns the FULL object (no row cap / size guard), unlike cat
+            let v = get(client, &format!("{base}/v1/export"), &[("path", path.clone())])?;
+            let text = v["content"].as_str().unwrap_or("");
+            std::fs::write(out, text).map_err(|e| e.to_string())?;
             println!("exported {} bytes -> {}", text.len(), out);
         }
         Cmd::Status => {
@@ -439,8 +442,15 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             }
         },
         Cmd::Connector { action } => match action {
-            ConnectorAction::Add { target, config } | ConnectorAction::Update { target, config } => {
+            ConnectorAction::Add { target, config } => {
                 let mut body = serde_json::json!({"target": target});
+                if let Some(c) = config { body["config"] = load_config_file(c)?; }
+                let v = post(client, &format!("{base}/v1/add"), &body)?;
+                println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
+            }
+            ConnectorAction::Update { target, config } => {
+                // update applies the new config to the existing connector (add ignores --config)
+                let mut body = serde_json::json!({"target": target, "update": true});
                 if let Some(c) = config { body["config"] = load_config_file(c)?; }
                 let v = post(client, &format!("{base}/v1/add"), &body)?;
                 println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
@@ -506,7 +516,7 @@ fn client_hostname() -> String {
 }
 
 /// One file's stat from the client scan.
-struct ScanEntry { rel: String, size: u64, mtime_ns: i128, inode: u64 }
+struct ScanEntry { rel: String, size: u64, mtime_ns: i64, inode: u64 }
 
 /// Walk a directory (skipping noisy dirs) collecting per-file stat (rel path, size,
 /// mtime_ns, inode). Mirrors the server file connector's default ignores roughly.
@@ -530,7 +540,9 @@ fn scan_tree(root: &std::path::Path) -> Result<Vec<ScanEntry>, String> {
                     .to_string_lossy().replace('\\', "/");
                 out.push(ScanEntry {
                     rel, size: md.size(),
-                    mtime_ns: md.mtime() as i128 * 1_000_000_000 + md.mtime_nsec() as i128,
+                    // ns since epoch fits i64 until year ~2262; send as a JSON number so it
+                    // round-trips to the server's int field and stat-compares cleanly next sync
+                    mtime_ns: md.mtime() * 1_000_000_000 + md.mtime_nsec(),
                     inode: md.ino(),
                 });
             }
@@ -561,7 +573,7 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
     // ① scan (stat only)
     let entries = scan_tree(root)?;
     let files: Vec<Value> = entries.iter().map(|e| serde_json::json!(
-        {"path": e.rel, "size": e.size, "mtime_ns": e.mtime_ns.to_string(), "inode": e.inode})).collect();
+        {"path": e.rel, "size": e.size, "mtime_ns": e.mtime_ns, "inode": e.inode})).collect();
 
     // ② manifest diff
     let mf = post(client, &format!("{base}/v1/files/manifest"),
@@ -580,7 +592,7 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
         let sha = sha1_file(&root.join(rel))?;
         sha_of.insert(rel.clone(), sha.clone());
         hashes.push(serde_json::json!(
-            {"path": rel, "sha1": sha, "size": e.size, "mtime_ns": e.mtime_ns.to_string(), "inode": e.inode}));
+            {"path": rel, "sha1": sha, "size": e.size, "mtime_ns": e.mtime_ns, "inode": e.inode}));
     }
     let mut renames: Vec<Value> = Vec::new();
     let mut consumed_old: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -676,11 +688,6 @@ fn tree(client: &reqwest::blocking::Client, base: &str, path: &str, depth: u32, 
         }
     }
     Ok(())
-}
-
-fn cat_text(client: &reqwest::blocking::Client, base: &str, path: &str) -> Result<String, String> {
-    let v = get(client, &format!("{base}/v1/cat"), &[("path", path.to_string())])?;
-    Ok(v["content"].as_str().unwrap_or("").to_string())
 }
 
 fn profile_cmd(action: &ProfileAction) -> Result<(), String> {

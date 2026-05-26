@@ -450,6 +450,99 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /v1/head:
+    get:
+      tags:
+      - browse
+      summary: Head
+      operationId: head
+      parameters:
+      - name: path
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Path
+      - name: n
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+          title: N
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/tail:
+    get:
+      tags:
+      - browse
+      summary: Tail
+      operationId: tail
+      parameters:
+      - name: path
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Path
+      - name: n
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 20
+          title: N
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/export:
+    get:
+      tags:
+      - browse
+      summary: Export
+      description: Full object content (no row cap / size guard) for `mfs export`.
+      operationId: export
+      parameters:
+      - name: path
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /v1/status:
     get:
       tags:
@@ -551,6 +644,11 @@ components:
           title: Process
           description: 'True: index inline now; False: enqueue for a worker'
           default: true
+        update:
+          type: boolean
+          title: Update
+          description: apply config to an existing connector (connector update); add ignores it
+          default: false
       type: object
       required:
       - target

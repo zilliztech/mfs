@@ -102,7 +102,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     async def add(body: AddRequest) -> AddResponse:
         try:
             job_id = await eng().add(body.target, config=body.config, full=body.full,
-                                     since=body.since, process=body.process)
+                                     since=body.since, process=body.process, update_config=body.update)
         except ValueError as e:
             code = str(e)
             status = 409 if code in ("sync_already_running", "connector_removing") else 400
@@ -220,7 +220,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             raise HTTPException(400, "is_directory")
         except ValueError as e:
             code = str(e)
-            if code in ("density_unsupported", "range_unsupported"):
+            if code in ("density_unsupported", "range_unsupported", "object_too_large_for_cat"):
                 raise HTTPException(400, code)
             if code == "locator_not_found":
                 raise HTTPException(404, "locator_not_found")
@@ -232,6 +232,30 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         if isinstance(out, dict):     # locator hit -> {source, locator, content}
             return CatResponse(source=out.get("source", path), content=out.get("content", ""))
         return CatResponse(source=path, content=out)
+
+    async def _read_op(fn, path: str):
+        """Shared error mapping for head/tail/export."""
+        try:
+            return await fn(path)
+        except IsADirectoryError:
+            raise HTTPException(400, "is_directory")
+        except FileNotFoundError as e:
+            raise HTTPException(404, str(e))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+    @app.get("/v1/head", response_model=CatResponse, operation_id="head", tags=["browse"])
+    async def head(path: str, n: int = 20) -> CatResponse:
+        return CatResponse(source=path, content=await _read_op(lambda p: eng().head(p, n), path))
+
+    @app.get("/v1/tail", response_model=CatResponse, operation_id="tail", tags=["browse"])
+    async def tail(path: str, n: int = 20) -> CatResponse:
+        return CatResponse(source=path, content=await _read_op(lambda p: eng().tail(p, n), path))
+
+    @app.get("/v1/export", response_model=CatResponse, operation_id="export", tags=["browse"])
+    async def export(path: str) -> CatResponse:
+        """Full object content (no row cap / size guard) for `mfs export`."""
+        return CatResponse(source=path, content=await _read_op(eng().export, path))
 
     @app.get("/v1/status", response_model=StatusResponse, operation_id="status", tags=["server"])
     async def status() -> StatusResponse:

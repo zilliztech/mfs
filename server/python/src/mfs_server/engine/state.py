@@ -44,6 +44,17 @@ class ConnectorStateStore:
     async def commit(self) -> None:
         await self._flush()
 
+    def snapshot(self) -> dict[str, Any]:
+        """The staged-but-uncommitted state (for deferring an enqueued job's commit to
+        the worker's success path — design/02 §7 ③)."""
+        return dict(self._pending)
+
+    async def apply(self, data: dict[str, Any]) -> None:
+        """Commit a previously-snapshotted state dict (worker applies it only after the
+        enqueued job's tasks all succeed)."""
+        self._pending.update(data)
+        await self._flush()
+
     async def _flush(self) -> None:
         if not self._pending:
             return

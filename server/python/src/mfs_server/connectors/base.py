@@ -209,6 +209,7 @@ class ConnectorContext:
         self.namespace_id = namespace_id
         self._resolver = object_config_resolver
         self.enumeration_mode: EnumerationMode = "incremental"   # default = safest
+        self._partial: set[str] = set()      # objects a connector read only partially (cap hit)
 
     def object_config_for(self, path: str) -> ObjectConfig:
         if self._resolver is None:
@@ -219,6 +220,15 @@ class ConnectorContext:
         """Connector declares this run's actual enumeration mode; framework uses it
         to decide whether full-set diff deletion is allowed (design/02 §7.4)."""
         self.enumeration_mode = mode
+
+    def declare_partial(self, path: str) -> None:
+        """Connector signals it read `path` only partially (hit max_read_rows/API cap);
+        framework marks the object's search_status='partial' so agents see incomplete
+        recall (design/01 §, 06 §)."""
+        self._partial.add(path)
+
+    def was_partial(self, path: str) -> bool:
+        return path in self._partial
 
 
 class ConnectorPlugin(ABC):

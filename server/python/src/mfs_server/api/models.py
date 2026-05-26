@@ -25,6 +25,7 @@ class AddRequest(BaseModel):
     full: bool = Field(False, description="force full re-index (ignore caches/fingerprints)")
     since: Optional[str] = Field(None, description="only index changes since this cursor/date")
     process: bool = Field(True, description="True: index inline now; False: enqueue for a worker")
+    update: bool = Field(False, description="apply config to an existing connector (connector update); add ignores it")
 
 
 class CancelResponse(BaseModel):

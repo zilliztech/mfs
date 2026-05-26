@@ -34,6 +34,7 @@ from .state import ConnectorStateStore
 
 _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
 _HEAD_CACHE_N = 100      # rows pre-cached per structured object to speed `head` (design/05)
+_BARE_CAT_MAX_BYTES = 5 * 1024 * 1024   # bare `cat` (no range) rejects objects larger than this
 
 
 def _now() -> str:
@@ -306,10 +307,12 @@ class Engine:
 
     # --- add (register + sync + worker) ---
     async def add(self, target: str, config: dict | None = None, full: bool = False,
-                  since: str | None = None, process: bool = True) -> str:
+                  since: str | None = None, process: bool = True, update_config: bool = False) -> str:
         """Register + sync + enqueue tasks. process=True (AIO default): run the job
         inline and return when done. process=False: leave the job 'queued' for a
-        standalone worker (design/02 §5) to pick up via run_worker_*()."""
+        standalone worker (design/02 §5) to pick up via run_worker_*(). On an already-
+        registered connector, --config is ignored unless update_config (design/03: change
+        config via `mfs connector update`, not a re-sync)."""
         import json
         _, connector_uri, ctype, default_config = self._resolve_target(target)
         # --since requires a time cursor; reject early on connectors without one (errors.md)
@@ -319,7 +322,7 @@ class Engine:
                 raise ValueError("since_unsupported")
         cfg_dict = config if config is not None else default_config
         cid = await self.register_or_get_connector(connector_uri, ctype, cfg_dict,
-                                                   overwrite_config=config is not None)
+                                                   overwrite_config=update_config)
         row0 = await self.meta.fetchone("SELECT config_json, status FROM connectors WHERE id=?", (cid,))
         stored_cfg = json.loads(row0["config_json"]) if row0 and row0["config_json"] else cfg_dict
         if row0 and row0["status"] == "removing":
@@ -364,10 +367,13 @@ class Engine:
                     " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
                     (tid, job_id, cid, ch.uri, ch.old_uri, ch.kind, "pending", plugin.task_priority(ch)))
             if not process:
-                # enqueue model: a standalone worker (separate process) won't re-run
-                # sync, so the enumerated cursor must persist now. Work isn't lost on a
-                # later failure — tasks are durable and job inheritance retries them.
-                await ctx.state.commit()
+                # enqueue model: stash the staged connector state on the job instead of
+                # committing it now. The worker commits it only after the job's tasks all
+                # succeed (design/02 §7 ③), so a failed background job doesn't advance the
+                # cursor past objects that never got indexed.
+                await self.meta.execute(
+                    "UPDATE connector_jobs SET state_snapshot=? WHERE id=?",
+                    (json.dumps(ctx.state.snapshot()), job_id))
                 return job_id
             aborted = await self._run_job(job_id, cid, connector_uri, plugin)
         finally:
@@ -497,12 +503,17 @@ class Engine:
                             raise ValueError(f"sha1 mismatch for {m.name}")
             # --- all validated; now apply to staging ---
             for r in renames:               # 1) renames: mv staging old->new (bytes already there)
+                prev = snap.get(r["old"])
+                # verify the rename hint against the server-side sha1 (design/02 §4.2 ④b):
+                # only honor it when our stored content hash matches; else reject and let the
+                # client re-send the bytes as a normal change next round.
+                if not prev or prev[3] != r.get("sha1"):
+                    continue
                 op, npth = _safe(staging, r["old"]), _safe(staging, r["new"])
                 if os.path.exists(op):
                     os.makedirs(os.path.dirname(npth), exist_ok=True)
                     os.replace(op, npth)
-                if r["old"] in snap:
-                    snap[r["new"]] = snap.pop(r["old"])
+                snap[r["new"]] = snap.pop(r["old"])
             for h in hashes.values():       # 2) move validated bytes into staging (atomic per file)
                 src = _safe(tmp, h["path"])
                 if os.path.exists(src):
@@ -588,6 +599,13 @@ class Engine:
         finally:
             await plugin.close()
         await self._finalize_job(job["id"], aborted)
+        # commit the deferred connector state only now that the job succeeded (design/02
+        # §7 ③): a failed/cancelled background job leaves the cursor where it was.
+        if aborted is None:
+            jrow = await self.meta.fetchone(
+                "SELECT state_snapshot, status FROM connector_jobs WHERE id=?", (job["id"],))
+            if jrow and jrow["status"] == "succeeded" and jrow["state_snapshot"]:
+                await ConnectorStateStore(self.meta, cid).apply(json.loads(jrow["state_snapshot"]))
         return job["id"]
 
     def _resolve_concurrency(self, concurrency=None) -> int:
@@ -698,10 +716,20 @@ class Engine:
             if not tasks:
                 break
             for t in tasks:
+                # re-check the cancel boundary before EACH task (not just per batch): a
+                # concurrent remove/cancel can land mid-batch, and we must not keep writing
+                # chunks for a connector that's being torn down (design/02 §6.4 §7).
+                jr = await self.meta.fetchone(
+                    "SELECT status FROM connector_jobs WHERE id=?", (job_id,))
+                if jr and jr["status"] == "cancelled":
+                    return "cancelled"
                 r = await self._process_with_retry(plugin, connector_uri, t)
                 if r is None:
+                    # only flip a task we still own: a conditional UPDATE means a task that
+                    # was cancelled out from under us (remove/cancel) is NOT revived to succeeded.
                     await self.meta.execute(
-                        "UPDATE object_tasks SET status='succeeded', finished_at=? WHERE id=?",
+                        "UPDATE object_tasks SET status='succeeded', finished_at=? "
+                        "WHERE id=? AND status='running'",
                         (_now(), t["id"]))
                     consec_fatal = 0
                 elif r == "fatal":
@@ -1036,7 +1064,9 @@ class Engine:
                     await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
                     await asyncio.to_thread(self.milvus.upsert, ns, rows)
                     chunk_count = len(rows)
-                    search_status = "partial" if partial else "indexed"
+                    # partial if chunk_max truncated OR the connector capped the read (design/06 §)
+                    capped = plugin.ctx.was_partial(relpath)
+                    search_status = "partial" if (partial or capped) else "indexed"
 
         elif okind == "table_schema" and self.summary.enabled != "false":
             # schema_summary chunk: an LLM description of the table/collection schema
@@ -1372,12 +1402,15 @@ class Engine:
                     i += 1
                 raise ValueError("locator_not_found")
 
-            # --- structured object: head/range pushdown over records (lazy, not materialized) ---
+            # --- structured object: range pushdown over records (lazy, not materialized) ---
             if structured:
                 records = plugin.read_records(rel)
                 if records is not None:
-                    start = range[0] if range else 0
-                    end = range[1] if range else start + 200      # default cap for a bare cat
+                    if range is None:
+                        # a bare cat would stream the whole table -> reject; the agent picks
+                        # head / cat --range / export (design/05 §, errors.md)
+                        raise ValueError("object_too_large_for_cat")
+                    start, end = range[0], range[1]
                     out, i = [], 0
                     async for rec in records:
                         if i >= end:
@@ -1389,7 +1422,10 @@ class Engine:
 
             ext = os.path.splitext(rel)[1].lower()
             text: str | None = None
-            if ext in CONVERT_EXTS:        # pdf/docx/html etc. -> return converted markdown
+            # converted markdown artifact: pdf/docx/html (CONVERT_EXTS) AND web/github pages,
+            # whose .md is generated at ingest — read it from the artifact store so cat works
+            # across restarts / fresh plugin instances, not just in-memory (design/05 §).
+            if ext in CONVERT_EXTS or curi.startswith(("web://", "github://")):
                 art = await self._read_artifact(self.ns, curi + rel, "converted_md")
                 if art is not None:
                     text = art.decode("utf-8", errors="replace")
@@ -1398,6 +1434,8 @@ class Engine:
                 if art_vlm is not None:    # image -> VLM description
                     return art_vlm.decode("utf-8", errors="replace")
             if text is None:
+                if range is None and st.size_hint and st.size_hint > _BARE_CAT_MAX_BYTES:
+                    raise ValueError("object_too_large_for_cat")
                 rg = Range(range[0], range[1]) if range else None
                 buf = bytearray()
                 async for ch in plugin.read(rel, rg):
@@ -1412,24 +1450,63 @@ class Engine:
         finally:
             await plugin.close()
 
-    async def head(self, path: str, n: int = 20) -> str:
-        # fast path: pre-cached first rows of a structured object (design/05 head_cache)
+    async def _read_full(self, path: str) -> str:
+        """Whole object content (no cap): all records for structured objects, converted
+        markdown / VLM text for artifact-backed ones, else the full byte stream. Backs
+        export and tail."""
+        import json as _json
+        _, curi, rel, plugin = await self._open_path(path)
         try:
-            _, curi, rel, plugin = await self._open_path(path)
-            try:
-                if plugin.object_kind_of(rel) in ("table_rows", "record_collection", "message_stream"):
-                    art = await self._read_artifact(self.ns, curi + rel, "head_cache")
-                    if art is not None:
-                        return "\n".join(art.decode("utf-8", errors="replace").splitlines()[:n])
-            finally:
-                await plugin.close()
-        except Exception:  # noqa: BLE001 - fall back to cat below
-            pass
+            st = await plugin.stat(rel)
+            if st.type == "dir":
+                raise IsADirectoryError(path)
+            okind = plugin.object_kind_of(rel)
+            if okind in ("table_rows", "record_collection", "message_stream"):
+                records = plugin.read_records(rel)
+                if records is not None:
+                    out = []
+                    async for rec in records:
+                        out.append(_json.dumps(rec, default=str, ensure_ascii=False))
+                    return "\n".join(out)
+            ext = os.path.splitext(rel)[1].lower()
+            if ext in CONVERT_EXTS or curi.startswith(("web://", "github://")):
+                art = await self._read_artifact(self.ns, curi + rel, "converted_md")
+                if art is not None:
+                    return art.decode("utf-8", errors="replace")
+            art_vlm = await self._read_artifact(self.ns, curi + rel, "vlm_text")
+            if art_vlm is not None:
+                return art_vlm.decode("utf-8", errors="replace")
+            buf = bytearray()
+            async for ch in plugin.read(rel):
+                buf += ch
+            return bytes(buf).decode("utf-8", errors="replace")
+        finally:
+            await plugin.close()
+
+    async def export(self, path: str) -> str:
+        """Full content for `mfs export` (design/03): the entire object, no row cap and no
+        bare-cat size guard."""
+        return await self._read_full(path)
+
+    async def head(self, path: str, n: int = 20) -> str:
+        cid, curi, rel, plugin = await self._open_path(path)
+        try:
+            structured = plugin.object_kind_of(rel) in (
+                "table_rows", "record_collection", "message_stream")
+            if structured:
+                # fast path: pre-cached first rows (design/05 head_cache)
+                art = await self._read_artifact(self.ns, curi + rel, "head_cache")
+                if art is not None:
+                    return "\n".join(art.decode("utf-8", errors="replace").splitlines()[:n])
+        finally:
+            await plugin.close()
+        if structured:
+            return await self.cat(path, range=(0, n))      # bounded page, not the whole table
         text = await self.cat(path)
         return "\n".join(text.splitlines()[:n])
 
     async def tail(self, path: str, n: int = 20) -> str:
-        text = await self.cat(path)
+        text = await self._read_full(path)
         return "\n".join(text.splitlines()[-n:])
 
     async def grep(self, pattern: str, path: str, top_k: int = 100, regex: bool = False) -> list[dict]:

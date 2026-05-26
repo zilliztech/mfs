@@ -135,7 +135,20 @@ class ZendeskPlugin(ConnectorPlugin):
                 after = meta.get("after_cursor")
 
     async def fingerprint(self, path: str) -> Optional[str]:
-        return None
+        # count-based change detection (design/06): Zendesk exposes /<resource>/count.json,
+        # so a re-sync only re-yields a collection whose size changed instead of always
+        # marking it modified.
+        ep = _COLLECTIONS.get(path)
+        if not ep:
+            return None
+        resource = ep[1]                       # tickets / users / organizations
+        try:
+            async with httpx.AsyncClient(auth=self._auth(), timeout=30) as c:
+                r = await c.get(f"{self._base()}/api/v2/{resource}/count.json")
+                r.raise_for_status()
+                return f"count:{r.json().get('count', {}).get('value')}"
+        except Exception:  # noqa: BLE001 - count endpoint unavailable -> fall back to always-sync
+            return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
         self.ctx.declare_enumeration("full")
