@@ -50,6 +50,36 @@ def _match_object_config(objects_cfg: list, path: str) -> ObjectConfig:
     return ObjectConfig()
 
 
+_CODE_SYMBOL = re.compile(r"^\s*(def |class |func |fn |public |private |func\(|type )")
+
+
+def _density_view(text: str, ext: str, density: str) -> str:
+    """Skeleton view of a document/code object (design/05 §3):
+      peek = headings (markdown #) or code symbol lines only;
+      skim = peek + the first non-blank line of prose under each heading.
+    """
+    lines = text.splitlines()
+    is_md = ext in (".md", ".markdown", ".rst", ".txt", "")
+    out: list[str] = []
+    if is_md:
+        for i, ln in enumerate(lines):
+            if ln.lstrip().startswith("#"):
+                out.append(ln.rstrip())
+                if density == "skim":
+                    for nxt in lines[i + 1:]:
+                        if nxt.strip():
+                            out.append("    " + nxt.strip()[:120])
+                            break
+    else:
+        for ln in lines:
+            if _CODE_SYMBOL.match(ln):
+                out.append(ln.rstrip() if density == "skim" else ln.split("(")[0].rstrip())
+    if not out:
+        # nothing structural found -> first lines as a fallback peek
+        out = [ln.rstrip() for ln in lines[:15]]
+    return "\n".join(out)
+
+
 def _render_record(rec: dict, text_fields: list[str], template: str | None = None) -> str:
     """Join configured text_fields into chunk content (design/06 §4 default template)."""
     parts = []
@@ -546,10 +576,17 @@ class Engine:
             ocfg = plugin.ctx.object_config_for(relpath)
             records = plugin.read_records(relpath)
             if records is not None and ocfg.text_fields:
+                predicate = None
+                if ocfg.index_filter:
+                    from ..common.filter_ast import compile_filter
+                    predicate = compile_filter(ocfg.index_filter)   # restricted AST, not eval
                 pairs: list[tuple[str, dict | None]] = []
                 partial = False
                 i = 0
                 async for rec in records:
+                    if predicate is not None and not predicate(rec):
+                        i += 1
+                        continue        # row excluded by index_filter
                     text = _render_record(rec, ocfg.text_fields, ocfg.text_template)
                     if text.strip():
                         loc = {f: rec.get(f) for f in ocfg.locator_fields} if ocfg.locator_fields else {"_row": i}
@@ -684,7 +721,8 @@ class Engine:
         return [{"name": e.name, "type": e.type, "media_type": e.media_type, "size_hint": e.size_hint}
                 for e in entries]
 
-    async def cat(self, path: str, range: tuple[int, int] | None = None, meta: bool = False):
+    async def cat(self, path: str, range: tuple[int, int] | None = None, meta: bool = False,
+                  density: str | None = None):
         from ..connectors.base import Range
         _, curi, rel, plugin = await self._open_path(path)
         try:
@@ -695,20 +733,29 @@ class Engine:
                 return {"source": curi + rel, "media_type": st.media_type,
                         "size_hint": st.size_hint, "fingerprint": st.fingerprint}
             ext = os.path.splitext(rel)[1].lower()
+            text: str | None = None
             if ext in CONVERT_EXTS:        # pdf/docx/html etc. -> return converted markdown
                 art = await asyncio.to_thread(self.object_store.get_artifact, self.ns,
                                               curi + rel, "converted_md")
                 if art is not None:
-                    return art.decode("utf-8", errors="replace")
-            art_vlm = await asyncio.to_thread(self.object_store.get_artifact, self.ns,
-                                              curi + rel, "vlm_text")
-            if art_vlm is not None:        # image -> VLM description
-                return art_vlm.decode("utf-8", errors="replace")
-            rg = Range(range[0], range[1]) if range else None
-            buf = bytearray()
-            async for ch in plugin.read(rel, rg):
-                buf += ch
-            return bytes(buf).decode("utf-8", errors="replace")
+                    text = art.decode("utf-8", errors="replace")
+            if text is None:
+                art_vlm = await asyncio.to_thread(self.object_store.get_artifact, self.ns,
+                                                  curi + rel, "vlm_text")
+                if art_vlm is not None:    # image -> VLM description
+                    return art_vlm.decode("utf-8", errors="replace")
+            if text is None:
+                rg = Range(range[0], range[1]) if range else None
+                buf = bytearray()
+                async for ch in plugin.read(rel, rg):
+                    buf += ch
+                text = bytes(buf).decode("utf-8", errors="replace")
+            if density and density != "deep":
+                okind = plugin.object_kind_of(rel)
+                if okind not in ("document", "code"):
+                    raise ValueError("density_unsupported")
+                return _density_view(text, ext, density)
+            return text
         finally:
             await plugin.close()
 

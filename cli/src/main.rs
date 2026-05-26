@@ -56,6 +56,12 @@ enum Cmd {
         range: Option<String>,
         #[arg(long)]
         meta: bool,
+        /// Skeleton view: headings/symbols only
+        #[arg(long)]
+        peek: bool,
+        /// peek + one-line summaries
+        #[arg(long)]
+        skim: bool,
     },
     /// First N lines of an object
     Head {
@@ -232,10 +238,12 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             println!("{path}");
             tree(client, base, path, *depth, "")?;
         }
-        Cmd::Cat { path, range, meta } => {
+        Cmd::Cat { path, range, meta, peek, skim } => {
             let mut q = vec![("path", path.clone())];
             if let Some(r) = range { q.push(("range", r.clone())); }
             if *meta { q.push(("meta", "true".to_string())); }
+            if *peek { q.push(("density", "peek".to_string())); }
+            if *skim { q.push(("density", "skim".to_string())); }
             let v = get(client, &format!("{base}/v1/cat"), &q)?;
             if cli.json { println!("{v}"); return Ok(()); }
             if *meta { println!("{v}"); } else { println!("{}", v["content"].as_str().unwrap_or("")); }

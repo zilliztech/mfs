@@ -88,16 +88,21 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.get("/v1/cat", operation_id="cat", tags=["browse"],
              response_model=None, responses={200: {"model": CatResponse}})
-    async def cat(path: str, range: str | None = None, meta: bool = False):
+    async def cat(path: str, range: str | None = None, meta: bool = False,
+                  density: str | None = None):
         rg = None
         if range:
             a, b = range.split(":")
             rg = (int(a), int(b))
         try:
-            out = await eng().cat(path, range=rg, meta=meta)
+            out = await eng().cat(path, range=rg, meta=meta, density=density)
         except IsADirectoryError:
             raise HTTPException(400, "is_directory")
-        except (FileNotFoundError, ValueError) as e:
+        except ValueError as e:
+            if str(e) == "density_unsupported":
+                raise HTTPException(400, "density_unsupported")
+            raise HTTPException(404, str(e))
+        except FileNotFoundError as e:
             raise HTTPException(404, str(e))
         if meta:
             return CatMeta(**out) if isinstance(out, dict) else out

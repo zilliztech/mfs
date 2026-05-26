@@ -245,6 +245,14 @@ paths:
           type: boolean
           default: false
           title: Meta
+      - name: density
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Density
       responses:
         '200':
           description: Successful Response
