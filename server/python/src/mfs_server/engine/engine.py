@@ -96,7 +96,10 @@ class Engine:
         m = _SCHEME_RE.match(target)
         if m:
             sch = m.group(1)
-            if sch in ("web", "github", "postgres", "mysql", "mongo"):
+            if sch in ("web", "github", "postgres", "mysql", "mongo",
+                       "slack", "discord", "gmail", "notion", "jira", "linear",
+                       "zendesk", "salesforce", "hubspot", "bigquery", "snowflake",
+                       "s3", "gdrive", "feishu"):
                 return sch, target, sch, {}
             if sch != "file":
                 raise NotImplementedError(f"connector scheme '{sch}' not yet implemented")
@@ -380,6 +383,52 @@ class Engine:
                 await asyncio.to_thread(self.milvus.upsert, ns, [row])
                 chunk_count = 1
                 search_status = "indexed"
+
+        elif okind == "message_stream":
+            ocfg = plugin.ctx.object_config_for(relpath)
+            records = plugin.read_records(relpath)
+            if records is not None and ocfg.text_fields:
+                # per_group thread_aggregate: group messages by group_by, each thread/
+                # group becomes one aggregate chunk (design/06 §2 thread_aggregate). When
+                # not configured, fall back to common thread keys across connectors
+                # (slack thread_ts / gmail threadId / generic thread_id).
+                cfg_key = ocfg.group_by
+                group_key = cfg_key or "thread"
+                _THREAD_KEYS = ("thread_ts", "threadId", "thread_id", "thread")
+                groups: dict = {}
+                order: list = []
+                async for rec in records:
+                    if cfg_key:
+                        gk = rec.get(cfg_key)
+                    else:
+                        gk = next((rec[k] for k in _THREAD_KEYS if rec.get(k)), None)
+                    gk = gk or rec.get("ts") or rec.get("id") or str(len(order))
+                    if gk not in groups:
+                        groups[gk] = []
+                        order.append(gk)
+                    groups[gk].append(rec)
+                    if len(order) >= ocfg.chunk_max:
+                        break
+                pairs: list[tuple[str, dict | None]] = []
+                for gk in order:
+                    body = "\n\n".join(
+                        _render_record(m, ocfg.text_fields, ocfg.text_template) for m in groups[gk])
+                    body = body.strip()
+                    if body:
+                        pairs.append((body[: (ocfg.max_text_chars or 200000)], {group_key: gk}))
+                if pairs:
+                    vecs = await self.embed.batch_embed([p[0] for p in pairs])
+                    now_ms = int(time.time() * 1000)
+                    rows = [{
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "thread_aggregate", loc, None),
+                        "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
+                        "locator": loc, "lines": None, "content": ctext[:65000], "dense_vec": vec,
+                        "chunk_kind": "thread_aggregate", "metadata": {}, "indexed_at": now_ms,
+                    } for (ctext, loc), vec in zip(pairs, vecs)]
+                    await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
+                    await asyncio.to_thread(self.milvus.upsert, ns, rows)
+                    chunk_count = len(rows)
+                    search_status = "indexed"
 
         elif okind in ("table_rows", "record_collection"):
             ocfg = plugin.ctx.object_config_for(relpath)

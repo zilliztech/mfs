@@ -116,13 +116,18 @@ design/                   # 设计文档（实现绝对依据）
 - [x] **postgres connector**（asyncpg，结构化模板；本地 PG 端到端 7/7：per_row + locator + search）。PG14 装好、test db `mfstest`。注：asyncpg cursor 需在 transaction 内；dsn `postgresql:///mfstest?host=/var/run/postgresql`（peer auth）。
 - [x] **mysql connector**（aiomysql，结构化模板）— MariaDB 本地端到端 4/4（证明 table_rows pipeline 跨 DB 通用）。MariaDB 装好、db `mfstest`、user mfs/mfs。
 - [x] **mongo connector**（pymongo 4.13+ AsyncMongoClient，文档型 record_collection）— 查文档写、import/registry 验证通过；**未端到端测**（无本地 mongo 实例）。已注册 schemes: file/web/github/postgres/mysql/mongo。
-- [ ] Phase 10 余：需 key 的 SaaS connector（slack/discord/gmail/gdrive/notion/jira/linear/zendesk/salesforce/hubspot/feishu/bigquery/snowflake）— 各类已有模板：结构化=postgres/mysql、文档=mongo、API分页=github、爬取=web、消息(per_group)待 engine 扩展。查文档写、无 key 不端到端测。
+- [x] **Phase 10 全 connector 写完**（查最新 SDK 文档、无 key 不端到端测）。共 **20 个 scheme** 注册：file/web/github/postgres/mysql/mongo + 新增 **slack/discord/gmail/notion/jira/linear/zendesk/salesforce/hubspot/bigquery/snowflake/s3/gdrive/feishu**。
+  - **engine message_stream pipeline 新增**：per_group thread_aggregate（按 group_by 或 thread_ts/threadId/thread_id 兜底分组 → 每 thread 一个 thread_aggregate chunk）。**真实 e2e 验证 6/6（Milvus Lite + OpenAI，合成内存消息 connector，无 SaaS key）**：5 消息→3 thread_aggregate、语义召回正确 thread、aggregate 融合同 thread 多条回复。
+  - 模板复用：结构化 table_rows（bigquery=google-cloud-bigquery / snowflake=snowflake-connector-python，均 sync→to_thread）；record_collection（jira=atlassian-python-api / salesforce=simple-salesforce / hubspot=hubspot-api-client，sync→to_thread；linear=GraphQL httpx 原始 key 非 Bearer；zendesk=REST httpx cursor 分页 page[after]；notion=notion-client AsyncClient，pages→document(.md 渲染 block)+databases→record_collection）；message_stream（slack=slack_sdk AsyncWebClient / discord=REST httpx Bot token / gmail=google-api-python-client sync→to_thread threadId 分组 / feishu=lark-oapi builder sync→to_thread）；file-tree（s3=aioboto3 list_objects_v2 分页 + 复用 file 扩展名映射 / gdrive=google-api-python-client，native Docs export→text，parents 链解析路径）。
+  - **SDK 接口均查最新官方文档/GitHub 确认**（不凭记忆）：见各 plugin.py 顶部 docstring 标注的验证来源。
+  - **offline 单元测试 52/52**（`tests/phase10_connectors_unit.py`：object_kind 路由 + 虚拟路径 layout + 解析 helper，stub 网络枚举方法，零连接零 key）。
+  - pyproject 加 optional extras（slack/notion/jira/salesforce/hubspot/bigquery/snowflake/s3/google/feishu + `all-connectors` 聚合）；`uv sync --extra all-connectors --extra dev` 装好，20 scheme 全部 import+register 通过。registry.load_builtin 改 importlib 循环（缺 SDK 自动 skip）；engine._resolve_target 加全部 scheme。
 - [ ] 其余：SDK(py/ts/go/java)、deployments(docker/helm)、Skill bundle、server-rs 加速、cancel(daemon)。
 - [ ] 其余：SDK(py/ts/go/java 从 openapi 生成)、deployments(docker/helm)、Skill bundle、server-rs 加速（PyO3）、cancel(daemon)。
-- [ ] Phase 7：健壮性 case
+- [x] Phase 7：健壮性 case（见上）
 - [ ] Phase 8：端到端矩阵（Zilliz × Lite）
 - [ ] Phase 9：server-rs 加速
-- [ ] Phase 10：需 key 的 connector
+- [x] Phase 10：全 connector（见上）
 
 ### 当前 context 交接笔记
 （每次 context 结束前更新：做到哪、下一步、踩的坑）
