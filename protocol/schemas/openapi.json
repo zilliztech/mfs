@@ -110,6 +110,59 @@
         }
       }
     },
+    "/v1/upload": {
+      "post": {
+        "tags": [
+          "ingest"
+        ],
+        "summary": "Upload",
+        "description": "CS upload flow: POST a tar(.gz) of a tree as the raw body (?name=<label>);\nthe server stages + indexes it. For client/server without a shared filesystem.",
+        "operationId": "uploadSource",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "process",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Process"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/search": {
       "get": {
         "tags": [
@@ -964,8 +1017,7 @@
   },
   "servers": [
     {
-      "url": "http://127.0.0.1:8765",
-      "description": "local mfs-server"
+      "url": "http://127.0.0.1:8765"
     }
   ]
 }

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 
 from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
@@ -51,6 +51,19 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     async def cancel_job(job_id: str) -> CancelResponse:
         ok = await eng().cancel_job(job_id)
         return CancelResponse(job_id=job_id, cancelled=ok)
+
+    @app.post("/v1/upload", response_model=AddResponse, operation_id="uploadSource", tags=["ingest"])
+    async def upload(request: Request, name: str, process: bool = True) -> AddResponse:
+        """CS upload flow: POST a tar(.gz) of a tree as the raw body (?name=<label>);
+        the server stages + indexes it. For client/server without a shared filesystem."""
+        data = await request.body()
+        if not data:
+            raise HTTPException(400, "empty upload body")
+        try:
+            out = await eng().ingest_upload(name, data, process=process)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return AddResponse(job_id=out["job_id"])
 
     @app.get("/v1/search", response_model=SearchResponse, operation_id="search", tags=["retrieval"])
     async def search(q: str, path: str | None = None, mode: str = "hybrid",

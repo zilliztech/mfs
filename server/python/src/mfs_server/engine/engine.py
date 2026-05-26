@@ -184,6 +184,32 @@ class Engine:
         await self._finalize_job(job_id, aborted)
         return job_id
 
+    async def ingest_upload(self, name: str, data: bytes, fmt: str = "tar",
+                            process: bool = True) -> dict:
+        """CS upload flow (design/02 §4.2): client/server don't share a fs, so the
+        client ships a tar(.gz) of the tree; the server extracts it into a per-upload
+        staging dir under the object store and indexes that dir with the file connector.
+        Guards against path traversal (zip-slip)."""
+        import hashlib
+        import io
+        import tarfile
+
+        sub = hashlib.sha1(name.encode()).hexdigest()[:16]
+        staging = self.object_store.files_root(self.ns, sub)
+        staging_str = os.path.realpath(str(staging))
+        with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as tf:
+            members = tf.getmembers()
+            for m in members:
+                if m.issym() or m.islnk():
+                    raise ValueError(f"links not allowed in upload: {m.name}")
+                dest = os.path.realpath(os.path.join(staging_str, m.name))
+                if dest != staging_str and not dest.startswith(staging_str + os.sep):
+                    raise ValueError(f"unsafe path in archive: {m.name}")
+            tf.extractall(staging_str)        # validated above
+        job_id = await self.add(staging_str, process=process)
+        _, connector_uri, _, _ = self._resolve_target(staging_str)
+        return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging_str}
+
     async def _finalize_job(self, job_id: str, aborted: str | None) -> None:
         """Set terminal job status + per-status object counts (design/02 §7)."""
         counts = await self.meta.fetchall(
