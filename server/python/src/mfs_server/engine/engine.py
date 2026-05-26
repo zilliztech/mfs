@@ -927,10 +927,26 @@ class Engine:
         accelerator (mfs_server_rs) when the object is a real local file, else falls
         back to reading bytes + pure-Python regex."""
         from ..common import accel
+        from ..connectors.base import GrepOptions
         cid, curi, rel, plugin = await self._open_path(path)
         scope_prefix = (curi + rel) if rel != "/" else None
         try:
             results: list[dict] = []
+            # 2a connector grep pushdown (design/05 §6 step 1): exact, source-side (e.g.
+            # SQL ILIKE for structured connectors). Returns None when unsupported.
+            ocfg = plugin.ctx.object_config_for(rel)
+            try:
+                gen = await plugin.grep(pattern, rel, GrepOptions(
+                    pattern=pattern, text_fields=ocfg.text_fields,
+                    metadata_fields=ocfg.metadata_fields))
+            except Exception:  # noqa: BLE001 - pushdown failure shouldn't kill grep
+                gen = None
+            if gen is not None:
+                async for gm in gen:
+                    results.append({"source": curi + gm.path, "lines": [gm.line_no, gm.line_no]
+                                    if gm.line_no else None, "locator": gm.locator,
+                                    "content": gm.content, "via": "pushdown"})
+                return results
             # 2b BM25 over indexed objects in scope
             expr = build_filter(self.ns, curi, scope_prefix)
             hits = await asyncio.to_thread(self.milvus.sparse_search, self.ns, pattern, top_k, expr)

@@ -36,6 +36,7 @@ declare -a TESTS=(
   phase12_github_meta_smoke.py    # github issues/pulls/diff
   phase12_connector_mgmt_smoke.py # probe/inspect/remove
   phase12_headcache_enum_smoke.py # head_cache + enumeration delete guard
+  phase12_grep_pushdown_smoke.py  # connector grep pushdown
 )
 PASS=0; FAIL=0; SKIP=0
 declare -a FAILED=()
