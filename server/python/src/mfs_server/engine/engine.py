@@ -88,10 +88,62 @@ class _SafeDict(dict):
         return ""
 
 
+_PATH_SEG = re.compile(r"^([^\[\]]+)(?:\[([^\]]*)\])?$")
+
+
+def _resolve_path(obj, path: str):
+    """JSONPath-lite field resolver (design/06 §4). Supports:
+      a.b           nested dict access
+      a[*].b / a[].b  every element's b   -> flattened list
+      a[2].b        index
+      a[0:5].b      slice                 -> list
+    Returns a scalar for single-valued paths, a list for multi-valued ones, None/[] when
+    absent. Used for text_fields / metadata_fields / locator_fields."""
+    nodes = [obj]
+    multi = False
+    for seg in path.split("."):
+        m = _PATH_SEG.match(seg)
+        if not m:
+            return None
+        key, br = m.group(1), m.group(2)
+        nxt = []
+        for n in nodes:
+            if not isinstance(n, dict) or key not in n:
+                continue
+            v = n[key]
+            if br is None:
+                nxt.append(v)
+                continue
+            if not isinstance(v, list):
+                v = [v]
+            if br in ("*", ""):
+                nxt.extend(v); multi = True
+            elif ":" in br:
+                a, _, b = br.partition(":")
+                nxt.extend(v[slice(int(a) if a else None, int(b) if b else None)]); multi = True
+            else:
+                idx = int(br)
+                if -len(v) <= idx < len(v):
+                    nxt.append(v[idx])
+        nodes = nxt
+    if multi:
+        return nodes
+    return nodes[0] if nodes else None
+
+
+def _field_values(rec: dict, field: str) -> list[str]:
+    """Resolved field as a list of non-empty stringified values."""
+    v = _resolve_path(rec, field)
+    if v is None:
+        return []
+    items = v if isinstance(v, list) else [v]
+    return [str(x) for x in items if x is not None and x != ""]
+
+
 def _render_record(rec: dict, text_fields: list[str], template: str | None = None) -> str:
     """Render a record into chunk content (design/06 §4). With a text_template, do
-    `{field}` substitution from the record (missing fields -> empty); otherwise join
-    the configured text_fields with the default template."""
+    `{field}` substitution (missing -> empty); otherwise join the configured
+    text_fields (JSONPath-lite) with the default template."""
     if template:
         try:
             return template.format_map(_SafeDict(rec))
@@ -99,18 +151,50 @@ def _render_record(rec: dict, text_fields: list[str], template: str | None = Non
             pass
     parts = []
     for f in text_fields:
-        if "[]" in f or "[*]" in f:          # array field: comments[].body etc.
-            base = f.split("[")[0]
-            sub = f.split(".")[-1] if "." in f else None
-            arr = rec.get(base) or []
-            vals = [str(x.get(sub) if isinstance(x, dict) and sub else x) for x in arr]
-            if vals:
-                parts.append(f"{base}:\n- " + "\n- ".join(vals))
+        vals = _field_values(rec, f)
+        if not vals:
+            continue
+        if len(vals) == 1 and "[" not in f:
+            parts.append(f"{f}: {vals[0]}")
         else:
-            v = rec.get(f)
-            if v is not None:
-                parts.append(f"{f}: {v}")
+            parts.append(f"{f}:\n- " + "\n- ".join(vals))
     return "\n\n".join(parts)
+
+
+def _windowed_pairs(kept: list, ocfg) -> list:
+    """chunk_strategy=windowed (design/06 §4): bucket records by a time window on the
+    group_by field and emit one aggregate chunk per window. chunk_window like '1d'/'7d'/
+    '30d'/'12h'/'2w'. Records whose time can't be parsed bucket under 'unparsed'."""
+    unit_days = {"d": 1, "w": 7, "h": 1 / 24}
+    cw = (ocfg.chunk_window or "7d").strip()
+    try:
+        win_days = float(cw[:-1]) * unit_days.get(cw[-1].lower(), 1)
+    except (ValueError, IndexError):
+        win_days = 7.0
+    tfield = ocfg.group_by or (ocfg.text_fields[0] if ocfg.text_fields else None)
+    buckets: dict = {}
+    order: list = []
+    for (_, rec, _, meta) in kept:
+        raw = _resolve_path(rec, tfield) if tfield else None
+        label = "unparsed"
+        if raw is not None:
+            try:
+                dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+                epoch_day = dt.timestamp() / 86400.0
+                label = f"{tfield}~{int(epoch_day // win_days)}"
+            except (ValueError, TypeError):
+                label = f"{tfield}={str(raw)[:10]}"
+        if label not in buckets:
+            buckets[label] = []
+            order.append(label)
+        buckets[label].append(rec)
+    pairs = []
+    for label in order:
+        body = "\n\n".join(_render_record(r, ocfg.text_fields, ocfg.text_template) for r in buckets[label])
+        body = body.strip()
+        if body:
+            pairs.append((body[: (ocfg.max_text_chars or 200000)], {"window": label}, {}))
+    return pairs
 
 
 class Engine:
@@ -757,7 +841,13 @@ class Engine:
                 if ocfg.index_filter:
                     from ..common.filter_ast import compile_filter
                     predicate = compile_filter(ocfg.index_filter)   # restricted AST, not eval
+                # chunk_strategy (design/06 §4): per_row (default) | per_field_chunked |
+                # sampled | windowed. JSONPath-lite resolves locator/metadata/text fields.
+                strategy = ocfg.chunk_strategy or "per_row"
+                sample_step = (max(1, round(1 / ocfg.sample_rate))
+                               if strategy == "sampled" and ocfg.sample_rate else 1)
                 pairs: list[tuple[str, dict | None, dict]] = []
+                kept: list = []                 # windowed: collect then bucket after the scan
                 head_buf: list[str] = []        # first N raw records -> head_cache artifact
                 partial = False
                 i = 0
@@ -767,17 +857,34 @@ class Engine:
                     if predicate is not None and not predicate(rec):
                         i += 1
                         continue        # row excluded by index_filter
-                    text = _render_record(rec, ocfg.text_fields, ocfg.text_template)
-                    if text.strip():
-                        loc = {f: rec.get(f) for f in ocfg.locator_fields} if ocfg.locator_fields else {"_row": i}
-                        # carry configured metadata_fields onto the chunk so search hits
-                        # surface them in metadata.fields (design/06 §4 metadata_fields)
-                        meta = {f: rec.get(f) for f in ocfg.metadata_fields} if ocfg.metadata_fields else {}
-                        pairs.append((text, loc, meta))
+                    if sample_step > 1 and (i % sample_step != 0):
+                        i += 1
+                        continue        # not in the sample
+                    loc = ({f: _resolve_path(rec, f) for f in ocfg.locator_fields}
+                           if ocfg.locator_fields else {"_row": i})
+                    meta = ({f: _resolve_path(rec, f) for f in ocfg.metadata_fields}
+                            if ocfg.metadata_fields else {})
+                    if strategy == "per_field_chunked":
+                        # one chunk per configured text_field (wide records -> field-level recall)
+                        for f in ocfg.text_fields:
+                            vals = _field_values(rec, f)
+                            if vals:
+                                pairs.append((f"{f}: " + "\n- ".join(vals), {**loc, "field": f}, meta))
+                    elif strategy == "windowed":
+                        kept.append((i, rec, loc, meta))
+                    else:        # per_row / sampled
+                        text = _render_record(rec, ocfg.text_fields, ocfg.text_template)
+                        if text.strip():
+                            pairs.append((text, loc, meta))
                     i += 1
                     if len(pairs) >= ocfg.chunk_max:
                         partial = True
                         break
+                if strategy == "windowed" and kept:
+                    pairs = _windowed_pairs(kept, ocfg)
+                    if len(pairs) > ocfg.chunk_max:
+                        pairs = pairs[:ocfg.chunk_max]
+                        partial = True
                 if head_buf:        # pre-cache first rows so `head` is fast without re-querying
                     await self._put_artifact(ns, full_uri, "head_cache", ("\n".join(head_buf)).encode())
                 if pairs:
