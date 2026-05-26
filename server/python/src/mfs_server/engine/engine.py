@@ -1,9 +1,9 @@
 """Engine: orchestration for `mfs add` (register connector -> job -> sync ->
-object_tasks -> worker). Phase 2 worker is a stub that writes objects/file_state and
-marks tasks succeeded (no chunk/embed/Milvus yet); _index_object is the seam Phase 3
-fills with real chunk/embed/Milvus-upsert.
+object_tasks -> process). `_index_object` does the real per-object work: read ->
+chunk/convert/VLM/summary -> embed -> Milvus upsert, per object_kind. Jobs run inline
+(process=True) or are drained by the standalone worker (run_worker_*).
 
-per-object atomic + job inheritance (design/02 §6.4 §7.1) are honored in structure.
+per-object atomic writes + job inheritance + circuit breaker (design/02 §6.4 §7.1).
 """
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 """FastAPI /v1 control plane (design/02 §1, 03). Thin HTTP wrappers over Engine.
 Typed request/response models (api/models.py) make the generated OpenAPI rich enough
-for the multi-language SDKs. Phase 4: add runs synchronously (returns job_id when done);
-background daemon is Phase 5+.
+for the multi-language SDKs. `add` indexes inline by default (returns job_id when done)
+or enqueues for the standalone worker when process=false.
 """
 from __future__ import annotations
 
