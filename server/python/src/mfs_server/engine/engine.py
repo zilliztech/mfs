@@ -8,6 +8,7 @@ per-object atomic + job inheritance (design/02 §6.4 §7.1) are honored in struc
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import re
 import time
@@ -32,6 +33,7 @@ from ..storage.transformation_cache import TransformationCache
 from .state import ConnectorStateStore
 
 _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
+_HEAD_CACHE_N = 100      # rows pre-cached per structured object to speed `head` (design/05)
 
 
 def _now() -> str:
@@ -201,6 +203,11 @@ class Engine:
         try:
             opts = SyncOptions(full=full, since=since)
             async for ch in plugin.sync(opts):
+                # deletion safety (design/02 §7.4): only honor full-set diff deletes when
+                # the connector declared a complete enumeration this run; on incremental /
+                # explicit_only a "missing" object is unknown, not deleted.
+                if ch.kind == "deleted" and ctx.enumeration_mode != "full":
+                    continue
                 tid = uuid.uuid4().hex
                 await self.meta.execute(
                     "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
@@ -581,9 +588,12 @@ class Engine:
                     from ..common.filter_ast import compile_filter
                     predicate = compile_filter(ocfg.index_filter)   # restricted AST, not eval
                 pairs: list[tuple[str, dict | None]] = []
+                head_buf: list[str] = []        # first N raw records -> head_cache artifact
                 partial = False
                 i = 0
                 async for rec in records:
+                    if len(head_buf) < _HEAD_CACHE_N:
+                        head_buf.append(json.dumps(rec, default=str, ensure_ascii=False))
                     if predicate is not None and not predicate(rec):
                         i += 1
                         continue        # row excluded by index_filter
@@ -595,6 +605,9 @@ class Engine:
                     if len(pairs) >= ocfg.chunk_max:
                         partial = True
                         break
+                if head_buf:        # pre-cache first rows so `head` is fast without re-querying
+                    await asyncio.to_thread(self.object_store.put_artifact, ns, full_uri,
+                                            "head_cache", ("\n".join(head_buf)).encode())
                 if pairs:
                     vecs = await self.embed.batch_embed([p[0] for p in pairs])
                     now_ms = int(time.time() * 1000)
@@ -662,10 +675,6 @@ class Engine:
              st.fingerprint, 1 if indexable else 0, _now(), search_status, chunk_count, _now()))
 
         await plugin.on_object_indexed(relpath)
-
-    def ctx_object_config(self, connector_id: str, relpath: str) -> ObjectConfig:
-        # Phase 3: default config; connector TOML [[objects]] parsing comes later
-        return ObjectConfig()
 
     # --- search (design/06 §7) ---
     async def search(self, query: str, connector_uri: str | None = None,
@@ -892,6 +901,19 @@ class Engine:
             await plugin.close()
 
     async def head(self, path: str, n: int = 20) -> str:
+        # fast path: pre-cached first rows of a structured object (design/05 head_cache)
+        try:
+            _, curi, rel, plugin = await self._open_path(path)
+            try:
+                if plugin.object_kind_of(rel) in ("table_rows", "record_collection", "message_stream"):
+                    art = await asyncio.to_thread(self.object_store.get_artifact, self.ns,
+                                                  curi + rel, "head_cache")
+                    if art is not None:
+                        return "\n".join(art.decode("utf-8", errors="replace").splitlines()[:n])
+            finally:
+                await plugin.close()
+        except Exception:  # noqa: BLE001 - fall back to cat below
+            pass
         text = await self.cat(path)
         return "\n".join(text.splitlines()[:n])
 

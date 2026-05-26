@@ -32,6 +32,10 @@ declare -a TESTS=(
   phase11_summary_smoke.py        # summary/schema/directory chunk_kinds
   phase11_filter_density_smoke.py # index_filter + cat density
   phase11_onnx_embedding_smoke.py # local onnx embedding (no key)
+  phase12_locator_smoke.py        # cat --locator + structured pushdown
+  phase12_github_meta_smoke.py    # github issues/pulls/diff
+  phase12_connector_mgmt_smoke.py # probe/inspect/remove
+  phase12_headcache_enum_smoke.py # head_cache + enumeration delete guard
 )
 PASS=0; FAIL=0; SKIP=0
 declare -a FAILED=()
