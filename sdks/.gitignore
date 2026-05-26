@@ -1,0 +1,11 @@
+# build artifacts / deps — sources are committed, builds are reproducible via generate.sh
+python/.venv/
+python/*.egg-info/
+python/build/
+python/dist/
+typescript/node_modules/
+typescript/dist/
+go-smoke/go.sum
+java/target/
+java-smoke/target/
+**/.openapi-generator/

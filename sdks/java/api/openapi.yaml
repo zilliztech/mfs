@@ -1,0 +1,680 @@
+openapi: 3.1.0
+info:
+  description: Multi-source File-like Search — HTTP /v1 control plane.
+  title: MFS
+  version: 0.4.0
+servers:
+- description: local mfs-server
+  url: http://127.0.0.1:8765
+paths:
+  /v1/server/info:
+    get:
+      operationId: getServerInfo
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerInfo"
+          description: Successful Response
+      summary: Server Info
+      tags:
+      - server
+      x-accepts:
+      - application/json
+  /v1/add:
+    post:
+      operationId: addSource
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddResponse"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      summary: Add
+      tags:
+      - ingest
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /v1/search:
+    get:
+      operationId: search
+      parameters:
+      - explode: true
+        in: query
+        name: q
+        required: true
+        schema:
+          title: Q
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: path
+        required: false
+        schema:
+          nullable: true
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: mode
+        required: false
+        schema:
+          default: hybrid
+          title: Mode
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: top_k
+        required: false
+        schema:
+          default: 10
+          title: Top K
+          type: integer
+        style: form
+      - explode: true
+        in: query
+        name: collapse
+        required: false
+        schema:
+          default: false
+          title: Collapse
+          type: boolean
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      summary: Search
+      tags:
+      - retrieval
+      x-accepts:
+      - application/json
+  /v1/grep:
+    get:
+      operationId: grep
+      parameters:
+      - explode: true
+        in: query
+        name: pattern
+        required: true
+        schema:
+          title: Pattern
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: path
+        required: true
+        schema:
+          title: Path
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrepResponse"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      summary: Grep
+      tags:
+      - retrieval
+      x-accepts:
+      - application/json
+  /v1/ls:
+    get:
+      operationId: ls
+      parameters:
+      - explode: true
+        in: query
+        name: path
+        required: true
+        schema:
+          title: Path
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LsResponse"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      summary: Ls
+      tags:
+      - browse
+      x-accepts:
+      - application/json
+  /v1/cat:
+    get:
+      operationId: cat
+      parameters:
+      - explode: true
+        in: query
+        name: path
+        required: true
+        schema:
+          title: Path
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: range
+        required: false
+        schema:
+          nullable: true
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: meta
+        required: false
+        schema:
+          default: false
+          title: Meta
+          type: boolean
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatResponse"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      summary: Cat
+      tags:
+      - browse
+      x-accepts:
+      - application/json
+  /v1/status:
+    get:
+      operationId: status
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+          description: Successful Response
+      summary: Status
+      tags:
+      - server
+      x-accepts:
+      - application/json
+  /v1/jobs/{job_id}:
+    get:
+      operationId: getJob
+      parameters:
+      - explode: false
+        in: path
+        name: job_id
+        required: true
+        schema:
+          title: Job Id
+          type: string
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobResponse"
+          description: Successful Response
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+          description: Validation Error
+      summary: Job
+      tags:
+      - ingest
+      x-accepts:
+      - application/json
+components:
+  schemas:
+    AddRequest:
+      example:
+        target: target
+        full: false
+        since: since
+      properties:
+        target:
+          description: path or connector URI to register + index
+          title: Target
+          type: string
+        full:
+          default: false
+          description: force full re-index (ignore caches/fingerprints)
+          title: Full
+          type: boolean
+        since:
+          description: only index changes since this cursor/date
+          nullable: true
+          type: string
+      required:
+      - target
+      title: AddRequest
+    AddResponse:
+      example:
+        job_id: job_id
+      properties:
+        job_id:
+          description: "sync job id; poll GET /v1/jobs/{job_id}"
+          title: Job Id
+          type: string
+      required:
+      - job_id
+      title: AddResponse
+    CatResponse:
+      example:
+        source: source
+        content: content
+      properties:
+        source:
+          title: Source
+          type: string
+        content:
+          title: Content
+          type: string
+      required:
+      - content
+      - source
+      title: CatResponse
+    ConnectorRow:
+      example:
+        root_uri: root_uri
+        type: type
+        status: status
+      properties:
+        root_uri:
+          title: Root Uri
+          type: string
+        type:
+          title: Type
+          type: string
+        status:
+          title: Status
+          type: string
+      required:
+      - root_uri
+      - status
+      - type
+      title: ConnectorRow
+    GrepMatchModel:
+      example:
+        source: source
+        lines:
+        - 0
+        - 0
+        content: ""
+        via: via
+      properties:
+        source:
+          nullable: true
+          type: string
+        lines:
+          items:
+            type: integer
+          nullable: true
+          type: array
+        content:
+          default: ""
+          title: Content
+          type: string
+        via:
+          description: bm25 | linear | pushdown
+          nullable: true
+          type: string
+      title: GrepMatchModel
+    GrepResponse:
+      example:
+        results:
+        - source: source
+          lines:
+          - 0
+          - 0
+          content: ""
+          via: via
+        - source: source
+          lines:
+          - 0
+          - 0
+          content: ""
+          via: via
+      properties:
+        results:
+          items:
+            $ref: "#/components/schemas/GrepMatchModel"
+          title: Results
+          type: array
+      required:
+      - results
+      title: GrepResponse
+    HTTPValidationError:
+      example:
+        detail:
+        - msg: msg
+          loc:
+          - Location_inner
+          - Location_inner
+          input: ""
+          ctx: "{}"
+          type: type
+        - msg: msg
+          loc:
+          - Location_inner
+          - Location_inner
+          input: ""
+          ctx: "{}"
+          type: type
+      properties:
+        detail:
+          items:
+            $ref: "#/components/schemas/ValidationError"
+          title: Detail
+          type: array
+      title: HTTPValidationError
+    JobResponse:
+      example:
+        finished_at: finished_at
+        total_objects: 0
+        failed_objects: 1
+        succeeded_objects: 6
+        started_at: started_at
+        id: id
+        trigger: trigger
+        error: error
+        op_kind: op_kind
+        status: status
+        cancelled_objects: 5
+      properties:
+        id:
+          title: Id
+          type: string
+        status:
+          title: Status
+          type: string
+        op_kind:
+          nullable: true
+          type: string
+        trigger:
+          nullable: true
+          type: string
+        error:
+          nullable: true
+          type: string
+        total_objects:
+          nullable: true
+          type: integer
+        succeeded_objects:
+          nullable: true
+          type: integer
+        failed_objects:
+          nullable: true
+          type: integer
+        cancelled_objects:
+          nullable: true
+          type: integer
+        started_at:
+          nullable: true
+          type: string
+        finished_at:
+          nullable: true
+          type: string
+      required:
+      - id
+      - status
+      title: JobResponse
+    LsEntry:
+      example:
+        size_hint: 0
+        media_type: media_type
+        name: name
+        type: type
+      properties:
+        name:
+          title: Name
+          type: string
+        type:
+          description: file | dir
+          title: Type
+          type: string
+        media_type:
+          nullable: true
+          type: string
+        size_hint:
+          nullable: true
+          type: integer
+      required:
+      - name
+      - type
+      title: LsEntry
+    LsResponse:
+      example:
+        entries:
+        - size_hint: 0
+          media_type: media_type
+          name: name
+          type: type
+        - size_hint: 0
+          media_type: media_type
+          name: name
+          type: type
+      properties:
+        entries:
+          items:
+            $ref: "#/components/schemas/LsEntry"
+          title: Entries
+          type: array
+      required:
+      - entries
+      title: LsResponse
+    ResultEnvelope:
+      description: |-
+        One search/grep hit (design/06 §7). Outer shape is stable across connectors;
+        locator + metadata.fields are per-connector but documented.
+      example:
+        score: 6.027456183070403
+        metadata:
+          key: ""
+        source: source
+        lines:
+        - 0
+        - 0
+        locator:
+          key: ""
+        content: ""
+      properties:
+        source:
+          description: object URI — feed to cat/head/export
+          title: Source
+          type: string
+        lines:
+          description: "[start,end] for text/code; null for structured"
+          items:
+            type: integer
+          nullable: true
+          type: array
+        content:
+          default: ""
+          description: snippet to read
+          title: Content
+          type: string
+        score:
+          description: ranking score; <0.5 often unreliable
+          nullable: true
+          type: number
+        locator:
+          additionalProperties: true
+          description: structured unit key (pk/number/thread_ts)
+          nullable: true
+          type: object
+        metadata:
+          additionalProperties: true
+          description: "chunk_kind, connector_type, fields, ..."
+          title: Metadata
+          type: object
+      required:
+      - source
+      title: ResultEnvelope
+    SearchResponse:
+      example:
+        results:
+        - score: 6.027456183070403
+          metadata:
+            key: ""
+          source: source
+          lines:
+          - 0
+          - 0
+          locator:
+            key: ""
+          content: ""
+        - score: 6.027456183070403
+          metadata:
+            key: ""
+          source: source
+          lines:
+          - 0
+          - 0
+          locator:
+            key: ""
+          content: ""
+      properties:
+        results:
+          items:
+            $ref: "#/components/schemas/ResultEnvelope"
+          title: Results
+          type: array
+      required:
+      - results
+      title: SearchResponse
+    ServerInfo:
+      example:
+        namespace: namespace
+        machine_id: machine_id
+        version: version
+      properties:
+        version:
+          description: "server semver, e.g. 0.4.0"
+          title: Version
+          type: string
+        machine_id:
+          description: host identifier
+          title: Machine Id
+          type: string
+        namespace:
+          description: active namespace
+          title: Namespace
+          type: string
+      required:
+      - machine_id
+      - namespace
+      - version
+      title: ServerInfo
+    StatusResponse:
+      example:
+        connectors:
+        - root_uri: root_uri
+          type: type
+          status: status
+        - root_uri: root_uri
+          type: type
+          status: status
+        jobs:
+          key: 0
+      properties:
+        connectors:
+          items:
+            $ref: "#/components/schemas/ConnectorRow"
+          title: Connectors
+          type: array
+        jobs:
+          additionalProperties:
+            type: integer
+          description: count of jobs by status
+          title: Jobs
+      required:
+      - connectors
+      title: StatusResponse
+    ValidationError:
+      example:
+        msg: msg
+        loc:
+        - Location_inner
+        - Location_inner
+        input: ""
+        ctx: "{}"
+        type: type
+      properties:
+        loc:
+          items:
+            $ref: "#/components/schemas/Location_inner"
+          title: Location
+          type: array
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+        input:
+          title: Input
+        ctx:
+          title: Context
+          type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    Location_inner:
+      anyOf:
+      - type: string
+      - type: integer
+

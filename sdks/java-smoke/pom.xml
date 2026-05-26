@@ -1,0 +1,19 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>io.zilliz</groupId>
+  <artifactId>mfs-sdk-smoke</artifactId>
+  <version>0.4.0</version>
+  <packaging>jar</packaging>
+  <properties>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>io.zilliz</groupId>
+      <artifactId>mfs-sdk</artifactId>
+      <version>0.4.0</version>
+    </dependency>
+  </dependencies>
+</project>
