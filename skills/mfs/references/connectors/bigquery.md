@@ -5,7 +5,7 @@ BigQuery tables as `/<dataset>/tables/<table>/rows.jsonl` + `schema.json`.
 (→ `SELECT ... LIMIT N`) or `cat --locator`.
 
 object_kind = `table_rows`. **search** runs over `row_text` chunks built per row
-from configured `text_fields`; `locator` = `{dataset, table, pk:{...}}` (declare
+from configured `text_fields`; `locator` is flat, keyed by `locator_fields` (e.g. `{"id":12}`) (declare
 `locator_fields`), `lines` null. Same structured model as **postgres** — see
 [postgres.md](postgres.md) for config.
 

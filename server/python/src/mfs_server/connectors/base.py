@@ -7,6 +7,7 @@ retrieval/cache/HTTP/queue) is framework. No `acl` (dropped in v0.4). `PathStat`
 """
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -26,6 +27,18 @@ ChunkKind = Literal[
 
 DeleteDetection = Literal["never", "explicit", "full_scan", "state_change"]
 EnumerationMode = Literal["full", "incremental", "explicit_only"]
+
+_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
+
+
+def safe_ident(name: str) -> str:
+    """Validate a SQL identifier (schema/table/column/object) before interpolating it
+    into a query string. Connectors derive these from user-supplied paths (cat/head a
+    structured URI), so an unvalidated name is an injection vector. Rejects anything
+    outside [A-Za-z_][A-Za-z0-9_$]* — strict, but covers normal table/object names."""
+    if not isinstance(name, str) or not _IDENT_RE.match(name):
+        raise ValueError(f"unsafe SQL identifier: {name!r}")
+    return name
 
 
 @dataclass

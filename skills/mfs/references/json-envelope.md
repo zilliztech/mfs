@@ -10,7 +10,7 @@ documented.
   "lines": null,
   "content": "subject: Login broken after SSO migration\n\ndescription: ...",
   "score": 0.842,
-  "locator": {"schema": "public", "table": "tickets", "pk": {"id": 12}},
+  "locator": {"id": 12},
   "metadata": {"kind": "search", "chunk_kind": "row_text",
                "connector_type": "postgres", "media_type": "application/x-ndjson",
                "fields": {"status": "open", "priority": "high"}}
@@ -29,9 +29,10 @@ documented.
 
 ## Reopen rule: locator first, lines second
 
-- `locator` non-null → reopen the exact unit:
+- `locator` non-null → reopen the exact unit by passing the locator back **verbatim**
+  (it's flat — keyed by the connector's `locator_fields`):
   ```bash
-  mfs cat <source> --locator '{"pk":{"id":12}}'
+  mfs cat <source> --locator '{"id":12}'
   ```
 - only `lines` non-null → read the range:
   ```bash

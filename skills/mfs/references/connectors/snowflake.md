@@ -4,7 +4,7 @@ Snowflake tables as `/<database>/<schema>/tables/<table>/rows.jsonl` + `schema.j
 `rows.jsonl` is **lazy**; `head -n N` pushes down to `SELECT ... LIMIT N`.
 
 object_kind = `table_rows`. **search** over `row_text` chunks from configured
-`text_fields`; `locator` = `{database, schema, table, pk:{...}}`, `lines` null →
+`text_fields`; `locator` is flat, keyed by `locator_fields` (e.g. `{"id": 12}`), `lines` null →
 reopen with `mfs cat <source> --locator '{...}'`. Structured model identical to
 **postgres** ([postgres.md](postgres.md)).
 

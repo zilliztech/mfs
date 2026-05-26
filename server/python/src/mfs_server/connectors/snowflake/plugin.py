@@ -17,7 +17,7 @@ from snowflake.connector import DictCursor
 
 from ..base import (
     Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    PathStat, Range, SyncOptions, safe_ident,
 )
 
 
@@ -76,13 +76,13 @@ class SnowflakePlugin(ConnectorPlugin):
 
     async def _schemas(self, database: str) -> list[str]:
         rows = await self._query(
-            f'SELECT schema_name FROM "{database}".information_schema.schemata '
+            f'SELECT schema_name FROM "{safe_ident(database)}".information_schema.schemata '
             "WHERE schema_name NOT IN ('INFORMATION_SCHEMA') ORDER BY schema_name")
         return [r["SCHEMA_NAME"] for r in rows]
 
     async def _tables(self, database: str, schema: str) -> list[str]:
         rows = await self._query(
-            f'SELECT table_name FROM "{database}".information_schema.tables '
+            f'SELECT table_name FROM "{safe_ident(database)}".information_schema.tables '
             "WHERE table_schema=%s ORDER BY table_name", (schema,))
         return [r["TABLE_NAME"] for r in rows]
 
@@ -120,13 +120,13 @@ class SnowflakePlugin(ConnectorPlugin):
         parts = self._parts(path)
         # /<db>/<schema>/tables/<table>/{rows.jsonl,schema.json}
         if len(parts) == 5 and parts[2] == "tables" and parts[4] == "rows.jsonl":
-            db, schema, table = parts[0], parts[1], parts[3]
+            db, schema, table = safe_ident(parts[0]), safe_ident(parts[1]), safe_ident(parts[3])
             lim = self._cfg("max_read_rows", 100000)
             rows = await self._query(f'SELECT * FROM "{db}"."{schema}"."{table}" LIMIT {lim}')
             for r in rows:
                 yield r
         elif len(parts) == 5 and parts[2] == "tables" and parts[4] == "schema.json":
-            db, schema, table = parts[0], parts[1], parts[3]
+            db, schema, table = safe_ident(parts[0]), safe_ident(parts[1]), safe_ident(parts[3])
             cols = await self._query(
                 f'SELECT column_name, data_type FROM "{db}".information_schema.columns '
                 "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position", (schema, table))
@@ -137,7 +137,7 @@ class SnowflakePlugin(ConnectorPlugin):
         parts = self._parts(path)
         if len(parts) == 5 and parts[2] == "tables" and parts[4] == "rows.jsonl":
             rows = await self._query(
-                f'SELECT count(*) AS n FROM "{parts[0]}"."{parts[1]}"."{parts[3]}"')
+                f'SELECT count(*) AS n FROM "{safe_ident(parts[0])}"."{safe_ident(parts[1])}"."{safe_ident(parts[3])}"')
             return f"count:{rows[0]['N']}" if rows else None
         return None
 

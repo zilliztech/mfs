@@ -26,7 +26,7 @@ overkill — just `grep`/`rg`/read. MFS's index adds little there.
      ```
    - **structured** hit (DB row, issue, slack thread) carries a `locator` (pk / number / thread_ts), `lines` is null:
      ```bash
-     mfs cat <source> --locator '{"pk":{"id":12}}'      # exact single record
+     mfs cat <source> --locator '{"id":12}'      # exact single record (flat, keyed by locator_fields)
      ```
      Prefer `locator` over guessing; it reopens the precise unit.
 

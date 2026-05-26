@@ -12,7 +12,7 @@ import aiomysql
 
 from ..base import (
     Capabilities, ConnectorPlugin, Entry, GrepMatch, GrepOptions, HealthStatus,
-    ObjectChange, ObjectKind, PathStat, Range, SyncOptions,
+    ObjectChange, ObjectKind, PathStat, Range, SyncOptions, safe_ident,
 )
 
 
@@ -93,7 +93,7 @@ class MySQLPlugin(ConnectorPlugin):
             lim = self._cfg("max_read_rows", 100000)
             async with self._pool.acquire() as c:
                 async with c.cursor(aiomysql.DictCursor) as cur:
-                    await cur.execute(f"SELECT * FROM `{parts[0]}` LIMIT {lim}")
+                    await cur.execute(f"SELECT * FROM `{safe_ident(parts[0])}` LIMIT {lim}")
                     for r in await cur.fetchall():
                         yield r
         elif len(parts) == 2 and parts[1] == "schema.json":
@@ -111,7 +111,7 @@ class MySQLPlugin(ConnectorPlugin):
         if len(parts) == 2 and parts[1] == "rows.jsonl":
             async with self._pool.acquire() as c:
                 async with c.cursor() as cur:
-                    await cur.execute(f"SELECT count(*) FROM `{parts[0]}`")
+                    await cur.execute(f"SELECT count(*) FROM `{safe_ident(parts[0])}`")
                     cnt = (await cur.fetchone())[0]
             return f"count:{cnt}"
         return None
@@ -134,8 +134,8 @@ class MySQLPlugin(ConnectorPlugin):
         parts = self._parts(path)
         if len(parts) != 2 or parts[1] != "rows.jsonl" or not options.text_fields:
             return None
-        table = parts[0]
-        where = " OR ".join(f"`{c}` LIKE %s" for c in options.text_fields)
+        table = safe_ident(parts[0])
+        where = " OR ".join(f"`{safe_ident(c)}` LIKE %s" for c in options.text_fields)
         args = [f"%{pattern}%"] * len(options.text_fields)
         pool = self._pool
 

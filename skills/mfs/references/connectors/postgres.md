@@ -7,8 +7,9 @@ Relational tables as a virtual tree. postgres: `/<schema>/<table>/rows.jsonl` +
 use `mfs head -n N`, `mfs cat --range A:B`, or `mfs cat --locator '{...}'`.
 
 **search** runs over `row_text` chunks built per row from configured
-`text_fields`. Each hit's `locator` = `{schema, table, pk:{...}}` (mysql: `{pk}`),
-`lines` is null → reopen the exact row with `mfs cat <source> --locator '{"pk":{"id":12}}'`.
+`text_fields`. Each hit's `locator` is **flat**, keyed by the configured
+`locator_fields` (e.g. `{"id": 12}`); `lines` is null → reopen the exact row by
+passing it back verbatim: `mfs cat <source> --locator '{"id":12}'`.
 
 **grep** pushes down to SQL `ILIKE`/`LIKE` (literal-exact). `head -n N` → `SELECT ... LIMIT N`.
 

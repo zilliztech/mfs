@@ -6,15 +6,22 @@ from __future__ import annotations
 from typing import Optional
 
 
+def _lit(v: str) -> str:
+    """Escape a value for a double-quoted Milvus expr string literal. connector_uri /
+    object_prefix derive from user paths, so an unescaped `"` or `\\` could break out
+    of the literal and bypass namespace/connector scoping (cross-tenant leak)."""
+    return str(v).replace("\\", "\\\\").replace('"', '\\"')
+
+
 def build_filter(namespace_id: str, connector_uri: Optional[str] = None,
                  object_prefix: Optional[str] = None, chunk_kinds: Optional[list[str]] = None) -> str:
-    parts = [f'namespace_id == "{namespace_id}"']
+    parts = [f'namespace_id == "{_lit(namespace_id)}"']
     if connector_uri:
-        parts.append(f'connector_uri == "{connector_uri}"')
+        parts.append(f'connector_uri == "{_lit(connector_uri)}"')
     if object_prefix:
-        parts.append(f'object_uri like "{object_prefix}%"')
+        parts.append(f'object_uri like "{_lit(object_prefix)}%"')
     if chunk_kinds:
-        kinds = ", ".join(f'"{k}"' for k in chunk_kinds)
+        kinds = ", ".join(f'"{_lit(k)}"' for k in chunk_kinds)
         parts.append(f"chunk_kind in [{kinds}]")
     return " and ".join(parts)
 

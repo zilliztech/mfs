@@ -17,7 +17,7 @@ from simple_salesforce import Salesforce
 
 from ..base import (
     Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    PathStat, Range, SyncOptions, safe_ident,
 )
 
 # default SObjects to expose if none configured
@@ -92,7 +92,7 @@ class SalesforcePlugin(ConnectorPlugin):
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
         parts = self._parts(path)
         if len(parts) == 2 and parts[1] == "records.jsonl":
-            sobject = parts[0]
+            sobject = safe_ident(parts[0])
             fields = [f["name"] for f in await self._fields(sobject)]
             soql = f"SELECT {', '.join(fields)} FROM {sobject}"
             # query_all_iter is a (sync) generator; drain it off-thread
@@ -101,7 +101,7 @@ class SalesforcePlugin(ConnectorPlugin):
                 r.pop("attributes", None)
                 yield r
         elif len(parts) == 2 and parts[1] == "schema.json":
-            fields = await self._fields(parts[0])
+            fields = await self._fields(safe_ident(parts[0]))
             yield {"object": parts[0],
                    "fields": [{"name": f["name"], "type": f["type"], "label": f.get("label")}
                               for f in fields]}
@@ -109,7 +109,7 @@ class SalesforcePlugin(ConnectorPlugin):
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
         if len(parts) == 2 and parts[1] == "records.jsonl":
-            res = await asyncio.to_thread(self._sf.query, f"SELECT COUNT() FROM {parts[0]}")
+            res = await asyncio.to_thread(self._sf.query, f"SELECT COUNT() FROM {safe_ident(parts[0])}")
             return f"total:{res.get('totalSize', 0)}"
         return None
 

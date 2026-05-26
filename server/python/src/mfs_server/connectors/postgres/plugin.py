@@ -13,7 +13,7 @@ import asyncpg
 
 from ..base import (
     Capabilities, ConnectorPlugin, Entry, GrepMatch, GrepOptions, HealthStatus,
-    ObjectChange, ObjectKind, PathStat, Range, SyncOptions,
+    ObjectChange, ObjectKind, PathStat, Range, SyncOptions, safe_ident,
 )
 
 
@@ -91,7 +91,7 @@ class PostgresPlugin(ConnectorPlugin):
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
         parts = self._parts(path)
         if len(parts) == 3 and parts[2] == "rows.jsonl":
-            schema, table = parts[0], parts[1]
+            schema, table = safe_ident(parts[0]), safe_ident(parts[1])
             lim = self._cfg("max_read_rows", 100000)
             async with self._pool.acquire() as c:
                 async with c.transaction():        # asyncpg cursors require a transaction
@@ -107,8 +107,9 @@ class PostgresPlugin(ConnectorPlugin):
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
         if len(parts) == 3 and parts[2] == "rows.jsonl":
+            schema, table = safe_ident(parts[0]), safe_ident(parts[1])
             async with self._pool.acquire() as c:
-                cnt = await c.fetchval(f'SELECT count(*) FROM "{parts[0]}"."{parts[1]}"')
+                cnt = await c.fetchval(f'SELECT count(*) FROM "{schema}"."{table}"')
             return f"count:{cnt}"
         return None
 
@@ -131,8 +132,8 @@ class PostgresPlugin(ConnectorPlugin):
         parts = self._parts(path)
         if len(parts) != 3 or parts[2] != "rows.jsonl" or not options.text_fields:
             return None
-        schema, table = parts[0], parts[1]
-        where = " OR ".join(f'"{c}"::text ILIKE $1' for c in options.text_fields)
+        schema, table = safe_ident(parts[0]), safe_ident(parts[1])
+        where = " OR ".join(f'"{safe_ident(c)}"::text ILIKE $1' for c in options.text_fields)
         pool = self._pool
 
         async def gen():

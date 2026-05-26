@@ -17,7 +17,7 @@ from google.cloud import bigquery
 
 from ..base import (
     Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    PathStat, Range, SyncOptions, safe_ident,
 )
 
 
@@ -102,14 +102,14 @@ class BigQueryPlugin(ConnectorPlugin):
         parts = self._parts(path)
         # /<dataset>/tables/<table>/{rows.jsonl,schema.json}
         if len(parts) == 4 and parts[1] == "tables" and parts[3] == "rows.jsonl":
-            dataset, table = parts[0], parts[2]
+            dataset, table = safe_ident(parts[0]), safe_ident(parts[2])
             lim = self._cfg("max_read_rows", 100000)
             sql = f"SELECT * FROM {self._table_ref(dataset, table)} LIMIT {lim}"
             rows = await asyncio.to_thread(lambda: list(self._client.query(sql).result()))
             for r in rows:
                 yield dict(r)
         elif len(parts) == 4 and parts[1] == "tables" and parts[3] == "schema.json":
-            dataset, table = parts[0], parts[2]
+            dataset, table = safe_ident(parts[0]), safe_ident(parts[2])
             tbl = await asyncio.to_thread(
                 self._client.get_table, f"{self._client.project}.{dataset}.{table}")
             yield {"dataset": dataset, "table": table,
@@ -120,7 +120,7 @@ class BigQueryPlugin(ConnectorPlugin):
         parts = self._parts(path)
         if len(parts) == 4 and parts[1] == "tables" and parts[3] == "rows.jsonl":
             tbl = await asyncio.to_thread(
-                self._client.get_table, f"{self._client.project}.{parts[0]}.{parts[2]}")
+                self._client.get_table, f"{self._client.project}.{safe_ident(parts[0])}.{safe_ident(parts[2])}")
             return f"rows:{tbl.num_rows}:{tbl.modified.isoformat() if tbl.modified else ''}"
         return None
 
