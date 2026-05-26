@@ -30,8 +30,15 @@ class MetadataConfig(BaseModel):
 
 
 class ObjectStoreConfig(BaseModel):
-    backend: str = "local"           # local | s3 | r2 | minio
+    backend: str = "local"           # local | s3 (covers R2/GCS/MinIO via endpoint_url)
     root: str = ""                   # local root (default ~/.mfs/cache)
+    # s3 backend (also R2/GCS/MinIO via endpoint_url)
+    bucket: str = ""
+    prefix: str = "mfs"
+    endpoint_url: str = ""           # set for R2/GCS/MinIO; empty = AWS
+    region: str = "us-east-1"
+    access_key_id: str = ""
+    secret_access_key: str = ""
 
 
 class MilvusConfig(BaseModel):
@@ -162,6 +169,30 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
         cfg.milvus.uri = uri
     if token:
         cfg.milvus.token = token
+
+    # metadata / transformation_cache Postgres backend (CS / multi-replica)
+    meta_dsn = os.environ.get("MFS_METADATA_DSN")
+    if meta_dsn:
+        cfg.metadata.backend = "postgres"
+        cfg.metadata.dsn = meta_dsn
+    tx_dsn = os.environ.get("MFS_TX_CACHE_DSN") or meta_dsn
+    if tx_dsn and os.environ.get("MFS_TX_CACHE_PG"):     # opt-in: share PG for tx cache
+        cfg.transformation_cache.backend = "postgres"
+        cfg.transformation_cache.dsn = tx_dsn
+
+    # object store: S3 / R2 / GCS / MinIO
+    bucket = os.environ.get("MFS_OBJECT_STORE_BUCKET")
+    if bucket:
+        cfg.object_store.backend = "s3"
+        cfg.object_store.bucket = bucket
+        for env_k, attr in (("MFS_OBJECT_STORE_ENDPOINT", "endpoint_url"),
+                            ("MFS_OBJECT_STORE_REGION", "region"),
+                            ("MFS_OBJECT_STORE_ACCESS_KEY", "access_key_id"),
+                            ("MFS_OBJECT_STORE_SECRET_KEY", "secret_access_key"),
+                            ("MFS_OBJECT_STORE_PREFIX", "prefix")):
+            v = os.environ.get(env_k)
+            if v:
+                setattr(cfg.object_store, attr, v)
 
 
 def load_server_config(explicit: str | None = None, apply_env: bool = True) -> ServerConfig:

@@ -1,9 +1,15 @@
-"""Metadata DB (design/02 §10.1). SQLite backend (aiosqlite); Postgres backend
-added in a later phase (CS mode). Holds connector/object/job state, path index,
+"""Metadata DB (design/02 §10.1). Dual backend: SQLite (aiosqlite, single host) and
+Postgres (asyncpg, CS / multi-replica). Holds connector/object/job state, path index,
 fingerprints, file_state, and doubles as the task queue.
+
+The whole codebase writes SQLite-style `?` placeholders + portable
+`ON CONFLICT(...) DO UPDATE SET col=excluded.col`. For Postgres we translate `?`→`$n`
+and adapt the DDL (BLOB→BYTEA, text CURRENT_TIMESTAMP defaults), so call sites are
+backend-agnostic.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Optional, Sequence
 
 import aiosqlite
@@ -140,16 +146,48 @@ SQLITE_DDL = [
 CURRENT_SCHEMA_VERSION = 1
 
 
+def _to_pg_ddl(ddl: str) -> str:
+    """Adapt the SQLite DDL to Postgres: BLOB->BYTEA, text CURRENT_TIMESTAMP default
+    (timestamptz can't default a TEXT column) -> now()::text. Everything else
+    (TEXT/INTEGER/PRIMARY KEY/UNIQUE/partial indexes/IF NOT EXISTS) is portable."""
+    ddl = re.sub(r"\bBLOB\b", "BYTEA", ddl)
+    ddl = re.sub(r"\bINTEGER\b", "BIGINT", ddl)   # SQLite INTEGER is 64-bit; PG INTEGER is 32-bit (mtime_ns overflows)
+    ddl = ddl.replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT now()::text")
+    return ddl
+
+
+def _qmark_to_dollar(sql: str) -> str:
+    """Translate SQLite `?` placeholders to Postgres `$1, $2, ...` in order. Our SQL
+    never contains a literal '?' outside placeholders."""
+    n = 0
+
+    def repl(_m):
+        nonlocal n
+        n += 1
+        return f"${n}"
+
+    return re.sub(r"\?", repl, sql)
+
+
 class MetadataStore:
     def __init__(self, cfg: ServerConfig):
         self.backend = cfg.metadata.backend
         self.path = cfg.metadata.path
         self.dsn = cfg.metadata.dsn
         self._db: Optional[aiosqlite.Connection] = None
+        self._pool = None      # asyncpg pool (postgres)
+
+    @property
+    def is_pg(self) -> bool:
+        return self.backend == "postgres"
 
     async def connect(self) -> None:
+        if self.is_pg:
+            import asyncpg
+            self._pool = await asyncpg.create_pool(self.dsn, min_size=1, max_size=8)
+            return
         if self.backend != "sqlite":
-            raise NotImplementedError(f"metadata backend {self.backend} not yet implemented")
+            raise NotImplementedError(f"metadata backend {self.backend} not supported")
         self._db = await aiosqlite.connect(self.path)
         self._db.row_factory = aiosqlite.Row
         await self._db.execute("PRAGMA journal_mode=WAL")
@@ -158,6 +196,16 @@ class MetadataStore:
         await self._db.commit()
 
     async def init_schema(self) -> None:
+        if self.is_pg:
+            async with self._pool.acquire() as c:
+                for ddl in SQLITE_DDL:
+                    await c.execute(_to_pg_ddl(ddl))
+                exists = await c.fetchval(
+                    "SELECT 1 FROM schema_version WHERE version = $1", CURRENT_SCHEMA_VERSION)
+                if exists is None:
+                    await c.execute("INSERT INTO schema_version (version) VALUES ($1)",
+                                    CURRENT_SCHEMA_VERSION)
+            return
         assert self._db is not None
         for ddl in SQLITE_DDL:
             await self._db.execute(ddl)
@@ -167,28 +215,47 @@ class MetadataStore:
         await self._db.commit()
 
     async def execute(self, sql: str, params: Sequence[Any] = ()) -> None:
+        if self.is_pg:
+            async with self._pool.acquire() as c:
+                await c.execute(_qmark_to_dollar(sql), *params)
+            return
         assert self._db is not None
         await self._db.execute(sql, params)
         await self._db.commit()
 
     async def executemany(self, sql: str, rows: Sequence[Sequence[Any]]) -> None:
+        if self.is_pg:
+            async with self._pool.acquire() as c:
+                await c.executemany(_qmark_to_dollar(sql), [tuple(r) for r in rows])
+            return
         assert self._db is not None
         await self._db.executemany(sql, rows)
         await self._db.commit()
 
     async def fetchone(self, sql: str, params: Sequence[Any] = ()) -> Optional[dict]:
+        if self.is_pg:
+            async with self._pool.acquire() as c:
+                row = await c.fetchrow(_qmark_to_dollar(sql), *params)
+            return dict(row) if row else None
         assert self._db is not None
         cur = await self._db.execute(sql, params)
         row = await cur.fetchone()
         return dict(row) if row else None
 
     async def fetchall(self, sql: str, params: Sequence[Any] = ()) -> list[dict]:
+        if self.is_pg:
+            async with self._pool.acquire() as c:
+                rows = await c.fetch(_qmark_to_dollar(sql), *params)
+            return [dict(r) for r in rows]
         assert self._db is not None
         cur = await self._db.execute(sql, params)
         rows = await cur.fetchall()
         return [dict(r) for r in rows]
 
     async def close(self) -> None:
+        if self._pool is not None:
+            await self._pool.close()
+            self._pool = None
         if self._db is not None:
             await self._db.close()
             self._db = None
