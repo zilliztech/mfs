@@ -370,13 +370,22 @@ class Engine:
 
         # resolver: user [[objects]] match wins; else the connector's built-in preset
         # so SaaS sources are searchable with zero config.
+        from dataclasses import replace as _replace
+
+        from ..connectors.base import preset_object_config
+        _CHUNK_MAX_DEFAULT = ObjectConfig.__dataclass_fields__["chunk_max"].default
+
         def _resolve_cfg(p: str) -> ObjectConfig:
             user = _match_object_config(objects_cfg, p)
             if user is not None:
-                return user
-            preset_key = plugin.preset_for(p)
-            from ..connectors.base import preset_object_config
-            return preset_object_config(preset_key) or ObjectConfig() if preset_key else ObjectConfig()
+                oc = user
+            else:
+                preset_key = plugin.preset_for(p)
+                oc = (preset_object_config(preset_key) or ObjectConfig()) if preset_key else ObjectConfig()
+            # framework-level chunk cap applies unless this object config set its own
+            if oc.chunk_max == _CHUNK_MAX_DEFAULT and self.cfg.chunk.default_chunk_max != _CHUNK_MAX_DEFAULT:
+                oc = _replace(oc, chunk_max=self.cfg.chunk.default_chunk_max)
+            return oc
         ctx._resolver = _resolve_cfg
         return plugin, ctx
 
