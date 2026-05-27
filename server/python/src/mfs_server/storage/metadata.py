@@ -90,7 +90,11 @@ SQLITE_DDL = [
         state_snapshot    TEXT
     )""",
     "CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_one_running ON connector_jobs (connector_id) WHERE status = 'running'",
-    "CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_one_queued ON connector_jobs (connector_id) WHERE status = 'queued'",
+    # one in-flight enqueue per connector covers BOTH 'preparing' (job reserved, still
+    # enumerating — NOT yet claimable by a worker) and 'queued' (enumeration done, ready).
+    # Replaces an older queued-only index; drop it first so existing DBs pick up the change.
+    "DROP INDEX IF EXISTS ux_jobs_one_queued",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_one_pending ON connector_jobs (connector_id) WHERE status IN ('preparing','queued')",
     """
     CREATE TABLE IF NOT EXISTS object_tasks (
         id                TEXT PRIMARY KEY,

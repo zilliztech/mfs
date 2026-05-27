@@ -178,15 +178,16 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     @app.put("/v1/files/upload", response_model=AddResponse,
              operation_id="filesUpload", tags=["ingest"])
     async def files_upload(request: Request, client_id: str, root: str,
-                           process: bool = True) -> AddResponse:
+                           process: bool = True, full: bool = False) -> AddResponse:
         """Manifest-diff upload step ④: PUT a tar(.gz) carrying a `.mfs-meta.json`
         member (hashes/renames/deletions) + the changed file bytes. The server applies
-        it to the staging area and triggers the file-connector sync."""
+        it to the staging area and triggers the file-connector sync. full=true
+        (--force-index/--force-upload) forces a re-index of the whole staged tree."""
         data = await request.body()
         if not data:
             raise HTTPException(400, "empty upload body")
         try:
-            out = await eng().files_upload(client_id, root, data, process=process)
+            out = await eng().files_upload(client_id, root, data, process=process, full=full)
         except ValueError as e:
             raise HTTPException(400, str(e))
         return AddResponse(job_id=out["job_id"])

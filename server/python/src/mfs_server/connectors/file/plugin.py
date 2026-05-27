@@ -207,6 +207,11 @@ class FilePlugin(ConnectorPlugin):
                         yield ObjectChange(uri=row["path"], kind="renamed", old_uri=row["renamed_from"])
                     else:
                         yield ObjectChange(uri=row["path"], kind="added")
+                elif opts.full and row["status"] == "indexed":
+                    # --force-index (design/04 §3): rebuild the whole upload, not just the
+                    # rows this bundle touched — re-yield already-indexed staging rows as
+                    # modified so a forced re-index actually re-embeds them.
+                    yield ObjectChange(uri=row["path"], kind="modified")
             return
 
         self.ctx.declare_enumeration("full")        # file scans whole tree every time

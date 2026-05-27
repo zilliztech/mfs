@@ -405,7 +405,7 @@ class Engine:
             await self.meta.execute(
                 "INSERT INTO connector_jobs (id, namespace_id, connector_id, op_kind, trigger, status, "
                 " started_at, heartbeat) VALUES (?,?,?,?,?,?,?,?)",
-                (job_id, self.ns, cid, "sync", "manual", "running" if process else "queued", _now(), _now()))
+                (job_id, self.ns, cid, "sync", "manual", "running" if process else "preparing", _now(), _now()))
         except Exception as e:  # noqa: BLE001 - unique-violation: one running/queued per connector
             if "unique" in str(e).lower() or "constraint" in str(e).lower():
                 raise ValueError("sync_already_running") from e
@@ -431,18 +431,31 @@ class Engine:
             plugin, ctx = self._build_plugin(ctype, stored_cfg, cid)
             await plugin.connect()
             opts = SyncOptions(full=full, since=since)
-            async for ch in plugin.sync(opts):
-                if ch.kind == "deleted" and (
-                        ctx.enumeration_mode == "incremental"
-                        or getattr(plugin.CAPABILITIES, "delete_detection", "") == "never"):
-                    # only the unsafe 'incremental' mode skips deletes; 'full' (diff) and
-                    # 'explicit_only' (yielded events, e.g. upload) honor them (design/02 §7.4)
-                    continue        # never-delete connectors (slack/gmail) also keep the index
-                tid = uuid.uuid4().hex
-                await self.meta.execute(
-                    "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
-                    " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
-                    (tid, job_id, cid, ch.uri, ch.old_uri, ch.kind, "pending", plugin.task_priority(ch)))
+            # Keep the job's heartbeat warm during enumeration too: a slow-enumerating
+            # connector would otherwise look stale and be reclaimed mid-enumeration (the
+            # job is 'running'/'preparing' here with no other heartbeat source).
+            stop_hb = asyncio.Event()
+            hb = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
+            try:
+                async for ch in plugin.sync(opts):
+                    if ch.kind == "deleted" and (
+                            ctx.enumeration_mode == "incremental"
+                            or getattr(plugin.CAPABILITIES, "delete_detection", "") == "never"):
+                        # only the unsafe 'incremental' mode skips deletes; 'full' (diff) and
+                        # 'explicit_only' (yielded events, e.g. upload) honor them (design/02 §7.4)
+                        continue        # never-delete connectors (slack/gmail) keep the index
+                    tid = uuid.uuid4().hex
+                    await self.meta.execute(
+                        "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
+                        " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
+                        (tid, job_id, cid, ch.uri, ch.old_uri, ch.kind, "pending", plugin.task_priority(ch)))
+            finally:
+                stop_hb.set()
+                hb.cancel()
+                try:
+                    await hb
+                except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                    pass
             if not process:
                 # enqueue model: stash staged state on the job; the worker commits it only
                 # after the job succeeds (design/02 §7 ③), so a failed background job doesn't
@@ -450,6 +463,11 @@ class Engine:
                 await self.meta.execute(
                     "UPDATE connector_jobs SET state_snapshot=? WHERE id=?",
                     (json.dumps(ctx.state.snapshot()), job_id))
+                # ONLY NOW expose the job to workers: it was 'preparing' (unclaimable) during
+                # enumeration, so a worker couldn't claim it, find zero tasks, and finalize it
+                # 'succeeded' before the tasks above were inserted (lost-task race).
+                await self.meta.execute(
+                    "UPDATE connector_jobs SET status='queued' WHERE id=? AND status='preparing'", (job_id,))
                 return job_id
             aborted = await self._run_job(job_id, cid, connector_uri, plugin)
         except Exception as e:  # noqa: BLE001
@@ -494,11 +512,12 @@ class Engine:
 
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as tf:
             members = tf.getmembers()
-            for m in members:                 # validate everything before any side effect
+            for m in members:                 # validate EVERY member before any side effect
                 if m.issym() or m.islnk():
                     raise ValueError(f"links not allowed in upload: {m.name}")
-                if not m.isdir():
-                    _safe(m.name)
+                _safe(m.name)                 # incl. directory entries: a lone `../escaped`
+                #                               dir member would otherwise extractall outside
+                #                               staging (zip-slip via a directory, not a file)
             # reserve the sync slot BEFORE mutating staging/file_state (so a rejected sync —
             # sync_already_running — leaves nothing half-applied), then stage the tree.
             job_id = await self._open_sync_job(cid, process)
@@ -555,7 +574,7 @@ class Engine:
                 "need_sha1": need_sha1, "deletion_candidates": deletion_candidates}
 
     async def files_upload(self, client_id: str, root: str, bundle: bytes,
-                           process: bool = True) -> dict:
+                           process: bool = True, full: bool = False) -> dict:
         """Step ④ (design/02 §4.2): validate the bundle in a temp dir (sha1), then in one
         commit apply renames / changed bytes / deletions to the staging area and UPSERT
         file_state (status='staged'); the file connector then indexes the staged rows.
@@ -643,7 +662,9 @@ class Engine:
             shutil.rmtree(tmp, ignore_errors=True)
         crow = await self.meta.fetchone("SELECT config_json FROM connectors WHERE id=?", (cid,))
         stored_cfg = _json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
-        await self._drain_job(job_id, cid, connector_uri, "file", stored_cfg, False, None, process)
+        # full=True (--force-index / --force-upload): upload-mode sync also re-yields the
+        # already-indexed staging rows so a forced rebuild re-embeds the whole tree.
+        await self._drain_job(job_id, cid, connector_uri, "file", stored_cfg, full, None, process)
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
 
     async def _finalize_job(self, job_id: str, aborted: str | None) -> None:
@@ -766,6 +787,18 @@ class Engine:
                 await self.meta.execute(
                     "UPDATE connector_jobs SET status='queued' WHERE id=? AND status='running'",
                     (j["id"],))
+            # A 'preparing' job whose process died mid-enumeration would otherwise hold the
+            # one-in-flight-enqueue slot forever (blocking future enqueues with
+            # sync_already_running). It never started running, so just fail it; any partially
+            # enqueued tasks are inherited by the next sync (pending/failed inheritance).
+            stale_prep = await self.meta.fetchall(
+                "SELECT id FROM connector_jobs WHERE status='preparing' "
+                "AND heartbeat IS NOT NULL AND heartbeat < ?", (cutoff,))
+            for j in stale_prep:
+                await self.meta.execute(
+                    "UPDATE connector_jobs SET status='failed', finished_at=?, "
+                    "error='reclaimed: enumeration abandoned' WHERE id=? AND status='preparing'",
+                    (_now(), j["id"]))
         except Exception:  # noqa: BLE001
             pass
 
@@ -1470,7 +1503,7 @@ class Engine:
             "WHERE connector_id=? AND status='pending'", (cid,))
         await self.meta.execute(
             "UPDATE connector_jobs SET status='cancelled', finished_at=? "
-            "WHERE connector_id=? AND status='queued'", (_now(), cid))
+            "WHERE connector_id=? AND status IN ('queued','preparing')", (_now(), cid))
         # Wait for the worker to leave 'running' — that transition (set in _finalize_job
         # after _run_job's loop exits) is the proof the last _index_object's Milvus upsert
         # has completed, so it's the only safe moment to delete. Don't bound this by wall

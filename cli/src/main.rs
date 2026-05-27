@@ -36,8 +36,11 @@ enum Cmd {
         #[arg(long)]
         no_process: bool,
         /// Bundle + upload the tree to the server even on the same host (no shared fs)
-        #[arg(long, visible_alias = "force-upload")]
+        #[arg(long)]
         upload: bool,
+        /// Re-upload every file (skip the manifest diff) and force a full re-index
+        #[arg(long)]
+        force_upload: bool,
         /// Never upload; have the server read the path itself (shared fs)
         #[arg(long)]
         no_upload: bool,
@@ -250,11 +253,17 @@ fn auth_token() -> Option<String> {
         if !t.is_empty() { return Some(t); }
     }
     let cfg = load_client_cfg();
-    let raw = cfg.active.as_ref().and_then(|a| cfg.profiles.get(a)).and_then(|p| p.token.clone())?;
-    Some(match raw.strip_prefix("env:") {
-        Some(var) => std::env::var(var).unwrap_or_default(),
-        None => raw,
-    })
+    if let Some(raw) = cfg.active.as_ref().and_then(|a| cfg.profiles.get(a)).and_then(|p| p.token.clone()) {
+        return Some(match raw.strip_prefix("env:") {
+            Some(var) => std::env::var(var).unwrap_or_default(),
+            None => raw,
+        });
+    }
+    // Fall back to the local server's auto-generated token (design/02 §11.2): `mfs-server
+    // run` writes ~/.mfs/server.token, so a CLI on the same host authenticates to its
+    // loopback server with zero configuration.
+    std::fs::read_to_string(mfs_home().join("server.token")).ok()
+        .map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
 }
 
 /// A remote endpoint (non-loopback) means the server can't see local paths. Rewrite an
@@ -328,7 +337,7 @@ fn main() {
 
 fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), String> {
     match &cli.cmd {
-        Cmd::Add { target, config, since, force_index, no_process, upload, no_upload, yes } => {
+        Cmd::Add { target, config, since, force_index, no_process, upload, force_upload, no_upload, yes } => {
             let is_local = std::path::Path::new(target).exists();
             // zero-billing estimate + confirm before indexing an external connector
             // (design/04 §3): the user sees physical work before any embedding spend.
@@ -353,7 +362,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             // forces it on the same host; --no-upload always has the server read the path.
             let do_upload = if *no_upload {
                 false
-            } else if *upload {
+            } else if *upload || *force_upload {
                 is_local
             } else if is_local {
                 let server_mid = get(client, &format!("{base}/v1/server/info"), &[])
@@ -364,7 +373,10 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 false
             };
             if do_upload {
-                return upload_path(client, base, target, !no_process, cli.json);
+                // --force-upload re-sends every file AND forces a re-index; --force-index
+                // alone re-indexes the already-staged tree without re-sending bytes.
+                return upload_path(client, base, target, !no_process,
+                                   *force_index || *force_upload, *force_upload, cli.json);
             }
             let mut body = serde_json::json!({"target": target, "full": force_index, "process": !no_process});
             if let Some(c) = config { body["config"] = load_config_file(c)?; }
@@ -580,7 +592,7 @@ fn sha1_file(path: &std::path::Path) -> Result<String, String> {
 /// needed files + pair renames by (inode,size,sha1) -> PUT /v1/files/upload a tar.gz
 /// carrying `.mfs-meta.json` + only the changed bytes. The client keeps no state.
 fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
-               process: bool, json: bool) -> Result<(), String> {
+               process: bool, full: bool, resend_all: bool, json: bool) -> Result<(), String> {
     use std::io::Write;
     let root = std::path::Path::new(target);
     let client_id = client_id();        // stable UUID identity, not the hostname
@@ -596,8 +608,13 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
     // ② manifest diff
     let mf = post(client, &format!("{base}/v1/files/manifest"),
                   &serde_json::json!({"client_id": client_id, "root": abs_root, "files": files}))?;
-    let need: std::collections::HashSet<String> = mf["need_sha1"].as_array().unwrap_or(&vec![])
-        .iter().filter_map(|v| v.as_str().map(String::from)).collect();
+    // --force-upload (resend_all): ignore the server's diff and re-send every file's bytes.
+    let need: std::collections::HashSet<String> = if resend_all {
+        entries.iter().map(|e| e.rel.clone()).collect()
+    } else {
+        mf["need_sha1"].as_array().unwrap_or(&vec![])
+            .iter().filter_map(|v| v.as_str().map(String::from)).collect()
+    };
     let del_cands = mf["deletion_candidates"].as_array().cloned().unwrap_or_default();
 
     // ③ sha1 the needed files; pair renames against deletion candidates (inode+size+sha1)
@@ -646,7 +663,7 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
     hdr.set_size(meta_bytes.len() as u64); hdr.set_mode(0o644); hdr.set_cksum();
     tar.append_data(&mut hdr, ".mfs-meta.json", &meta_bytes[..]).map_err(|e| e.to_string())?;
     for rel in &need {
-        if renamed_new.contains(rel) { continue; }     // moved on the server, no bytes
+        if !resend_all && renamed_new.contains(rel) { continue; }   // moved on server, no bytes
         tar.append_path_with_name(root.join(rel), rel).map_err(|e| e.to_string())?;
     }
     let gz = tar.into_inner().map_err(|e| e.to_string())?;
@@ -655,7 +672,7 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
 
     let resp = with_auth(client.put(format!("{base}/v1/files/upload"))
         .query(&[("client_id", client_id.as_str()), ("root", abs_root.as_str()),
-                 ("process", &process.to_string())])
+                 ("process", &process.to_string()), ("full", &full.to_string())])
         .body(data)).send().map_err(|e| e.to_string())?;
     let v = parse(resp)?;
     if json { println!("{v}"); }

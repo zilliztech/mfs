@@ -9,6 +9,35 @@ import argparse
 import sys
 
 
+def _ensure_auth_token(cfg) -> None:
+    """Bootstrap a Bearer token so the HTTP API is never exposed unauthenticated by
+    default (design/02 §11.2 — loopback included). If none is configured, reuse or mint
+    ~/.mfs/server.token; the CLI reads the same file on this host. Set auth_token in
+    server.toml (or MFS_API_TOKEN) to override, or "-" to explicitly run open."""
+    import secrets
+    from pathlib import Path
+
+    if cfg.auth_token:
+        if cfg.auth_token == "-":      # explicit opt-out for trusted/isolated networks
+            cfg.auth_token = ""
+        return
+    token_file = Path(cfg.home or ".") / "server.token"
+    if token_file.exists():
+        cfg.auth_token = token_file.read_text().strip()
+        return
+    tok = secrets.token_urlsafe(32)
+    token_file.parent.mkdir(parents=True, exist_ok=True)
+    token_file.write_text(tok)
+    try:
+        token_file.chmod(0o600)
+    except OSError:
+        pass
+    cfg.auth_token = tok
+    print(f"mfs-server: generated API token at {token_file} "
+          f"(local CLIs read it automatically; pass it as Authorization: Bearer for remote)",
+          flush=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="mfs-server")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -31,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
         from ..config import load_server_config
 
         cfg = load_server_config(args.config)
+        _ensure_auth_token(cfg)
         host, _, port = args.bind.partition(":")
         app = create_app(cfg)
         uvicorn.run(app, host=host, port=int(port or "8765"))
