@@ -5,6 +5,7 @@ or enqueues for the standalone worker when process=false.
 """
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
@@ -48,9 +49,22 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         eng = Engine(cfg)
         await eng.startup()
         app.state.engine = eng
+        # AIO (sqlite/single-binary): there is no separate worker process, so an enqueued
+        # (--no-process) job would sit 'queued' forever. Drain it with one in-process worker.
+        # CS (postgres) deployments run a dedicated `mfs-server worker`; skip there unless
+        # explicitly turned on, so API replicas don't also do indexing work.
+        worker_task = None
+        if cfg.worker.in_process and eng.meta.backend == "sqlite":
+            worker_task = asyncio.create_task(eng.run_worker_forever(concurrency=1))
         try:
             yield
         finally:
+            if worker_task is not None:
+                worker_task.cancel()
+                try:
+                    await worker_task
+                except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                    pass
             await eng.shutdown()
 
     app = FastAPI(title="MFS", version="0.4.0", lifespan=lifespan,

@@ -51,8 +51,12 @@ class MilvusStore:
         schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=False)
         schema.add_field("chunk_id", DataType.VARCHAR, max_length=128, is_primary=True)
         schema.add_field("namespace_id", DataType.VARCHAR, max_length=64)
-        schema.add_field("connector_uri", DataType.VARCHAR, max_length=256, is_partition_key=True)
-        schema.add_field("object_uri", DataType.VARCHAR, max_length=1024)
+        # connector_uri is the partition key and an upload connector's identity is
+        # file://<client_id><client-abs-root> — a deep client path blew past 256 and made
+        # the chunk insert fail, so that object silently never indexed. object_uri adds the
+        # per-object relpath on top, so it needs even more headroom (cap is Milvus' 65535).
+        schema.add_field("connector_uri", DataType.VARCHAR, max_length=512, is_partition_key=True)
+        schema.add_field("object_uri", DataType.VARCHAR, max_length=4096)
         schema.add_field("locator", DataType.JSON, nullable=True)
         schema.add_field("lines", DataType.JSON, nullable=True)
         schema.add_field("content", DataType.VARCHAR, max_length=65535, enable_analyzer=True)

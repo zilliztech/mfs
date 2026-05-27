@@ -99,6 +99,10 @@ class WorkerConfig(BaseModel):
     backoff_initial_ms: int = 1000
     backoff_max_ms: int = 30000
     consecutive_fatal_threshold: int = 5
+    # AIO single-binary: `mfs-server run` drains the queue in-process so an enqueued
+    # (--no-process) job isn't stranded with no worker. CS deployments run a dedicated
+    # `mfs-server worker` and should set this false on the API replicas.
+    in_process: bool = True
 
 
 class ChunkConfig(BaseModel):
