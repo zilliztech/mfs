@@ -61,9 +61,12 @@ def main():
         # nested path preserved -> reads back via cat
         top = next((e for e in results_json if e["source"].endswith("auth.md")), None)
         if top:
-            cat = client.get("/v1/cat", params={"path": top["source"].replace("file://local", "")})
+            # stable identity file://<name>/… — cat by the logical URI, no internal path
+            check("upload identity is file://acme-bundle", top["source"].startswith("file://acme-bundle/"))
+            cat = client.get("/v1/cat", params={"path": top["source"]})
             check("cat reads staged file content", "Single sign-on" in cat.json().get("content", ""))
         else:
+            check("upload identity is file://acme-bundle", False)
             check("cat reads staged file content", False)
 
         # zip-slip: a member escaping the staging dir must be rejected

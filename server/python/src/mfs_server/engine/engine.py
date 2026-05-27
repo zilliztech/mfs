@@ -35,6 +35,7 @@ from .state import ConnectorStateStore
 _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
 _HEAD_CACHE_N = 100      # rows pre-cached per structured object to speed `head` (design/05)
 _BARE_CAT_MAX_BYTES = 5 * 1024 * 1024   # bare `cat` (no range) rejects objects larger than this
+_GREP_LINEAR_SCAN_MAX = 200             # cap on not-indexed files a single grep scans linearly
 
 
 def _now() -> str:
@@ -440,29 +441,48 @@ class Engine:
 
     async def ingest_upload(self, name: str, data: bytes, fmt: str = "tar",
                             process: bool = True) -> dict:
-        """CS upload flow (design/02 §4.2): client/server don't share a fs, so the
-        client ships a tar(.gz) of the tree; the server extracts it into a per-upload
-        staging dir under the object store and indexes that dir with the file connector.
-        Guards against path traversal (zip-slip)."""
+        """CS upload flow (design/02 §4.2): client/server don't share a fs, so the client
+        ships a tar(.gz) of the tree (?name=<label>). The label is the connector's stable
+        identity file://<name> — the SAME file://<client_id><root> shape the manifest-diff
+        flow uses — so the upload is searchable / removable by that logical URI rather than
+        by the server's internal staging path (which the old code leaked as file://local…,
+        diverging from the manifest flow). Full-tree snapshot; guards zip-slip."""
         import hashlib
         import io
         import tarfile
 
-        sub = hashlib.sha1(name.encode()).hexdigest()[:16]
-        staging = self.object_store.files_root(self.ns, sub)
-        staging_str = os.path.realpath(str(staging))
+        staging, connector_uri, cid = await self._staging_connector(name, "")
+        fs = FileStateStore(self.meta, self.ns, cid)
+
+        def _safe(rel: str) -> str:
+            dest = os.path.realpath(os.path.join(staging, rel.lstrip("/")))
+            if dest != staging and not dest.startswith(staging + os.sep):
+                raise ValueError(f"unsafe path in archive: {rel}")
+            return dest
+
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as tf:
             members = tf.getmembers()
-            for m in members:
+            for m in members:                 # validate everything before any side effect
                 if m.issym() or m.islnk():
                     raise ValueError(f"links not allowed in upload: {m.name}")
-                dest = os.path.realpath(os.path.join(staging_str, m.name))
-                if dest != staging_str and not dest.startswith(staging_str + os.sep):
-                    raise ValueError(f"unsafe path in archive: {m.name}")
-            tf.extractall(staging_str)        # validated above
-        job_id = await self.add(staging_str, process=process)
-        _, connector_uri, _, _ = self._resolve_target(staging_str)
-        return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging_str}
+                if not m.isdir():
+                    _safe(m.name)
+            # reserve the sync slot BEFORE mutating staging/file_state (so a rejected sync —
+            # sync_already_running — leaves nothing half-applied), then stage the tree.
+            job_id = await self._open_sync_job(cid, process)
+            tf.extractall(staging)            # validated above
+            for m in members:
+                if m.isdir():
+                    continue
+                real = _safe(m.name)
+                st = os.stat(real)
+                sha1 = hashlib.sha1(open(real, "rb").read()).hexdigest()
+                await fs.upsert(_norm_rel(m.name), st.st_size, st.st_mtime_ns,
+                                st.st_ino, sha1, status="staged")
+        crow = await self.meta.fetchone("SELECT config_json FROM connectors WHERE id=?", (cid,))
+        stored_cfg = json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
+        await self._drain_job(job_id, cid, connector_uri, "file", stored_cfg, False, None, process)
+        return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
 
     # --- manifest-diff upload protocol (design/02 §4.2): stable identity
     #     file://<client_id><abs-root>, byte-diff + index-diff both on the file_state table ---
@@ -685,9 +705,26 @@ class Engine:
         cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
         try:
             stale = await self.meta.fetchall(
-                "SELECT id FROM connector_jobs WHERE status='running' "
+                "SELECT id, connector_id FROM connector_jobs WHERE status='running' "
                 "AND heartbeat IS NOT NULL AND heartbeat < ?", (cutoff,))
             for j in stale:
+                # If the connector already has a queued job (e.g. a sync was preempted),
+                # flipping this stale one to 'queued' would violate ux_jobs_one_queued and
+                # — silently swallowed — leave it stuck 'running' forever, never reclaimed.
+                # Instead hand its in-flight tasks to that queued job and fail the stale one.
+                existing_queued = await self.meta.fetchone(
+                    "SELECT id FROM connector_jobs WHERE connector_id=? AND status='queued' "
+                    "AND id<>? LIMIT 1", (j["connector_id"], j["id"]))
+                if existing_queued:
+                    await self.meta.execute(
+                        "UPDATE object_tasks SET status='pending', connector_job_id=? "
+                        "WHERE connector_job_id=? AND status='running'",
+                        (existing_queued["id"], j["id"]))
+                    await self.meta.execute(
+                        "UPDATE connector_jobs SET status='failed', finished_at=?, "
+                        "error='reclaimed: superseded by queued job' WHERE id=? AND status='running'",
+                        (_now(), j["id"]))
+                    continue
                 # reset the dead worker's in-flight tasks back to pending FIRST, else the
                 # re-claiming worker sees only 'pending', finds none, and finalizes the job
                 # 'succeeded' while a task is still stuck 'running' (P1 crash-recovery gap).
@@ -762,7 +799,12 @@ class Engine:
                         (_now(), f"fatal: {e}", task["id"]))
                     return "fatal"
                 if attempt < max_r:
-                    await _a.sleep(self.cfg.worker.backoff_initial_ms / 1000)
+                    # exponential backoff capped at backoff_max_ms (design/02 §7.1): a flat
+                    # initial-only sleep ignored backoff_max_ms entirely and hammered a
+                    # rate-limited provider at a fixed cadence.
+                    delay_ms = min(self.cfg.worker.backoff_initial_ms * (2 ** attempt),
+                                   self.cfg.worker.backoff_max_ms)
+                    await _a.sleep(delay_ms / 1000)
                     continue
                 await self.meta.execute(
                     "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
@@ -783,7 +825,7 @@ class Engine:
         """Returns None on normal completion, or a circuit-breaker reason string.
         Consecutive fatal failures (design/02 §7.1) abort the job."""
         threshold = self.cfg.worker.consecutive_fatal_threshold
-        consec_fatal = 0
+        consec_fail = 0       # consecutive object failures (fatal OR retries exhausted)
         while True:
             if await self._should_stop(job_id, cid):
                 return "cancelled"
@@ -799,6 +841,13 @@ class Engine:
                 # chunks for a connector being torn down (design/02 §6.4 §7).
                 if await self._should_stop(job_id, cid):
                     return "cancelled"
+                # heartbeat per task, not just per batch: a single slow object (large PDF
+                # convert + embed) can exceed the stale-reclaim window, and remove() now
+                # waits on a *fresh* heartbeat to know the worker is still alive — so a
+                # long object must keep the heartbeat warm or it'd be falsely reclaimed /
+                # torn down out from under an in-flight write (design/02 §5, §6.4).
+                await self.meta.execute(
+                    "UPDATE connector_jobs SET heartbeat=? WHERE id=?", (_now(), job_id))
                 r = await self._process_with_retry(plugin, connector_uri, t)
                 if r is None:
                     # only flip a task we still own: a conditional UPDATE means a task that
@@ -807,17 +856,19 @@ class Engine:
                         "UPDATE object_tasks SET status='succeeded', finished_at=? "
                         "WHERE id=? AND status='running'",
                         (_now(), t["id"]))
-                    consec_fatal = 0
-                elif r == "fatal":
-                    consec_fatal += 1
-                    if consec_fatal >= threshold:
+                    consec_fail = 0
+                else:
+                    # both 'fatal' AND 'retryable_exhausted' count toward the breaker: a
+                    # provider that rate-limits (429) or times out on every object is
+                    # classified retryable, and without counting it the job would grind the
+                    # whole connector, burning (max_retries+1) calls per object (design/02 §7.1).
+                    consec_fail += 1
+                    if consec_fail >= threshold:
                         await self.meta.execute(
                             "UPDATE object_tasks SET status='cancelled' "
                             "WHERE connector_job_id=? AND status IN ('pending','running')",
                             (job_id,))
                         return "circuit_breaker_tripped"
-                else:
-                    consec_fatal = 0
         return None
 
     async def _read_text(self, plugin, relpath: str) -> str:
@@ -1261,11 +1312,14 @@ class Engine:
         from ..processors.text import chunk_body
         _, connector_uri, ctype, default_config = self._resolve_target(target)
         cfg_dict = config if config is not None else default_config
-        plugin, _ = self._build_plugin(ctype, cfg_dict, "estimate-" + uuid.uuid4().hex)
+        tmp_cid = "estimate-" + uuid.uuid4().hex
+        plugin, _ = self._build_plugin(ctype, cfg_dict, tmp_cid)
         await plugin.connect()
         try:
             obj_uris: list[str] = []
-            async for ch in plugin.sync(SyncOptions(full=True)):
+            # dry_run: enumerate object URIs without hashing bytes or writing any state
+            # (design/04 §3 — estimate must be side-effect-free and cheap).
+            async for ch in plugin.sync(SyncOptions(full=True, dry_run=True)):
                 if ch.kind != "deleted":
                     obj_uris.append(ch.uri)
                 if len(obj_uris) >= 200000:
@@ -1311,6 +1365,14 @@ class Engine:
                 await plugin.close()
             except Exception:  # noqa: BLE001
                 pass
+            # belt-and-suspenders: drop any rows a connector's sync may have written under
+            # the throwaway estimate id (dry_run covers file; this catches the rest so a
+            # probe/estimate can never accrete orphan state nothing will ever clean up).
+            for tbl in ("file_state", "connector_state"):
+                try:
+                    await self.meta.execute(f"DELETE FROM {tbl} WHERE connector_id=?", (tmp_cid,))
+                except Exception:  # noqa: BLE001
+                    pass
 
     async def inspect(self, target: str) -> dict | None:
         """Connector row + object/job summary (design/03 §3 inspect)."""
@@ -1355,10 +1417,29 @@ class Engine:
         await self.meta.execute(
             "UPDATE connector_jobs SET status='cancelled', finished_at=? "
             "WHERE connector_id=? AND status='queued'", (_now(), cid))
-        for _ in range(100):       # ~10s bounded wait for the worker to leave 'running'
+        # Wait for the worker to leave 'running' — that transition (set in _finalize_job
+        # after _run_job's loop exits) is the proof the last _index_object's Milvus upsert
+        # has completed, so it's the only safe moment to delete. Don't bound this by wall
+        # clock (the old ~10s cap would delete out from under an object still mid-write,
+        # re-opening the orphan-chunk race); instead trust the heartbeat. A live worker
+        # refreshes it per task, so we keep waiting; only a stale heartbeat means the
+        # worker died/stuck, in which case WE take the job over and then delete.
+        stale_after_s = 120
+        while True:
             running = await self.meta.fetchone(
-                "SELECT 1 FROM connector_jobs WHERE connector_id=? AND status='running'", (cid,))
+                "SELECT id, heartbeat FROM connector_jobs WHERE connector_id=? AND status='running'", (cid,))
             if not running:
+                break
+            cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
+            if not running["heartbeat"] or running["heartbeat"] < cutoff:
+                # worker is dead or wedged — reclaim: cancel its in-flight tasks + the job
+                # so the 'running' row clears and no later write can resurrect it.
+                await self.meta.execute(
+                    "UPDATE object_tasks SET status='cancelled' "
+                    "WHERE connector_job_id=? AND status IN ('pending','running')", (running["id"],))
+                await self.meta.execute(
+                    "UPDATE connector_jobs SET status='cancelled', finished_at=? "
+                    "WHERE id=? AND status='running'", (_now(), running["id"]))
                 break
             await asyncio.sleep(0.1)
         # 1. Milvus chunks for this connector partition (worker has now stopped writing)
@@ -1637,7 +1718,15 @@ class Engine:
             not_idx = await self.meta.fetchall(
                 "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed' "
                 "AND object_uri LIKE ?", (cid, like))
-            for o in not_idx[:50]:
+            if len(not_idx) > _GREP_LINEAR_SCAN_MAX:
+                # don't silently scan a subset and imply it was exhaustive — tell the agent
+                # so it can narrow the path or index first (design/05 §6).
+                results.append({
+                    "source": None, "lines": None, "via": "notice",
+                    "content": f"(grep linear scan capped at {_GREP_LINEAR_SCAN_MAX} of "
+                               f"{len(not_idx)} not-indexed files in scope; narrow the path "
+                               f"or run `mfs add` to index them for complete results)"})
+            for o in not_idx[:_GREP_LINEAR_SCAN_MAX]:
                 relp = o["object_uri"]
                 try:
                     abs_file = (root_abs + relp) if root_abs else None

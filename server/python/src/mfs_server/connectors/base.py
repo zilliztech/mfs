@@ -77,6 +77,7 @@ class ObjectChange:
 class SyncOptions:
     full: bool = False                 # user --force-index
     since: Optional[str] = None        # user --since <date>, overrides state cursor
+    dry_run: bool = False              # estimate pre-flight: enumerate only, NO state writes
 
 
 @dataclass

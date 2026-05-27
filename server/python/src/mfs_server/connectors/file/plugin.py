@@ -213,6 +213,17 @@ class FilePlugin(ConnectorPlugin):
 
         spec = self._load_ignore()
         current = self._scan(spec)
+
+        # dry_run (estimate pre-flight, design/04 §3): enumerate object URIs only — never
+        # hash bytes and never touch file_state. Otherwise estimate would sha1 the whole
+        # tree AND leak 'staged' rows under its throwaway connector id (no connector row =
+        # nothing ever cleans them up). Treat every object as 'added' so the caller can
+        # count + sample without any persistent side effect.
+        if opts.dry_run:
+            for path in current:
+                yield ObjectChange(uri=path, kind="added")
+            return
+
         prev_paths = await self.file_state.all_paths()
 
         added: dict[str, tuple] = {}     # path -> (size, mtime_ns, inode, sha1)
