@@ -37,8 +37,18 @@ class BigQueryPlugin(ConnectorPlugin):
         return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
 
     async def connect(self) -> None:
-        # project + ADC / service-account JSON path via GOOGLE_APPLICATION_CREDENTIALS
-        self._client = await asyncio.to_thread(bigquery.Client, project=self._cfg("project"))
+        # project + ADC / service-account JSON path via GOOGLE_APPLICATION_CREDENTIALS.
+        # `endpoint` points at a self-hosted/emulator BigQuery (anonymous creds).
+        endpoint = self._cfg("endpoint")
+        if endpoint:
+            from google.api_core.client_options import ClientOptions
+            from google.auth.credentials import AnonymousCredentials
+            self._client = await asyncio.to_thread(
+                lambda: bigquery.Client(project=self._cfg("project"),
+                                        client_options=ClientOptions(api_endpoint=endpoint),
+                                        credentials=AnonymousCredentials()))
+        else:
+            self._client = await asyncio.to_thread(bigquery.Client, project=self._cfg("project"))
 
     async def close(self) -> None:
         if self._client is not None:
@@ -104,9 +114,19 @@ class BigQueryPlugin(ConnectorPlugin):
         if len(parts) == 4 and parts[1] == "tables" and parts[3] == "rows.jsonl":
             dataset, table = safe_ident(parts[0]), safe_ident(parts[2])
             lim = self._cfg("max_read_rows", 100000)
-            sql = f"SELECT * FROM {self._table_ref(dataset, table)} LIMIT {lim}"
-            rows = await asyncio.to_thread(lambda: list(self._client.query(sql).result()))
-            for r in rows:
+            ref = f"{self._client.project}.{dataset}.{table}"
+            # list_rows (tabledata.list) instead of a SELECT * query: no query-job billing,
+            # native start_index/max_results paging for cat --range pushdown.
+            if range is not None:
+                start = max(0, int(range.start)); cnt = max(0, int(range.end) - start)
+                it = await asyncio.to_thread(
+                    lambda: list(self._client.list_rows(ref, start_index=start, max_results=cnt)))
+            else:
+                tbl = await asyncio.to_thread(self._client.get_table, ref)
+                if tbl.num_rows is not None and tbl.num_rows > lim:
+                    self.ctx.declare_partial(path)        # capped -> search_status=partial
+                it = await asyncio.to_thread(lambda: list(self._client.list_rows(ref, max_results=lim)))
+            for r in it:
                 yield dict(r)
         elif len(parts) == 4 and parts[1] == "tables" and parts[3] == "schema.json":
             dataset, table = safe_ident(parts[0]), safe_ident(parts[2])
@@ -122,6 +142,10 @@ class BigQueryPlugin(ConnectorPlugin):
             tbl = await asyncio.to_thread(
                 self._client.get_table, f"{self._client.project}.{safe_ident(parts[0])}.{safe_ident(parts[2])}")
             return f"rows:{tbl.num_rows}:{tbl.modified.isoformat() if tbl.modified else ''}"
+        if len(parts) == 4 and parts[1] == "tables" and parts[3] == "schema.json":
+            tbl = await asyncio.to_thread(
+                self._client.get_table, f"{self._client.project}.{safe_ident(parts[0])}.{safe_ident(parts[2])}")
+            return "schema:" + ";".join(f"{f.name}:{f.field_type}" for f in tbl.schema)
         return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
@@ -130,11 +154,12 @@ class BigQueryPlugin(ConnectorPlugin):
         seen: dict[str, str] = {}
         for dataset in await self._datasets():
             for table in await self._tables(dataset):
-                p = f"/{dataset}/tables/{table}/rows.jsonl"
-                fp = await self.fingerprint(p) or ""
-                seen[p] = fp
-                if opts.full or old.get(p) != fp:
-                    yield ObjectChange(p, "modified" if p in old else "added")
+                for leaf in ("schema.json", "rows.jsonl"):
+                    p = f"/{dataset}/tables/{table}/{leaf}"
+                    fp = await self.fingerprint(p) or ""
+                    seen[p] = fp
+                    if opts.full or old.get(p) != fp:
+                        yield ObjectChange(p, "modified" if p in old else "added")
         for p in set(old) - set(seen):
             yield ObjectChange(p, "deleted")
         await self.state.set("tables", seen)
