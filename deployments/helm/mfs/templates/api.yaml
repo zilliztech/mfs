@@ -24,11 +24,11 @@ spec:
             - containerPort: {{ .Values.api.port }}
           env: {{- include "mfs.env" . | nindent 12 }}
           readinessProbe:
-            httpGet: { path: /v1/server/info, port: {{ .Values.api.port }} }
+            httpGet: { path: /healthz, port: {{ .Values.api.port }} }
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet: { path: /v1/server/info, port: {{ .Values.api.port }} }
+            httpGet: { path: /healthz, port: {{ .Values.api.port }} }
             initialDelaySeconds: 10
             periodSeconds: 20
           resources: {{- toYaml .Values.api.resources | nindent 12 }}

@@ -31,10 +31,15 @@ metadata:
 
 objectStore:
   type: s3
-  endpoint: ""
+  endpoint: ""        # e.g. https://s3.amazonaws.com, or R2/GCS/MinIO endpoint
   bucket: "mfs"
+  region: ""
+  prefix: ""
+  # access/secret keys come from the secret below (object-store-access-key / -secret-key)
 
-# secret holding ZILLIZ_TOKEN / OPENAI_API_KEY / object-store creds
+# secret holding the shared API bearer token + ZILLIZ_TOKEN / OPENAI_API_KEY / object-store creds.
+# Required keys: api-token, zilliz-token, openai-api-key, object-store-access-key,
+# object-store-secret-key. The same api-token must be shared by every API replica.
 existingSecret: "mfs-secrets"
 
 env: {}

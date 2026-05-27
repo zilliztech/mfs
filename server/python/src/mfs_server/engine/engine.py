@@ -244,6 +244,12 @@ class Engine:
                 return sch, target, sch, {}
             if sch != "file":
                 raise NotImplementedError(f"connector scheme '{sch}' not yet implemented")
+        # file:///abs/path — empty authority — is the canonical URI for a LOCAL path
+        # (design/03 §): treat it as the local path, not an upload identity, so
+        # `mfs add file:///abs/path` registers with a real root instead of failing.
+        if target.startswith("file:///"):
+            abs_path = os.path.abspath(target[len("file://"):])
+            return "file", f"file://local{abs_path}", "file", {"root": abs_path, "client_id": "local"}
         # logical upload identity file://<client_id><abs> (client_id != local): the real
         # config (staging root) lives on the already-registered connector, so return bare.
         if target.startswith("file://") and not target.startswith("file://local"):
@@ -1323,6 +1329,13 @@ class Engine:
                     chunk_count = 1
                     search_status = "indexed"
 
+        if chunk_count == 0:
+            # A rebuild that produced no chunks (object became binary / indexable=false /
+            # index_filter matched 0 rows / document emptied / empty VLM or summary) must
+            # still purge chunks from a previous index, else search keeps returning stale
+            # content. The per-kind branches only delete when they have new rows to upsert,
+            # so cover the zero-chunk case here (design/04: rebuild = delete-by-object + insert).
+            await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
         await self.meta.execute(
             "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
             " fingerprint, indexable, last_seen, search_status, chunk_count, indexed_at) "
@@ -1625,7 +1638,9 @@ class Engine:
         if "_row" in locator:
             return idx == int(locator["_row"])
         keys = ocfg.locator_fields or list(locator.keys())
-        return all(str(rec.get(k)) == str(locator.get(k)) for k in keys if k in locator)
+        # resolve with the SAME JSONPath-lite used to WRITE the locator (engine indexing:
+        # {f: _resolve_path(rec, f)}); plain rec.get() couldn't reopen a nested locator key.
+        return all(str(_resolve_path(rec, k)) == str(locator.get(k)) for k in keys if k in locator)
 
     async def cat(self, path: str, range: tuple[int, int] | None = None, meta: bool = False,
                   density: str | None = None, locator: dict | None = None):

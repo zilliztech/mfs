@@ -74,7 +74,11 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         @app.middleware("http")
         async def _auth(request: Request, call_next):
             """Bearer-token gate (design/02 §5.3 / §11.2): when auth_token is configured,
-            every request — loopback included — must carry Authorization: Bearer <token>."""
+            every request — loopback included — must carry Authorization: Bearer <token>.
+            /healthz is exempt so k8s/compose liveness probes don't need the token (it
+            returns no data) — see deployments/."""
+            if request.url.path == "/healthz":
+                return await call_next(request)
             if request.headers.get("authorization", "") != f"Bearer {cfg.auth_token}":
                 return JSONResponse(status_code=401, content={
                     "code": "unauthorized", "detail": "missing or invalid bearer token",
@@ -273,6 +277,12 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     async def export(path: str) -> CatResponse:
         """Full object content (no row cap / size guard) for `mfs export`."""
         return CatResponse(source=path, content=await _read_op(eng().export, path))
+
+    @app.get("/healthz", tags=["server"])
+    async def healthz() -> dict:
+        """Unauthenticated liveness/readiness probe (no sensitive data); used by the
+        compose healthcheck and Helm probes so they work even with auth enabled."""
+        return {"status": "ok"}
 
     @app.get("/v1/status", response_model=StatusResponse, operation_id="status", tags=["server"])
     async def status() -> StatusResponse:

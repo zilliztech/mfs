@@ -17,7 +17,20 @@ _ALLOWED_NODES = (
     ast.Expression, ast.BoolOp, ast.UnaryOp, ast.Not, ast.And, ast.Or,
     ast.Compare, ast.Name, ast.Load, ast.Constant, ast.List, ast.Tuple,
     ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.In, ast.NotIn,
+    ast.Call,            # only to a fixed set of safe builtins (gated in _eval)
 )
+
+
+def _safe_len(x):
+    try:
+        return len(x)
+    except TypeError:
+        return 0
+
+
+# Calls are restricted to these pure, side-effect-free builtins so a filter like
+# `len(description) > 50` works (design/06 §4) without opening arbitrary execution.
+_SAFE_FUNCS = {"len": _safe_len, "str": str, "int": int, "float": float, "bool": bool, "abs": abs}
 
 
 class FilterError(ValueError):
@@ -28,6 +41,12 @@ def _check(node: ast.AST) -> None:
     for n in ast.walk(node):
         if not isinstance(n, _ALLOWED_NODES):
             raise FilterError(f"disallowed expression element: {type(n).__name__}")
+        if isinstance(n, ast.Call):
+            # reject unsafe calls (__import__, open, ...) at COMPILE time, not just eval:
+            # only the fixed safe-builtin whitelist, called by bare name, no kwargs.
+            if not isinstance(n.func, ast.Name) or n.func.id not in _SAFE_FUNCS or n.keywords:
+                raise FilterError(
+                    f"call not allowed; only {sorted(_SAFE_FUNCS)} by bare name")
 
 
 def compile_filter(expr: str):
@@ -65,6 +84,13 @@ def _eval(node: ast.AST, rec: dict) -> Any:
         return node.value
     if isinstance(node, (ast.List, ast.Tuple)):
         return [_eval(e, rec) for e in node.elts]
+    if isinstance(node, ast.Call):
+        if not isinstance(node.func, ast.Name) or node.func.id not in _SAFE_FUNCS or node.keywords:
+            raise FilterError("only safe builtin calls (len/str/int/float/bool/abs) are allowed")
+        try:
+            return _SAFE_FUNCS[node.func.id](*[_eval(a, rec) for a in node.args])
+        except (TypeError, ValueError):
+            return None
     raise FilterError(f"cannot evaluate node: {type(node).__name__}")
 
 

@@ -648,9 +648,13 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
         for dc in &del_cands {
             let old = dc["path"].as_str().unwrap_or("");
             if old.is_empty() || consumed_old.contains(old) { continue; }
-            let same = dc["sha1"].as_str() == Some(sha.as_str())
-                && dc["inode"].as_u64() == Some(e.inode)
-                && dc["size"].as_u64() == Some(e.size);
+            // inode+size first; fall back to sha1+size so a cross-filesystem rename (inode
+            // changes) is still recognized as a rename instead of delete+add — which would
+            // re-upload and re-embed identical bytes (design/04 §5.7.2 rename pairing).
+            let size_match = dc["size"].as_u64() == Some(e.size);
+            let same = size_match
+                && (dc["inode"].as_u64() == Some(e.inode)
+                    || dc["sha1"].as_str() == Some(sha.as_str()));
             if same {
                 renames.push(serde_json::json!({"old": old, "new": rel, "sha1": sha}));
                 consumed_old.insert(old.to_string());
