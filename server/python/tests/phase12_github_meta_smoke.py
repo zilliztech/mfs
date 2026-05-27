@@ -44,7 +44,9 @@ async def main():
 
         iss = await eng.meta.fetchone(
             "SELECT chunk_count, search_status FROM objects WHERE connector_id=? AND object_uri='/_meta/issues.jsonl'", (cid,))
-        check("issues.jsonl indexed (record_collection)", iss and iss["chunk_count"] >= 1 and iss["search_status"] == "indexed")
+        # 'partial' is correct when max_read_rows caps the read (octocat/Hello-World has >3 issues)
+        check("issues.jsonl indexed (record_collection)",
+              iss and iss["chunk_count"] >= 1 and iss["search_status"] in ("indexed", "partial"))
         pl = await eng.meta.fetchone(
             "SELECT chunk_count FROM objects WHERE connector_id=? AND object_uri='/_meta/pulls.jsonl'", (cid,))
         check("pulls.jsonl indexed", pl and pl["chunk_count"] >= 1)
