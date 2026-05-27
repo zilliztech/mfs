@@ -36,11 +36,19 @@ class S3Plugin(ConnectorPlugin):
     def _bucket(self) -> str:
         return self._cfg("bucket")
 
+    def _creds(self) -> tuple[Optional[str], Optional[str]]:
+        ak, sk = self._cfg("access_key_id"), self._cfg("secret_access_key")
+        # both inline fields are redacted before persistence, so on reopen fall back to a
+        # single credential_ref carrying "<access_key_id>:<secret_access_key>".
+        if (not ak or not sk) and self.credential and ":" in str(self.credential):
+            cak, csk = str(self.credential).split(":", 1)
+            ak, sk = ak or cak, sk or csk
+        return ak, sk
+
     def _session(self) -> aioboto3.Session:
-        return aioboto3.Session(
-            aws_access_key_id=self._cfg("access_key_id"),
-            aws_secret_access_key=self._cfg("secret_access_key"),
-            region_name=self._cfg("region"))
+        ak, sk = self._creds()
+        return aioboto3.Session(aws_access_key_id=ak, aws_secret_access_key=sk,
+                                region_name=self._cfg("region"))
 
     def _client_kwargs(self) -> dict:
         kw = {}
