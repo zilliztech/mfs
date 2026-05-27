@@ -330,7 +330,7 @@ mfs cat ./docs/diagram.png --meta                                # 看 VLM descr
 | 命令 | 用途 | 数据来源 |
 |---|---|---|
 | `--peek` | 只列名字 / 标题骨架 | metadata DB |
-| `--skim` | + 每条 summary 一行 | Milvus 查 `directory_summary` / `summary` / `vlm_description` |
+| `--skim` | + 每条 summary 一行 | Milvus 查 `directory_summary` / `vlm_description` |
 | `--deep` | 展开更多结构 | Milvus + artifact cache head |
 
 ```bash

@@ -147,6 +147,8 @@ class MilvusStore:
     def delete_by_object(self, namespace_id: str, connector_uri: str, object_uri: str) -> None:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
+        if not self.client.has_collection(name):
+            return        # nothing to purge — a delete must never wedge on a missing collection
         flt = (
             f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}" '
             f'and object_uri == "{_lit(object_uri)}"'
@@ -156,12 +158,16 @@ class MilvusStore:
     def delete_by_connector(self, namespace_id: str, connector_uri: str) -> None:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
+        if not self.client.has_collection(name):
+            return        # collection already gone (dropped/reset) — removal must still succeed
         flt = f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}"'
         self.client.delete(collection_name=name, filter=flt)
 
     def count(self, namespace_id: str, expr: str = "") -> int:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
+        if not self.client.has_collection(name):
+            return 0
         rows = self.client.query(collection_name=name, filter=expr or "chunk_id != ''",
                                  output_fields=["count(*)"], consistency_level="Strong")
         if rows and "count(*)" in rows[0]:
@@ -173,6 +179,8 @@ class MilvusStore:
         vectors, zero re-embed)."""
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
+        if not self.client.has_collection(name):
+            return []
         flt = (f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}" '
                f'and object_uri == "{_lit(object_uri)}"')
         return self.client.query(
@@ -185,6 +193,8 @@ class MilvusStore:
                      consistency_level: str = "Strong") -> list[dict]:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
+        if not self.client.has_collection(name):
+            return []
         res = self.client.search(
             collection_name=name,
             data=[query_vec],
@@ -206,6 +216,8 @@ class MilvusStore:
         content_bm25 Function. (verified: pymilvus search(data=[text], anns_field='sparse_vec'))."""
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
+        if not self.client.has_collection(name):
+            return []
         res = self.client.search(
             collection_name=name, data=[query_text], anns_field="sparse_vec", limit=limit,
             filter=expr, output_fields=output_fields or self._DEFAULT_OUT,
@@ -219,6 +231,8 @@ class MilvusStore:
         """dense + BM25 sparse fused with RRF."""
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
+        if not self.client.has_collection(name):
+            return []
         k = limit * over_fetch
         rd = AnnSearchRequest(data=[query_vec], anns_field="dense_vec",
                               param={"metric_type": "COSINE"}, limit=k, expr=expr or None)

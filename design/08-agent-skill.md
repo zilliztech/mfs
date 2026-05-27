@@ -119,7 +119,7 @@ agent 关心的字段：
 | `content` | 给 LLM 看的内容 snippet |
 | `locator` | 当 source 是集合对象时，精确指向单条 record |
 | `score` | 排序参考；低于 0.5 通常不可靠 |
-| `metadata.chunk_kind` | 区分召回类型（body / row_text / thread_aggregate / vlm_description / summary） |
+| `metadata.chunk_kind` | 区分召回类型（body / row_text / thread_aggregate / vlm_description / directory_summary） |
 | `metadata.media_type` | 判断对象类型，决定下一步用什么命令 |
 | `metadata.fields` | 不打开对象就能看到的业务字段（status / priority 等） |
 

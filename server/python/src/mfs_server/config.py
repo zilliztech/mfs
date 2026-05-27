@@ -57,11 +57,14 @@ class EmbeddingConfig(BaseModel):
 
 
 class SummaryConfig(BaseModel):
-    enabled: str = "auto"            # auto | true | false
+    enabled: bool = False            # master switch for directory summaries; off by default (opt-in)
     provider: str = "openai"
     model: str = "gpt-4o-mini"
     max_tokens: int = 800
-    min_size_kb: int = 8
+    dir_recursive: bool = True       # bottom-up recursive directory summary (child summaries roll up)
+    max_input_kb: int = 64           # total input budget fed to one directory summary (truncated)
+    per_file_max_kb: int = 16        # per-file truncation cap so one big file can't eat the budget
+    include_image_desc: bool = False # feed image VLM descriptions into the directory summary
     batch_size: int = 20
 
 

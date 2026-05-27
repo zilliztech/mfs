@@ -1,8 +1,8 @@
-"""Summary client: condense an object into a short text used as an
-extra `summary` / `schema_summary` / `directory_summary` chunk, improving recall for
-holistic queries. OpenAI chat (gpt-4o-mini), memoized in the transformation cache
-(kind='summary', keyed on input hash + provider/model/version → model change re-summarizes).
-Lazy client so the server boots without OPENAI_API_KEY.
+"""Summary client: condense input into a short text used as a
+`directory_summary` / `schema_summary` chunk, improving recall for holistic queries.
+OpenAI chat (gpt-4o-mini), memoized in the transformation cache (kind='summary', keyed
+on input hash + provider/model/version → model change re-summarizes). Lazy client so the
+server boots without OPENAI_API_KEY.
 """
 from __future__ import annotations
 
@@ -13,12 +13,12 @@ from ..storage.ids import cache_key, sha1_hex
 from ..storage.transformation_cache import TransformationCache
 
 _PROMPTS = {
-    "summary": "Summarize the following document for search indexing. Capture the main "
-               "topics, entities, and purpose in 3-5 sentences. Output plain text only.",
     "schema_summary": "Describe this table/collection schema for search: what the table "
                       "likely holds, and the meaning of its key columns. 2-4 sentences.",
-    "directory_summary": "Given this directory listing, describe in 1-3 sentences what this "
-                         "folder contains and how its files relate. Plain text only.",
+    "directory_summary": "Below are the files (with content excerpts) and sub-directory "
+                         "summaries contained in one directory. In 2-4 sentences, describe "
+                         "what this directory holds and the role it plays in the project. "
+                         "Plain text only.",
 }
 
 
@@ -30,7 +30,6 @@ class CachingSummaryClient:
         self.provider = cfg.summary.provider
         self.version = "1"
         self.max_tokens = cfg.summary.max_tokens
-        self.min_size = cfg.summary.min_size_kb * 1024
         self.tx_cache = tx_cache
         self._client = None
         self.api_calls = 0
@@ -43,18 +42,10 @@ class CachingSummaryClient:
             self._client = AsyncOpenAI()
         return self._client
 
-    def should_summarize(self, text: str) -> bool:
-        """`auto` (default): only large objects; `true`: always; `false`: never."""
-        if self.enabled == "false":
-            return False
-        if self.enabled == "true":
-            return True
-        return len(text.encode()) >= self.min_size       # auto
-
-    async def summarize(self, text: str, kind: str = "summary") -> str:
+    async def summarize(self, text: str, kind: str = "directory_summary") -> str:
         if not text.strip():
             return ""
-        prompt = _PROMPTS.get(kind, _PROMPTS["summary"])
+        prompt = _PROMPTS.get(kind, _PROMPTS["directory_summary"])
         key = cache_key(sha1_hex((kind + "\n" + text).encode()), "summary",
                         self.provider, self.model, self.version)
         cached = await self.tx_cache.batch_get([key])
@@ -64,7 +55,8 @@ class CachingSummaryClient:
         client = self._ensure_client()
         resp = await client.chat.completions.create(
             model=self.model, max_tokens=self.max_tokens,
-            messages=[{"role": "user", "content": f"{prompt}\n\n---\n{text[:12000]}"}])
+            # caller truncates to summary.max_input_kb; this is just a hard safety ceiling
+            messages=[{"role": "user", "content": f"{prompt}\n\n---\n{text[:200_000]}"}])
         out = resp.choices[0].message.content or ""
         self.api_calls += 1
         await self.tx_cache.batch_put([{

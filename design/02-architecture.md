@@ -688,7 +688,7 @@ chunk_id = sha1(namespace_id + connector_uri + object_uri + chunk_kind + locator
 
 任何 worker / 重试 / 并发，对同 chunk_id 的写都等效。`namespace_id` 必须进 hash——否则两个 namespace 注册同名外部数据源（如都叫 `prod`）会让 chunk_id 撞车。
 
-`locator` 和 `lines` 一起保证 chunk_id 在 **同一 object 内唯一**：结构化对象（DB row / thread / issue）靠 `locator`（pk / thread_ts / number）区分；`body` / document / code 这类 `locator` 为 null 的对象靠 `lines`（chunk 的 `[start, end]` 行区间，见 [06 §3](06-search-and-retrieval.md#3-locator-schema-per-connector)）区分——否则同一文件切出的多个 `body` chunk 会落到同一个 chunk_id、互相覆盖，最终一个文件只剩一个 chunk。`summary` / `vlm_description` / `directory_summary` / `schema_summary` 这类每个 object 至多一条，locator/lines 都为 null 也不会撞。
+`locator` 和 `lines` 一起保证 chunk_id 在 **同一 object 内唯一**：结构化对象（DB row / thread / issue）靠 `locator`（pk / thread_ts / number）区分；`body` / document / code 这类 `locator` 为 null 的对象靠 `lines`（chunk 的 `[start, end]` 行区间，见 [06 §3](06-search-and-retrieval.md#3-locator-schema-per-connector)）区分——否则同一文件切出的多个 `body` chunk 会落到同一个 chunk_id、互相覆盖，最终一个文件只剩一个 chunk。`vlm_description` / `directory_summary` / `schema_summary` 这类每个 object 至多一条，locator/lines 都为 null 也不会撞。
 
 **② Per-object 原子**
 
