@@ -198,13 +198,15 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.get("/v1/search", response_model=SearchResponse, operation_id="search", tags=["retrieval"])
     async def search(q: str, path: str | None = None, mode: str = "hybrid",
-                     top_k: int = 10, collapse: bool = False) -> SearchResponse:
+                     top_k: int = 10, collapse: bool = False, kind: str | None = None) -> SearchResponse:
         connector_uri = None
         object_prefix = None
         if path:
             connector_uri, object_prefix = await eng().resolve_connector_uri(path)
+        # comma-separated chunk_kinds, e.g. ?kind=body,directory_summary
+        chunk_kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
         results = await eng().search(q, connector_uri=connector_uri, object_prefix=object_prefix,
-                                     mode=mode, top_k=top_k, collapse=collapse)
+                                     mode=mode, top_k=top_k, chunk_kinds=chunk_kinds, collapse=collapse)
         return SearchResponse(results=results)
 
     @app.get("/v1/grep", response_model=GrepResponse, operation_id="grep", tags=["retrieval"])

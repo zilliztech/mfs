@@ -60,6 +60,12 @@ enum Cmd {
         mode: String,
         #[arg(long, default_value_t = 10)]
         top_k: u32,
+        /// Restrict to chunk kinds, comma-separated (e.g. body,directory_summary)
+        #[arg(long)]
+        kind: Option<String>,
+        /// Collapse multiple hits from the same object into one
+        #[arg(long)]
+        collapse: bool,
     },
     /// Keyword / full-text search (pushdown -> BM25 -> linear)
     Grep { pattern: String, path: String },
@@ -405,12 +411,14 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 println!("queued (job {job_id}). Worker running in background — run `mfs status` to check progress.");
             }
         }
-        Cmd::Search { query, path, all, mode, top_k } => {
+        Cmd::Search { query, path, all, mode, top_k, kind, collapse } => {
             if path.is_none() && !all {
                 return Err("specify a path to scope the search, or --all for the whole namespace".into());
             }
             let mut q = vec![("q", query.clone()), ("mode", mode.clone()), ("top_k", top_k.to_string())];
             if let Some(p) = path { q.push(("path", remote_path(base, p))); }
+            if let Some(k) = kind { q.push(("kind", k.clone())); }
+            if *collapse { q.push(("collapse", "true".to_string())); }
             let v = get(client, &format!("{base}/v1/search"), &q)?;
             if cli.json { println!("{v}"); return Ok(()); }
             for hit in v["results"].as_array().unwrap_or(&vec![]) {

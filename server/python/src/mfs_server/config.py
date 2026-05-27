@@ -175,6 +175,10 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
     if api_token:
         cfg.auth_token = api_token
 
+    summ = os.environ.get("MFS_SUMMARY_ENABLED")
+    if summ is not None:
+        cfg.summary.enabled = summ.strip().lower() in ("1", "true", "yes", "on")
+
     uri = os.environ.get("MFS_MILVUS_URI") or os.environ.get("ZILLIZ_URI")
     token = os.environ.get("MFS_MILVUS_TOKEN") or os.environ.get("ZILLIZ_API_KEY")
     if uri:
