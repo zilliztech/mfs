@@ -256,9 +256,18 @@ class Engine:
     # substrings that mark a config key as holding a secret. Matched case-insensitively
     # anywhere in the key, and recursively (nested OAuth token dicts, lists), so e.g.
     # secret_access_key / refresh_token / client_secret are all caught (design/07).
+    # dsn (postgres) and session_id (salesforce) carry credentials but don't contain any
+    # of the obvious words; we DON'T add 'uri'/'url' here because those also name benign
+    # fields (mongo's password is caught by the value check below, while salesforce's
+    # instance_url and the web connector's target urls must be kept).
     _SECRET_SUBSTRINGS = ("token", "secret", "password", "passwd", "apikey", "api_key",
-                          "access_key", "private_key", "refresh", "credential")
+                          "access_key", "private_key", "refresh", "credential",
+                          "dsn", "session_id")
     _CRED_REF_PREFIXES = ("env:", "secret:", "file:", "vault:")
+    # a connection string carrying inline credentials: scheme://user:password@host…
+    # (postgres://u:p@…, mongodb://u:p@…). A plain URL with no userinfo password is NOT
+    # matched, so web targets / instance_url stay intact.
+    _CONN_URI_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9+.\-]*://[^/\s:@]+:[^/\s@]+@")
     _REDACTED = "<redacted: use credential_ref=env:VAR>"
 
     @classmethod
@@ -276,11 +285,14 @@ class Engine:
             return {k: cls._redact_config(v, cls._is_secret_key(k)) for k, v in value.items()}
         if isinstance(value, list):
             return [cls._redact_config(v, key_is_secret) for v in value]
-        if key_is_secret:
-            if isinstance(value, str) and value.startswith(cls._CRED_REF_PREFIXES):
-                return value                     # a safe credential reference
-            if value not in (None, "", [], {}):
-                return cls._REDACTED
+        if isinstance(value, str) and value.startswith(cls._CRED_REF_PREFIXES):
+            return value                         # a safe credential reference, keep as-is
+        if key_is_secret and value not in (None, "", [], {}):
+            return cls._REDACTED
+        # value-level catch: an inline connection string carrying a password leaks via a
+        # field name (dsn/uri/url/connection) that doesn't look secret — redact by shape.
+        if isinstance(value, str) and cls._CONN_URI_RE.search(value):
+            return cls._REDACTED
         return value
 
     async def register_or_get_connector(self, connector_uri: str, ctype: str, config: dict,
