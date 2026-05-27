@@ -333,13 +333,21 @@ class Engine:
         happen."""
         if isinstance(v, str):
             if v.startswith("env:"):
-                return os.environ.get(v[4:], "")
+                name = v[4:]
+                if name not in os.environ:
+                    raise ValueError(f"credential_ref {v!r}: environment variable {name} is not set")
+                return os.environ[name]
             if v.startswith("file:"):
                 try:
                     with open(v[5:], encoding="utf-8") as f:
                         return f.read().strip()
-                except OSError:
-                    return ""
+                except OSError as e:
+                    raise ValueError(f"credential_ref {v!r}: cannot read secret file ({e})") from e
+            if v.startswith(("secret:", "vault:")):
+                # advertised-looking but unimplemented schemes must fail loudly, never be
+                # used as a literal credential token.
+                raise ValueError(f"credential_ref scheme {v.split(':', 1)[0]!r} is not implemented "
+                                 f"(use env: or file:)")
         return v
 
     def _build_plugin(self, ctype: str, config: dict, connector_id: str):
@@ -404,7 +412,9 @@ class Engine:
             cls = get_plugin_cls(ctype)
             if cls is not None and not getattr(cls.CAPABILITIES, "cursor_kind", None):
                 raise ValueError("since_unsupported")
-        cfg_dict = config if config is not None else default_config
+        # merge user config OVER the resolved defaults so a local path keeps its
+        # auto {root, client_id} while still accepting [[objects]]/schemas/credential_ref.
+        cfg_dict = {**default_config, **config} if config is not None else default_config
         cid = await self.register_or_get_connector(connector_uri, ctype, cfg_dict,
                                                    overwrite_config=update_config)
         row0 = await self.meta.fetchone("SELECT config_json, status FROM connectors WHERE id=?", (cid,))
@@ -1477,6 +1487,8 @@ class Engine:
     async def search(self, query: str, connector_uri: str | None = None,
                      object_prefix: str | None = None, mode: str = "hybrid", top_k: int = 10,
                      chunk_kinds: list[str] | None = None, collapse: bool = False) -> list[dict]:
+        if top_k <= 0 or not query or not query.strip():
+            return []        # nothing to ask for: skip the embed call and Milvus' limit>0 rule
         expr = build_filter(self.ns, connector_uri, object_prefix, chunk_kinds)
         if mode == "keyword":
             hits = await asyncio.to_thread(self.milvus.sparse_search, self.ns, query, top_k, expr)
@@ -1512,7 +1524,7 @@ class Engine:
     async def probe(self, target: str, config: dict | None = None) -> dict:
         """Try-connect a connector without registering or writing state."""
         _, connector_uri, ctype, default_config = self._resolve_target(target)
-        cfg_dict = config if config is not None else default_config
+        cfg_dict = {**default_config, **config} if config is not None else default_config
         plugin, _ = self._build_plugin(ctype, cfg_dict, "probe-" + uuid.uuid4().hex)
         try:
             await plugin.connect()
@@ -1535,7 +1547,7 @@ class Engine:
         physical quantities only (no $/time, per design)."""
         from ..processors.text import chunk_body
         _, connector_uri, ctype, default_config = self._resolve_target(target)
-        cfg_dict = config if config is not None else default_config
+        cfg_dict = {**default_config, **config} if config is not None else default_config
         tmp_cid = "estimate-" + uuid.uuid4().hex
         plugin, _ = self._build_plugin(ctype, cfg_dict, tmp_cid)
         await plugin.connect()
@@ -1927,7 +1939,8 @@ class Engine:
 
     async def tail(self, path: str, n: int = 20) -> str:
         text = await self._read_full(path)
-        return "\n".join(text.splitlines()[-n:])
+        # guard n<=0: lines[-0:] is lines[0:] (the whole file), not an empty tail
+        return "\n".join(text.splitlines()[-n:] if n > 0 else [])
 
     async def grep(self, pattern: str, path: str, top_k: int = 100, regex: bool = False) -> list[dict]:
         """Dispatch: pushdown (file: none) -> BM25 (indexed scope) -> linear scan
