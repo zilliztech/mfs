@@ -88,8 +88,18 @@ class PostgresPlugin(ConnectorPlugin):
                     Entry("rows.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
         return []
 
+    async def _columns(self, schema: str, table: str) -> list[dict]:
+        async with self._pool.acquire() as c:
+            cols = await c.fetch(
+                "SELECT column_name, data_type FROM information_schema.columns "
+                "WHERE table_schema=$1 AND table_name=$2 ORDER BY ordinal_position", schema, table)
+        return [{"name": r["column_name"], "type": r["data_type"]} for r in cols]
+
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
         parts = self._parts(path)
+        if len(parts) == 3 and parts[2] == "schema.json":
+            yield {"schema": parts[0], "table": parts[1], "columns": await self._columns(parts[0], parts[1])}
+            return
         if len(parts) == 3 and parts[2] == "rows.jsonl":
             schema, table = safe_ident(parts[0]), safe_ident(parts[1])
             lim = self._cfg("max_read_rows", 100000)
@@ -136,6 +146,9 @@ class PostgresPlugin(ConnectorPlugin):
 
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
+        if len(parts) == 3 and parts[2] == "schema.json":
+            cols = await self._columns(parts[0], parts[1])
+            return "schema:" + ";".join(f"{c['name']}:{c['type']}" for c in cols)
         if len(parts) == 3 and parts[2] == "rows.jsonl":
             schema, table = safe_ident(parts[0]), safe_ident(parts[1])
             cur_col = await self._cursor_col(parts[0], parts[1])
@@ -153,11 +166,12 @@ class PostgresPlugin(ConnectorPlugin):
         seen: dict[str, str] = {}
         for schema in self._cfg("schemas", ["public"]):
             for table in await self._list_tables(schema):
-                p = f"/{schema}/{table}/rows.jsonl"
-                fp = await self.fingerprint(p) or ""
-                seen[p] = fp
-                if opts.full or old.get(p) != fp:
-                    yield ObjectChange(p, "modified" if p in old else "added")
+                for leaf in ("schema.json", "rows.jsonl"):
+                    p = f"/{schema}/{table}/{leaf}"
+                    fp = await self.fingerprint(p) or ""
+                    seen[p] = fp
+                    if opts.full or old.get(p) != fp:
+                        yield ObjectChange(p, "modified" if p in old else "added")
         for p in set(old) - set(seen):
             yield ObjectChange(p, "deleted")
         await self.state.set("tables", seen)

@@ -121,6 +121,9 @@ class MongoPlugin(ConnectorPlugin):
                     mx = str(r.get("m"))
                     break
             return f"count:{cnt}|{field}:{mx}" if field else f"count:{cnt}"
+        if len(parts) == 2 and parts[1] == "schema.json":
+            doc = await self._db()[parts[0]].find_one()
+            return "schema:" + ";".join(sorted((doc or {}).keys()))
         return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
@@ -128,11 +131,12 @@ class MongoPlugin(ConnectorPlugin):
         old = await self.state.get("collections") or {}
         seen: dict[str, str] = {}
         for coll in await self._collections():
-            p = f"/{coll}/documents.jsonl"
-            fp = await self.fingerprint(p) or ""
-            seen[p] = fp
-            if opts.full or old.get(p) != fp:
-                yield ObjectChange(p, "modified" if p in old else "added")
+            for leaf in ("schema.json", "documents.jsonl"):
+                p = f"/{coll}/{leaf}"
+                fp = await self.fingerprint(p) or ""
+                seen[p] = fp
+                if opts.full or old.get(p) != fp:
+                    yield ObjectChange(p, "modified" if p in old else "added")
         for p in set(old) - set(seen):
             yield ObjectChange(p, "deleted")
         await self.state.set("collections", seen)

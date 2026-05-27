@@ -35,7 +35,10 @@ class MySQLPlugin(ConnectorPlugin):
     async def connect(self) -> None:
         self._pool = await aiomysql.create_pool(
             host=self._cfg("host", "127.0.0.1"), port=int(self._cfg("port", 3306)),
-            user=self._cfg("user", "root"), password=str(self._cfg("password", "")),
+            user=self._cfg("user", "root"),
+            # fall back to the resolved credential_ref so the password survives reopen
+            # (the inline `password` config field is redacted before persistence)
+            password=str(self._cfg("password") or self.credential or ""),
             db=self._cfg("database"), autocommit=True, minsize=1, maxsize=4)
 
     async def close(self) -> None:
@@ -87,8 +90,21 @@ class MySQLPlugin(ConnectorPlugin):
                     Entry("rows.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
         return []
 
+    async def _columns(self, table: str) -> list[dict]:
+        async with self._pool.acquire() as c:
+            async with c.cursor() as cur:
+                await cur.execute(
+                    "SELECT column_name, data_type FROM information_schema.columns "
+                    "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position",
+                    (self._cfg("database"), table))
+                rows = await cur.fetchall()
+        return [{"name": r[0], "type": r[1]} for r in rows]
+
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
         parts = self._parts(path)
+        if len(parts) == 2 and parts[1] == "schema.json":
+            yield {"table": parts[0], "columns": await self._columns(parts[0])}
+            return
         if len(parts) == 2 and parts[1] == "rows.jsonl":
             lim = self._cfg("max_read_rows", 100000)
             t = safe_ident(parts[0])
@@ -137,6 +153,9 @@ class MySQLPlugin(ConnectorPlugin):
 
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
+        if len(parts) == 2 and parts[1] == "schema.json":
+            cols = await self._columns(parts[0])
+            return "schema:" + ";".join(f"{c['name']}:{c['type']}" for c in cols)
         if len(parts) == 2 and parts[1] == "rows.jsonl":
             t = safe_ident(parts[0])
             cur_col = await self._cursor_col(parts[0])
@@ -157,11 +176,12 @@ class MySQLPlugin(ConnectorPlugin):
         old = await self.state.get("tables") or {}
         seen: dict[str, str] = {}
         for table in await self._list_tables():
-            p = f"/{table}/rows.jsonl"
-            fp = await self.fingerprint(p) or ""
-            seen[p] = fp
-            if opts.full or old.get(p) != fp:
-                yield ObjectChange(p, "modified" if p in old else "added")
+            for leaf in ("schema.json", "rows.jsonl"):
+                p = f"/{table}/{leaf}"
+                fp = await self.fingerprint(p) or ""
+                seen[p] = fp
+                if opts.full or old.get(p) != fp:
+                    yield ObjectChange(p, "modified" if p in old else "added")
         for p in set(old) - set(seen):
             yield ObjectChange(p, "deleted")
         await self.state.set("tables", seen)

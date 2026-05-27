@@ -1412,6 +1412,9 @@ class Engine:
                     if len(pairs) >= ocfg.chunk_max:
                         partial = True
                         break
+                # release the record generator (cursor/connection) before the slow embed
+                # batch, and so a chunk_max break doesn't leak a held connection.
+                await records.aclose()
                 if strategy == "windowed" and kept:
                     pairs = _windowed_pairs(kept, ocfg)
                     if len(pairs) > ocfg.chunk_max:
@@ -1781,6 +1784,7 @@ class Engine:
     async def cat(self, path: str, range: tuple[int, int] | None = None, meta: bool = False,
                   density: str | None = None, locator: dict | None = None):
         import json as _json
+        from contextlib import aclosing
 
         from ..connectors.base import Range
         _, curi, rel, plugin = await self._open_path(path)
@@ -1801,11 +1805,15 @@ class Engine:
                     raise ValueError("range_unsupported")     # not a structured object
                 ocfg = plugin.ctx.object_config_for(rel)
                 i = 0
-                async for rec in records:
-                    if self._locator_matches(rec, ocfg, i, locator):
-                        return {"source": curi + rel, "locator": locator,
-                                "content": _json.dumps(rec, default=str, ensure_ascii=False)}
-                    i += 1
+                # aclosing: a match returns mid-iteration, so the record generator must be
+                # closed deterministically — else a connector holding a cursor/transaction
+                # (e.g. asyncpg) leaks the connection and pool.close() later blocks ~60s.
+                async with aclosing(records):
+                    async for rec in records:
+                        if self._locator_matches(rec, ocfg, i, locator):
+                            return {"source": curi + rel, "locator": locator,
+                                    "content": _json.dumps(rec, default=str, ensure_ascii=False)}
+                        i += 1
                 raise ValueError("locator_not_found")
 
             # --- structured object: range pushdown over records (lazy, not materialized) ---
@@ -1820,12 +1828,13 @@ class Engine:
                 records = plugin.read_records(rel, Range(start, end))
                 if records is not None:
                     out, i = [], 0
-                    async for rec in records:
-                        if i >= end:
-                            break
-                        if i >= start:
-                            out.append(_json.dumps(rec, default=str, ensure_ascii=False))
-                        i += 1
+                    async with aclosing(records):           # break-early must close the generator
+                        async for rec in records:
+                            if i >= end:
+                                break
+                            if i >= start:
+                                out.append(_json.dumps(rec, default=str, ensure_ascii=False))
+                            i += 1
                     return "\n".join(out)
 
             ext = os.path.splitext(rel)[1].lower()
