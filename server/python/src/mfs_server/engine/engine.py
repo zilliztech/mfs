@@ -36,6 +36,8 @@ _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
 _HEAD_CACHE_N = 100      # rows pre-cached per structured object to speed `head` (design/05)
 _BARE_CAT_MAX_BYTES = 5 * 1024 * 1024   # bare `cat` (no range) rejects objects larger than this
 _GREP_LINEAR_SCAN_MAX = 200             # cap on not-indexed files a single grep scans linearly
+_JOB_STALE_AFTER_S = 120                # no heartbeat for this long => worker presumed dead
+_HEARTBEAT_INTERVAL_S = 10              # worker refreshes its job heartbeat this often (<< stale)
 
 
 def _now() -> str:
@@ -406,10 +408,16 @@ class Engine:
                          stored_cfg: dict, full: bool, since: str | None, process: bool) -> str:
         """Run a reserved sync job: enumerate (plugin.sync) -> enqueue object_tasks ->
         process inline (process=True) or leave queued for a worker."""
-        plugin, ctx = self._build_plugin(ctype, stored_cfg, cid)
-        await plugin.connect()
+        plugin = None
+        ctx = None
         aborted: str | None = None
         try:
+            # build/connect/enumerate are all inside the try: if any of them raises (e.g. a
+            # real filesystem permission error during plugin.sync()), the reserved job would
+            # otherwise stay 'running' (process=True) or 'queued' (process=False) forever,
+            # and the connector's next sync would hit ux_jobs_one_* -> sync_already_running.
+            plugin, ctx = self._build_plugin(ctype, stored_cfg, cid)
+            await plugin.connect()
             opts = SyncOptions(full=full, since=since)
             async for ch in plugin.sync(opts):
                 if ch.kind == "deleted" and (
@@ -432,8 +440,20 @@ class Engine:
                     (json.dumps(ctx.state.snapshot()), job_id))
                 return job_id
             aborted = await self._run_job(job_id, cid, connector_uri, plugin)
+        except Exception as e:  # noqa: BLE001
+            # drop the half-enqueued (incomplete enumeration) tasks and finalize the job
+            # 'failed' so the in-flight slot is freed, then re-raise for the caller/API.
+            await self.meta.execute(
+                "UPDATE object_tasks SET status='cancelled' "
+                "WHERE connector_job_id=? AND status='pending'", (job_id,))
+            await self._finalize_job(job_id, f"sync_error: {e}")
+            raise
         finally:
-            await plugin.close()
+            if plugin is not None:
+                try:
+                    await plugin.close()
+                except Exception:  # noqa: BLE001
+                    pass
         if aborted is None:
             await ctx.state.commit()
         await self._finalize_job(job_id, aborted)
@@ -698,7 +718,7 @@ class Engine:
         except (TypeError, ValueError):
             return 1
 
-    async def _reclaim_stale_jobs(self, stale_after_s: int = 120) -> None:
+    async def _reclaim_stale_jobs(self, stale_after_s: int = _JOB_STALE_AFTER_S) -> None:
         """Housekeeping (design/02 §5): a job whose worker died keeps status='running'
         with a stale heartbeat forever. Reset such jobs to 'queued' so a live worker
         re-claims them. Best-effort — tolerate the rare one-queued-per-connector clash."""
@@ -821,33 +841,55 @@ class Engine:
         cr = await self.meta.fetchone("SELECT status FROM connectors WHERE id=?", (cid,))
         return bool(cr and cr["status"] == "removing")
 
+    async def _heartbeat_loop(self, job_id: str, stop: asyncio.Event) -> None:
+        """Keep a job's heartbeat fresh for the WHOLE time a worker holds it, on a fixed
+        cadence independent of how long any single object takes. A per-task-only refresh
+        let a single object slower than the stale window (large PDF convert + embed) look
+        like a dead worker, so remove()/reclaim would cancel the job and tear the connector
+        down mid-write — the orphan-chunk race again. Tying the heartbeat to this coroutine's
+        liveness makes 'fresh heartbeat' mean exactly 'worker process alive': if the worker
+        dies the loop stops with it and the heartbeat goes stale (the intended signal)."""
+        while not stop.is_set():
+            await self.meta.execute(
+                "UPDATE connector_jobs SET heartbeat=? WHERE id=?", (_now(), job_id))
+            try:
+                await asyncio.wait_for(stop.wait(), timeout=_HEARTBEAT_INTERVAL_S)
+            except asyncio.TimeoutError:
+                pass
+
     async def _run_job(self, job_id: str, cid: str, connector_uri: str, plugin) -> str | None:
         """Returns None on normal completion, or a circuit-breaker reason string.
         Consecutive fatal failures (design/02 §7.1) abort the job."""
         threshold = self.cfg.worker.consecutive_fatal_threshold
         consec_fail = 0       # consecutive object failures (fatal OR retries exhausted)
+        stop_hb = asyncio.Event()
+        hb_task = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
+        try:
+            return await self._run_job_loop(job_id, cid, connector_uri, plugin, threshold, consec_fail)
+        finally:
+            stop_hb.set()
+            hb_task.cancel()
+            try:
+                await hb_task
+            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                pass
+
+    async def _run_job_loop(self, job_id: str, cid: str, connector_uri: str, plugin,
+                            threshold: int, consec_fail: int) -> str | None:
         while True:
             if await self._should_stop(job_id, cid):
                 return "cancelled"
-            # heartbeat so housekeeping doesn't reclaim a job this worker is actively running
-            await self.meta.execute(
-                "UPDATE connector_jobs SET heartbeat=? WHERE id=?", (_now(), job_id))
             tasks = await self._claim_batch(job_id, limit=64)
             if not tasks:
                 break
             for t in tasks:
                 # re-check the stop boundary before EACH task (not just per batch): a
                 # concurrent cancel/remove can land mid-batch, and we must not keep writing
-                # chunks for a connector being torn down (design/02 §6.4 §7).
+                # chunks for a connector being torn down (design/02 §6.4 §7). The heartbeat
+                # is kept warm by the background _heartbeat_loop, so even a multi-minute
+                # single object won't be mistaken for a dead worker.
                 if await self._should_stop(job_id, cid):
                     return "cancelled"
-                # heartbeat per task, not just per batch: a single slow object (large PDF
-                # convert + embed) can exceed the stale-reclaim window, and remove() now
-                # waits on a *fresh* heartbeat to know the worker is still alive — so a
-                # long object must keep the heartbeat warm or it'd be falsely reclaimed /
-                # torn down out from under an in-flight write (design/02 §5, §6.4).
-                await self.meta.execute(
-                    "UPDATE connector_jobs SET heartbeat=? WHERE id=?", (_now(), job_id))
                 r = await self._process_with_retry(plugin, connector_uri, t)
                 if r is None:
                     # only flip a task we still own: a conditional UPDATE means a task that
@@ -1424,7 +1466,7 @@ class Engine:
         # re-opening the orphan-chunk race); instead trust the heartbeat. A live worker
         # refreshes it per task, so we keep waiting; only a stale heartbeat means the
         # worker died/stuck, in which case WE take the job over and then delete.
-        stale_after_s = 120
+        stale_after_s = _JOB_STALE_AFTER_S
         while True:
             running = await self.meta.fetchone(
                 "SELECT id, heartbeat FROM connector_jobs WHERE connector_id=? AND status='running'", (cid,))
