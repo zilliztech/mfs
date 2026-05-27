@@ -72,7 +72,16 @@ class FilePlugin(ConnectorPlugin):
         return Path(self.config.root)
 
     def _real(self, path: str) -> Path:
-        return self.root / path.lstrip("/")
+        # Resolve and confine to the connector root. The control plane matches connector
+        # URIs by string prefix without normalizing, so a relpath like '/../secret.txt'
+        # (e.g. file://local/tmp/root/../secret.txt) would otherwise read outside root.
+        # This is the single chokepoint for every read (stat/read/list/fingerprint), and
+        # resolve() also defeats symlink escapes.
+        root = self.root.resolve()
+        real = (root / path.lstrip("/")).resolve()
+        if real != root and root not in real.parents:
+            raise ValueError(f"path_escapes_root: {path}")
+        return real
 
     def _rel(self, real: Path) -> str:
         return "/" + str(real.relative_to(self.root)).replace(os.sep, "/")

@@ -94,6 +94,14 @@ class MySQLPlugin(ConnectorPlugin):
             t = safe_ident(parts[0])
             async with self._pool.acquire() as c:
                 async with c.cursor(aiomysql.DictCursor) as cur:
+                    if range is not None:
+                        # cat --range pushdown: page at the source (design/05/06)
+                        off = max(0, int(range.start))
+                        cnt = max(0, int(range.end) - off)
+                        await cur.execute(f"SELECT * FROM `{t}` LIMIT %s OFFSET %s", (cnt, off))
+                        for r in await cur.fetchall():
+                            yield r
+                        return
                     await cur.execute(f"SELECT count(*) AS n FROM `{t}`")
                     if (await cur.fetchone())["n"] > lim:
                         self.ctx.declare_partial(path)        # capped -> search_status=partial

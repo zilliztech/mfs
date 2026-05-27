@@ -1748,18 +1748,42 @@ class Engine:
     async def head(self, path: str, n: int = 20) -> str:
         cid, curi, rel, plugin = await self._open_path(path)
         try:
-            structured = plugin.object_kind_of(rel) in (
-                "table_rows", "record_collection", "message_stream")
+            okind = plugin.object_kind_of(rel)
+            structured = okind in ("table_rows", "record_collection", "message_stream")
             if structured:
                 # fast path: pre-cached first rows (design/05 head_cache)
                 art = await self._read_artifact(self.ns, curi + rel, "head_cache")
                 if art is not None:
                     return "\n".join(art.decode("utf-8", errors="replace").splitlines()[:n])
+            else:
+                ext = os.path.splitext(rel)[1].lower()
+                # plain text / code / logs: stream just the first n lines so a large file
+                # never materializes and never trips bare-cat's size guard — head is exactly
+                # the escape hatch design/05 points to for big objects. Artifact-backed
+                # objects (pdf/docx/html, web/github pages, images) have bounded cached text,
+                # so they fall through to cat below.
+                if not (okind == "image" or ext in CONVERT_EXTS
+                        or curi.startswith(("web://", "github://"))):
+                    lines: list[str] = []
+                    buf = b""
+                    async for chunk in plugin.read(rel):
+                        buf += chunk
+                        while len(lines) < n:
+                            nl = buf.find(b"\n")
+                            if nl < 0:
+                                break
+                            lines.append(buf[:nl].decode("utf-8", errors="replace"))
+                            buf = buf[nl + 1:]
+                        if len(lines) >= n:
+                            break
+                    if len(lines) < n and buf:
+                        lines.append(buf.decode("utf-8", errors="replace"))
+                    return "\n".join(lines[:n])
         finally:
             await plugin.close()
         if structured:
             return await self.cat(path, range=(0, n))      # bounded page, not the whole table
-        text = await self.cat(path)
+        text = await self.cat(path)                        # artifact-backed text, bounded
         return "\n".join(text.splitlines()[:n])
 
     async def tail(self, path: str, n: int = 20) -> str:

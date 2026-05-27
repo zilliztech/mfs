@@ -115,7 +115,12 @@ enum Cmd {
         action: ConnectorAction,
     },
     /// Remove a connector + everything it owns (alias for `connector remove`)
-    Remove { target: String },
+    Remove {
+        target: String,
+        /// Skip the confirmation prompt
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
     /// Client profile (endpoint) management — ~/.mfs/client.toml
     Profile {
         #[command(subcommand)]
@@ -174,7 +179,12 @@ enum ConnectorAction {
         config: Option<String>,
     },
     /// Remove a connector and everything it owns
-    Remove { target: String },
+    Remove {
+        target: String,
+        /// Skip the confirmation prompt
+        #[arg(long, short = 'y')]
+        yes: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -503,9 +513,9 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 let v = get(client, &format!("{base}/v1/connectors/inspect"), &[("target", target.clone())])?;
                 println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
             }
-            ConnectorAction::Remove { target } => return remove_connector(client, base, target),
+            ConnectorAction::Remove { target, yes } => return remove_connector(client, base, target, *yes),
         },
-        Cmd::Remove { target } => return remove_connector(client, base, target),
+        Cmd::Remove { target, yes } => return remove_connector(client, base, target, *yes),
         Cmd::Profile { action } => return profile_cmd(action),
         Cmd::Config { action } => match action {
             ConfigAction::Show => {
@@ -691,7 +701,13 @@ fn load_config_file(path: &str) -> Result<Value, String> {
     serde_json::to_value(toml_val).map_err(|e| e.to_string())
 }
 
-fn remove_connector(client: &reqwest::blocking::Client, base: &str, target: &str) -> Result<(), String> {
+fn remove_connector(client: &reqwest::blocking::Client, base: &str, target: &str, yes: bool)
+    -> Result<(), String> {
+    // remove is destructive (drops the index, artifacts, and all metadata); confirm unless -y.
+    if !yes && !confirm(&format!("Remove connector '{target}' and everything it owns? [y/N] "))? {
+        println!("aborted.");
+        return Ok(());
+    }
     let target = remote_path(base, target);     // local path -> upload identity when remote
     let resp = with_auth(client.delete(format!("{base}/v1/connectors"))
         .query(&[("target", target.as_str())])).send().map_err(|e| e.to_string())?;

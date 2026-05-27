@@ -94,6 +94,16 @@ class PostgresPlugin(ConnectorPlugin):
             schema, table = safe_ident(parts[0]), safe_ident(parts[1])
             lim = self._cfg("max_read_rows", 100000)
             async with self._pool.acquire() as c:
+                if range is not None:
+                    # cat --range pushdown (design/05/06): page at the source instead of
+                    # scanning from the top, so `cat --range 1000000:1000010` is cheap.
+                    off = max(0, int(range.start))
+                    cnt = max(0, int(range.end) - off)
+                    async with c.transaction():
+                        async for r in c.cursor(
+                                f'SELECT * FROM "{schema}"."{table}" OFFSET {off} LIMIT {cnt}'):
+                            yield dict(r)
+                    return
                 total = await c.fetchval(f'SELECT count(*) FROM "{schema}"."{table}"')
                 if total is not None and total > lim:
                     self.ctx.declare_partial(path)    # capped -> framework marks search_status=partial
