@@ -1,4 +1,4 @@
-"""Connector registry: URI scheme -> plugin class (design/07 §7)."""
+"""Connector registry: URI scheme -> plugin class."""
 from __future__ import annotations
 
 from importlib import import_module

@@ -1,4 +1,4 @@
-"""BigQuery connector (design/09 BigQuery/Snowflake) — structured, table_rows.
+"""BigQuery connector — structured, table_rows.
 google-cloud-bigquery (sync client; wrapped in asyncio.to_thread). Layout
 /<dataset>/tables/<table>/{schema.json,rows.jsonl}. read_records streams rows
 as dicts; framework's table_rows pipeline does per_row chunk + locator.

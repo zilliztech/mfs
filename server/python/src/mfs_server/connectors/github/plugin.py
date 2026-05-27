@@ -1,9 +1,9 @@
-"""GitHub connector (design/09 GitHub) — code tree + issues/PRs. httpx GitHub REST:
+"""GitHub connector — code tree + issues/PRs. httpx GitHub REST:
 /repos/{o}/{r} -> default_branch; /git/trees/{br}?recursive=1 -> blobs; raw.github-
 usercontent.com for content. Auth via GITHUB_TOKEN env (anonymous rate limit is low).
 
 The code tree maps to file-like paths (object_kind reuses file's ext mapping). The
-`_meta/` subtree (design/09) exposes collaboration data:
+`_meta/` subtree exposes collaboration data:
   _meta/issues.jsonl          all issues (record_collection)
   _meta/pulls.jsonl           all pull requests (record_collection)
   _meta/pulls/<n>/diff.patch  per-PR unified diff (document)

@@ -1,4 +1,4 @@
-//! MFS server hot-path acceleration, exposed to Python via PyO3 (design/10 §1 §5).
+//! MFS server hot-path acceleration, exposed to Python via PyO3.
 //!
 //! Three hot paths that pure Python is slow at:
 //!   - `scan_dir`        : recursive directory walk -> (relpath, size, mtime_ns), with

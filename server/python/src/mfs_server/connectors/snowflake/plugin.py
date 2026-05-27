@@ -1,4 +1,4 @@
-"""Snowflake connector (design/09 BigQuery/Snowflake) — structured, table_rows.
+"""Snowflake connector — structured, table_rows.
 snowflake-connector-python (sync; DictCursor + execute/fetchmany wrapped in
 asyncio.to_thread). Layout /<database>/<schema>/tables/<table>/{schema.json,rows.jsonl}.
 

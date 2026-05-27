@@ -1,4 +1,4 @@
-"""File connector — local (shared-fs) mode (design/04 §5.5, §5.7; 09 File).
+"""File connector — local (shared-fs) mode.
 
 Server reads the real directory directly. CS upload-flow mode added in a later phase.
 Method `path` args are root-relative (leading '/'); framework joins with the connector
@@ -193,7 +193,7 @@ class FilePlugin(ConnectorPlugin):
 
     def _scan(self, spec: pathspec.PathSpec) -> dict[str, os.stat_result]:
         """Walk root, apply ignore, return {relpath: stat}. Raises on IO/permission
-        error (design/04 §5.5 step 1: enumerate completely or raise)."""
+        error (enumerate completely or raise)."""
         out: dict[str, os.stat_result] = {}
         for dirpath, dirnames, filenames in os.walk(self.root, onerror=_raise):
             # prune ignored dirs in-place
@@ -215,7 +215,7 @@ class FilePlugin(ConnectorPlugin):
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
         assert self.file_state is not None, "file_state not injected"
 
-        # CS upload mode (design/02 §4.2 ⑤): the manifest/upload commit already wrote
+        # CS upload mode: the manifest/upload commit already wrote
         # file_state ('staged' = needs index, 'deleted' = needs removal), and the bytes are
         # in the staging dir. Don't physically re-scan (client mtime != staging mtime would
         # cause needless re-hashing) — just yield the staged/deleted rows.
@@ -230,7 +230,7 @@ class FilePlugin(ConnectorPlugin):
                     else:
                         yield ObjectChange(uri=row["path"], kind="added")
                 elif opts.full and row["status"] == "indexed":
-                    # --force-index (design/04 §3): rebuild the whole upload, not just the
+                    # --force-index: rebuild the whole upload, not just the
                     # rows this bundle touched — re-yield already-indexed staging rows as
                     # modified so a forced re-index actually re-embeds them.
                     yield ObjectChange(uri=row["path"], kind="modified")
@@ -241,7 +241,7 @@ class FilePlugin(ConnectorPlugin):
         spec = self._load_ignore()
         current = self._scan(spec)
 
-        # dry_run (estimate pre-flight, design/04 §3): enumerate object URIs only — never
+        # dry_run (estimate pre-flight): enumerate object URIs only — never
         # hash bytes and never touch file_state. Otherwise estimate would sha1 the whole
         # tree AND leak 'staged' rows under its throwaway connector id (no connector row =
         # nothing ever cleans them up). Treat every object as 'added' so the caller can
@@ -271,7 +271,7 @@ class FilePlugin(ConnectorPlugin):
 
         deleted = prev_paths - set(current.keys())
 
-        # rename pairing: added x deleted (inode then sha1), design/04 §5.7.2
+        # rename pairing: added x deleted (inode then sha1)
         deleted_rows = {p: await self.file_state.get(p) for p in deleted}
         del_by_inode = {r["inode"]: p for p, r in deleted_rows.items() if r and r["inode"] is not None}
         del_by_sha1 = {r["sha1"]: p for p, r in deleted_rows.items() if r}

@@ -1,6 +1,6 @@
 """Server configuration: load from server.toml (lookup chain) + env overrides.
 
-Lookup order (design/02 §3.1): --config arg -> $MFS_SERVER_CONFIG -> ./server.toml
+Lookup order: --config arg -> $MFS_SERVER_CONFIG -> ./server.toml
 -> ~/.mfs/server.toml -> /etc/mfs/server.toml -> built-in defaults.
 """
 from __future__ import annotations

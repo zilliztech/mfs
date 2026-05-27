@@ -1,5 +1,5 @@
 """Converter client: file bytes -> markdown, memoized in transformation cache
-(design/06 §10, 02 §10.4). markitdown default (one lib covers PDF/DOCX/PPTX/XLSX/HTML).
+. markitdown default (one lib covers PDF/DOCX/PPTX/XLSX/HTML).
 Result also stored as converted_md artifact by the engine. Web crawler does NOT use
 this path (its HTML->md is backend-coupled inside the connector).
 """

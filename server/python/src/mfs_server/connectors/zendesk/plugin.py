@@ -1,4 +1,4 @@
-"""Zendesk connector (design/09 Zendesk/Salesforce/HubSpot) — record_collection.
+"""Zendesk connector — record_collection.
 Zendesk REST v2 via httpx (no heavy SDK). Basic auth `<email>/token:<api_token>`.
 Cursor pagination: `?page[size]=100&page[after]=<cursor>`, response carries
 `meta.has_more` + `meta.after_cursor`. Layout /tickets/records.jsonl +
@@ -137,7 +137,7 @@ class ZendeskPlugin(ConnectorPlugin):
                 after = meta.get("after_cursor")
 
     async def fingerprint(self, path: str) -> Optional[str]:
-        # count-based change detection (design/06): Zendesk exposes /<resource>/count.json,
+        # count-based change detection: Zendesk exposes /<resource>/count.json,
         # so a re-sync only re-yields a collection whose size changed instead of always
         # marking it modified.
         ep = _COLLECTIONS.get(path)

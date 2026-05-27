@@ -1,4 +1,4 @@
-"""Postgres connector (design/07 §6.1, 09 Postgres) — structured connector template.
+"""Postgres connector — structured connector template.
 asyncpg; virtual layout /<schema>/<table>/{schema.json,rows.jsonl}. read_records
 streams rows as dicts; framework's table_rows pipeline does per_row chunk (text_fields
 joined) + locator (locator_fields). grep pushdown -> SQL ILIKE.
@@ -95,7 +95,7 @@ class PostgresPlugin(ConnectorPlugin):
             lim = self._cfg("max_read_rows", 100000)
             async with self._pool.acquire() as c:
                 if range is not None:
-                    # cat --range pushdown (design/05/06): page at the source instead of
+                    # cat --range pushdown: page at the source instead of
                     # scanning from the top, so `cat --range 1000000:1000010` is cheap.
                     off = max(0, int(range.start))
                     cnt = max(0, int(range.end) - off)

@@ -1,4 +1,4 @@
-"""Embedding client with transformation-cache memoization (design/02 §6.4 §10.4).
+"""Embedding client with transformation-cache memoization.
 
 CachingEmbeddingClient.batch_embed: cache_key lookup -> miss-only API call (batched)
 -> write back. Vectors stored in tx cache as packed float32. OpenAI provider (reads

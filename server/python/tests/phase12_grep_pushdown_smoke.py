@@ -1,4 +1,4 @@
-"""Phase 12 — grep connector pushdown (design/05 §6 step 1). A synthetic connector
+"""Phase 12 — grep connector pushdown. A synthetic connector
 implements grep() (source-side exact match); engine.grep must use it (via=pushdown)
 instead of falling through to BM25/linear. No OpenAI key needed. Milvus Lite.
 """

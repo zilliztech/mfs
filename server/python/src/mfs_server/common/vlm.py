@@ -1,5 +1,5 @@
 """VLM client: image bytes -> description text, memoized in transformation cache
-(design/06 §10). OpenAI chat vision (gpt-4o-mini, image_url base64 data URL — verified).
+. OpenAI chat vision (gpt-4o-mini, image_url base64 data URL — verified).
 Result also stored as vlm_text artifact + indexed as a vlm_description chunk.
 """
 from __future__ import annotations

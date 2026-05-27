@@ -1,4 +1,4 @@
-//! MFS CLI — thin HTTP client over the server's /v1 control plane (design/01, 03).
+//! MFS CLI — thin HTTP client over the server's /v1 control plane.
 //! Cold-start-fast single binary; all heavy work is server-side. Endpoint resolves
 //! from $MFS_API_URL, else the active profile in ~/.mfs/client.toml, else default.
 
@@ -228,7 +228,7 @@ enum ServeAction {
 struct ClientConfig {
     active: Option<String>,
     /// Stable client identity (UUID), generated once. Survives hostname/container churn
-    /// — machine-id (hostname) is only used to decide local-vs-remote (design/02 §3.4).
+    /// — machine-id (hostname) is only used to decide local-vs-remote.
     #[serde(default)]
     client_id: Option<String>,
     #[serde(default)]
@@ -252,7 +252,7 @@ fn client_id() -> String {
 #[derive(Serialize, Deserialize, Clone)]
 struct Profile {
     url: String,
-    /// Bearer token for remote auth; literal or `env:VAR` (design/02 §11.2).
+    /// Bearer token for remote auth; literal or `env:VAR`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     token: Option<String>,
 }
@@ -269,7 +269,7 @@ fn auth_token() -> Option<String> {
             None => raw,
         });
     }
-    // Fall back to the local server's auto-generated token (design/02 §11.2): `mfs-server
+    // Fall back to the local server's auto-generated token: `mfs-server
     // run` writes ~/.mfs/server.token, so a CLI on the same host authenticates to its
     // loopback server with zero configuration.
     std::fs::read_to_string(mfs_home().join("server.token")).ok()
@@ -278,7 +278,7 @@ fn auth_token() -> Option<String> {
 
 /// A remote endpoint (non-loopback) means the server can't see local paths. Rewrite an
 /// existing local path to its stable upload identity file://<client_id><abs> so browse/
-/// search/remove hit the connector created by `mfs add --upload` (design/02 §3.4).
+/// search/remove hit the connector created by `mfs add --upload`.
 fn is_remote(base: &str) -> bool {
     !(base.contains("127.0.0.1") || base.contains("localhost") || base.contains("[::1]"))
 }
@@ -350,7 +350,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
         Cmd::Add { target, config, since, force_index, no_process, upload, force_upload, no_upload, yes } => {
             let is_local = std::path::Path::new(target).exists();
             // zero-billing estimate + confirm before indexing an external connector
-            // (design/04 §3): the user sees physical work before any embedding spend.
+            //: the user sees physical work before any embedding spend.
             if !is_local && !yes {
                 let mut eb = serde_json::json!({"target": target});
                 if let Some(c) = config { eb["config"] = load_config_file(c)?; }
@@ -366,7 +366,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                     return Ok(());
                 }
             }
-            // local/remote decision (design/02 §4.2): when the target is a real local path
+            // local/remote decision: when the target is a real local path
             // and the server runs on a different host (no shared fs), bundle the tree and
             // upload it instead of asking the server to read a path it can't see. --upload
             // forces it on the same host; --no-upload always has the server read the path.
@@ -598,7 +598,7 @@ fn sha1_file(path: &std::path::Path) -> Result<String, String> {
     Ok(format!("{:x}", h.finalize()))
 }
 
-/// Manifest-diff upload (design/02 §4.2): scan -> POST /v1/files/manifest -> sha1 the
+/// Manifest-diff upload: scan -> POST /v1/files/manifest -> sha1 the
 /// needed files + pair renames by (inode,size,sha1) -> PUT /v1/files/upload a tar.gz
 /// carrying `.mfs-meta.json` + only the changed bytes. The client keeps no state.
 fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
@@ -650,7 +650,7 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
             if old.is_empty() || consumed_old.contains(old) { continue; }
             // inode+size first; fall back to sha1+size so a cross-filesystem rename (inode
             // changes) is still recognized as a rename instead of delete+add — which would
-            // re-upload and re-embed identical bytes (design/04 §5.7.2 rename pairing).
+            // re-upload and re-embed identical bytes.
             let size_match = dc["size"].as_u64() == Some(e.size);
             let same = size_match
                 && (dc["inode"].as_u64() == Some(e.inode)
@@ -852,7 +852,7 @@ fn parse(resp: reqwest::blocking::Response) -> Result<Value, String> {
     let status = resp.status();
     let v: Value = resp.json().map_err(|e| e.to_string())?;
     if !status.is_success() {
-        // surface the stable error `code` (errors.md) alongside the human detail
+        // surface the stable error `code` alongside the human detail
         let code = v.get("code").and_then(|c| c.as_str()).unwrap_or("");
         let detail = v.get("detail").and_then(|d| d.as_str()).unwrap_or("request failed");
         return Err(if code.is_empty() { format!("{status}: {detail}") }

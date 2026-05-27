@@ -1,4 +1,4 @@
-"""MySQL/MariaDB connector (design/09 Postgres/MySQL) — structured connector,
+"""MySQL/MariaDB connector — structured connector,
 same table_rows pipeline as postgres. aiomysql; layout /<table>/{schema.json,rows.jsonl}
 within the configured database. grep pushdown -> SQL LIKE.
 """
@@ -95,7 +95,7 @@ class MySQLPlugin(ConnectorPlugin):
             async with self._pool.acquire() as c:
                 async with c.cursor(aiomysql.DictCursor) as cur:
                     if range is not None:
-                        # cat --range pushdown: page at the source (design/05/06)
+                        # cat --range pushdown: page at the source
                         off = max(0, int(range.start))
                         cnt = max(0, int(range.end) - off)
                         await cur.execute(f"SELECT * FROM `{t}` LIMIT %s OFFSET %s", (cnt, off))

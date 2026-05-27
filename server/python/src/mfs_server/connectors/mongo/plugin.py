@@ -1,4 +1,4 @@
-"""MongoDB connector (design/09 MongoDB) — document-store; record_collection
+"""MongoDB connector — document-store; record_collection
 object_kind. pymongo 4.13+ native async (AsyncMongoClient; find()/list_collection_names()
 are awaitable). Layout /<collection>/{schema.json,documents.jsonl} within one database.
 NOT end-to-end tested here (no local mongo); interface follows current pymongo async docs.
@@ -84,7 +84,7 @@ class MongoPlugin(ConnectorPlugin):
         if len(parts) == 2 and parts[1] == "documents.jsonl":
             lim = self._cfg("max_read_docs", 100000)
             if range is not None:
-                # cat --range pushdown: skip/limit at the source (design/05/06)
+                # cat --range pushdown: skip/limit at the source
                 off = max(0, int(range.start))
                 cnt = max(0, int(range.end) - off)
                 cursor = self._db()[parts[0]].find().skip(off).limit(cnt)

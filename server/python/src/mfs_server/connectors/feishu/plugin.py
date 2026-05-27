@@ -1,4 +1,4 @@
-"""Feishu / Lark connector (design/09 飞书群聊) — group chats as message_stream;
+"""Feishu / Lark connector — group chats as message_stream;
 per_group thread_aggregate. lark-oapi official SDK (sync builder API; wrapped in
 asyncio.to_thread). Layout /chats/<name>__<id>/messages.jsonl.
 

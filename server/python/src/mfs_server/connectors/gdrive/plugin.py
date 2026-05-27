@@ -1,4 +1,4 @@
-"""Google Drive connector (design/09 Google Drive) — mirrors the Drive file tree.
+"""Google Drive connector — mirrors the Drive file tree.
 google-api-python-client (sync; wrapped in asyncio.to_thread). Native Google types
 (Docs/Sheets/Slides) are exported (Docs->text, Sheets->CSV); regular files keep their
 name/extension and are streamed via get_media.

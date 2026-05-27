@@ -1,4 +1,4 @@
-"""file_state DAO (design/02 §10.1, §04 §5.5) — file connector's per-path manifest.
+"""file_state DAO — file connector's per-path manifest.
 Backed by the file_state table in the metadata DB (shares its connection).
 """
 from __future__ import annotations
@@ -66,7 +66,7 @@ class FileStateStore:
         )
 
     async def rename(self, old_path: str, new_path: str) -> None:
-        """Carry the old row's fingerprint to new path (design/04 §5.7.3)."""
+        """Carry the old row's fingerprint to new path."""
         old = await self.get(old_path)
         if old is None:
             return

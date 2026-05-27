@@ -1,4 +1,4 @@
-"""Notion connector (design/09 Linear/Jira/Notion) — pages as document (.md),
+"""Notion connector — pages as document (.md),
 databases as record_collection. notion-client AsyncClient. Layout
 /pages/<id>.md (rendered block text) + /databases/<id>/{schema.json,records.jsonl}.
 

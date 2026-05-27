@@ -1,4 +1,4 @@
-"""Restricted boolean-expression evaluator for connector `index_filter` (design/06 §4).
+"""Restricted boolean-expression evaluator for connector `index_filter`.
 
 A connector's [[objects]] config can carry e.g.
     index_filter = 'status == "open" and priority in ["high", "urgent"]'
@@ -29,7 +29,7 @@ def _safe_len(x):
 
 
 # Calls are restricted to these pure, side-effect-free builtins so a filter like
-# `len(description) > 50` works (design/06 §4) without opening arbitrary execution.
+# `len(description) > 50` works without opening arbitrary execution.
 _SAFE_FUNCS = {"len": _safe_len, "str": str, "int": int, "float": float, "bool": bool, "abs": abs}
 
 

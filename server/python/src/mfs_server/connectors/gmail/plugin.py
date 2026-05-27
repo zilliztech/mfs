@@ -1,4 +1,4 @@
-"""Gmail connector (design/09 Gmail) — message_stream; per_group thread_aggregate
+"""Gmail connector — message_stream; per_group thread_aggregate
 (grouped by threadId). google-api-python-client (sync; wrapped in asyncio.to_thread).
 Layout /labels/<label>/messages.jsonl. One stream per label; the framework groups by
 threadId into thread_aggregate chunks.

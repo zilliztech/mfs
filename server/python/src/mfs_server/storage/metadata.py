@@ -1,4 +1,4 @@
-"""Metadata DB (design/02 §10.1). Dual backend: SQLite (aiosqlite, single host) and
+"""Metadata DB. Dual backend: SQLite (aiosqlite, single host) and
 Postgres (asyncpg, CS / multi-replica). Holds connector/object/job state, path index,
 fingerprints, file_state, and doubles as the task queue.
 
@@ -16,7 +16,7 @@ import aiosqlite
 
 from ..config import ServerConfig
 
-# --- SQLite DDL (design/02 §10.1, incl. this-round objects index-status columns) ---
+# --- SQLite DDL ---
 SQLITE_DDL = [
     """
     CREATE TABLE IF NOT EXISTS schema_version (

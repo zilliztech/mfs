@@ -1,8 +1,8 @@
-"""Pydantic request/response models for the /v1 control plane (design/02 §1, 03).
+"""Pydantic request/response models for the /v1 control plane.
 
-These give the generated OpenAPI (protocol/openapi.yaml) typed schemas so the
+These give the generated OpenAPI typed schemas so the
 multi-language SDKs (python/typescript/go/java) get real models instead of opaque
-dicts. The result envelope mirrors design/06 §7 / references/json-envelope.md.
+dicts.
 """
 from __future__ import annotations
 
@@ -92,7 +92,7 @@ class ManifestResponse(BaseModel):
 
 
 class ResultEnvelope(BaseModel):
-    """One search/grep hit (design/06 §7). Outer shape is stable across connectors;
+    """One search/grep hit. Outer shape is stable across connectors;
     locator + metadata.fields are per-connector but documented."""
     source: str = Field(..., description="object URI — feed to cat/head/export")
     lines: Optional[list[int]] = Field(None, description="[start,end] for text/code; null for structured")
@@ -170,6 +170,6 @@ class JobResponse(BaseModel):
 
 
 class ErrorResponse(BaseModel):
-    code: str = Field(..., description="stable error code (see protocol/errors.md)")
+    code: str = Field(..., description="stable error code")
     detail: str = ""
     suggestions: list[str] = Field(default_factory=list)

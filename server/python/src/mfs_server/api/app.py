@@ -1,4 +1,4 @@
-"""FastAPI /v1 control plane (design/02 §1, 03). Thin HTTP wrappers over Engine.
+"""FastAPI /v1 control plane. Thin HTTP wrappers over Engine.
 Typed request/response models (api/models.py) make the generated OpenAPI rich enough
 for the multi-language SDKs. `add` indexes inline by default (returns job_id when done)
 or enqueues for the standalone worker when process=false.
@@ -20,7 +20,7 @@ from .models import (
     ProbeRequest, ProbeResponse, RemoveResponse, SearchResponse, ServerInfo, StatusResponse,
 )
 
-# Canonical error codes -> suggested next actions (protocol/errors.md). The endpoints
+# Canonical error codes -> suggested next actions. The endpoints
 # raise HTTPException with the canonical code as `detail` for these cases; the handler
 # below turns that into the stable {code, detail, suggestions} envelope SDKs switch on.
 _CODE_SUGGESTIONS = {
@@ -73,7 +73,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     if cfg.auth_token:
         @app.middleware("http")
         async def _auth(request: Request, call_next):
-            """Bearer-token gate (design/02 §5.3 / §11.2): when auth_token is configured,
+            """Bearer-token gate: when auth_token is configured,
             every request — loopback included — must carry Authorization: Bearer <token>.
             /healthz is exempt so k8s/compose liveness probes don't need the token (it
             returns no data) — see deployments/."""
@@ -87,7 +87,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.exception_handler(HTTPException)
     async def _http_exc(_request: Request, exc: HTTPException) -> JSONResponse:
-        """Wrap HTTPException into the {code, detail, suggestions} envelope (errors.md).
+        """Wrap HTTPException into the {code, detail, suggestions} envelope.
         When `detail` is already a canonical code, surface it as `code`; otherwise derive
         `code` from the HTTP status and keep the human string as `detail`."""
         detail = exc.detail if isinstance(exc.detail, str) else "error"
@@ -141,7 +141,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     @app.post("/v1/connectors/estimate", response_model=EstimateResponse,
               operation_id="estimateConnector", tags=["connectors"])
     async def estimate(body: ProbeRequest) -> EstimateResponse:
-        """Zero-billing pre-flight estimate (design/04 §3): object/chunk/token counts via
+        """Zero-billing pre-flight estimate: object/chunk/token counts via
         metadata + a local chunker/tokenizer dry-run. No embedding API calls."""
         return EstimateResponse(**await eng().estimate(body.target, body.config))
 
@@ -174,7 +174,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
               operation_id="filesManifest", tags=["ingest"])
     async def files_manifest(body: ManifestRequest) -> ManifestResponse:
         """Manifest-diff upload step ②: stat-only manifest in, need_sha1 + deletion
-        candidates out (design/02 §4.2). No bytes transferred here."""
+        candidates out. No bytes transferred here."""
         out = await eng().files_manifest(body.client_id, body.root,
                                          [f.model_dump() for f in body.files])
         return ManifestResponse(**out)

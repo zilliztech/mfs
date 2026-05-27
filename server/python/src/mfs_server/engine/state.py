@@ -1,5 +1,5 @@
 """ConnectorStateStore: persistent per-connector KV (connector_state table) with
-end-of-job commit semantics + mid-job checkpoint (design/02 §7 ③, §04 §5.6).
+end-of-job commit semantics + mid-job checkpoint.
 
 set() stages into an in-memory pending map; checkpoint()/commit() flush to
 connector_state. get() reads pending first, then committed.
@@ -46,7 +46,7 @@ class ConnectorStateStore:
 
     def snapshot(self) -> dict[str, Any]:
         """The staged-but-uncommitted state (for deferring an enqueued job's commit to
-        the worker's success path — design/02 §7 ③)."""
+        the worker's success path)."""
         return dict(self._pending)
 
     async def apply(self, data: dict[str, Any]) -> None:

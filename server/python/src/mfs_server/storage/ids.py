@@ -1,7 +1,7 @@
 """Content-addressable IDs: chunk_id (idempotent Milvus primary key) and cache_key.
 
 chunk_id = sha1(namespace_id + connector_uri + object_uri + chunk_kind + locator + lines)
-  (design/02 §7 ①). locator/lines disambiguate multiple chunks within one object:
+. locator/lines disambiguate multiple chunks within one object:
   structured objects use locator (pk/thread_ts/number); body/code/document use lines
   ([start,end] line range). Both can be null for once-per-object kinds (summary etc.).
 """
@@ -55,7 +55,7 @@ def cache_key(
     """transformation cache key: sha1(input_hash + kind + provider + model + version + config).
 
     input_hash is sha1 of the raw input (text/bytes). Single hash so lookup is a plain
-    WHERE cache_key IN (...) (design/02 §10.4.1).
+    WHERE cache_key IN (...).
     """
     raw = "|".join([input_hash, kind, provider, model, version, config])
     return sha1_hex(raw.encode("utf-8"))

@@ -1,4 +1,4 @@
-"""Slack connector (design/09 Slack) — message_stream; per_group thread_aggregate.
+"""Slack connector — message_stream; per_group thread_aggregate.
 slack_sdk AsyncWebClient. Layout /channels/<name>__<id>/messages.jsonl + /users.jsonl.
 Each channel's messages.jsonl is a message_stream; the framework groups by thread_ts
 into thread_aggregate chunks (see engine message_stream pipeline). Per-day sharding

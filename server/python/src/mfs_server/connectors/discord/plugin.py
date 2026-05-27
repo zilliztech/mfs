@@ -1,4 +1,4 @@
-"""Discord connector (design/09 Discord) — message_stream.
+"""Discord connector — message_stream.
 Discord REST API v10 via httpx (no gateway). Bot auth header
 `Authorization: Bot <token>`. Layout /channels/<name>__<id>/messages.jsonl.
 

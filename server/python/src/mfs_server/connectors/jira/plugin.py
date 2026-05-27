@@ -1,4 +1,4 @@
-"""Jira connector (design/09 Linear/Jira/Notion) — record_collection.
+"""Jira connector — record_collection.
 atlassian-python-api Jira (sync; wrapped in asyncio.to_thread). Layout
 /projects/<proj>/issues.jsonl + /users.jsonl. Each issue is one record;
 framework's record_collection pipeline does per_row chunk (text_fields like

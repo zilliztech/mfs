@@ -1,4 +1,4 @@
-"""Hot-path acceleration with a transparent native/pure-Python split (design/10 §1).
+"""Hot-path acceleration with a transparent native/pure-Python split.
 
 The Rust extension `mfs_server_rs` (built from server-rs/ via maturin) accelerates
 directory scan, linear grep and JSONL scanning. It is optional: if the wheel isn't

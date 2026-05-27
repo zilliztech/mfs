@@ -1,4 +1,4 @@
-"""Salesforce connector (design/09 Zendesk/Salesforce/HubSpot) — record_collection.
+"""Salesforce connector — record_collection.
 simple-salesforce (sync; wrapped in asyncio.to_thread). Layout /<object>/{schema.json,
 records.jsonl} for each configured SObject (Account / Opportunity / Case / ...).
 

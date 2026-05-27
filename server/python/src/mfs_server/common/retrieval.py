@@ -1,5 +1,5 @@
-"""Retrieval helpers: Milvus filter expr builder + result envelope (design/03 §11,
-06 §7). search modes hybrid/semantic/keyword are dispatched in engine.search.
+"""Retrieval helpers: Milvus filter expr builder + result envelope. search modes
+hybrid/semantic/keyword are dispatched in engine.search.
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def build_filter(namespace_id: str, connector_uri: Optional[str] = None,
 
 
 def to_envelope(hit: dict) -> dict:
-    """Milvus hit -> stable envelope (design/03 §11)."""
+    """Milvus hit -> stable envelope."""
     e = hit.get("entity", hit)
     return {
         "source": e.get("object_uri"),

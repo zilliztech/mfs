@@ -1,4 +1,4 @@
-"""Connector plugin contract (design/07 §3 §4).
+"""Connector plugin contract.
 
 A contributor implements 6 core methods (stat/list/read|read_records/fingerprint/
 sync/object_kind_of) + optional overrides. Everything else (chunk/embed/Milvus/
@@ -13,13 +13,13 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any, Literal, Optional, Protocol
 
-# --- object_kind (framework-fixed; design/02 processors + 06 §6) ---
+# --- object_kind (framework-fixed) ---
 ObjectKind = Literal[
     "document", "code", "image", "binary", "text_blob",
     "table_rows", "table_schema", "message_stream", "record_collection", "directory",
 ]
 
-# --- chunk_kind (framework-fixed, 8 kinds; design/06 §2) ---
+# --- chunk_kind (framework-fixed, 8 kinds) ---
 ChunkKind = Literal[
     "body", "row_text", "thread_aggregate", "record_aggregate",
     "summary", "vlm_description", "directory_summary", "schema_summary",
@@ -136,7 +136,7 @@ class Capabilities:
 
 @dataclass
 class ObjectConfig:
-    """Parsed from connector TOML [[objects]] (design/06 §4). Framework-injected."""
+    """Parsed from connector TOML [[objects]]. Framework-injected."""
     text_fields: list[str] = field(default_factory=list)
     metadata_fields: list[str] = field(default_factory=list)
     locator_fields: list[str] = field(default_factory=list)
@@ -152,7 +152,7 @@ class ObjectConfig:
     max_text_chars: Optional[int] = None
 
 
-# Built-in presets for public SaaS / message connectors (design/06 §5): users get a
+# Built-in presets for public SaaS / message connectors: users get a
 # searchable index without writing [[objects]] config. Keys are <connector>.<object>.
 PRESETS: dict[str, dict] = {
     "github.issues": dict(
@@ -201,7 +201,7 @@ class StateStore(Protocol):
 
 
 class ConnectorContext:
-    """Framework-injected runtime context (design/07 §3)."""
+    """Framework-injected runtime context."""
 
     def __init__(self, state: StateStore, connector_id: str, namespace_id: str,
                  object_config_resolver=None):
@@ -219,13 +219,13 @@ class ConnectorContext:
 
     def declare_enumeration(self, mode: EnumerationMode) -> None:
         """Connector declares this run's actual enumeration mode; framework uses it
-        to decide whether full-set diff deletion is allowed (design/02 §7.4)."""
+        to decide whether full-set diff deletion is allowed."""
         self.enumeration_mode = mode
 
     def declare_partial(self, path: str) -> None:
         """Connector signals it read `path` only partially (hit max_read_rows/API cap);
         framework marks the object's search_status='partial' so agents see incomplete
-        recall (design/01 §, 06 §)."""
+        recall."""
         self._partial.add(path)
 
     def was_partial(self, path: str) -> bool:
@@ -299,7 +299,7 @@ class ConnectorPlugin(ABC):
         return None     # framework default: Milvus recall
 
     def preset_for(self, path: str) -> Optional[str]:
-        """Built-in preset KEY for this path (design/06 §5), used when the user didn't
+        """Built-in preset KEY for this path, used when the user didn't
         configure [[objects]]. Returns a PRESETS key (e.g. 'github.issues') or None.
         SaaS / message connectors override."""
         return None
@@ -316,7 +316,7 @@ class ConnectorPlugin(ABC):
     # --- framework callbacks after a task completes (base no-op) ---
     async def on_object_indexed(self, uri: str) -> None:
         """Called by engine after an object's task succeeds. file connector overrides
-        to flip file_state status='staged' -> 'indexed' (design/04 §5.5 step 6)."""
+        to flip file_state status='staged' -> 'indexed'."""
         return None
 
     async def on_object_deleted(self, uri: str) -> None:

@@ -1,6 +1,6 @@
-"""Web connector — static backend (design/07 §6.2, 09 Web). aiohttp fetch + markitdown
+"""Web connector — static backend. aiohttp fetch + markitdown
 HTML->md INLINE (backend-coupled, NOT the framework converter) + ETag/304 revisit.
-URL->path canonicalization (design/07 §10.7, simplified). Page md is cached on the
+URL->path canonicalization. Page md is cached on the
 plugin instance during sync so the same-instance index pass can read it; the engine
 also persists it as a converted_md artifact so later `cat` works without re-fetching.
 """

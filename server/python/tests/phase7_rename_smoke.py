@@ -1,5 +1,5 @@
 """Phase 7 rename optimization — rename = chunk_id rewrite, reuse vectors (zero
-re-embed; design/04 §5.7.3). Needs OPENAI_API_KEY (bash -ic). Lite.
+re-embed). Needs OPENAI_API_KEY (bash -ic). Lite.
 """
 import asyncio
 import os

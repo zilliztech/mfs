@@ -1,4 +1,4 @@
-"""Object store (design/02 §10.2): artifact cache bytes + upload staging.
+"""Object store: artifact cache bytes + upload staging.
 
 Layout (sliced by namespace_id):
   <root>/artifacts/<ns>/<sha1(object_uri)>/<artifact_kind>
@@ -56,7 +56,7 @@ class LocalObjectStore:
             p.unlink()
 
     def move_artifacts(self, namespace_id: str, old_uri: str, new_uri: str) -> None:
-        """Rename support: physically mv the per-object artifact dir (design/04 §5.7.3)."""
+        """Rename support: physically mv the per-object artifact dir."""
         old_dir = self._artifact_dir(namespace_id, old_uri)
         new_dir = self._artifact_dir(namespace_id, new_uri)
         if old_dir.exists():

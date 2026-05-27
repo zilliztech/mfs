@@ -1,4 +1,4 @@
-"""Body chunkers for document / code object_kinds (design/06 §6).
+"""Body chunkers for document / code object_kinds.
 
 Chonkie RecursiveChunker (markdown/text) + CodeChunker (AST/tree-sitter). Returns
 (content, lines=[start,end]) per chunk; chonkie gives char offsets which we convert

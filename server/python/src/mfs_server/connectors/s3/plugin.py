@@ -1,4 +1,4 @@
-"""S3 / R2 / GCS / MinIO connector (design/09 S3) — object-key tree; object_kind
+"""S3 / R2 / GCS / MinIO connector — object-key tree; object_kind
 by extension (reuses file connector's mapping). aioboto3 (async wrapper over boto3).
 Works against any S3-compatible endpoint via endpoint_url (R2/GCS/MinIO).
 

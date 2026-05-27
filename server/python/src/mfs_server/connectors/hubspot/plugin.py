@@ -1,4 +1,4 @@
-"""HubSpot connector (design/09 Zendesk/Salesforce/HubSpot) — record_collection.
+"""HubSpot connector — record_collection.
 hubspot-api-client (sync; wrapped in asyncio.to_thread). Layout /<object>/records.jsonl
 + schema.json for each CRM object (contacts / companies / deals / tickets / ...).
 

@@ -1,4 +1,4 @@
-"""Milvus store (design/06 §1, design/02 §9.4/§10.3).
+"""Milvus store.
 
 One schema shared by both collection_strategy values; the only fork is
 resolve_collection(). partition_key = connector_uri. sparse_vec is produced by a
@@ -91,7 +91,7 @@ class MilvusStore:
         ip.add_index(field_name="dense_vec", index_type="HNSW", metric_type="COSINE",
                      params={"M": 16, "efConstruction": 200})
         ip.add_index(field_name="sparse_vec", index_type="SPARSE_INVERTED_INDEX", metric_type="BM25")
-        # NOTE: scalar INVERTED indexes (namespace_id/object_uri/chunk_kind, design/06 §1)
+        # NOTE: scalar INVERTED indexes (namespace_id/object_uri/chunk_kind)
         # are a filter optimization, not functionally required — Milvus filters work without
         # them (full scan, fine at small scale). Milvus Lite 3.0 rejects scalar create_index
         # ("missing metric_type"), so we add them best-effort post-create (see add_scalar_indexes)
@@ -170,7 +170,7 @@ class MilvusStore:
 
     def get_chunks_by_object(self, namespace_id: str, connector_uri: str, object_uri: str) -> list[dict]:
         """All chunks of an object incl. dense_vec — for rename chunk_id rewrite (reuse
-        vectors, zero re-embed; design/04 §5.7.3)."""
+        vectors, zero re-embed)."""
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         flt = (f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}" '
@@ -216,7 +216,7 @@ class MilvusStore:
     def hybrid_search(self, namespace_id: str, query_vec: list[float], query_text: str, limit: int,
                       expr: str = "", output_fields: Optional[list[str]] = None,
                       over_fetch: int = 3, consistency_level: str = "Strong") -> list[dict]:
-        """dense + BM25 sparse fused with RRF (design/06 §7)."""
+        """dense + BM25 sparse fused with RRF."""
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         k = limit * over_fetch

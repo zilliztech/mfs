@@ -1,4 +1,4 @@
-"""mfs-server entrypoint (design/02 §5): run | api | worker | reload.
+"""mfs-server entrypoint: run | api | worker | reload.
 
 Phase 4: run/api start the FastAPI app (add is processed synchronously within the
 request). Standalone worker daemon (polling the DB queue) + reload are Phase 5/7.
@@ -11,7 +11,7 @@ import sys
 
 def _ensure_auth_token(cfg) -> None:
     """Bootstrap a Bearer token so the HTTP API is never exposed unauthenticated by
-    default (design/02 §11.2 — loopback included). If none is configured, reuse or mint
+    default, loopback included. If none is configured, reuse or mint
     ~/.mfs/server.token; the CLI reads the same file on this host. Set auth_token in
     server.toml (or MFS_API_TOKEN) to override, or "-" to explicitly run open."""
     import secrets
@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "worker":
-        # Standalone worker: poll the DB queue and process queued jobs (design/02 §5).
+        # Standalone worker: poll the DB queue and process queued jobs.
         # Use with `mfs add --no-process` / API enqueue so ingestion runs out-of-band.
         import asyncio
 
@@ -94,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "reload":
         # Validate server.toml and report the resolved backends. (Hot-reload of a
-        # running process needs a control socket; restart to apply — design/10 §7.)
+        # running process needs a control socket; restart to apply.)
         from ..config import load_server_config
 
         try:

@@ -1,4 +1,4 @@
-"""Linear connector (design/09 Linear/Jira/Notion) — record_collection.
+"""Linear connector — record_collection.
 Linear has no official Python SDK; it is a GraphQL API (httpx). Endpoint
 https://api.linear.app/graphql, auth header `Authorization: <personal-api-key>`
 (raw key, NOT 'Bearer'; OAuth tokens would use Bearer). Cursor pagination via

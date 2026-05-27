@@ -1,4 +1,4 @@
-"""Summary client (design/06 §6): condense an object into a short text used as an
+"""Summary client: condense an object into a short text used as an
 extra `summary` / `schema_summary` / `directory_summary` chunk, improving recall for
 holistic queries. OpenAI chat (gpt-4o-mini), memoized in the transformation cache
 (kind='summary', keyed on input hash + provider/model/version → model change re-summarizes).

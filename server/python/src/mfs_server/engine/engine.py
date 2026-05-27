@@ -3,7 +3,7 @@ object_tasks -> process). `_index_object` does the real per-object work: read ->
 chunk/convert/VLM/summary -> embed -> Milvus upsert, per object_kind. Jobs run inline
 (process=True) or are drained by the standalone worker (run_worker_*).
 
-per-object atomic writes + job inheritance + circuit breaker (design/02 §6.4 §7.1).
+per-object atomic writes + job inheritance + circuit breaker.
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from ..storage.transformation_cache import TransformationCache
 from .state import ConnectorStateStore
 
 _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
-_HEAD_CACHE_N = 100      # rows pre-cached per structured object to speed `head` (design/05)
+_HEAD_CACHE_N = 100      # rows pre-cached per structured object to speed `head`
 _BARE_CAT_MAX_BYTES = 5 * 1024 * 1024   # bare `cat` (no range) rejects objects larger than this
 _GREP_LINEAR_SCAN_MAX = 200             # cap on not-indexed files a single grep scans linearly
 _JOB_STALE_AFTER_S = 120                # no heartbeat for this long => worker presumed dead
@@ -50,7 +50,7 @@ def _norm_rel(p: str) -> str:
 
 
 def _match_object_config(objects_cfg: list, path: str) -> ObjectConfig | None:
-    """Find the user [[objects]] entry whose `match` matches this path (design/06 §4),
+    """Find the user [[objects]] entry whose `match` matches this path,
     first-match wins; None when nothing matches (caller falls back to a built-in preset)."""
     import fnmatch
     fields = ObjectConfig.__dataclass_fields__
@@ -65,7 +65,7 @@ _CODE_SYMBOL = re.compile(r"^\s*(def |class |func |fn |public |private |func\(|t
 
 
 def _density_view(text: str, ext: str, density: str) -> str:
-    """Skeleton view of a document/code object (design/05 §3):
+    """Skeleton view of a document/code object:
       peek = headings (markdown #) or code symbol lines only;
       skim = peek + the first non-blank line of prose under each heading.
     """
@@ -101,7 +101,7 @@ _PATH_SEG = re.compile(r"^([^\[\]]+)(?:\[([^\]]*)\])?$")
 
 
 def _resolve_path(obj, path: str):
-    """JSONPath-lite field resolver (design/06 §4). Supports:
+    """JSONPath-lite field resolver. Supports:
       a.b           nested dict access
       a[*].b / a[].b  every element's b   -> flattened list
       a[2].b        index
@@ -150,7 +150,7 @@ def _field_values(rec: dict, field: str) -> list[str]:
 
 
 def _render_record(rec: dict, text_fields: list[str], template: str | None = None) -> str:
-    """Render a record into chunk content (design/06 §4). With a text_template, do
+    """Render a record into chunk content. With a text_template, do
     `{field}` substitution (missing -> empty); otherwise join the configured
     text_fields (JSONPath-lite) with the default template."""
     if template:
@@ -171,7 +171,7 @@ def _render_record(rec: dict, text_fields: list[str], template: str | None = Non
 
 
 def _windowed_pairs(kept: list, ocfg) -> list:
-    """chunk_strategy=windowed (design/06 §4): bucket records by a time window on the
+    """chunk_strategy=windowed: bucket records by a time window on the
     group_by field and emit one aggregate chunk per window. chunk_window like '1d'/'7d'/
     '30d'/'12h'/'2w'. Records whose time can't be parsed bucket under 'unparsed'."""
     unit_days = {"d": 1, "w": 7, "h": 1 / 24}
@@ -218,7 +218,7 @@ class Engine:
         self.converter = CachingConverterClient(cfg, self.tx_cache)
         self.vlm = CachingVlmClient(cfg, self.tx_cache)
         self.summary = CachingSummaryClient(cfg, self.tx_cache)
-        self._artifact_writes = 0      # throttles LRU eviction sweeps (design/02 §10.2)
+        self._artifact_writes = 0      # throttles LRU eviction sweeps
 
     async def startup(self) -> None:
         load_builtin()
@@ -245,7 +245,7 @@ class Engine:
             if sch != "file":
                 raise NotImplementedError(f"connector scheme '{sch}' not yet implemented")
         # file:///abs/path — empty authority — is the canonical URI for a LOCAL path
-        # (design/03 §): treat it as the local path, not an upload identity, so
+        #: treat it as the local path, not an upload identity, so
         # `mfs add file:///abs/path` registers with a real root instead of failing.
         if target.startswith("file:///"):
             abs_path = os.path.abspath(target[len("file://"):])
@@ -261,7 +261,7 @@ class Engine:
 
     # substrings that mark a config key as holding a secret. Matched case-insensitively
     # anywhere in the key, and recursively (nested OAuth token dicts, lists), so e.g.
-    # secret_access_key / refresh_token / client_secret are all caught (design/07).
+    # secret_access_key / refresh_token / client_secret are all caught.
     # dsn (postgres) and session_id (salesforce) carry credentials but don't contain any
     # of the obvious words; we DON'T add 'uri'/'url' here because those also name benign
     # fields (mongo's password is caught by the value check below, while salesforce's
@@ -289,7 +289,7 @@ class Engine:
         """Recursively redact raw inline secrets from a config before persistence. A
         credential_ref (env:/secret:/file:/vault:) is kept; anything else under a
         secret-looking key is replaced. Recurses into dicts/lists so nested OAuth token
-        dicts don't leak (design/07)."""
+        dicts don't leak."""
         if isinstance(value, dict):
             return {k: cls._redact_config(v, cls._is_secret_key(k)) for k, v in value.items()}
         if isinstance(value, list):
@@ -326,7 +326,7 @@ class Engine:
 
     @staticmethod
     def _resolve_ref(v):
-        """Resolve a credential reference to its actual value (design/07): `env:VAR` ->
+        """Resolve a credential reference to its actual value: `env:VAR` ->
         environment, `file:/path` -> the file's contents (k8s/docker secret mounts).
         Non-ref values pass through unchanged. These are the only schemes _CRED_REF_PREFIXES
         advertises, so a ref left unresolved (and silently used as a literal token) can't
@@ -347,7 +347,7 @@ class Engine:
         if cls is None:
             raise NotImplementedError(f"no plugin for {ctype}")
         # Resolve credential references at build time so secrets live in the environment,
-        # not in connectors.config_json (design/07). The stored config keeps the `env:VAR`
+        # not in connectors.config_json. The stored config keeps the `env:VAR`
         # ref / `_credential_ref`; only this in-memory copy carries resolved values.
         credential = None
         if isinstance(config, dict):
@@ -369,7 +369,7 @@ class Engine:
             plugin = cls(config, credential, ctx=ctx)
 
         # resolver: user [[objects]] match wins; else the connector's built-in preset
-        # (design/06 §5) so SaaS sources are searchable with zero config.
+        # so SaaS sources are searchable with zero config.
         def _resolve_cfg(p: str) -> ObjectConfig:
             user = _match_object_config(objects_cfg, p)
             if user is not None:
@@ -385,12 +385,12 @@ class Engine:
                   since: str | None = None, process: bool = True, update_config: bool = False) -> str:
         """Register + sync + enqueue tasks. process=True (AIO default): run the job
         inline and return when done. process=False: leave the job 'queued' for a
-        standalone worker (design/02 §5) to pick up via run_worker_*(). On an already-
-        registered connector, --config is ignored unless update_config (design/03: change
+        standalone worker to pick up via run_worker_*(). On an already-
+        registered connector, --config is ignored unless update_config (change
         config via `mfs connector update`, not a re-sync)."""
         import json
         _, connector_uri, ctype, default_config = self._resolve_target(target)
-        # --since requires a time cursor; reject early on connectors without one (errors.md)
+        # --since requires a time cursor; reject early on connectors without one
         if since:
             cls = get_plugin_cls(ctype)
             if cls is not None and not getattr(cls.CAPABILITIES, "cursor_kind", None):
@@ -400,7 +400,7 @@ class Engine:
                                                    overwrite_config=update_config)
         row0 = await self.meta.fetchone("SELECT config_json, status FROM connectors WHERE id=?", (cid,))
         if row0 and row0["status"] == "removing":
-            raise ValueError("connector_removing")          # design/02 §6.4
+            raise ValueError("connector_removing")
         # this session uses the caller's full config (raw secrets intact); the persisted copy
         # is redacted. A later re-sync/worker rebuild reads the persisted config and resolves
         # secrets from credential_ref (env) — so persistent runs must use credential_ref.
@@ -412,7 +412,7 @@ class Engine:
                                      full, since, process)
 
     async def _open_sync_job(self, cid: str, process: bool) -> str:
-        """Reserve the one-in-flight-sync slot for a connector (design/02 §6.4) and inherit
+        """Reserve the one-in-flight-sync slot for a connector and inherit
         its leftover tasks. Raises connector_removing / sync_already_running. Callers that
         mutate state (e.g. upload) MUST call this BEFORE mutating, so a rejected sync leaves
         nothing half-applied."""
@@ -461,7 +461,7 @@ class Engine:
                             ctx.enumeration_mode == "incremental"
                             or getattr(plugin.CAPABILITIES, "delete_detection", "") == "never"):
                         # only the unsafe 'incremental' mode skips deletes; 'full' (diff) and
-                        # 'explicit_only' (yielded events, e.g. upload) honor them (design/02 §7.4)
+                        # 'explicit_only' (yielded events, e.g. upload) honor them
                         continue        # never-delete connectors (slack/gmail) keep the index
                     tid = uuid.uuid4().hex
                     await self.meta.execute(
@@ -477,7 +477,7 @@ class Engine:
                     pass
             if not process:
                 # enqueue model: stash staged state on the job; the worker commits it only
-                # after the job succeeds (design/02 §7 ③), so a failed background job doesn't
+                # after the job succeeds, so a failed background job doesn't
                 # advance the cursor past objects that never got indexed.
                 await self.meta.execute(
                     "UPDATE connector_jobs SET state_snapshot=? WHERE id=?",
@@ -510,7 +510,7 @@ class Engine:
 
     async def ingest_upload(self, name: str, data: bytes, fmt: str = "tar",
                             process: bool = True) -> dict:
-        """CS upload flow (design/02 §4.2): client/server don't share a fs, so the client
+        """CS upload flow: client/server don't share a fs, so the client
         ships a tar(.gz) of the tree (?name=<label>). The label is the connector's stable
         identity file://<name> — the SAME file://<client_id><root> shape the manifest-diff
         flow uses — so the upload is searchable / removable by that logical URI rather than
@@ -554,7 +554,7 @@ class Engine:
         await self._drain_job(job_id, cid, connector_uri, "file", stored_cfg, False, None, process)
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
 
-    # --- manifest-diff upload protocol (design/02 §4.2): stable identity
+    # --- manifest-diff upload protocol: stable identity
     #     file://<client_id><abs-root>, byte-diff + index-diff both on the file_state table ---
     def _staging_root(self, client_id: str, root: str) -> str:
         import hashlib
@@ -572,7 +572,7 @@ class Engine:
         return staging, connector_uri, cid
 
     async def files_manifest(self, client_id: str, root: str, files: list[dict]) -> dict:
-        """Step ② (design/02 §4.2): diff the client's stat-only manifest against the
+        """Step ②: diff the client's stat-only manifest against the
         server-side file_state (the same table the file connector uses) and return which
         paths' bytes are needed + deletion candidates (with sha1/inode for rename pairing)."""
         staging, connector_uri, cid = await self._staging_connector(client_id, root)
@@ -594,7 +594,7 @@ class Engine:
 
     async def files_upload(self, client_id: str, root: str, bundle: bytes,
                            process: bool = True, full: bool = False) -> dict:
-        """Step ④ (design/02 §4.2): validate the bundle in a temp dir (sha1), then in one
+        """Step ④: validate the bundle in a temp dir (sha1), then in one
         commit apply renames / changed bytes / deletions to the staging area and UPSERT
         file_state (status='staged'); the file connector then indexes the staged rows.
         The bundle is a tar(.gz) carrying a `.mfs-meta.json` {hashes,renames,deletions}
@@ -645,7 +645,7 @@ class Engine:
 
             # bundle fully validated in temp; NOW reserve the sync slot. If a sync is
             # already in flight this raises sync_already_running and the staging area +
-            # file_state are still untouched (design/02 §4.2 single-commit intent).
+            # file_state are still untouched.
             job_id = await self._open_sync_job(cid, process)
 
             # --- apply to staging + file_state (status='staged') ---
@@ -687,7 +687,7 @@ class Engine:
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
 
     async def _finalize_job(self, job_id: str, aborted: str | None) -> None:
-        """Set terminal job status + per-status object counts (design/02 §7)."""
+        """Set terminal job status + per-status object counts."""
         counts = await self.meta.fetchall(
             "SELECT status, count(*) AS n FROM object_tasks WHERE connector_job_id=? GROUP BY status", (job_id,))
         cmap = {r["status"]: r["n"] for r in counts}
@@ -705,7 +705,7 @@ class Engine:
              sum(cmap.values()), cmap.get("succeeded", 0), cmap.get("failed", 0),
              cmap.get("cancelled", 0), job_id))
 
-    # --- standalone worker (design/02 §5): poll DB queue, process queued jobs ---
+    # --- standalone worker: poll DB queue, process queued jobs ---
     async def cancel_job(self, job_id: str) -> bool:
         """Cancel a job: mark it + its pending/running tasks cancelled. A running
         worker stops at the next per-object boundary (checked in _run_job)."""
@@ -752,8 +752,8 @@ class Engine:
         finally:
             await plugin.close()
         await self._finalize_job(job["id"], aborted)
-        # commit the deferred connector state only now that the job succeeded (design/02
-        # §7 ③): a failed/cancelled background job leaves the cursor where it was.
+        # commit the deferred connector state only now that the job succeeded:
+        # a failed/cancelled background job leaves the cursor where it was.
         if aborted is None:
             jrow = await self.meta.fetchone(
                 "SELECT state_snapshot, status FROM connector_jobs WHERE id=?", (job["id"],))
@@ -771,7 +771,7 @@ class Engine:
             return 1
 
     async def _reclaim_stale_jobs(self, stale_after_s: int = _JOB_STALE_AFTER_S) -> None:
-        """Housekeeping (design/02 §5): a job whose worker died keeps status='running'
+        """Housekeeping: a job whose worker died keeps status='running'
         with a stale heartbeat forever. Reset such jobs to 'queued' so a live worker
         re-claims them. Best-effort — tolerate the rare one-queued-per-connector clash."""
         cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
@@ -856,7 +856,7 @@ class Engine:
     @staticmethod
     def _classify_error(e: Exception) -> str:
         """retryable (transient: 429 rate-limit / 5xx / timeout) vs fatal (structural:
-        quota exhausted / auth) — design/02 §7.1."""
+        quota exhausted / auth)."""
         m = str(e).lower()
         fatal_markers = ("insufficient_quota", "quota", "invalid_api_key", "authentication",
                          "unauthorized", "402", "401", "permission denied", "invalid x-api-key")
@@ -883,7 +883,7 @@ class Engine:
                         (_now(), f"fatal: {e}", task["id"]))
                     return "fatal"
                 if attempt < max_r:
-                    # exponential backoff capped at backoff_max_ms (design/02 §7.1): a flat
+                    # exponential backoff capped at backoff_max_ms: a flat
                     # initial-only sleep ignored backoff_max_ms entirely and hammered a
                     # rate-limited provider at a fixed cadence.
                     delay_ms = min(self.cfg.worker.backoff_initial_ms * (2 ** attempt),
@@ -923,7 +923,7 @@ class Engine:
 
     async def _run_job(self, job_id: str, cid: str, connector_uri: str, plugin) -> str | None:
         """Returns None on normal completion, or a circuit-breaker reason string.
-        Consecutive fatal failures (design/02 §7.1) abort the job."""
+        Consecutive fatal failures abort the job."""
         threshold = self.cfg.worker.consecutive_fatal_threshold
         consec_fail = 0       # consecutive object failures (fatal OR retries exhausted)
         stop_hb = asyncio.Event()
@@ -949,7 +949,7 @@ class Engine:
             for t in tasks:
                 # re-check the stop boundary before EACH task (not just per batch): a
                 # concurrent cancel/remove can land mid-batch, and we must not keep writing
-                # chunks for a connector being torn down (design/02 §6.4 §7). The heartbeat
+                # chunks for a connector being torn down. The heartbeat
                 # is kept warm by the background _heartbeat_loop, so even a multi-minute
                 # single object won't be mistaken for a dead worker.
                 if await self._should_stop(job_id, cid):
@@ -967,7 +967,7 @@ class Engine:
                     # both 'fatal' AND 'retryable_exhausted' count toward the breaker: a
                     # provider that rate-limits (429) or times out on every object is
                     # classified retryable, and without counting it the job would grind the
-                    # whole connector, burning (max_retries+1) calls per object (design/02 §7.1).
+                    # whole connector, burning (max_retries+1) calls per object.
                     consec_fail += 1
                     if consec_fail >= threshold:
                         await self.meta.execute(
@@ -986,13 +986,13 @@ class Engine:
             buf += chunk
         return bytes(buf)
 
-    # --- artifact cache (design/02 §10.2): bytes in the object store + a metadata row
+    # --- artifact cache: bytes in the object store + a metadata row
     #     in artifact_cache, with LRU size eviction ---
     async def _put_artifact(self, ns: str, object_uri: str, kind: str, data: bytes) -> str:
         """Store artifact bytes and record/refresh its artifact_cache row (size +
         content fingerprint + timestamps), then run a throttled LRU sweep so the cache
         stays under budget. fingerprint = sha1(bytes) — lets a re-build detect a
-        no-op (same content) and gives a stale-check handle (design/02 §10.2)."""
+        no-op (same content) and gives a stale-check handle."""
         import hashlib
         path = await asyncio.to_thread(self.object_store.put_artifact, ns, object_uri, kind, data)
         now = _now()
@@ -1011,7 +1011,7 @@ class Engine:
 
     async def _drop_artifacts(self, ns: str, object_uri: str) -> None:
         """Delete all cached artifacts of an object (bytes + artifact_cache rows) — on
-        object deletion so the cache doesn't retain orphaned bytes (design/02 §10.2)."""
+        object deletion so the cache doesn't retain orphaned bytes."""
         for kind in ("converted_md", "vlm_text", "head_cache"):
             try:
                 await asyncio.to_thread(self.object_store.delete_artifact, ns, object_uri, kind)
@@ -1059,7 +1059,7 @@ class Engine:
         return evicted
 
     async def _index_object(self, plugin, connector_uri: str, task: dict) -> None:
-        """Real chunk/embed/Milvus (design/04 §2 ⑤). document/code -> body chunks;
+        """Real chunk/embed/Milvus. document/code -> body chunks;
         other kinds carry no chunks in Phase 3 (image VLM / pdf converter -> Phase 6).
         per-object atomic: delete_by_object then upsert all of this object's chunks."""
         relpath = task["object_uri"]
@@ -1078,7 +1078,7 @@ class Engine:
 
         if kind == "renamed" and task["old_uri"]:
             old_full = connector_uri + task["old_uri"]
-            # rename = chunk_id rewrite, REUSE vectors (zero re-embed; design/04 §5.7.3)
+            # rename = chunk_id rewrite, REUSE vectors (zero re-embed)
             old_chunks = await asyncio.to_thread(self.milvus.get_chunks_by_object, ns, connector_uri, old_full)
             if old_chunks:
                 rows = []
@@ -1117,7 +1117,7 @@ class Engine:
         search_status = "not_indexed"
         top_cfg = plugin.ctx.object_config_for(relpath)
         # `indexable` is binary-vs-not by object_kind, AND can be opted out per
-        # [[objects]] config (design/06 §4 indexable=false): record the object so it
+        # [[objects]] config indexable=false: record the object so it
         # shows in ls/inspect, but skip all chunk/embed/Milvus work.
         indexable = okind not in ("binary",) and top_cfg.indexable
 
@@ -1150,7 +1150,7 @@ class Engine:
                         "locator": None, "lines": lines, "content": ctext[:65000],
                         "dense_vec": vec, "chunk_kind": "body", "metadata": {}, "indexed_at": now_ms,
                     })
-                # extra whole-object `summary` chunk for large docs (design/06 §6): one
+                # extra whole-object `summary` chunk for large docs: one
                 # condensed chunk improves recall for holistic queries.
                 if self.summary.should_summarize(text):
                     summ = await self.summary.summarize(text, "summary")
@@ -1190,7 +1190,7 @@ class Engine:
             records = plugin.read_records(relpath)
             if records is not None and ocfg.text_fields:
                 # per_group thread_aggregate: group messages by group_by, each thread/
-                # group becomes one aggregate chunk (design/06 §2 thread_aggregate). When
+                # group becomes one aggregate chunk. When
                 # not configured, fall back to common thread keys across connectors
                 # (slack thread_ts / gmail threadId / generic thread_id).
                 cfg_key = ocfg.group_by
@@ -1239,7 +1239,7 @@ class Engine:
                 if ocfg.index_filter:
                     from ..common.filter_ast import compile_filter
                     predicate = compile_filter(ocfg.index_filter)   # restricted AST, not eval
-                # chunk_strategy (design/06 §4): per_row (default) | per_field_chunked |
+                # chunk_strategy: per_row (default) | per_field_chunked |
                 # sampled | windowed. JSONPath-lite resolves locator/metadata/text fields.
                 strategy = ocfg.chunk_strategy or "per_row"
                 sample_step = (max(1, round(1 / ocfg.sample_rate))
@@ -1297,7 +1297,7 @@ class Engine:
                     await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
                     await asyncio.to_thread(self.milvus.upsert, ns, rows)
                     chunk_count = len(rows)
-                    # partial if chunk_max truncated OR the connector capped the read (design/06 §)
+                    # partial if chunk_max truncated OR the connector capped the read
                     capped = plugin.ctx.was_partial(relpath)
                     search_status = "partial" if (partial or capped) else "indexed"
 
@@ -1347,7 +1347,7 @@ class Engine:
             # index_filter matched 0 rows / document emptied / empty VLM or summary) must
             # still purge chunks from a previous index, else search keeps returning stale
             # content. The per-kind branches only delete when they have new rows to upsert,
-            # so cover the zero-chunk case here (design/04: rebuild = delete-by-object + insert).
+            # so cover the zero-chunk case here (rebuild = delete-by-object + insert).
             await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
         await self.meta.execute(
             "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
@@ -1362,7 +1362,7 @@ class Engine:
 
         await plugin.on_object_indexed(relpath)
 
-    # --- search (design/06 §7) ---
+    # --- search ---
     async def search(self, query: str, connector_uri: str | None = None,
                      object_prefix: str | None = None, mode: str = "hybrid", top_k: int = 10,
                      chunk_kinds: list[str] | None = None, collapse: bool = False) -> list[dict]:
@@ -1397,7 +1397,7 @@ class Engine:
         object_prefix = (connector_uri + rel) if rel not in ("", "/") else None
         return connector_uri, object_prefix
 
-    # --- connector management (design/03 §3: probe / inspect / remove) ---
+    # --- connector management: probe / inspect / remove ---
     async def probe(self, target: str, config: dict | None = None) -> dict:
         """Try-connect a connector without registering or writing state."""
         _, connector_uri, ctype, default_config = self._resolve_target(target)
@@ -1417,7 +1417,7 @@ class Engine:
 
     async def estimate(self, target: str, config: dict | None = None,
                        sample_objects: int = 3, sample_records: int = 1000) -> dict:
-        """Zero-billing pre-flight estimate (design/04 §3): enumerate the object set
+        """Zero-billing pre-flight estimate: enumerate the object set
         (metadata-only) and run the chunker + local tokenizer on a small sample to
         extrapolate physical work (chunks / tokens). Never calls the embedding API or
         writes Milvus — the user sees the prompt before any money is spent. Returns
@@ -1431,7 +1431,7 @@ class Engine:
         try:
             obj_uris: list[str] = []
             # dry_run: enumerate object URIs without hashing bytes or writing any state
-            # (design/04 §3 — estimate must be side-effect-free and cheap).
+            # estimate must be side-effect-free and cheap.
             async for ch in plugin.sync(SyncOptions(full=True, dry_run=True)):
                 if ch.kind != "deleted":
                     obj_uris.append(ch.uri)
@@ -1488,7 +1488,7 @@ class Engine:
                     pass
 
     async def inspect(self, target: str) -> dict | None:
-        """Connector row + object/job summary (design/03 §3 inspect)."""
+        """Connector row + object/job summary."""
         _, connector_uri, _, _ = self._resolve_target(target)
         row = await self.meta.fetchone(
             "SELECT id, root_uri, type, status, registered_at FROM connectors "
@@ -1509,14 +1509,14 @@ class Engine:
 
     async def remove_connector(self, target: str) -> bool:
         """Remove a connector and everything it owns: Milvus chunks, artifacts, and all
-        metadata rows (objects / tasks / jobs / state / file_state) (design/03 §3 remove)."""
+        metadata rows (objects / tasks / jobs / state / file_state)."""
         _, connector_uri, _, _ = self._resolve_target(target)
         row = await self.meta.fetchone(
             "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=?", (self.ns, connector_uri))
         if not row:
             return False
         cid = row["id"]
-        # preempt any in-flight sync (design/02 §6.4). Mark 'removing' (new syncs ->
+        # preempt any in-flight sync. Mark 'removing' (new syncs ->
         # connector_removing; a running worker observes it at its next task boundary via
         # _should_stop and exits). Cancel only the not-yet-started work (queued job +
         # pending tasks). Crucially DON'T flip the running job ourselves — its status
@@ -1569,7 +1569,7 @@ class Engine:
         await self.meta.execute("DELETE FROM connectors WHERE id=?", (cid,))
         return True
 
-    # --- read commands (design/05) — any connector ---
+    # --- read commands — any connector ---
     async def _match_connector(self, path: str) -> tuple[dict, str] | None:
         """Find the registered connector whose root is the longest prefix of `path`;
         return (connector_row, relpath) or None. Shared by _open_path (read commands)
@@ -1579,7 +1579,7 @@ class Engine:
             "SELECT * FROM connectors WHERE namespace_id=?", (self.ns,))
         # Any URI (postgres://, web://, file://<client_id><abs>, file://local<abs>) ->
         # longest registered root_uri prefix. Covers upload connectors registered under
-        # their stable file://<client_id> identity (design/02 §3.4).
+        # their stable file://<client_id> identity.
         if "://" in path:
             best, best_root = None, ""
             for r in rows:
@@ -1624,7 +1624,7 @@ class Engine:
 
     async def ls(self, path: str) -> dict:
         """List children, each enriched with its full path + index state from the
-        objects table, plus the connector's capabilities (design/03 §11 ls)."""
+        objects table, plus the connector's capabilities."""
         cid, curi, rel, plugin = await self._open_path(path)
         try:
             entries = await plugin.list(rel)
@@ -1671,7 +1671,7 @@ class Engine:
             okind = plugin.object_kind_of(rel)
             structured = okind in ("table_rows", "record_collection", "message_stream")
 
-            # --- locator: reopen a single structured record (design/05 §3, 06 §3) ---
+            # --- locator: reopen a single structured record ---
             if locator is not None:
                 records = plugin.read_records(rel)
                 if records is None:
@@ -1689,7 +1689,7 @@ class Engine:
             if structured:
                 if range is None:
                     # a bare cat would stream the whole table -> reject; the agent picks
-                    # head / cat --range / export (design/05 §, errors.md)
+                    # head / cat --range / export
                     raise ValueError("object_too_large_for_cat")
                 start, end = range[0], range[1]
                 # hand the range to the connector so a pushdown-capable one can LIMIT/OFFSET
@@ -1709,7 +1709,7 @@ class Engine:
             text: str | None = None
             # converted markdown artifact: pdf/docx/html (CONVERT_EXTS) AND web/github pages,
             # whose .md is generated at ingest — read it from the artifact store so cat works
-            # across restarts / fresh plugin instances, not just in-memory (design/05 §).
+            # across restarts / fresh plugin instances, not just in-memory.
             if ext in CONVERT_EXTS or curi.startswith(("web://", "github://")):
                 art = await self._read_artifact(self.ns, curi + rel, "converted_md")
                 if art is not None:
@@ -1769,7 +1769,7 @@ class Engine:
             await plugin.close()
 
     async def export(self, path: str) -> str:
-        """Full content for `mfs export` (design/03): the entire object, no row cap and no
+        """Full content for `mfs export`: the entire object, no row cap and no
         bare-cat size guard."""
         return await self._read_full(path)
 
@@ -1779,7 +1779,7 @@ class Engine:
             okind = plugin.object_kind_of(rel)
             structured = okind in ("table_rows", "record_collection", "message_stream")
             if structured:
-                # fast path: pre-cached first rows (design/05 head_cache)
+                # fast path: pre-cached first rows
                 art = await self._read_artifact(self.ns, curi + rel, "head_cache")
                 if art is not None:
                     return "\n".join(art.decode("utf-8", errors="replace").splitlines()[:n])
@@ -1787,7 +1787,7 @@ class Engine:
                 ext = os.path.splitext(rel)[1].lower()
                 # plain text / code / logs: stream just the first n lines so a large file
                 # never materializes and never trips bare-cat's size guard — head is exactly
-                # the escape hatch design/05 points to for big objects. Artifact-backed
+                # the escape hatch for big objects. Artifact-backed
                 # objects (pdf/docx/html, web/github pages, images) have bounded cached text,
                 # so they fall through to cat below.
                 if not (okind == "image" or ext in CONVERT_EXTS
@@ -1820,7 +1820,7 @@ class Engine:
 
     async def grep(self, pattern: str, path: str, top_k: int = 100, regex: bool = False) -> list[dict]:
         """Dispatch: pushdown (file: none) -> BM25 (indexed scope) -> linear scan
-        (not_indexed objects in scope). design/05 §6. The linear scan uses the native
+        (not_indexed objects in scope). The linear scan uses the native
         accelerator (mfs_server_rs) when the object is a real local file, else falls
         back to reading bytes + pure-Python regex."""
         from ..common import accel
@@ -1829,7 +1829,7 @@ class Engine:
         scope_prefix = (curi + rel) if rel != "/" else None
         try:
             results: list[dict] = []
-            # 2a connector grep pushdown (design/05 §6 step 1): exact, source-side (e.g.
+            # 2a connector grep pushdown: exact, source-side (e.g.
             # SQL ILIKE for structured connectors). Returns None when unsupported.
             ocfg = plugin.ctx.object_config_for(rel)
             try:
@@ -1859,7 +1859,7 @@ class Engine:
                 "AND object_uri LIKE ?", (cid, like))
             if len(not_idx) > _GREP_LINEAR_SCAN_MAX:
                 # don't silently scan a subset and imply it was exhaustive — tell the agent
-                # so it can narrow the path or index first (design/05 §6).
+                # so it can narrow the path or index first.
                 results.append({
                     "source": None, "lines": None, "via": "notice",
                     "content": f"(grep linear scan capped at {_GREP_LINEAR_SCAN_MAX} of "

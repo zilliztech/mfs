@@ -1,4 +1,4 @@
-"""Transformation cache (design/02 §10.4): content-addressable memoization of
+"""Transformation cache: content-addressable memoization of
 convert / embedding / vlm / summary results. Logically isolated from metadata DB
 (separate SQLite file locally; Postgres in CS). Best-effort: losing it only costs
 recompute, never correctness.
