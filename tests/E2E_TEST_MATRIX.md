@@ -412,3 +412,23 @@ D = Milvus{Lite,Zilliz} × meta{sqlite,PG} × store{local,S3} × embed{OAI,onnx}
 - BigQuery 模拟器：`sudo docker run -d --name mfs-bq -p 9050:9050 ghcr.io/goccy/bigquery-emulator:latest --project=mfstest --dataset=tickets_ds`
 
 仍需真实云账号才能 live 的：snowflake（无本地版）、各 SaaS（slack/gmail/notion/jira/salesforce/linear/hubspot/discord/feishu/gdrive）。其连接器逻辑由 `phase10_connectors_unit` 离线覆盖。
+
+---
+
+# 第四轮 · 全状态观测 + 异常路径 + 剩余可测项
+
+| 测试 | 覆盖 |
+|---|---|
+| `phase13_state_consistency_smoke.py` | **全状态观测**：add/改/删/remove 后，所有后端表(connectors/objects/object_tasks/connector_jobs/artifact_cache/file_state/connector_state) 与 Milvus 互相一致——每对象 chunk_count==Milvus 计数、task 全 succeeded、job 计数吻合、artifact 先有后清、remove 后各处零残留 |
+| `phase13_abnormal_smoke.py` | 异常路径：坏路径/错 locator/不存在 connector/越界 scope/幂等重复 add/反向 range/缺失 credential_ref/HTTP 404+422 全部干净失败、不崩、不污染 |
+| `phase13_estimate_update_smoke.py` | estimate 零计费+零状态残留(L3/L4)；`--update` 原地改 connector 配置(K6) |
+| `phase13_pg_concurrency_smoke.py` | F4 共享 Postgres 队列上多 worker 并发认领——条件认领无竞态，各拿一个不同 job、都成功、不重复处理 |
+| `phase13_s3_source_smoke.py` | s3 **源**连接器(非对象存储)：MinIO 桶→index→search→cat(reopen 走 credential_ref) |
+| `phase13_image_summary_smoke.py` | 目录摘要 include_image_desc on/off(H4)：图片专属目录仅在开时产 directory_summary |
+| `cli/test_cli_browse.sh` | 真实 mfs 二进制：ls/tree/cat(+range/meta)/head/tail/export/grep/job/connector |
+| `phase13_grep_regex_smoke.py` | grep 正则模式 + 0 命中 |
+
+随之修掉的真实问题：
+- **s3 源连接器 reopen 不可用**：access_key_id + secret_access_key 都被脱敏、无回退 → cat/重同步失败。加 `AKID:SECRET` 形式的单一 credential_ref 回退。
+
+仍需真实凭据才能 live（机器装不出）：snowflake、slack/gmail/notion/jira/linear/hubspot/salesforce/discord/feishu/gdrive。逻辑由 `phase10_connectors_unit` 离线覆盖。
