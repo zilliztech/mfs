@@ -282,3 +282,107 @@ D = Milvus{Lite,Zilliz} × meta{sqlite,PG} × store{local,S3} × embed{OAI,onnx}
 - `MFS_SUMMARY_ENABLED` 环境变量（让目录摘要免配置文件开关，并保证测试不被全局 server.toml 污染）。
 
 **仍阻塞（需起服务）**：A13 Mongo 的 live e2e（mongod 未运行；连接器逻辑已由 `phase10_connectors_unit` 离线覆盖）。其余 S3/MySQL 后端的本机服务可用，已由 `phase11_s3` / `phase10_mysql` 覆盖。
+
+---
+
+# 第二轮 · 边缘 case 矩阵（R 系列）
+
+聚焦第一轮没覆盖的边界/异常输入。环境已确认：Docker 可用（`sudo docker`）、`apt-get` + 免密 sudo、pymongo 已装、mysqld 在机。所以 Mongo 可经 Docker 解锁。
+
+图例同上。
+
+## R1. 编码 / 内容边界
+| 用例 | 预期 | 现状 |
+|---|---|---|
+| R1.1 非 UTF-8 文件（latin-1 / 0xb0 字节） | surrogateescape 读取，index/cat 不崩 | ❌ |
+| R1.2 空文件（0 字节） | 0 chunk，search_status 合理，不崩 | ❌ |
+| R1.3 无结尾换行 | cat / cat --range / tail 行数正确 | ❌ |
+| R1.4 超长单行大文件（无换行） | 流式读取，不全量进内存 | 🟡 |
+| R1.5 文件名含空格 / 中文 / emoji | add/ls/cat/search 正常，object_uri 不破 | ❌ |
+| R1.6 二进制文件（.bin/.png-as-binary） | metadata-only，不进 Milvus，ls 可见 | ❌ |
+
+## R2. 路径 / 注册边界
+| 用例 | 预期 | 现状 |
+|---|---|---|
+| R2.1 add 单个文件（非目录） | 注册该文件并可检索 | ❌ |
+| R2.2 add 不存在路径 | 明确错误，不留半 connector | ❌ |
+| R2.3 add 带尾斜杠 / 相对路径 | 规范化为同一 connector identity | ❌ |
+| R2.4 cat/ls `../` 逃逸 | 拒绝 path_escapes_root | 🟡 |
+| R2.5 空目录 add | 0 对象，不崩 | ❌ |
+
+## R3. 检索边界
+| 用例 | 预期 | 现状 |
+|---|---|---|
+| R3.1 空索引 search | 返回 []（无 collection 或 0 行）| 🟡 |
+| R3.2 空 query / 纯空白 | 合理处理（不崩）| ❌ |
+| R3.3 top_k=0 / 极大值 | 边界不崩 | ❌ |
+| R3.4 object_uri 含 `"` / `\` / 中文（注入） | `_lit` 转义，scope/delete 不破 | ❌ |
+| R3.5 mode 非法值 | 错误或回退，不崩 | ❌ |
+
+## R4. 目录摘要边界
+| 用例 | 预期 | 现状 |
+|---|---|---|
+| R4.1 仅含二进制/不可摘要文件的目录 | 不产 summary（空输入清理）| ❌ |
+| R4.2 深层嵌套（≥8 层）递归 | 每层正确、根含最深内容 | ❌ |
+| R4.3 子目录 summary 为空时父目录 | 正常产出，不报错 | ❌ |
+| R4.4 include_image_desc=true | 图片 VLM 描述喂进目录摘要（需图片）| ❌ |
+| R4.5 max_input_kb / per_file_max_kb 截断 | 超额截断、产出合理、不超预算 | ❌ |
+| R4.6 目录被删空 | 其 directory_summary 被清 | ❌ |
+
+## R5. 增量 / 重命名边界
+| 用例 | 预期 | 现状 |
+|---|---|---|
+| R5.1 重命名目录（所有文件移动） | 旧路径清、新路径在、向量尽量复用 | ❌ |
+| R5.2 交换两个文件名 | 内容跟到正确路径 | ❌ |
+| R5.3 同一次 sync 既删又加 | 两类 task 都正确处理 | 🟡 |
+| R5.4 内容不变仅 mtime 变 | 不重 embed（sha1 fingerprint）| ❌ |
+
+## R6. 结构化连接器边界
+| 用例 | 预期 | 现状 |
+|---|---|---|
+| R6.1 0 行的表 | schema_summary 仍产，row 0 条，不崩 | ❌ |
+| R6.2 NULL / json / 数组列 | 拼接不崩，可检索 | 🟡 |
+| R6.3 cat --locator 不存在的 pk | 空/明确错误 | ❌ |
+| R6.4 **Mongo live**（Docker 解锁） | add→index→search→cat 全通 | ❌（解锁中）|
+
+## R7. 配置 / 凭据边界
+| 用例 | 预期 | 现状 |
+|---|---|---|
+| R7.1 credential_ref `env:` 缺失 | 明确报错，不静默 | ❌ |
+| R7.2 `secret:` / `vault:` 方案 | 拒绝（未实现），不伪装成功 | ❌ |
+| R7.3 index_filter 匹配 0 行 | 0 chunk、search_status 合理 | 🟡 |
+| R7.4 indexable=false | metadata-only，ls 可见 | ❌ |
+| R7.5 `mfs add --update` 改配置 | 不重注册，配置变更触发重建判定 | ❌ |
+
+## R8. Cache 边界
+| 用例 | 预期 | 现状 |
+|---|---|---|
+| R8.1 transformation_cache.enabled=false | passthrough，仍能 index/search | ❌ |
+| R8.2 artifact cache LRU 驱逐（超预算） | 超 max_size_gb 时旧 artifact 被驱逐 | ❌ |
+| R8.3 换 embedding model（version 变） | embed 全 miss 重算、convert 命中 | 🟡 |
+
+## R9. 读命令边界
+| 用例 | 预期 | 现状 |
+|---|---|---|
+| R9.1 cat 一个目录 | IsADirectoryError / 明确错误 | ❌ |
+| R9.2 cat --range 越界（start>len / start>=end） | 空或边界，不崩 | ❌ |
+| R9.3 head/tail n=0 / 超大 | 边界正确 | ❌ |
+| R9.4 grep regex 模式 / 0 匹配 | 正则命中 / 空结果不崩 | 🟡 |
+
+## R10. Worker / 并发边界（PG 多 worker）
+| 用例 | 预期 | 现状 |
+|---|---|---|
+| R10.1 concurrency>1 多 connector 并行 | N job 并行、task 不串 | 🟡 |
+| R10.2 stale job 重认领（崩溃模拟） | 心跳过期→另一 worker 接管、task 不丢 | 🟡 |
+| R10.3 estimate 零副作用 | 不留 file_state/connector_state | 🟡 |
+
+## 第二轮可装依赖
+- **Mongo**：`sudo docker run -d -p 27017:27017 mongo:7` → 解锁 R6.4 + A13。
+- MySQL / MinIO / Postgres：已在机可用。
+- （Redis 等不在设计内，跳过。）
+
+## 第二轮波次
+- **R-Wave A（纯 Lite，最高密度边界）**：R1.1/1.2/1.3/1.5/1.6、R2.1/2.2/2.5、R3.1/3.2/3.3/3.4、R9.1/9.2/9.3。
+- **R-Wave B（目录摘要边界）**：R4.1/4.3/4.5/4.6、R5.1/5.4。
+- **R-Wave C（配置/凭据/cache）**：R7.1/7.2/7.4、R8.1。
+- **R-Wave D（服务）**：R6.4 Mongo live（Docker）。
