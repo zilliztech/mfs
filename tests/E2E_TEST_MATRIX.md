@@ -251,3 +251,34 @@ D = Milvus{Lite,Zilliz} × meta{sqlite,PG} × store{local,S3} × embed{OAI,onnx}
 - **Wave 2（核心正确性）**：D1–D13(完整增量矩阵)、C4–C7(kind/collapse/scope 边界)、I1/I2/I7(auth+脱敏)、B6(per_ns)、B8/K2(dim 切换)。
 - **Wave 3（隔离/韧性/规模）**：G1–G5(多 connector/cache 复用)、F4/F6/F7/F8(并发/熔断/恢复)、J1/J2/J8、M 系列、E3/E4/E5(tail/export)。
 - **Wave 4（需起服务）**：B4/B7(MinIO)、A13(Mongo)、A2–A11 的 upload/S3 管线、MySQL 补充。
+
+---
+
+## 落地覆盖更新（phase13_*）
+
+下面的 e2e 测试已落地并通过，按矩阵编号标注：
+
+| 测试文件 | 覆盖编号 |
+|---|---|
+| `phase13_resilience_smoke.py` | C8 / J3（collection 被外部删 → search []、count 0、remove 不卡死）|
+| `phase13_incr_summary_smoke.py` | D14 / H7（增量改深层文件，只重算祖先链摘要，旁系不动）|
+| `phase13_summary_modes_smoke.py` | H1（enabled=false 不产摘要、0 调用）/ H3（dir_recursive=false 只摘根）|
+| `phase13_zilliz_parity_smoke.py` | B2（Zilliz add→search→dir summary→remove，独立 per-ns collection）|
+| `cli/test_async_add.sh` | F1 / F2 / L1 / L2（异步 add 立即返回 + 后台 drain；`--wait` 阻塞）|
+| `phase13_lifecycle_smoke.py` | D1 / D4 / D7 / D12（无变化 0 工作、改、删、force-index cache 命中）|
+| `phase13_search_filters_smoke.py` | C4 / C5 / C6 / C7（--kind body/dir_summary、collapse、byte-range scope）+ HTTP ?kind= |
+| `phase13_security_smoke.py` | I1 / I2 / I7（401/healthz 放行；dsn/token/api_key/session_id/inline-URI 脱敏）|
+| `phase13_namespace_smoke.py` | B6 / G4（per_ns 隔离）/ G3（跨对象 embedding cache 复用）|
+| `phase13_dim_switch_smoke.py` | B8 / K2（换 embedding dim → 新 collection，旧的不动）|
+| `phase13_multi_connector_smoke.py` | G1 / G2 / F8（多 connector 共存/删除隔离/sync_already_running）|
+| `phase13_fault_injection_smoke.py` | J1 / J2 / J8 / F6（瞬时重试、致命不重试、部分失败、熔断）|
+| `phase13_readcmds_smoke.py` | E3 / E4 / M1 / M3 / M4（tail、export、cat --range、chunk_max=partial、grep 截断）|
+| `phase13_cs_fullstack_smoke.py` | B7（Zilliz + Postgres + S3 + summary 全栈一条龙）|
+
+随测试一并修掉的真实问题：
+- HTTP `/v1/search` 与 CLI 未透出 `--kind`（设计有，实现漏）→ 已补 `kind` + `--collapse`。
+- `chunk.default_chunk_max` 配置定义了却从未生效（per-object cap 硬编码 1_000_000）→ 已接线。
+- Milvus delete/query/search 在 collection 缺失时抛错卡住 remove → 已加 `has_collection` 守卫。
+- `MFS_SUMMARY_ENABLED` 环境变量（让目录摘要免配置文件开关，并保证测试不被全局 server.toml 污染）。
+
+**仍阻塞（需起服务）**：A13 Mongo 的 live e2e（mongod 未运行；连接器逻辑已由 `phase10_connectors_unit` 离线覆盖）。其余 S3/MySQL 后端的本机服务可用，已由 `phase11_s3` / `phase10_mysql` 覆盖。
