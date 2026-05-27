@@ -158,10 +158,23 @@ class FilePlugin(ConnectorPlugin):
                 while chunk := f.read(65536):
                     yield chunk
         else:
-            # line range for text
-            lines = real.read_text(errors="replace").splitlines(keepends=True)
-            for line in lines[range.start:range.end]:
-                yield line.encode()
+            # line range [start, end) — stream line-by-line; never read the whole file in
+            # (cat --range is the paging escape hatch for large files, so it must not OOM).
+            start, end = range.start, range.end
+            i = 0
+            buf = b""
+            with open(real, "rb") as f:
+                while chunk := f.read(65536):
+                    buf += chunk
+                    while (nl := buf.find(b"\n")) >= 0:
+                        line, buf = buf[:nl + 1], buf[nl + 1:]
+                        if start <= i < end:
+                            yield line
+                        i += 1
+                        if i >= end:
+                            return
+                if buf and start <= i < end:        # trailing line without a newline
+                    yield buf
 
     # --- fingerprint: content sha1 (accurate; stat uses size:mtime for fast check) ---
     async def fingerprint(self, path: str) -> Optional[str]:

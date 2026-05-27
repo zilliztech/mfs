@@ -269,7 +269,10 @@ class Engine:
     _SECRET_SUBSTRINGS = ("token", "secret", "password", "passwd", "apikey", "api_key",
                           "access_key", "private_key", "refresh", "credential",
                           "dsn", "session_id")
-    _CRED_REF_PREFIXES = ("env:", "secret:", "file:", "vault:")
+    # credential-reference schemes that are actually resolved (see _resolve_ref). Only these
+    # are treated as safe (kept, not redacted); anything else under a secret key is redacted,
+    # so an unimplemented scheme can't masquerade as a working ref and silently fail auth.
+    _CRED_REF_PREFIXES = ("env:", "file:")
     # a connection string carrying inline credentials: scheme://user:password@host…
     # (postgres://u:p@…, mongodb://u:p@…). A plain URL with no userinfo password is NOT
     # matched, so web targets / instance_url stay intact.
@@ -323,10 +326,20 @@ class Engine:
 
     @staticmethod
     def _resolve_ref(v):
-        """Resolve an `env:VAR` reference to its environment value (design/07 credential
-        ref). Non-ref values pass through unchanged."""
-        if isinstance(v, str) and v.startswith("env:"):
-            return os.environ.get(v[4:], "")
+        """Resolve a credential reference to its actual value (design/07): `env:VAR` ->
+        environment, `file:/path` -> the file's contents (k8s/docker secret mounts).
+        Non-ref values pass through unchanged. These are the only schemes _CRED_REF_PREFIXES
+        advertises, so a ref left unresolved (and silently used as a literal token) can't
+        happen."""
+        if isinstance(v, str):
+            if v.startswith("env:"):
+                return os.environ.get(v[4:], "")
+            if v.startswith("file:"):
+                try:
+                    with open(v[5:], encoding="utf-8") as f:
+                        return f.read().strip()
+                except OSError:
+                    return ""
         return v
 
     def _build_plugin(self, ctype: str, config: dict, connector_id: str):
