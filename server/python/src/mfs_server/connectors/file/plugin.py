@@ -7,6 +7,7 @@ inode/sha1 rename pairing, and declares full enumeration each run.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import mimetypes
 import os
@@ -86,13 +87,16 @@ class FilePlugin(ConnectorPlugin):
     def _rel(self, real: Path) -> str:
         return "/" + str(real.relative_to(self.root)).replace(os.sep, "/")
 
-    def _load_ignore(self) -> pathspec.PathSpec:
+    def _ignore_patterns(self) -> list[str]:
         lines = list(DEFAULT_IGNORE)
         for fname in (".gitignore", ".mfsignore"):
             f = self.root / fname
             if f.is_file():
                 lines += f.read_text(errors="ignore").splitlines()
-        return pathspec.PathSpec.from_lines("gitwildmatch", lines)
+        return lines
+
+    def _load_ignore(self) -> pathspec.PathSpec:
+        return pathspec.PathSpec.from_lines("gitwildmatch", self._ignore_patterns())
 
     # --- object_kind ---
     def object_kind_of(self, path: str) -> ObjectKind:
@@ -191,25 +195,13 @@ class FilePlugin(ConnectorPlugin):
                 h.update(chunk)
         return h.hexdigest()
 
-    def _scan(self, spec: pathspec.PathSpec) -> dict[str, os.stat_result]:
-        """Walk root, apply ignore, return {relpath: stat}. Raises on IO/permission
-        error (enumerate completely or raise)."""
-        out: dict[str, os.stat_result] = {}
-        for dirpath, dirnames, filenames in os.walk(self.root, onerror=_raise):
-            # prune ignored dirs in-place
-            kept = []
-            for d in dirnames:
-                rel = str((Path(dirpath) / d).relative_to(self.root)).replace(os.sep, "/") + "/"
-                if not spec.match_file(rel):
-                    kept.append(d)
-            dirnames[:] = kept
-            for fn in filenames:
-                real = Path(dirpath) / fn
-                rel = str(real.relative_to(self.root)).replace(os.sep, "/")
-                if spec.match_file(rel):
-                    continue
-                out["/" + rel] = real.stat()
-        return out
+    def _scan(self) -> dict[str, tuple[int, int, int]]:
+        """Walk root, apply gitignore-semantics ignore, return {relpath: (size, mtime_ns,
+        inode)} via the native accelerator (mfs_server_rs) or its pure-Python (os.walk +
+        pathspec) fallback. Raises on IO/permission error (enumerate completely or raise)."""
+        from ...common import accel
+        return {rel: (size, mtime_ns, inode)
+                for rel, size, mtime_ns, inode in accel.walk_tree(str(self.root), self._ignore_patterns())}
 
     # --- sync (core: stat-first + rename pairing) ---
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
@@ -238,8 +230,8 @@ class FilePlugin(ConnectorPlugin):
 
         self.ctx.declare_enumeration("full")        # file scans whole tree every time
 
-        spec = self._load_ignore()
-        current = self._scan(spec)
+        from ...common import accel
+        current = self._scan()
 
         # dry_run (estimate pre-flight): enumerate object URIs only — never
         # hash bytes and never touch file_state. Otherwise estimate would sha1 the whole
@@ -255,15 +247,25 @@ class FilePlugin(ConnectorPlugin):
 
         added: dict[str, tuple] = {}     # path -> (size, mtime_ns, inode, sha1)
         modified: dict[str, tuple] = {}
-        for path, st in current.items():
+        # pass 1: stat-first — only files whose (size, mtime) changed need a content hash
+        fsmap: dict[str, dict | None] = {}
+        need_hash: list[str] = []
+        for path, (size, mtime_ns, inode) in current.items():
             fs = await self.file_state.get(path)
-            if fs and not opts.full and fs["size"] == st.st_size and fs["mtime_ns"] == st.st_mtime_ns and fs["status"] == "indexed":
-                continue                                  # unchanged
-            sha1 = self._sha1(self._real(path))
+            fsmap[path] = fs
+            if fs and not opts.full and fs["size"] == size and fs["mtime_ns"] == mtime_ns and fs["status"] == "indexed":
+                continue                                  # unchanged, skip hashing
+            need_hash.append(path)
+        # batch the (parallel, GIL-released) content hashing of just the changed files
+        hashes = await asyncio.to_thread(accel.sha1_files, [str(self._real(p)) for p in need_hash])
+        for path in need_hash:
+            size, mtime_ns, inode = current[path]
+            fs = fsmap[path]
+            sha1 = hashes.get(str(self._real(path)))
             if fs and not opts.full and sha1 == fs["sha1"] and fs["status"] == "indexed":
-                await self.file_state.update_mtime(path, st.st_mtime_ns)   # mtime-touch only
+                await self.file_state.update_mtime(path, mtime_ns)         # mtime-touch only
                 continue
-            rec = (st.st_size, st.st_mtime_ns, st.st_ino, sha1)
+            rec = (size, mtime_ns, inode, sha1)
             if fs:
                 modified[path] = rec
             else:

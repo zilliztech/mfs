@@ -66,6 +66,55 @@ def linear_grep_file(path: str, pattern: str, case_insensitive: bool = False,
     return out
 
 
+def _walk_onerror(e: OSError):
+    raise e
+
+
+def walk_tree(root: str, patterns: list[str]) -> list[tuple[str, int, int, int]]:
+    """Recursive walk applying gitignore-semantics `patterns` (gitwildmatch lines). Returns
+    (relpath '/foo', size, mtime_ns, inode) per non-ignored file; ignored dirs are pruned.
+    The pure-Python fallback is exactly os.walk + pathspec (the connector's prior behavior),
+    so the native path is parity-checked against it."""
+    if HAVE_NATIVE:
+        return _rs.walk_tree(root, patterns or [])
+    import pathspec
+    spec = pathspec.PathSpec.from_lines("gitwildmatch", patterns or [])
+    out: list[tuple[str, int, int, int]] = []
+    for dirpath, dirnames, filenames in os.walk(root, onerror=_walk_onerror):
+        kept = []
+        for d in dirnames:
+            rel = os.path.relpath(os.path.join(dirpath, d), root).replace(os.sep, "/") + "/"
+            if not spec.match_file(rel):
+                kept.append(d)
+        dirnames[:] = kept
+        for fn in filenames:
+            full = os.path.join(dirpath, fn)
+            rel = os.path.relpath(full, root).replace(os.sep, "/")
+            if spec.match_file(rel):
+                continue
+            st = os.stat(full)
+            out.append(("/" + rel, st.st_size, st.st_mtime_ns, st.st_ino))
+    return out
+
+
+def sha1_files(paths: list[str]) -> dict[str, str | None]:
+    """Content sha1 (hex) of each path, in parallel natively (GIL released). Unreadable -> None."""
+    if HAVE_NATIVE:
+        return dict(_rs.sha1_files(list(paths)))
+    import hashlib
+    out: dict[str, str | None] = {}
+    for p in paths:
+        try:
+            h = hashlib.sha1()
+            with open(p, "rb") as f:
+                for chunk in iter(lambda: f.read(1 << 16), b""):
+                    h.update(chunk)
+            out[p] = h.hexdigest()
+        except OSError:
+            out[p] = None
+    return out
+
+
 def tail_lines(path: str, n: int = 20) -> list[str]:
     """Last n lines of a file, read backward from EOF so a huge file is never fully read
     in. Returns lines oldest->newest, without trailing '\\n'."""

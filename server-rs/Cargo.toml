@@ -15,6 +15,9 @@ walkdir = "2.5"
 regex = "1.10"
 serde_json = "1.0"
 memchr = "2.7"
+ignore = "0.4"
+rayon = "1.10"
+sha1 = "0.10"
 
 [profile.release]
 opt-level = 3

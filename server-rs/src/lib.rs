@@ -214,6 +214,72 @@ fn tail_lines(path: &str, n: usize) -> PyResult<Vec<String>> {
     Ok(sl[start..].iter().map(|s| s.to_string()).collect())
 }
 
+/// Recursive walk applying gitignore-semantics `patterns` (gitwildmatch lines, same as the
+/// file connector feeds pathspec). Returns (relpath '/foo', size, mtime_ns, inode) for each
+/// non-ignored file; ignored directories are pruned (not descended). Raises on IO error.
+#[pyfunction]
+fn walk_tree(root: &str, patterns: Vec<String>) -> PyResult<Vec<(String, u64, i64, u64)>> {
+    use ignore::gitignore::GitignoreBuilder;
+    use std::os::unix::fs::MetadataExt;
+    let mut gb = GitignoreBuilder::new(root);
+    for p in &patterns {
+        let _ = gb.add_line(None, p);
+    }
+    let gi = gb.build().map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let root_path = std::path::Path::new(root);
+    let mut out: Vec<(String, u64, i64, u64)> = Vec::new();
+    let walker = WalkDir::new(root).into_iter().filter_entry(|e| {
+        if e.depth() == 0 {
+            return true;        // the root itself is never matched/pruned
+        }
+        match e.path().strip_prefix(root_path) {
+            Ok(rel) => !gi.matched(rel, e.file_type().is_dir()).is_ignore(),
+            Err(_) => true,
+        }
+    });
+    for entry in walker {
+        let entry = entry.map_err(|e| PyIOError::new_err(e.to_string()))?;
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let md = entry.metadata().map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let rel = entry.path().strip_prefix(root_path).unwrap().to_string_lossy().replace('\\', "/");
+        let mtime_ns = md.modified().ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_nanos() as i64)
+            .unwrap_or(0);
+        out.push((format!("/{}", rel), md.len(), mtime_ns, md.ino()));
+    }
+    Ok(out)
+}
+
+fn sha1_one(path: &str) -> Option<String> {
+    use sha1::{Digest, Sha1};
+    use std::io::Read;
+    let mut f = fs::File::open(path).ok()?;
+    let mut hasher = Sha1::new();
+    let mut buf = [0u8; 1 << 16];
+    loop {
+        let n = f.read(&mut buf).ok()?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Some(format!("{:x}", hasher.finalize()))
+}
+
+/// Content sha1 (hex) of each path, hashed in parallel with the GIL released. Returns
+/// (path, Some(hex)) or (path, None) when unreadable. Order matches the input.
+#[pyfunction]
+fn sha1_files(py: Python<'_>, paths: Vec<String>) -> PyResult<Vec<(String, Option<String>)>> {
+    use rayon::prelude::*;
+    let res = py.allow_threads(|| {
+        paths.par_iter().map(|p| (p.clone(), sha1_one(p))).collect::<Vec<_>>()
+    });
+    Ok(res)
+}
+
 #[pymodule]
 fn mfs_server_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", "0.4.0")?;
@@ -222,5 +288,7 @@ fn mfs_server_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(jsonl_record_count, m)?)?;
     m.add_function(wrap_pyfunction!(jsonl_field_texts, m)?)?;
     m.add_function(wrap_pyfunction!(tail_lines, m)?)?;
+    m.add_function(wrap_pyfunction!(walk_tree, m)?)?;
+    m.add_function(wrap_pyfunction!(sha1_files, m)?)?;
     Ok(())
 }
