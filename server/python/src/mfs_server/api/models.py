@@ -24,7 +24,8 @@ class AddRequest(BaseModel):
                           "the CLI loads this from --config <file.toml>")
     full: bool = Field(False, description="force full re-index (ignore caches/fingerprints)")
     since: Optional[str] = Field(None, description="only index changes since this cursor/date")
-    process: bool = Field(True, description="True: index inline now; False: enqueue for a worker")
+    process: bool = Field(False, description="False (default): enqueue and return the job_id immediately "
+                                             "(poll GET /v1/jobs/{id}); True: index inline and return when done")
     update: bool = Field(False, description="apply config to an existing connector (connector update); add ignores it")
 
 

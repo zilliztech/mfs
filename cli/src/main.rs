@@ -32,9 +32,9 @@ enum Cmd {
         /// Force full re-index (ignore caches/fingerprints)
         #[arg(long, visible_alias = "full")]
         force_index: bool,
-        /// Enqueue for a worker instead of indexing inline
+        /// Block until indexing finishes (poll the job); default returns immediately
         #[arg(long)]
-        no_process: bool,
+        wait: bool,
         /// Bundle + upload the tree to the server even on the same host (no shared fs)
         #[arg(long)]
         upload: bool,
@@ -347,7 +347,7 @@ fn main() {
 
 fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), String> {
     match &cli.cmd {
-        Cmd::Add { target, config, since, force_index, no_process, upload, force_upload, no_upload, yes } => {
+        Cmd::Add { target, config, since, force_index, wait, upload, force_upload, no_upload, yes } => {
             let is_local = std::path::Path::new(target).exists();
             // zero-billing estimate + confirm before indexing an external connector
             //: the user sees physical work before any embedding spend.
@@ -382,17 +382,28 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             } else {
                 false
             };
-            if do_upload {
+            // add is async: the server enqueues and returns a job_id immediately; the
+            // worker (in-process for the single-binary, dedicated in CS) drains it in the
+            // background. --wait polls the job to completion for scripts/CI that must block.
+            let job_id = if do_upload {
                 // --force-upload re-sends every file AND forces a re-index; --force-index
                 // alone re-indexes the already-staged tree without re-sending bytes.
-                return upload_path(client, base, target, !no_process,
-                                   *force_index || *force_upload, *force_upload, cli.json);
+                upload_path(client, base, target,
+                            *force_index || *force_upload, *force_upload, cli.json)?
+            } else {
+                let mut body = serde_json::json!({"target": target, "full": force_index, "process": false});
+                if let Some(c) = config { body["config"] = load_config_file(c)?; }
+                if let Some(s) = since { body["since"] = Value::String(s.clone()); }
+                let v = post(client, &format!("{base}/v1/add"), &body)?;
+                v["job_id"].as_str().unwrap_or("").to_string()
+            };
+            if *wait {
+                wait_for_job(client, base, &job_id, cli.json)?;
+            } else if cli.json {
+                println!("{}", serde_json::json!({"job_id": job_id}));
+            } else {
+                println!("queued (job {job_id}). Worker running in background — run `mfs status` to check progress.");
             }
-            let mut body = serde_json::json!({"target": target, "full": force_index, "process": !no_process});
-            if let Some(c) = config { body["config"] = load_config_file(c)?; }
-            if let Some(s) = since { body["since"] = Value::String(s.clone()); }
-            let v = post(client, &format!("{base}/v1/add"), &body)?;
-            if cli.json { println!("{v}"); } else { println!("job: {}", v["job_id"].as_str().unwrap_or("?")); }
         }
         Cmd::Search { query, path, all, mode, top_k } => {
             if path.is_none() && !all {
@@ -602,7 +613,7 @@ fn sha1_file(path: &std::path::Path) -> Result<String, String> {
 /// needed files + pair renames by (inode,size,sha1) -> PUT /v1/files/upload a tar.gz
 /// carrying `.mfs-meta.json` + only the changed bytes. The client keeps no state.
 fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
-               process: bool, full: bool, resend_all: bool, json: bool) -> Result<(), String> {
+               full: bool, resend_all: bool, json: bool) -> Result<String, String> {
     use std::io::Write;
     let root = std::path::Path::new(target);
     let client_id = client_id();        // stable UUID identity, not the hostname
@@ -686,16 +697,37 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
 
     let resp = with_auth(client.put(format!("{base}/v1/files/upload"))
         .query(&[("client_id", client_id.as_str()), ("root", abs_root.as_str()),
-                 ("process", &process.to_string()), ("full", &full.to_string())])
+                 ("process", "false"), ("full", &full.to_string())])
         .body(data)).send().map_err(|e| e.to_string())?;
     let v = parse(resp)?;
-    if json { println!("{v}"); }
-    else {
-        println!("uploaded {} changed, {} renamed, {} deleted -> job {}",
-                 need.len() - renamed_new.len(), renames.len(), deletions.len(),
-                 v["job_id"].as_str().unwrap_or("?"));
+    if !json {
+        println!("uploaded {} changed, {} renamed, {} deleted",
+                 need.len() - renamed_new.len(), renames.len(), deletions.len());
     }
-    Ok(())
+    Ok(v["job_id"].as_str().unwrap_or("").to_string())
+}
+
+/// Poll a sync job to a terminal state (for `mfs add --wait`). The HTTP request itself is
+/// short — we never hold a long connection open, so a slow index can't time the client out.
+fn wait_for_job(client: &reqwest::blocking::Client, base: &str, job_id: &str, json: bool) -> Result<(), String> {
+    loop {
+        let v = get(client, &format!("{base}/v1/jobs/{job_id}"), &[])?;
+        match v["status"].as_str().unwrap_or("") {
+            "succeeded" => {
+                if json { println!("{v}"); }
+                else { println!("done: {} of {} objects indexed, {} failed",
+                                v["succeeded_objects"].as_i64().unwrap_or(0),
+                                v["total_objects"].as_i64().unwrap_or(0),
+                                v["failed_objects"].as_i64().unwrap_or(0)); }
+                return Ok(());
+            }
+            "failed" | "cancelled" => {
+                return Err(format!("job {}: {}", v["status"].as_str().unwrap_or("?"),
+                                   v["error"].as_str().unwrap_or("")));
+            }
+            _ => std::thread::sleep(std::time::Duration::from_millis(1000)),
+        }
+    }
 }
 
 /// Load a connector config TOML file and convert it to a JSON value for the /v1/add body.

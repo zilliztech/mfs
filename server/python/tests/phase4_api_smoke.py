@@ -6,6 +6,7 @@ search (hybrid) -> grep -> ls -> cat -> status -> job. Lite backend, temp paths.
 import os
 import shutil
 import tempfile
+import time
 
 from fastapi.testclient import TestClient
 
@@ -45,12 +46,20 @@ def main():
             r = client.get("/v1/server/info")
             check("GET /v1/server/info 200", r.status_code == 200 and r.json()["version"] == "0.4.0")
 
+            # add is async: returns a job_id immediately; the in-process worker (sqlite)
+            # drains it in the background, so poll the job to completion before searching.
             r = client.post("/v1/add", json={"target": root})
             check("POST /v1/add returns job_id", r.status_code == 200 and "job_id" in r.json())
             job_id = r.json()["job_id"]
 
-            r = client.get("/v1/jobs/" + job_id)
-            check("GET /v1/jobs/{id} succeeded", r.status_code == 200 and r.json()["status"] == "succeeded")
+            status = None
+            for _ in range(120):
+                jr = client.get("/v1/jobs/" + job_id).json()
+                status = jr["status"]
+                if status in ("succeeded", "failed", "cancelled"):
+                    break
+                time.sleep(0.5)
+            check("GET /v1/jobs/{id} succeeded (async drain)", status == "succeeded")
 
             r = client.get("/v1/search", params={"q": "user sessions storage", "path": root, "mode": "hybrid", "top_k": 5})
             res = r.json()["results"]
