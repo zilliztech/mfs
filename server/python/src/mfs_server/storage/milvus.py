@@ -15,6 +15,12 @@ from pymilvus import AnnSearchRequest, DataType, Function, FunctionType, MilvusC
 
 from ..config import ServerConfig
 
+# Bump whenever _build_schema changes in a way the previous layout can't serve (new/renamed
+# field, changed BM25 function, etc.). It is baked into the collection name together with the
+# embedding dim, so a build always targets a collection built for ITS schema/model and never
+# silently reuses an incompatible one written by a different version (migrations out of scope).
+_COLLECTION_SCHEMA_VERSION = 2
+
 
 def _lit(v: str) -> str:
     """Escape a value for a double-quoted Milvus expr literal. connector_uri/object_uri
@@ -42,9 +48,13 @@ class MilvusStore:
         return not self.uri.startswith("http")
 
     def resolve_collection(self, namespace_id: str) -> str:
+        # version + dim suffix isolates incompatible schemas/models: switching embedding
+        # model (dim) or bumping the schema version targets a fresh collection instead of
+        # writing into one whose dense_vec dim or fields no longer match.
+        suffix = f"v{_COLLECTION_SCHEMA_VERSION}_d{self.dim}"
         if self.strategy == "per_namespace":
-            return f"mfs_chunks__{namespace_id}"
-        return "mfs_chunks"
+            return f"mfs_chunks__{namespace_id}__{suffix}"
+        return f"mfs_chunks__{suffix}"
 
     def _build_schema(self):
         assert self.client is not None

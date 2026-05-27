@@ -147,7 +147,9 @@ SQLITE_DDL = [
     "CREATE INDEX IF NOT EXISTS ix_file_state_staged ON file_state (namespace_id, connector_id, status) WHERE status = 'staged'",
 ]
 
-CURRENT_SCHEMA_VERSION = 1
+# Bump on any incompatible metadata DDL change. init_schema fails fast (rather than
+# silently no-op'ing CREATE IF NOT EXISTS) when an existing DB records a different version.
+CURRENT_SCHEMA_VERSION = 2
 
 
 def _to_pg_ddl(ddl: str) -> str:
@@ -199,22 +201,37 @@ class MetadataStore:
         await self._db.execute("PRAGMA foreign_keys=ON")
         await self._db.commit()
 
+    @staticmethod
+    def _guard_schema_version(existing: set) -> None:
+        """Fail fast when this metadata DB was written by a build with a different schema
+        (migrations are out of scope, so we detect rather than silently mismatch): an empty
+        set is a fresh DB, exactly {CURRENT} is a match, anything else is incompatible."""
+        if existing and existing != {CURRENT_SCHEMA_VERSION}:
+            raise RuntimeError(
+                f"metadata schema mismatch: DB is version {sorted(existing)}, this build "
+                f"expects {CURRENT_SCHEMA_VERSION}. The schema changed across MFS versions "
+                f"and migrations are out of scope — point MFS_HOME / the metadata DSN at a "
+                f"fresh database (or drop the existing one).")
+
     async def init_schema(self) -> None:
         if self.is_pg:
             async with self._pool.acquire() as c:
                 for ddl in SQLITE_DDL:
                     await c.execute(_to_pg_ddl(ddl))
-                exists = await c.fetchval(
-                    "SELECT 1 FROM schema_version WHERE version = $1", CURRENT_SCHEMA_VERSION)
-                if exists is None:
+                rows = await c.fetch("SELECT version FROM schema_version")
+                existing = {r["version"] for r in rows}
+                self._guard_schema_version(existing)
+                if not existing:
                     await c.execute("INSERT INTO schema_version (version) VALUES ($1)",
                                     CURRENT_SCHEMA_VERSION)
             return
         assert self._db is not None
         for ddl in SQLITE_DDL:
             await self._db.execute(ddl)
-        cur = await self._db.execute("SELECT version FROM schema_version WHERE version = ?", (CURRENT_SCHEMA_VERSION,))
-        if await cur.fetchone() is None:
+        cur = await self._db.execute("SELECT version FROM schema_version")
+        existing = {r[0] for r in await cur.fetchall()}
+        self._guard_schema_version(existing)
+        if not existing:
             await self._db.execute("INSERT INTO schema_version (version) VALUES (?)", (CURRENT_SCHEMA_VERSION,))
         await self._db.commit()
 
