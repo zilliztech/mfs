@@ -172,6 +172,48 @@ fn jsonl_field_texts(path: &str, fields: Vec<String>, max_records: usize) -> PyR
     Ok(out)
 }
 
+/// Last `n` lines of a file, read backward from EOF in chunks so a huge file is never
+/// fully materialized (the point of `tail`). Returns lines oldest->newest, no trailing '\n'.
+#[pyfunction]
+#[pyo3(signature = (path, n = 20))]
+fn tail_lines(path: &str, n: usize) -> PyResult<Vec<String>> {
+    use std::io::{Read, Seek, SeekFrom};
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+    let mut file = fs::File::open(path).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let size = file.seek(SeekFrom::End(0)).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let mut buf: Vec<u8> = Vec::new();
+    let mut pos = size;
+    let chunk = 65536u64;
+    // read backward until we've seen n newlines beyond the final one, or hit the start
+    while pos > 0 {
+        let read = chunk.min(pos);
+        pos -= read;
+        file.seek(SeekFrom::Start(pos)).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let mut tmp = vec![0u8; read as usize];
+        file.read_exact(&mut tmp).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let mut merged = tmp;
+        merged.extend_from_slice(&buf);
+        buf = merged;
+        // a trailing newline doesn't start a new line, so we need n+1 newlines to bound n lines
+        if buf.iter().filter(|&&b| b == b'\n').count() > n {
+            break;
+        }
+    }
+    let text = String::from_utf8_lossy(&buf);
+    let lines: Vec<&str> = text.split('\n').collect();
+    // drop a trailing empty element produced by a final newline
+    let mut sl: &[&str] = &lines;
+    if let Some(last) = sl.last() {
+        if last.is_empty() {
+            sl = &sl[..sl.len() - 1];
+        }
+    }
+    let start = sl.len().saturating_sub(n);
+    Ok(sl[start..].iter().map(|s| s.to_string()).collect())
+}
+
 #[pymodule]
 fn mfs_server_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", "0.4.0")?;
@@ -179,5 +221,6 @@ fn mfs_server_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(linear_grep_file, m)?)?;
     m.add_function(wrap_pyfunction!(jsonl_record_count, m)?)?;
     m.add_function(wrap_pyfunction!(jsonl_field_texts, m)?)?;
+    m.add_function(wrap_pyfunction!(tail_lines, m)?)?;
     Ok(())
 }

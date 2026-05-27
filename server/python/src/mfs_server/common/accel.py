@@ -66,6 +66,30 @@ def linear_grep_file(path: str, pattern: str, case_insensitive: bool = False,
     return out
 
 
+def tail_lines(path: str, n: int = 20) -> list[str]:
+    """Last n lines of a file, read backward from EOF so a huge file is never fully read
+    in. Returns lines oldest->newest, without trailing '\\n'."""
+    if n <= 0:
+        return []
+    if HAVE_NATIVE:
+        return _rs.tail_lines(path, n)
+    buf = b""
+    with open(path, "rb") as f:
+        f.seek(0, os.SEEK_END)
+        pos = f.tell()
+        chunk = 65536
+        while pos > 0 and buf.count(b"\n") <= n:
+            read = min(chunk, pos)
+            pos -= read
+            f.seek(pos)
+            buf = f.read(read) + buf
+    text = buf.decode("utf-8", errors="replace")
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines = lines[:-1]
+    return lines[-n:]
+
+
 def jsonl_record_count(path: str) -> int:
     if HAVE_NATIVE:
         return _rs.jsonl_record_count(path)

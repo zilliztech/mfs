@@ -1947,9 +1947,26 @@ class Engine:
         return "\n".join(text.splitlines()[:n])
 
     async def tail(self, path: str, n: int = 20) -> str:
-        text = await self._read_full(path)
-        # guard n<=0: lines[-0:] is lines[0:] (the whole file), not an empty tail
-        return "\n".join(text.splitlines()[-n:] if n > 0 else [])
+        if n <= 0:
+            return ""
+        # plain-text real local file: read the last n lines straight off disk (native
+        # accelerator / bounded reverse-read), so a huge log isn't fully materialized.
+        # Artifact-backed (pdf/docx/html, web/github) and structured objects fall back.
+        from ..common import accel
+        cid, curi, rel, plugin = await self._open_path(path)
+        try:
+            okind = plugin.object_kind_of(rel)
+            ext = os.path.splitext(rel)[1].lower()
+            plain_local = (curi.startswith("file://local") and okind not in (
+                "image", "table_rows", "record_collection", "message_stream", "table_schema")
+                and ext not in CONVERT_EXTS)
+            abs_file = (curi.replace("file://local", "", 1) + rel) if plain_local else None
+        finally:
+            await plugin.close()
+        if abs_file and os.path.isfile(abs_file):
+            return "\n".join(await asyncio.to_thread(accel.tail_lines, abs_file, n))
+        text = await self._read_full(path)        # artifact-backed / structured / non-local
+        return "\n".join(text.splitlines()[-n:])
 
     async def grep(self, pattern: str, path: str, top_k: int = 100, regex: bool = False) -> list[dict]:
         """Dispatch: pushdown (file: none) -> BM25 (indexed scope) -> linear scan
