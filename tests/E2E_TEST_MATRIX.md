@@ -386,3 +386,29 @@ D = Milvus{Lite,Zilliz} × meta{sqlite,PG} × store{local,S3} × embed{OAI,onnx}
 - **R-Wave B（目录摘要边界）**：R4.1/4.3/4.5/4.6、R5.1/5.4。
 - **R-Wave C（配置/凭据/cache）**：R7.1/7.2/7.4、R8.1。
 - **R-Wave D（服务）**：R6.4 Mongo live（Docker）。
+
+---
+
+# 第三轮 · 数据库连接器深度 + 服务解锁
+
+用 Docker 起了 Mongo (`mfs-mongo`) 和 BigQuery 模拟器 (`mfs-bq`, goccy/bigquery-emulator)，把数据库类连接器测到 postgres 深度。
+
+| 测试 | 覆盖 |
+|---|---|
+| `phase13_pg_deep_smoke.py` | postgres: schema_summary、cat --locator 读回 + 缺失报错、NULL/JSONB 列、增量改/删 |
+| `phase13_mysql_deep_smoke.py` | mysql: 同上（独立 id 段避开共享库 tickets 表碰撞）|
+| `phase13_mongo_deep_smoke.py` | mongo: 同上 |
+| `phase13_bigquery_smoke.py` | bigquery: 经模拟器 add→index→schema_summary→search→cat --locator |
+| `phase13_zendesk_smoke.py` | zendesk: 真实 dev 账号 seed→index→search→cat --locator→清理 |
+
+随之修掉/新增的：
+- **schema_summary 全连接器都不产**（sync 从不 emit schema.json）→ 给 postgres/mysql/mongo/bigquery 接线（read_records + sync + fingerprint），schema_summary 现在真出。
+- **read_records 提前 break 泄漏连接**：cat --locator / cat --range / 结构化索引 chunk_max 截断时不关闭异步生成器，asyncpg 持有 cursor+transaction → pool.close() 卡 60s。改用 `aclosing` / `aclose` 确定性释放。
+- **mysql 密码无法 reopen**：password 只能来自被脱敏的 config 字段 → 任何 reopen（cat/worker 重同步）失败。改成回退 `self.credential`（credential_ref），与 postgres dsn / mongo uri 一致。
+- **bigquery 改用 list_rows**：原本用 `SELECT *` query（真 BQ 计费、模拟器卡 job 轮询）→ 改 tabledata.list，无 job、支持 range pushdown、模拟器兼容；并加 `endpoint` 配置（自托管/模拟器）。
+
+服务依赖（Docker，可重起）：
+- Mongo：`sudo docker run -d --name mfs-mongo -p 27017:27017 mongo:7`
+- BigQuery 模拟器：`sudo docker run -d --name mfs-bq -p 9050:9050 ghcr.io/goccy/bigquery-emulator:latest --project=mfstest --dataset=tickets_ds`
+
+仍需真实云账号才能 live 的：snowflake（无本地版）、各 SaaS（slack/gmail/notion/jira/salesforce/linear/hubspot/discord/feishu/gdrive）。其连接器逻辑由 `phase10_connectors_unit` 离线覆盖。
