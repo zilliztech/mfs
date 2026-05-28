@@ -35,6 +35,7 @@ import re
 from collections.abc import AsyncIterator
 from typing import Optional
 
+import httpx
 import lark_oapi as lark
 from lark_oapi.api.docx.v1 import GetDocumentRequest, RawContentDocumentRequest
 from lark_oapi.api.drive.v1 import ListFileRequest
@@ -83,6 +84,8 @@ class FeishuPlugin(ConnectorPlugin):
         super().__init__(config, credential, ctx=ctx)
         self._client = None
         self._user_token: Optional[str] = None    # set when auth = "user"
+        self._app_id: Optional[str] = None        # cached from config / oauth.json blob
+        self._app_secret: Optional[str] = None    # used for tenant_access_token mint
 
     def _cfg(self, k, d=None):
         return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
@@ -129,6 +132,7 @@ class FeishuPlugin(ConnectorPlugin):
             from .oauth import refresh_user_token
             tok = await asyncio.to_thread(refresh_user_token, app_id, app_secret, refresh)
             self._user_token = tok["access_token"]
+            self._app_id, self._app_secret = app_id, app_secret
             # CRITICAL: persist the rotated refresh_token immediately. Feishu revokes the
             # old one the moment it issued the new one — if we crash before writing this
             # back, the next connect can't authenticate and the user has to redo the
@@ -148,10 +152,12 @@ class FeishuPlugin(ConnectorPlugin):
             return
 
         # Default: tenant (bot) identity.
+        self._app_id = self._cfg("app_id")
+        self._app_secret = self._cfg("app_secret") or self.credential
         def build():
             return lark.Client.builder() \
-                .app_id(self._cfg("app_id")) \
-                .app_secret(self._cfg("app_secret") or self.credential) \
+                .app_id(self._app_id) \
+                .app_secret(self._app_secret) \
                 .build()
         self._client = await asyncio.to_thread(build)
 
@@ -165,16 +171,67 @@ class FeishuPlugin(ConnectorPlugin):
     def _parts(self, path: str) -> list[str]:
         return [p for p in path.strip("/").split("/") if p]
 
+    def _access_token(self) -> str:
+        """Return the right access_token for the current auth mode. Used by raw httpx
+        calls to endpoints lark-oapi doesn't wrap (e.g. chat_p2p/batch_query)."""
+        if self._user_token:
+            return self._user_token
+        # tenant mode — mint a tenant_access_token via /auth/v3/internal
+        r = httpx.post(
+            "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
+            json={"app_id": self._app_id, "app_secret": self._app_secret}, timeout=15)
+        return r.json()["tenant_access_token"]
+
+    async def _resolve_p2p_chats(self, partner_open_ids: list[str]) -> list[dict]:
+        """Reverse-look p2p chat_ids from partner open_ids. Returns
+        [{chat_id, chatter_id1, chatter_id2}, ...]. Calls
+        POST /open-apis/im/v1/chat_p2p/batch_query — endpoint not wrapped by the
+        lark-oapi SDK, so we hit HTTP directly. Endpoint shape
+        (chatter_id_type / chatter_ids / response p2p_chats[]) verified against
+        larksuite-cli source (shortcuts/im/helpers.go).
+        """
+        if not partner_open_ids:
+            return []
+        token = await asyncio.to_thread(self._access_token)
+        def fetch():
+            return httpx.post(
+                "https://open.feishu.cn/open-apis/im/v1/chat_p2p/batch_query",
+                headers={"Authorization": f"Bearer {token}",
+                         "Content-Type": "application/json"},
+                params={"chatter_id_type": "open_id"},
+                json={"chatter_ids": list(partner_open_ids)}, timeout=20)
+        r = await asyncio.to_thread(fetch)
+        if r.status_code >= 400:
+            raise RuntimeError(
+                f"feishu chat_p2p/batch_query failed: {r.status_code} {r.text[:200]}")
+        body = r.json()
+        if body.get("code") != 0:
+            raise RuntimeError(
+                f"feishu chat_p2p/batch_query: code={body.get('code')} msg={body.get('msg')}")
+        return [
+            {"chat_id": p.get("chat_id"),
+             "chatter_id1": p.get("chatter_id1"),
+             "chatter_id2": p.get("chatter_id2")}
+            for p in (body.get("data", {}).get("p2p_chats") or [])
+            if p.get("chat_id")
+        ]
+
     async def _chats(self) -> list[dict]:
-        """Enumerate chats from two sources, de-duped by chat_id:
+        """Enumerate chats from three sources, de-duped by chat_id:
 
         1. `chat.list` — caller's group chats (tenant mode: bot's groups; user mode:
            user's groups). Excludes p2p chats by Feishu's API design — even with user
            token and im:chat:readonly, p2p single chats are NEVER returned here.
 
-        2. `extra_chats` config — user-supplied list of `{chat_id, label}` entries.
-           The only path to index p2p chats: user finds the chat_id in the Feishu
-           web URL (https://xxx.feishu.cn/messenger/oc_xxx), pastes it in config.
+        2. `extra_chats[].chat_id` — user-supplied literal chat_ids. The escape
+           hatch for any chat the user already knows the chat_id of.
+
+        3. `extra_chats[].partner_open_id` — auto-resolve p2p chat_ids by looking
+           up the chat the caller has with each partner via
+           `chat_p2p/batch_query`. Friendlier than asking the user to dig out
+           `oc_xxx` chat_ids — they only need the partner's `ou_xxx` open_id (which
+           is on every contact's Feishu profile, and the bot's own open_id is in the
+           developer console).
         """
         def run():
             req = ListChatRequest.builder().build()
@@ -183,15 +240,35 @@ class FeishuPlugin(ConnectorPlugin):
                 raise RuntimeError(f"feishu chat.list failed: code={resp.code} msg={resp.msg}")
             return [{"chat_id": c.chat_id, "name": c.name} for c in (resp.data.items or [])]
         chats = await asyncio.to_thread(run)
-        by_id = {c["chat_id"]: c for c in chats}
-        # merge in user-supplied extras (overrides label if there's a name conflict)
+        by_id: dict[str, dict] = {c["chat_id"]: c for c in chats}
+
+        # Literal chat_ids — wins over chat.list (the user knows best)
+        literal_partner_oids: list[str] = []
+        partner_label: dict[str, str] = {}
         for ex in (self._cfg("extra_chats") or []):
             if not isinstance(ex, dict):
                 continue
             cid = ex.get("chat_id")
-            if not cid:
-                continue
-            by_id[cid] = {"chat_id": cid, "name": ex.get("label") or cid}
+            if cid:
+                by_id[cid] = {"chat_id": cid, "name": ex.get("label") or cid}
+            elif ex.get("partner_open_id"):
+                oid = ex["partner_open_id"]
+                literal_partner_oids.append(oid)
+                if ex.get("label"):
+                    partner_label[oid] = ex["label"]
+
+        # Auto-resolve partner open_ids -> chat_ids via chat_p2p/batch_query
+        if literal_partner_oids:
+            resolved = await self._resolve_p2p_chats(literal_partner_oids)
+            requested = set(literal_partner_oids)
+            for p in resolved:
+                cid = p["chat_id"]
+                # the partner is whichever chatter_id is NOT us
+                partner = p["chatter_id1"] if p["chatter_id1"] in requested \
+                    else (p["chatter_id2"] if p["chatter_id2"] in requested else None)
+                label = partner_label.get(partner) or partner or cid
+                by_id[cid] = {"chat_id": cid, "name": label}
+
         return list(by_id.values())
 
     @staticmethod

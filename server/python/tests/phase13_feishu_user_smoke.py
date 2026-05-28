@@ -27,8 +27,8 @@ OK, FAIL = "\033[32mOK\033[0m", "\033[31mFAIL\033[0m"
 results = []
 
 DOC_TOKEN = "ZsnVdP2IaoJei1xpIqScnZ64nqg"          # the user's test docx (shared with bot earlier)
-EXTRA_CHAT_ID = "oc_efc1ce35c096f645d7b0dc2d879b7e65"   # user's p2p with the bot, discovered via
-                                                       # `/open-apis/im/v1/chat_p2p/batch_query`
+EXTRA_CHAT_ID = "oc_efc1ce35c096f645d7b0dc2d879b7e65"   # user's p2p with the bot (literal chat_id form)
+BOT_OPEN_ID  = "ou_60bcd808fec6049eaece331df5fe3d72"    # bot's open_id (partner_open_id auto-resolve form)
 OAUTH_FILE = pathlib.Path.home() / ".feishu" / "oauth.json"
 
 
@@ -61,11 +61,16 @@ async def main():
         "auth": "user",
         "oauth_state_file": str(OAUTH_FILE),
         "extra_docs": [{"token": DOC_TOKEN, "label": "1M-context-claude-code"}],
-        # P1.5: p2p chat_id discovered via chat_p2p/batch_query. user-mode + the
-        # im:message.p2p_msg:get_as_user scope lets us read this conversation.
-        # No `[[objects]]` block — the `feishu.messages` PRESET (in connectors/base.py)
-        # auto-applies text_fields=["text"] etc. for any /chats/*/messages.jsonl.
-        "extra_chats": [{"chat_id": EXTRA_CHAT_ID, "label": "DM-with-bot"}],
+        # P1.5: extra_chats covers two forms — literal chat_id (fast path, when
+        # the user already knows it), and partner_open_id (auto-resolved via
+        # chat_p2p/batch_query on connect). Both should resolve to the SAME
+        # p2p chat between this user and the bot; dedup by chat_id collapses them.
+        # The PRESET (`feishu.messages`) handles text_fields/group_by, so no
+        # [[objects]] block is needed.
+        "extra_chats": [
+            {"chat_id": EXTRA_CHAT_ID, "label": "DM-with-bot (literal)"},
+            {"partner_open_id": BOT_OPEN_ID, "label": "DM-with-bot (auto-resolved)"},
+        ],
     }
     try:
         eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
