@@ -146,7 +146,6 @@ class ObjectConfig:
     index_filter: Optional[str] = None     # restricted AST expr (NOT eval)
     text_template: Optional[str] = None
     group_by: Optional[str] = None
-    session_idle_min: Optional[int] = None
     chunk_window: Optional[str] = None     # windowed, e.g. "30d"
     sample_rate: Optional[float] = None    # sampled, e.g. 0.01
     max_text_chars: Optional[int] = None
@@ -164,11 +163,11 @@ PRESETS: dict[str, dict] = {
         metadata_fields=["state", "draft", "labels[*]", "author", "merged_at", "updated_at"],
         locator_fields=["number"], chunk_strategy="per_row"),
     "slack.messages": dict(
-        chunk_strategy="per_group", group_by="thread_ts", session_idle_min=10,
+        chunk_strategy="per_group", group_by="thread_ts",
         text_fields=["text"], metadata_fields=["channel", "user", "ts"],
         locator_fields=["thread_ts"]),
     "discord.messages": dict(
-        chunk_strategy="per_group", group_by="thread_id", session_idle_min=10,
+        chunk_strategy="per_group", group_by="thread_id",
         text_fields=["content"], metadata_fields=["channel_id", "author", "timestamp"],
         locator_fields=["thread_id"]),
     "gmail.messages": dict(
