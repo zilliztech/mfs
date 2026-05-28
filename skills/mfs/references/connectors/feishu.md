@@ -2,28 +2,42 @@
 
 ## What this is
 
-Feishu (a.k.a. Lark, ByteDance's enterprise messenger) group chats. Uses
-the official `lark-oapi` Python SDK (sync builder API, wrapped in
-`asyncio.to_thread`). Each group chat's messages are a `message_stream`;
-engine groups by `thread_id` (with `root_id` / per-message fallback) and
-emits thread-aggregate chunks.
+Feishu (a.k.a. Lark, ByteDance's enterprise messenger) — group chats AND docx
+documents. Uses the official `lark-oapi` Python SDK (sync builder API,
+wrapped in `asyncio.to_thread`). Two object kinds in one connector:
 
-**When MFS helps**: Feishu-heavy org with project chats, sales/support
-chats, knowledge-channel discussions. Semantic search over the chat
-archive is otherwise painful — Feishu's built-in search is keyword + recent.
+- **Group messages** — each chat's messages are a `message_stream`; engine
+  groups by `thread_id` and emits thread-aggregate chunks (with size-bounded
+  sub-chunking for long threads, see SKILL.md).
+- **Docx documents** — each accessible doc is a `document` indexed by its
+  body text. Discovery via a shared folder OR explicit per-doc tokens.
+
+**When MFS helps**: Feishu-heavy org with project chats + a body of docx
+knowledge-base material. Semantic search over both stays cross-referenced
+under one connector handle.
+
+**Known limit**: p2p single chats are NOT enumerable via REST (Feishu's
+`chat.list` API explicitly excludes them). Webhook subscription would close
+this gap; tracked as a future enhancement.
 
 ## URI shape
 
 ```
-feishu://<alias>/                                           connector root
-feishu://<alias>/chats/                                     group chats the app is in
-feishu://<alias>/chats/<name>__<chat-id>/messages.jsonl     lazy message stream
+feishu://<alias>/                                            connector root
+feishu://<alias>/chats/                                      group chats the app is a member of
+feishu://<alias>/chats/<name>__<chat-id>/messages.jsonl      lazy message stream
+feishu://<alias>/docs/                                       docx documents discovered for indexing
+feishu://<alias>/docs/<title>__<doc-token>.md                rendered document body (text)
 ```
 
 Each message has `{message_id, msg_type, create_time, sender, thread_id,
 text}`. The `text` is extracted from `text` / `post` message bodies; rich
-content like images, files, cards is currently summarised to their
-placeholder form (e.g. `[image]`).
+content like images, files, cards is summarised to their placeholder form
+(e.g. `[image]`).
+
+Each docx is fetched via `docx.v1.document.raw_content` (plain text body —
+line breaks preserved, most formatting dropped; chunked via chonkie
+RecursiveChunker for search).
 
 ## Auth — App credentials (app_id + app_secret)
 
@@ -44,10 +58,15 @@ gloss in parentheses for users on the Feishu side.
    - `im:message:read_only` — read messages in chats the app is in
    - `im:chat:read_only` — list / inspect chats
    - `contact:user.id:read_only` — resolve sender IDs (optional)
+   - `drive:drive:readonly` — list files in shared folders (for docs)
+   - `docx:document:readonly` — read docx body content
 4. Version Management & Release (版本管理与发布) → Create Version (创建版本) →
    Submit for Review (申请上线) → wait for admin approval (管理员审核).
-5. **In each target chat**, invite the app as a member (the app must be a
-   chat member to read its messages).
+5. For chats: in each target group chat, invite the app as a member (the app
+   must be a chat member to read its messages).
+6. For docs: share either a FOLDER (preferred) or individual docx files with
+   the app via the doc's "..." → "添加协作者" → select the app. See the
+   discovery section below.
 
 The SDK manages `tenant_access_token` exchange — we provide app_id /
 app_secret, it handles the OAuth-like dance internally.
@@ -61,6 +80,19 @@ credential_ref = "env:FEISHU_APP_SECRET"
 
 # ─── optional ───
 # max_read_rows = 50000
+
+# ─── docs discovery (pick one or both) ───
+# Folder model (recommended): user creates a folder in Drive, shares it with the
+# bot, drops docx files in. The bot recursively enumerates the folder on every sync.
+# Find the folder_token in the Drive URL: https://xxx.feishu.cn/drive/folder/<TOKEN>
+# docs_folder_token = "fldcnXXXXX"
+
+# Explicit list: for docs outside the folder, share each with the bot individually
+# ("..." -> "添加协作者") and list its token here. Find it in the doc URL:
+# https://xxx.feishu.cn/docx/<TOKEN>
+# extra_docs = [
+#   { token = "ZsnVdP2IaoJei1xpIqScnZ64nqg", label = "Notes — Q2 planning" },
+# ]
 
 # Feishu has no built-in PRESET today — declare [[objects]] explicitly:
 [[objects]]
