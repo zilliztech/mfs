@@ -115,7 +115,7 @@ async def main():
     check("notion object_kind page .md -> document",
           notion.object_kind_of("/pages/abc.md") == "document")
     check("notion object_kind records.jsonl -> record_collection",
-          notion.object_kind_of("/databases/x/records.jsonl") == "record_collection")
+          notion.object_kind_of("/data_sources/x/records.jsonl") == "record_collection")
     rt = [{"plain_text": "Hello "}, {"plain_text": "world"}]
     check("notion _rich_text concat", _rich_text(rt) == "Hello world")
     check("notion heading_1 -> '# '", _block_to_md(

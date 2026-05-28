@@ -1,11 +1,13 @@
 """Notion connector — pages as document (.md),
-databases as record_collection. notion-client AsyncClient. Layout
-/pages/<id>.md (rendered block text) + /databases/<id>/{schema.json,records.jsonl}.
+data sources (the row-bearing entity formerly known as "database") as record_collection.
+notion-client AsyncClient. Layout /pages/<id>.md (rendered block text) +
+/data_sources/<id>/{schema.json,records.jsonl}.
 
-API verified against notion-sdk-py docs: AsyncClient(auth=token); client.search(...);
-client.databases.query(database_id, start_cursor); client.blocks.children.list(
-block_id, start_cursor); pagination via has_more/next_cursor (helpers
-async_iterate_paginated_api). NOT end-to-end tested (needs an integration token).
+API: AsyncClient(auth=token); client.search(filter={property:'object', value:'page'|'data_source'});
+client.data_sources.query(data_source_id, start_cursor); client.blocks.children.list(...).
+The 'database' filter value Notion accepted previously is now rejected — see Notion's
+2025 database/data_source split (a database can hold N data_sources; each data_source is
+the row collection).
 """
 from __future__ import annotations
 
@@ -53,7 +55,7 @@ class NotionPlugin(ConnectorPlugin):
     NAME = "notion"
     URI_SCHEME = "notion"
     DISPLAY_NAME = "Notion"
-    PROMPT = "Notion pages as /pages/<id>.md, databases as /databases/<id>/records.jsonl."
+    PROMPT = "Notion pages as /pages/<id>.md, data sources as /data_sources/<id>/records.jsonl."
     CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="last_edited_time",
                                 full_scan=True, delete_detection="full_scan", paged_cat=True)
 
@@ -116,12 +118,12 @@ class NotionPlugin(ConnectorPlugin):
     async def list(self, path: str) -> list[Entry]:
         parts = self._parts(path)
         if len(parts) == 0:
-            return [Entry("pages", "dir"), Entry("databases", "dir")]
+            return [Entry("pages", "dir"), Entry("data_sources", "dir")]
         if len(parts) == 1 and parts[0] == "pages":
             return [Entry(f"{p['id']}.md", "file", "text/markdown") for p in await self._search("page")]
-        if len(parts) == 1 and parts[0] == "databases":
-            return [Entry(d["id"], "dir") for d in await self._search("database")]
-        if len(parts) == 2 and parts[0] == "databases":
+        if len(parts) == 1 and parts[0] == "data_sources":
+            return [Entry(d["id"], "dir") for d in await self._search("data_source")]
+        if len(parts) == 2 and parts[0] == "data_sources":
             return [Entry("schema.json", "file", "application/json"),
                     Entry("records.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
         return []
@@ -168,13 +170,13 @@ class NotionPlugin(ConnectorPlugin):
 
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
         parts = self._parts(path)
-        if len(parts) == 3 and parts[0] == "databases" and parts[2] == "records.jsonl":
-            db_id, cursor = parts[1], None
+        if len(parts) == 3 and parts[0] == "data_sources" and parts[2] == "records.jsonl":
+            ds_id, cursor = parts[1], None
             while True:
-                kw = {"database_id": db_id, "page_size": 100}
+                kw = {"data_source_id": ds_id, "page_size": 100}
                 if cursor:
                     kw["start_cursor"] = cursor
-                resp = await self._client.databases.query(**kw)
+                resp = await self._client.data_sources.query(**kw)
                 for page in resp.get("results", []):
                     props = page.get("properties", {})
                     rec = {"id": page.get("id")}
@@ -183,10 +185,10 @@ class NotionPlugin(ConnectorPlugin):
                 if not resp.get("has_more"):
                     break
                 cursor = resp.get("next_cursor")
-        elif len(parts) == 3 and parts[0] == "databases" and parts[2] == "schema.json":
-            db = await self._client.databases.retrieve(database_id=parts[1])
-            yield {"id": parts[1], "title": _rich_text(db.get("title", [])),
-                   "properties": {k: v.get("type") for k, v in db.get("properties", {}).items()}}
+        elif len(parts) == 3 and parts[0] == "data_sources" and parts[2] == "schema.json":
+            ds = await self._client.data_sources.retrieve(data_source_id=parts[1])
+            yield {"id": parts[1], "title": _rich_text(ds.get("title", [])),
+                   "properties": {k: v.get("type") for k, v in ds.get("properties", {}).items()}}
 
     async def fingerprint(self, path: str) -> Optional[str]:
         return None
@@ -201,8 +203,8 @@ class NotionPlugin(ConnectorPlugin):
             seen[uri] = fp
             if opts.full or old.get(uri) != fp:
                 yield ObjectChange(uri, "modified" if uri in old else "added")
-        for d in await self._search("database"):
-            uri = f"/databases/{d['id']}/records.jsonl"
+        for d in await self._search("data_source"):
+            uri = f"/data_sources/{d['id']}/records.jsonl"
             fp = d.get("last_edited_time", "")
             seen[uri] = fp
             if opts.full or old.get(uri) != fp:

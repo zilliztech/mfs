@@ -20,8 +20,8 @@ Two kinds of objects:
 notion://<alias>/pages/<page-id>.md                rendered markdown
 
 # Databases (object_kind = record_collection)
-notion://<alias>/databases/<database-id>/records.jsonl   lazy rows
-notion://<alias>/databases/<database-id>/schema.json     property list
+notion://<alias>/data_sources/<data-source-id>/records.jsonl   lazy rows
+notion://<alias>/data_sources/<data-source-id>/schema.json     property list
 ```
 
 Page IDs and database IDs are the Notion UUIDs (`xxxxxxxx-xxxx-...`). The
@@ -62,7 +62,7 @@ credential_ref = "env:NOTION_TOKEN"
 
 # Databases need [[objects]] for searchability:
 [[objects]]
-match           = "/databases/*/records.jsonl"
+match           = "/data_sources/*/records.jsonl"
 text_fields     = ["Name", "Description"]     # title + rich-text properties usually
 metadata_fields = ["Status", "Priority", "Owner"]
 locator_fields  = ["id"]                       # always the Notion page-id of the row
@@ -89,10 +89,10 @@ So in `text_fields` write the property name as displayed in Notion's UI
 | Command | Behaviour |
 |---|---|
 | `mfs ls /pages/` | lists pages shared with the integration. |
-| `mfs ls /databases/<id>/` | `["records.jsonl", "schema.json"]`. |
+| `mfs ls /data_sources/<id>/` | `["records.jsonl", "schema.json"]`. |
 | `mfs cat /pages/<id>.md` | walks the page's block children recursively, renders to markdown (headings, lists, code blocks, embeds). Cached as an artifact. |
-| `mfs cat /databases/<id>/records.jsonl --range A:B` | paginated `databases.query` from cursor. |
-| `mfs cat /databases/<id>/records.jsonl --locator '{"id":"..."}'` | `pages.retrieve(page_id)` + property flatten. |
+| `mfs cat /data_sources/<id>/records.jsonl --range A:B` | paginated `data_sources.query` from cursor. |
+| `mfs cat /data_sources/<id>/records.jsonl --locator '{"id":"..."}'` | `pages.retrieve(page_id)` + property flatten. |
 | `mfs grep "PATTERN" /pages/<id>.md` | linear grep over the rendered markdown. |
 | `mfs search "QUERY"` | Milvus only. Hits split between page chunks (`{path, lines}`) and db rows (`{locator: {id}}`). |
 
@@ -115,8 +115,8 @@ mfs search "kafka consumer lag runbook" --connector-uri notion://acme
 # hit:  notion://acme/pages/abc123-...md  lines [120, 165]
 mfs cat notion://acme/pages/abc123-....md --range 120:165
 
-# db hit:  notion://acme/databases/def456-.../records.jsonl  locator: {"id":"ghi789-..."}
-mfs cat notion://acme/databases/def456-.../records.jsonl --locator '{"id":"ghi789-..."}'
+# db hit:  notion://acme/data_sources/def456-.../records.jsonl  locator: {"id":"ghi789-..."}
+mfs cat notion://acme/data_sources/def456-.../records.jsonl --locator '{"id":"ghi789-..."}'
 
 # 5. Refresh.
 mfs add notion://acme --no-full
