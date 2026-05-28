@@ -40,6 +40,12 @@ class SnowflakePlugin(ConnectorPlugin):
         kw = {k: self._cfg(k) for k in ("account", "user", "password", "role",
                                         "warehouse", "database", "schema", "authenticator")
               if self._cfg(k) is not None}
+        # password / programmatic-access-token via credential_ref: the inline `password`
+        # config field is redacted before persistence, so fall back to self.credential so a
+        # reopen (cat / worker re-sync) still authenticates. A Snowflake PAT goes in the
+        # password slot (optionally with authenticator='PROGRAMMATIC_ACCESS_TOKEN').
+        if "password" not in kw and self.credential:
+            kw["password"] = self.credential
         self._conn = await asyncio.to_thread(snowflake.connector.connect, **kw)
 
     async def close(self) -> None:
