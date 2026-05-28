@@ -9,15 +9,36 @@ Subtrees:
   grouped into thread-aggregate chunks.
 - **`/docs/<title>__<doc-token>.md`** — docx document body, chunked as text.
 
-Auth modes:
+Auth modes — pick one explicitly in config (no "right default" — this is a
+deliberate choice with real trade-offs):
 
-- **`tenant` (default)** — bot identity (`app_id` + `app_secret`). Covers chats
-  the bot was invited to + docs the bot was shared into.
-- **`user`** — your own identity via OAuth Device Flow. Covers your groups,
-  your docs, and (via `extra_chats`) your p2p single chats.
+- **`user`** — your own Feishu identity via OAuth Device Flow. Covers
+  everything you see in Feishu: your groups, the docs you can read, and
+  (via `extra_chats`) your p2p single chats. Tied to one human; the
+  `refresh_token` auto-rotates on every sync and never expires **as long as
+  you sync at least once per ~7 days**. Idle longer than that and you re-auth
+  in the browser.
 
-Pick `tenant` for headless / shared / never-changing setups; pick `user` when
-you want to index "what I personally see".
+- **`tenant`** — a bot identity built on `app_id` + `app_secret`. The bot
+  credential never expires, but the bot has to be **explicitly invited** to
+  each group chat and **explicitly shared** into each doc/folder. It can
+  see its OWN p2p with users (via `extra_chats`), not p2p chats between
+  other people.
+
+Which to pick:
+
+| You want… | Mode |
+|---|---|
+| Index "what I personally see in Feishu" — groups, docs, my DMs | **user** |
+| Personal MFS that you actually use weekly | **user** |
+| A long-running shared service that may go idle for weeks at a time | **tenant** |
+| A bot identity decoupled from any specific person (survives staff churn) | **tenant** |
+| You want to avoid per-chat / per-doc share clicks | **user** |
+| You want indexing to keep working even after the original auth-er leaves | **tenant** |
+
+If you omit `auth` entirely, the connector defaults to `tenant` for
+backward compatibility with older configs. New configs should set the
+field explicitly.
 
 ## When MFS helps here
 
@@ -60,16 +81,60 @@ Each message has `{message_id, msg_type, create_time, sender, thread_id, text}`.
 The `text` is extracted from `text` / `post` bodies (`[image]` placeholder for
 non-text content).
 
-## Choosing an auth mode
+## Setup — `user` mode (OAuth Device Flow)
 
-| You want… | Use |
-|---|---|
-| A bot you control to index public-ish content (announcements / docs / shared groups) | **tenant** |
-| Index your personal history (your DMs, your private docs, groups you're in but bot isn't) | **user** |
-| Server-runs-forever, no per-user account, no token refresh dance | **tenant** |
-| Index everything one specific person sees | **user**, one connector per person |
+1. open.larksuite.com or open.feishu.cn → Developer Console (开发者后台) →
+   Apps (应用管理) → "Create App" (创建应用) → "Custom App" (企业自建应用).
+2. Credentials & Basic Info (凭证与基础信息) → copy `App ID` + `App Secret`.
+3. Permissions & Scopes (权限管理) → enable the **user-OAuth** scopes
+   (note the `:get_as_user` suffix on the message scopes — Feishu has a
+   separate bot namespace using `:readonly`, and silently drops it from a
+   user-OAuth grant if you mix them up):
+   - `im:chat:readonly`
+   - `im:message.group_msg:get_as_user`
+   - `im:message.p2p_msg:get_as_user`
+   - `drive:drive:readonly`
+   - `docx:document:readonly`
+   - `contact:user.id:readonly`
+4. Version Management & Release (版本管理与发布) → Create Version (创建版本)
+   → submit for admin approval. Scopes don't take effect until a version is
+   published.
+5. On the MFS server host, run the Device Flow login once (add `--region lark`
+   for the overseas tenant):
 
-## Setup — `tenant` mode
+   ```bash
+   python -m mfs_server.connectors.feishu.auth_login \
+     --app-id cli_xxx \
+     --app-secret-env FEISHU_APP_SECRET \
+     --output ~/.feishu/oauth.json
+     # --region lark      # uncomment for the overseas Lark tenant
+   ```
+
+   The script prints a URL + 8-char code. Open the URL in any browser, log
+   in to Feishu as the user you want the connector to act as, approve.
+   The script polls in the background and writes `oauth.json` when done.
+
+6. Connector config:
+
+   ```toml
+   auth = "user"
+   oauth_state_file = "/home/<you>/.feishu/oauth.json"
+   ```
+
+   No `app_id` / `credential_ref` here — they're inside the json.
+
+**Token lifecycle (important if you go idle)**: access_tokens are ~2 h;
+refresh_tokens are ~7 days from issue — but the plugin refreshes + rotates +
+writes back the new refresh_token on **every** `connect()`. So as long as the
+connector is exercised at least once per ~7 days (any `mfs add --no-full`,
+`mfs cat` on a lazy object, etc.), it stays alive indefinitely. Idle longer
+than that and you have to re-run `auth_login` in the browser.
+
+## Setup — `tenant` mode (bot identity)
+
+Pick this when you want a long-running indexer decoupled from any one
+human's account, accepting that you'll manually invite the bot to each
+chat / share into each doc.
 
 1. open.larksuite.com or open.feishu.cn → Developer Console (开发者后台) →
    Apps (应用管理) → "Create App" (创建应用) → "Custom App" (企业自建应用).
@@ -90,69 +155,29 @@ non-text content).
 Connector config:
 
 ```toml
-auth = "tenant"                       # this is the default; can be omitted
+auth = "tenant"
 app_id = "cli_xxx..."
 credential_ref = "env:FEISHU_APP_SECRET"
 ```
-
-## Setup — `user` mode (OAuth Device Flow)
-
-1. Repeat steps 1-4 above with the **user-OAuth** scope namespace instead
-   (`:get_as_user` for message scopes, others unchanged):
-   - `im:chat:readonly`
-   - `im:message.group_msg:get_as_user`
-   - `im:message.p2p_msg:get_as_user`
-   - `drive:drive:readonly`
-   - `docx:document:readonly`
-   - `contact:user.id:readonly`
-2. On the MFS server host, run the Device Flow login once (add `--region lark`
-   for the overseas region):
-
-   ```bash
-   python -m mfs_server.connectors.feishu.auth_login \
-     --app-id cli_xxx \
-     --app-secret-env FEISHU_APP_SECRET \
-     --output ~/.feishu/oauth.json
-     # --region lark      # uncomment for the overseas Lark tenant
-   ```
-
-   The script prints a URL + 8-char code. Open the URL in any browser, log
-   in to Feishu as the user you want the connector to act as, approve.
-   The script polls in the background and writes `oauth.json` when done.
-
-3. Connector config:
-
-   ```toml
-   auth = "user"
-   oauth_state_file = "/home/<you>/.feishu/oauth.json"
-   ```
-
-   No `app_id` / `credential_ref` here — they're inside the json.
-
-**Token lifecycle**: access_tokens last 2 h; refresh_tokens last ~7 days
-(Feishu's actual TTL, not the 30 days some docs cite). The connector refreshes
-on every `connect()` and writes the rotated refresh_token back atomically. If
-you don't touch the connector for 7+ days, the refresh_token expires and you
-have to re-run `auth_login`.
 
 ## Connector config TOML — full reference
 
 ```toml
 # ─── region: pick ONE (default "feishu") ───
-# region = "feishu"     # 国内, hosts open.feishu.cn / accounts.feishu.cn (default)
-# region = "lark"       # 海外, hosts open.larksuite.com / accounts.larksuite.com
+# region = "feishu"     # China — hosts open.feishu.cn / accounts.feishu.cn (default)
+# region = "lark"       # overseas — hosts open.larksuite.com / accounts.larksuite.com
 
-# ─── auth: pick ONE ───
-auth = "tenant"                                       # bot identity (default)
-app_id = "cli_xxx..."
-credential_ref = "env:FEISHU_APP_SECRET"
+# ─── auth: pick ONE (no default; this is a deliberate choice) ───
+auth = "user"                                         # human identity via OAuth
+oauth_state_file = "/var/run/secrets/feishu/oauth.json"
+# (region is recorded inside oauth.json by `auth_login --region`, so the
+#  `region =` field above is optional in user mode.)
 
 # OR
 
-# auth = "user"                                       # human identity (OAuth)
-# oauth_state_file = "/var/run/secrets/feishu/oauth.json"
-# (in user mode the region is recorded inside oauth.json by `auth_login --region`
-#  and read back on every connect — the `region =` field above is optional then.)
+# auth = "tenant"                                     # bot identity
+# app_id = "cli_xxx..."
+# credential_ref = "env:FEISHU_APP_SECRET"
 
 # ─── docs discovery (pick any combination, both optional) ───
 # Folder model: user shares a Drive folder with the connector identity,
