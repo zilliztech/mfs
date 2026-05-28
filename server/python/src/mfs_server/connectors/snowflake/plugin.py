@@ -1,14 +1,19 @@
 """Snowflake connector — structured, table_rows.
+
+Auth: key-pair (RSA JWT) ONLY. Password / PAT auth is intentionally not supported — PATs
+require a network policy on the bound user, password login is being phased out by Snowflake.
+`credential_ref` must resolve to a PEM PKCS#8 RSA private key (typically `file:` mounted
+from a k8s/docker secret). The matching public key is uploaded once to the Snowflake user
+via `ALTER USER <name> SET RSA_PUBLIC_KEY = '...'`. Encrypted keys are supported via the
+optional `private_key_passphrase_ref` config field (also env:/file: resolved).
+
 snowflake-connector-python (sync; DictCursor + execute/fetchmany wrapped in
 asyncio.to_thread). Layout /<database>/<schema>/tables/<table>/{schema.json,rows.jsonl}.
-
-API verified against snowflake-connector-python docs (connect(...).cursor(DictCursor),
-cur.execute(sql), cur.fetchmany(n) -> list[dict], INFORMATION_SCHEMA for catalog).
-NOT end-to-end tested (needs Snowflake account).
 """
 from __future__ import annotations
 
 import asyncio
+import os
 from collections.abc import AsyncIterator
 from typing import Optional
 
@@ -19,6 +24,22 @@ from ..base import (
     Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
     PathStat, Range, SyncOptions, safe_ident,
 )
+
+
+def _resolve_secret_ref(v):
+    """Resolve env:/file: refs (mirrors engine._resolve_ref) for a sibling secret next to
+    credential_ref. Plain values pass through (e.g. inline passphrase in dev configs)."""
+    if not isinstance(v, str):
+        return v
+    if v.startswith("env:"):
+        name = v[4:]
+        if name not in os.environ:
+            raise ValueError(f"snowflake passphrase_ref {v!r}: env var {name} is not set")
+        return os.environ[name]
+    if v.startswith("file:"):
+        with open(v[5:], encoding="utf-8") as f:
+            return f.read().strip()
+    return v
 
 
 class SnowflakePlugin(ConnectorPlugin):
@@ -37,15 +58,34 @@ class SnowflakePlugin(ConnectorPlugin):
         return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
 
     async def connect(self) -> None:
-        kw = {k: self._cfg(k) for k in ("account", "user", "password", "role",
-                                        "warehouse", "database", "schema", "authenticator")
+        # key-pair auth only — credential_ref must resolve to a PEM RSA private key.
+        # Snowflake driver takes the key as DER-encoded PKCS#8 bytes + authenticator JWT.
+        from cryptography.hazmat.primitives import serialization
+        if not self.credential:
+            raise ValueError(
+                "snowflake connector requires credential_ref pointing to a PEM RSA private "
+                "key file (e.g. credential_ref='file:/etc/secrets/snowflake_rsa.p8'). The "
+                "matching public key must be installed on the Snowflake user via "
+                "ALTER USER <user> SET RSA_PUBLIC_KEY = '...'.")
+        pem = self.credential.encode() if isinstance(self.credential, str) else self.credential
+        passphrase = _resolve_secret_ref(self._cfg("private_key_passphrase_ref"))
+        try:
+            pk_obj = serialization.load_pem_private_key(
+                pem, password=passphrase.encode() if passphrase else None)
+        except Exception as e:
+            raise ValueError(
+                f"snowflake: failed to load PEM private key ({type(e).__name__}: {e}). "
+                "If the key is encrypted, set private_key_passphrase_ref."
+            ) from e
+        pk_der = pk_obj.private_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption())
+        kw = {k: self._cfg(k) for k in ("account", "user", "role",
+                                        "warehouse", "database", "schema")
               if self._cfg(k) is not None}
-        # password / programmatic-access-token via credential_ref: the inline `password`
-        # config field is redacted before persistence, so fall back to self.credential so a
-        # reopen (cat / worker re-sync) still authenticates. A Snowflake PAT goes in the
-        # password slot (optionally with authenticator='PROGRAMMATIC_ACCESS_TOKEN').
-        if "password" not in kw and self.credential:
-            kw["password"] = self.credential
+        kw["authenticator"] = "SNOWFLAKE_JWT"
+        kw["private_key"] = pk_der
         self._conn = await asyncio.to_thread(snowflake.connector.connect, **kw)
 
     async def close(self) -> None:
@@ -169,6 +209,13 @@ class SnowflakePlugin(ConnectorPlugin):
                     f'SELECT max("{safe_ident(cur_col)}") AS m FROM "{db}"."{schema}"."{table}"')
                 mx = m[0]["M"] if m else None
             return f"count:{cnt}|{cur_col}:{mx}" if cur_col else f"count:{cnt}"
+        if len(parts) == 5 and parts[2] == "tables" and parts[4] == "schema.json":
+            # column-list hash so DDL drift (added/dropped/typed column) triggers re-summary
+            db, schema, table = parts[0], parts[1], parts[3]
+            cols = await self._query(
+                f'SELECT column_name, data_type FROM "{safe_ident(db)}".information_schema.columns '
+                "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position", (schema, table))
+            return "schema:" + ";".join(f"{c['COLUMN_NAME']}:{c['DATA_TYPE']}" for c in cols)
         return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
@@ -178,11 +225,14 @@ class SnowflakePlugin(ConnectorPlugin):
         for db in await self._databases():
             for schema in await self._schemas(db):
                 for table in await self._tables(db, schema):
-                    p = f"/{db}/{schema}/tables/{table}/rows.jsonl"
-                    fp = await self.fingerprint(p) or ""
-                    seen[p] = fp
-                    if opts.full or old.get(p) != fp:
-                        yield ObjectChange(p, "modified" if p in old else "added")
+                    # emit BOTH the schema and the rows leaf — schema.json drives
+                    # schema_summary indexing, rows.jsonl drives per-row indexing.
+                    for leaf in ("schema.json", "rows.jsonl"):
+                        p = f"/{db}/{schema}/tables/{table}/{leaf}"
+                        fp = await self.fingerprint(p) or ""
+                        seen[p] = fp
+                        if opts.full or old.get(p) != fp:
+                            yield ObjectChange(p, "modified" if p in old else "added")
         for p in set(old) - set(seen):
             yield ObjectChange(p, "deleted")
         await self.state.set("tables", seen)
