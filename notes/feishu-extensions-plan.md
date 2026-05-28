@@ -201,9 +201,34 @@ path, `extra_docs` for the escape hatch) and the connector reference doc.
 604800 (7 days), not the 2592000 (30 days) often cited. So `auth_login` must be
 re-run at most weekly. Code already uses the value Feishu returns; no hardcoded
 30 days.
-- [ ] **P1.5.1** — Add `extra_chats` config field + sync wiring.
-- [ ] **P1.5.2** — `[STOP]` Ask user for chat_ids to test against.
-- [ ] **P1.5.3** — Live e2e for extra_chats. Commit.
+- [x] **P1.5.1** — Add `extra_chats` config field + sync wiring (in `_chats()`,
+      merged with `chat.list` results, de-duped by chat_id).
+- [x] **P1.5.2** — Asked user to find chat_id; F12 dev tools failed (Feishu web
+      uses protobuf). Pivoted to `POST /open-apis/im/v1/chat_p2p/batch_query`
+      (endpoint spec from larksuite-cli source: `chatter_id_type=open_id`,
+      body `{"chatter_ids": [...]}`, response `data.p2p_chats[].chat_id`).
+      Successfully resolved the user's p2p with bot:
+      `oc_efc1ce35c096f645d7b0dc2d879b7e65`.
+- [x] **P1.5.3** — Live e2e (`phase13_feishu_user_smoke` extended): 10/10 green.
+      The p2p chat was indexed with 34 thread_aggregate chunks. Confirms
+      `im:message.p2p_msg:get_as_user` scope grants real message-body access
+      under user OAuth — the missing piece from the previous round.
+
+**Bonus discovered during P1.5**: `im:message.group_msg:readonly` was the WRONG
+scope name namespace; the user-OAuth equivalent is `im:message.group_msg:get_as_user`
+(verified by reading larksuite-cli's `shortcuts/im/im_chat_messages_list.go` which
+splits its declarations into `BotScopes` and `UserScopes`). Fixed in
+`DEFAULT_SCOPES` and re-OAuth confirmed the message scopes are now granted.
+
+Also added `feishu.messages` to `connectors/base.py:PRESETS` so users don't have
+to write `[[objects]]` for `text_fields=["text"]` — same model as slack/discord/
+gmail. The plugin's `preset_for()` returns the key.
+
+**Future enhancement (not P1.5)**: wire `chat_p2p/batch_query` into the connector
+itself — let users put a list of partner open_ids in config and have the connector
+resolve those into chat_ids automatically. Right now users have to provide the
+already-resolved chat_id, which requires running a one-off script. Track as a
+v0.5 polish item.
 - [ ] **Cleanup** — fold the condensed result into `design/04-connector-and-ingest.md`
       or a connector ADR; delete this working notes file.
 

@@ -180,6 +180,11 @@ PRESETS: dict[str, dict] = {
         text_fields=["subject", "description"],
         metadata_fields=["status", "priority", "tags[*]", "updated_at"],
         locator_fields=["id"]),
+    "feishu.messages": dict(
+        group_by="thread_id",
+        text_fields=["text"],
+        metadata_fields=["msg_type", "create_time", "sender"],
+        locator_fields=["message_id"]),
 }
 
 

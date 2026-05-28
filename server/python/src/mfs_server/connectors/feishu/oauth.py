@@ -30,13 +30,22 @@ _PATH_DEVICE_AUTH = "/oauth/v1/device_authorization"
 _PATH_TOKEN_V2    = "/open-apis/authen/v2/oauth/token"
 
 # Default scope set covering the read paths the feishu connector uses today.
-# `offline_access` is REQUIRED to receive a refresh_token (without it, only a
-# 2h access_token comes back and you have to redo the device flow every time).
+#
+# Naming gotcha: Feishu separates BOT (tenant) scopes from USER-OAuth scopes.
+# For message reading via user_access_token, the correct suffix is `:get_as_user`,
+# NOT `:readonly`. Verified by reading larksuite/cli source
+# (shortcuts/im/im_chat_messages_list.go), which splits its declarations into
+# `BotScopes` (`im:message.group_msg`) and `UserScopes` (`im:message.group_msg:get_as_user`).
+# The `:readonly` variant exists too but applies to bot/tenant tokens — Feishu
+# silently drops it from a user-OAuth grant, leaving the user unable to read messages.
+#
+# `offline_access` is REQUIRED to receive a refresh_token (without it, only a 2h
+# access_token comes back and you have to redo the device flow every time).
 DEFAULT_SCOPES = [
     "offline_access",
     "im:chat:readonly",
-    "im:message.group_msg:readonly",
-    "im:message.p2p_msg:readonly",
+    "im:message.group_msg:get_as_user",   # group messages, user-OAuth variant
+    "im:message.p2p_msg:get_as_user",     # p2p messages, user-OAuth variant
     "drive:drive:readonly",
     "docx:document:readonly",
     "contact:user.id:readonly",

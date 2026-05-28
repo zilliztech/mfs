@@ -27,6 +27,8 @@ OK, FAIL = "\033[32mOK\033[0m", "\033[31mFAIL\033[0m"
 results = []
 
 DOC_TOKEN = "ZsnVdP2IaoJei1xpIqScnZ64nqg"          # the user's test docx (shared with bot earlier)
+EXTRA_CHAT_ID = "oc_efc1ce35c096f645d7b0dc2d879b7e65"   # user's p2p with the bot, discovered via
+                                                       # `/open-apis/im/v1/chat_p2p/batch_query`
 OAUTH_FILE = pathlib.Path.home() / ".feishu" / "oauth.json"
 
 
@@ -59,6 +61,11 @@ async def main():
         "auth": "user",
         "oauth_state_file": str(OAUTH_FILE),
         "extra_docs": [{"token": DOC_TOKEN, "label": "1M-context-claude-code"}],
+        # P1.5: p2p chat_id discovered via chat_p2p/batch_query. user-mode + the
+        # im:message.p2p_msg:get_as_user scope lets us read this conversation.
+        # No `[[objects]]` block — the `feishu.messages` PRESET (in connectors/base.py)
+        # auto-applies text_fields=["text"] etc. for any /chats/*/messages.jsonl.
+        "extra_chats": [{"chat_id": EXTRA_CHAT_ID, "label": "DM-with-bot"}],
     }
     try:
         eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
@@ -98,6 +105,17 @@ async def main():
             on_us = [r for r in res if (r.get("source") or "").startswith(conn_uri)]
             check(f"search returns >=1 hit on this connector (got {len(on_us)})",
                   len(on_us) >= 1)
+
+        # P1.5: extra_chats (p2p messages via user OAuth + im:message.p2p_msg:get_as_user)
+        chat_objs = await eng.meta.fetchall(
+            "SELECT object_uri, chunk_count, search_status FROM objects "
+            "WHERE connector_id=? AND object_uri LIKE '/chats/%'", (cid,))
+        check(f"chats subtree contains the extra_chat (got {len(chat_objs)} chat paths)",
+              len(chat_objs) == 1)
+        if chat_objs:
+            c = chat_objs[0]
+            check(f"p2p chat indexed with >=1 thread_aggregate chunk (got {c['chunk_count']})",
+                  (c["chunk_count"] or 0) >= 1)
     finally:
         try: eng.milvus.drop_collection("default")
         except Exception: pass

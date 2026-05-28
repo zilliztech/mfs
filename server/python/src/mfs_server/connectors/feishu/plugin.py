@@ -166,13 +166,33 @@ class FeishuPlugin(ConnectorPlugin):
         return [p for p in path.strip("/").split("/") if p]
 
     async def _chats(self) -> list[dict]:
+        """Enumerate chats from two sources, de-duped by chat_id:
+
+        1. `chat.list` — caller's group chats (tenant mode: bot's groups; user mode:
+           user's groups). Excludes p2p chats by Feishu's API design — even with user
+           token and im:chat:readonly, p2p single chats are NEVER returned here.
+
+        2. `extra_chats` config — user-supplied list of `{chat_id, label}` entries.
+           The only path to index p2p chats: user finds the chat_id in the Feishu
+           web URL (https://xxx.feishu.cn/messenger/oc_xxx), pastes it in config.
+        """
         def run():
             req = ListChatRequest.builder().build()
             resp = self._client.im.v1.chat.list(req, self._opt())
             if not resp.success():
                 raise RuntimeError(f"feishu chat.list failed: code={resp.code} msg={resp.msg}")
             return [{"chat_id": c.chat_id, "name": c.name} for c in (resp.data.items or [])]
-        return await asyncio.to_thread(run)
+        chats = await asyncio.to_thread(run)
+        by_id = {c["chat_id"]: c for c in chats}
+        # merge in user-supplied extras (overrides label if there's a name conflict)
+        for ex in (self._cfg("extra_chats") or []):
+            if not isinstance(ex, dict):
+                continue
+            cid = ex.get("chat_id")
+            if not cid:
+                continue
+            by_id[cid] = {"chat_id": cid, "name": ex.get("label") or cid}
+        return list(by_id.values())
 
     @staticmethod
     def _dir_name(chat: dict) -> str:
@@ -310,6 +330,11 @@ class FeishuPlugin(ConnectorPlugin):
                 "revision_id": getattr(d, "revision_id", None) if d else None,
             }
         return await asyncio.to_thread(fetch)
+
+    def preset_for(self, path: str):
+        # auto-apply the feishu.messages PRESET (text_fields=["text"], group_by=
+        # "thread_id", etc.) so users don't have to spell out [[objects]] for chats.
+        return "feishu.messages" if path.endswith("messages.jsonl") else None
 
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith("messages.jsonl"):
