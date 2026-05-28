@@ -32,17 +32,20 @@ app_id         = "cli_a0xxx..."
 credential_ref = "env:FEISHU_APP_SECRET"      # the app secret
 ```
 
-How to create (Lark menu names shown; Feishu has the equivalent in Chinese):
-1. open.larksuite.com (Lark / overseas) or open.feishu.cn (Feishu / China) →
-   Developer Console → Apps → "Create App" → choose "Custom App for the
-   organization" (a.k.a. self-built enterprise app).
-2. Credentials & Basic Info → copy `App ID` + `App Secret`.
-3. Permissions & Scopes → enable:
+How to create. The Lark console (open.larksuite.com) is English; the Feishu
+console (open.feishu.cn) is Chinese, so each menu label below has the Chinese
+gloss in parentheses for users on the Feishu side.
+
+1. open.larksuite.com or open.feishu.cn → Developer Console (开发者后台) →
+   Apps (应用管理) → "Create App" (创建应用) → choose "Custom App"
+   (企业自建应用).
+2. Credentials & Basic Info (凭证与基础信息) → copy `App ID` + `App Secret`.
+3. Permissions & Scopes (权限管理) → enable:
    - `im:message:read_only` — read messages in chats the app is in
    - `im:chat:read_only` — list / inspect chats
    - `contact:user.id:read_only` — resolve sender IDs (optional)
-4. Version Management & Release → Create Version → Submit for Review →
-   wait for admin approval.
+4. Version Management & Release (版本管理与发布) → Create Version (创建版本) →
+   Submit for Review (申请上线) → wait for admin approval (管理员审核).
 5. **In each target chat**, invite the app as a member (the app must be a
    chat member to read its messages).
 
