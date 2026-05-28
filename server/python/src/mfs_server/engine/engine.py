@@ -149,15 +149,10 @@ def _field_values(rec: dict, field: str) -> list[str]:
     return [str(x) for x in items if x is not None and x != ""]
 
 
-def _render_record(rec: dict, text_fields: list[str], template: str | None = None) -> str:
-    """Render a record into chunk content. With a text_template, do
-    `{field}` substitution (missing -> empty); otherwise join the configured
-    text_fields (JSONPath-lite) with the default template."""
-    if template:
-        try:
-            return template.format_map(_SafeDict(rec))
-        except Exception:  # noqa: BLE001 - malformed template -> fall back to default join
-            pass
+def _render_record(rec: dict, text_fields: list[str]) -> str:
+    """Render a record into chunk content by joining configured text_fields (JSONPath-lite)
+    with a default `field: value` layout. Multi-valued paths (e.g. `comments[].body`) flatten
+    to bulleted lists."""
     parts = []
     for f in text_fields:
         vals = _field_values(rec, f)
@@ -168,42 +163,6 @@ def _render_record(rec: dict, text_fields: list[str], template: str | None = Non
         else:
             parts.append(f"{f}:\n- " + "\n- ".join(vals))
     return "\n\n".join(parts)
-
-
-def _windowed_pairs(kept: list, ocfg) -> list:
-    """chunk_strategy=windowed: bucket records by a time window on the
-    group_by field and emit one aggregate chunk per window. chunk_window like '1d'/'7d'/
-    '30d'/'12h'/'2w'. Records whose time can't be parsed bucket under 'unparsed'."""
-    unit_days = {"d": 1, "w": 7, "h": 1 / 24}
-    cw = (ocfg.chunk_window or "7d").strip()
-    try:
-        win_days = float(cw[:-1]) * unit_days.get(cw[-1].lower(), 1)
-    except (ValueError, IndexError):
-        win_days = 7.0
-    tfield = ocfg.group_by or (ocfg.text_fields[0] if ocfg.text_fields else None)
-    buckets: dict = {}
-    order: list = []
-    for (_, rec, _, meta) in kept:
-        raw = _resolve_path(rec, tfield) if tfield else None
-        label = "unparsed"
-        if raw is not None:
-            try:
-                dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-                epoch_day = dt.timestamp() / 86400.0
-                label = f"{tfield}~{int(epoch_day // win_days)}"
-            except (ValueError, TypeError):
-                label = f"{tfield}={str(raw)[:10]}"
-        if label not in buckets:
-            buckets[label] = []
-            order.append(label)
-        buckets[label].append(rec)
-    pairs = []
-    for label in order:
-        body = "\n\n".join(_render_record(r, ocfg.text_fields, ocfg.text_template) for r in buckets[label])
-        body = body.strip()
-        if body:
-            pairs.append((body[: (ocfg.max_text_chars or 200000)], {"window": label}, {}))
-    return pairs
 
 
 class Engine:
@@ -1346,11 +1305,13 @@ class Engine:
                         break
                 pairs: list[tuple[str, dict | None]] = []
                 for gk in order:
-                    body = "\n\n".join(
-                        _render_record(m, ocfg.text_fields, ocfg.text_template) for m in groups[gk])
+                    body = "\n\n".join(_render_record(m, ocfg.text_fields) for m in groups[gk])
                     body = body.strip()
                     if body:
-                        pairs.append((body[: (ocfg.max_text_chars or 200000)], {group_key: gk}))
+                        # Single chunk per thread for now; sub-chunking by size is added in
+                        # the next commit. The 65000 cap mirrors the Milvus `content` field
+                        # upper bound so a giant thread doesn't fail the insert.
+                        pairs.append((body[:65000], {group_key: gk}))
                 if pairs:
                     vecs = await self.embed.batch_embed([p[0] for p in pairs])
                     now_ms = int(time.time() * 1000)
@@ -1369,45 +1330,23 @@ class Engine:
             ocfg = plugin.ctx.object_config_for(relpath)
             records = plugin.read_records(relpath)
             if records is not None and ocfg.text_fields:
-                predicate = None
-                if ocfg.index_filter:
-                    from ..common.filter_ast import compile_filter
-                    predicate = compile_filter(ocfg.index_filter)   # restricted AST, not eval
-                # chunk_strategy: per_row (default) | per_field_chunked |
-                # sampled | windowed. JSONPath-lite resolves locator/metadata/text fields.
-                strategy = ocfg.chunk_strategy or "per_row"
-                sample_step = (max(1, round(1 / ocfg.sample_rate))
-                               if strategy == "sampled" and ocfg.sample_rate else 1)
+                # Always per-row: each record renders to one chunk via text_fields. The
+                # JSONPath-lite resolver supports nested arrays (`comments[].body`) so
+                # record_collection (issues / mongo docs) works the same way as table_rows.
                 pairs: list[tuple[str, dict | None, dict]] = []
-                kept: list = []                 # windowed: collect then bucket after the scan
                 head_buf: list[str] = []        # first N raw records -> head_cache artifact
                 partial = False
                 i = 0
                 async for rec in records:
                     if len(head_buf) < _HEAD_CACHE_N:
                         head_buf.append(json.dumps(rec, default=str, ensure_ascii=False))
-                    if predicate is not None and not predicate(rec):
-                        i += 1
-                        continue        # row excluded by index_filter
-                    if sample_step > 1 and (i % sample_step != 0):
-                        i += 1
-                        continue        # not in the sample
                     loc = ({f: _resolve_path(rec, f) for f in ocfg.locator_fields}
                            if ocfg.locator_fields else {"_row": i})
                     meta = ({f: _resolve_path(rec, f) for f in ocfg.metadata_fields}
                             if ocfg.metadata_fields else {})
-                    if strategy == "per_field_chunked":
-                        # one chunk per configured text_field (wide records -> field-level recall)
-                        for f in ocfg.text_fields:
-                            vals = _field_values(rec, f)
-                            if vals:
-                                pairs.append((f"{f}: " + "\n- ".join(vals), {**loc, "field": f}, meta))
-                    elif strategy == "windowed":
-                        kept.append((i, rec, loc, meta))
-                    else:        # per_row / sampled
-                        text = _render_record(rec, ocfg.text_fields, ocfg.text_template)
-                        if text.strip():
-                            pairs.append((text, loc, meta))
+                    text = _render_record(rec, ocfg.text_fields)
+                    if text.strip():
+                        pairs.append((text, loc, meta))
                     i += 1
                     if len(pairs) >= ocfg.chunk_max:
                         partial = True
@@ -1415,11 +1354,6 @@ class Engine:
                 # release the record generator (cursor/connection) before the slow embed
                 # batch, and so a chunk_max break doesn't leak a held connection.
                 await records.aclose()
-                if strategy == "windowed" and kept:
-                    pairs = _windowed_pairs(kept, ocfg)
-                    if len(pairs) > ocfg.chunk_max:
-                        pairs = pairs[:ocfg.chunk_max]
-                        partial = True
                 if head_buf:        # pre-cache first rows so `head` is fast without re-querying
                     await self._put_artifact(ns, full_uri, "head_cache", ("\n".join(head_buf)).encode())
                 if pairs:
@@ -1468,7 +1402,7 @@ class Engine:
 
         if chunk_count == 0:
             # A rebuild that produced no chunks (object became binary / indexable=false /
-            # index_filter matched 0 rows / document emptied / empty VLM or summary) must
+            # document emptied / empty VLM or summary) must
             # still purge chunks from a previous index, else search keeps returning stale
             # content. The per-kind branches only delete when they have new rows to upsert,
             # so cover the zero-chunk case here (rebuild = delete-by-object + insert).
@@ -1584,7 +1518,7 @@ class Engine:
                     if records is not None and ocfg.text_fields:
                         n = 0
                         async for rec in records:
-                            t = _render_record(rec, ocfg.text_fields, ocfg.text_template)
+                            t = _render_record(rec, ocfg.text_fields)
                             if t.strip():
                                 texts.append(t)
                             n += 1

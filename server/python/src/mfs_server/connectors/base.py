@@ -136,19 +136,20 @@ class Capabilities:
 
 @dataclass
 class ObjectConfig:
-    """Parsed from connector TOML [[objects]]. Framework-injected."""
+    """Parsed from connector TOML [[objects]]. Framework-injected.
+
+    Chunking strategy is decided by object_kind (set by each connector), NOT by user
+    config — table_rows / record_collection always go per-row, message_stream always
+    goes per-thread (with internal size-bounded sub-chunking). The user-facing knobs
+    here are just: which fields become embedding text / locator / metadata, whether
+    to index at all, and an upper bound on chunks per object.
+    """
     text_fields: list[str] = field(default_factory=list)
     metadata_fields: list[str] = field(default_factory=list)
     locator_fields: list[str] = field(default_factory=list)
-    chunk_strategy: str = "per_row"        # per_row|per_group|per_field_chunked|windowed|sampled
     indexable: bool = True
     chunk_max: int = 1_000_000
-    index_filter: Optional[str] = None     # restricted AST expr (NOT eval)
-    text_template: Optional[str] = None
-    group_by: Optional[str] = None
-    chunk_window: Optional[str] = None     # windowed, e.g. "30d"
-    sample_rate: Optional[float] = None    # sampled, e.g. 0.01
-    max_text_chars: Optional[int] = None
+    group_by: Optional[str] = None         # message_stream: override the auto-detected thread key
 
 
 # Built-in presets for public SaaS / message connectors: users get a
@@ -157,28 +158,28 @@ PRESETS: dict[str, dict] = {
     "github.issues": dict(
         text_fields=["title", "body", "comments[].body"],
         metadata_fields=["state", "labels[*]", "author", "assignees[*]", "updated_at"],
-        locator_fields=["number"], chunk_strategy="per_row"),
+        locator_fields=["number"]),
     "github.pulls": dict(
         text_fields=["title", "body", "reviews[].body", "comments[].body"],
         metadata_fields=["state", "draft", "labels[*]", "author", "merged_at", "updated_at"],
-        locator_fields=["number"], chunk_strategy="per_row"),
+        locator_fields=["number"]),
     "slack.messages": dict(
-        chunk_strategy="per_group", group_by="thread_ts",
+        group_by="thread_ts",
         text_fields=["text"], metadata_fields=["channel", "user", "ts"],
         locator_fields=["thread_ts"]),
     "discord.messages": dict(
-        chunk_strategy="per_group", group_by="thread_id",
+        group_by="thread_id",
         text_fields=["content"], metadata_fields=["channel_id", "author", "timestamp"],
         locator_fields=["thread_id"]),
     "gmail.messages": dict(
-        chunk_strategy="per_group", group_by="threadId",
+        group_by="threadId",
         text_fields=["subject", "from", "to", "body", "snippet"],
         metadata_fields=["from", "to", "date", "labelIds[*]"],
         locator_fields=["threadId", "id"]),
     "zendesk.tickets": dict(
         text_fields=["subject", "description"],
         metadata_fields=["status", "priority", "tags[*]", "updated_at"],
-        locator_fields=["id"], chunk_strategy="per_row"),
+        locator_fields=["id"]),
 }
 
 
