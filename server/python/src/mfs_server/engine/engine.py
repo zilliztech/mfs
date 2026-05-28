@@ -165,6 +165,46 @@ def _render_record(rec: dict, text_fields: list[str]) -> str:
     return "\n\n".join(parts)
 
 
+# Internal knobs for thread-aggregate sub-chunking. Not user-configurable: 2025 chat-RAG
+# research (Weaviate / Unstructured / Slack RAG case studies) consistently shows that
+# fixed ~200-word chunks at message boundaries + a small overlap matches or beats
+# embedding-based semantic chunking for chat data — and the dependency cost of a real
+# SemanticChunker (loading a second embedding model) is real, so we stay simple.
+_THREAD_MAX_CHARS = 1500          # ~200-400 tokens; under the 8K embedding ceiling and well
+                                  #   under the 65535 Milvus content cap with headroom.
+_THREAD_OVERLAP_MESSAGES = 2      # carry the last N rendered messages into the next sub-chunk
+                                  #   so a reply that references an earlier message keeps
+                                  #   that context in its embedding window.
+
+
+def _split_thread(rendered: list[str], max_chars: int = _THREAD_MAX_CHARS,
+                  overlap: int = _THREAD_OVERLAP_MESSAGES) -> list[tuple[int, int, str]]:
+    """Split a thread's rendered messages into size-bounded sub-chunks that break ONLY at
+    message boundaries (never mid-message). Adjacent sub-chunks share `overlap` trailing
+    messages so cross-chunk references survive. Returns [(start_msg_idx, end_msg_idx, text)].
+    A short thread (joined size <= max_chars) returns one item, preserving prior behaviour."""
+    if not rendered:
+        return []
+    out: list[tuple[int, int, str]] = []
+    cur: list[str] = []
+    cur_len = 0
+    start = 0
+    for i, m in enumerate(rendered):
+        # +2 accounts for the "\n\n" joiner between messages
+        if cur and cur_len + len(m) + 2 > max_chars:
+            out.append((start, start + len(cur) - 1, "\n\n".join(cur)))
+            # carry the last `overlap` messages into the next sub-chunk for context
+            carry = cur[-overlap:] if overlap else []
+            cur = list(carry)
+            cur_len = sum(len(x) + 2 for x in cur)
+            start = i - len(carry)
+        cur.append(m)
+        cur_len += len(m) + 2
+    if cur:
+        out.append((start, start + len(cur) - 1, "\n\n".join(cur)))
+    return out
+
+
 class Engine:
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
@@ -1282,10 +1322,12 @@ class Engine:
             ocfg = plugin.ctx.object_config_for(relpath)
             records = plugin.read_records(relpath)
             if records is not None and ocfg.text_fields:
-                # per_group thread_aggregate: group messages by group_by, each thread/
-                # group becomes one aggregate chunk. When
-                # not configured, fall back to common thread keys across connectors
-                # (slack thread_ts / gmail threadId / generic thread_id).
+                # message_stream is auto-aggregated by thread: messages with the same
+                # group_by value (slack thread_ts / gmail threadId / generic thread_id) are
+                # joined in order. A short thread becomes one chunk; a long thread is split
+                # at message boundaries into size-bounded sub-chunks with a small overlap,
+                # so embedding vectors stay focused and a reply keeps the prior context it
+                # might reference.
                 cfg_key = ocfg.group_by
                 group_key = cfg_key or "thread"
                 _THREAD_KEYS = ("thread_ts", "threadId", "thread_id", "thread")
@@ -1305,13 +1347,20 @@ class Engine:
                         break
                 pairs: list[tuple[str, dict | None]] = []
                 for gk in order:
-                    body = "\n\n".join(_render_record(m, ocfg.text_fields) for m in groups[gk])
-                    body = body.strip()
-                    if body:
-                        # Single chunk per thread for now; sub-chunking by size is added in
-                        # the next commit. The 65000 cap mirrors the Milvus `content` field
-                        # upper bound so a giant thread doesn't fail the insert.
-                        pairs.append((body[:65000], {group_key: gk}))
+                    rendered = [_render_record(m, ocfg.text_fields) for m in groups[gk]]
+                    rendered = [r for r in rendered if r.strip()]
+                    sub = _split_thread(rendered)
+                    if len(sub) == 1:
+                        # short thread: keep the existing single-chunk locator shape so
+                        # existing search/cat semantics are preserved.
+                        pairs.append((sub[0][2][:65000], {group_key: gk}))
+                    else:
+                        # long thread: tag each sub-chunk with its position WITHIN the
+                        # thread (0..N-1) so callers can stitch / cite a specific window.
+                        for sub_i, (s, e, text) in enumerate(sub):
+                            pairs.append((text[:65000],
+                                          {group_key: gk, "chunk_index": sub_i,
+                                           "msg_range": [s, e]}))
                 if pairs:
                     vecs = await self.embed.batch_embed([p[0] for p in pairs])
                     now_ms = int(time.time() * 1000)
