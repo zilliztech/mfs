@@ -1,14 +1,13 @@
 """Hot-path acceleration with a transparent native/pure-Python split.
 
-The Rust extension `mfs_server_rs` (built from server-rs/ via maturin) accelerates
-directory scan, linear grep and JSONL scanning. It is optional: if the wheel isn't
-installed, these helpers fall back to equivalent pure-Python implementations so the
-server behaves identically (just slower on big inputs). `HAVE_NATIVE` lets callers /
-tests report which path is active.
+The Rust extension `mfs_server_rs` (built from server-rs/ via maturin) accelerates the
+gitignore directory walk, parallel content hashing, linear grep and tail. It is optional:
+if the wheel isn't installed, these helpers fall back to equivalent pure-Python
+implementations so the server behaves identically (just slower on big inputs).
+`HAVE_NATIVE` lets callers / tests report which path is active.
 """
 from __future__ import annotations
 
-import json
 import os
 import re
 
@@ -18,28 +17,6 @@ try:
 except ImportError:  # pragma: no cover - exercised on systems without the wheel
     _rs = None
     HAVE_NATIVE = False
-
-
-def scan_dir(root: str, ignore_substrings: list[str] | None = None) -> list[tuple[str, int, int]]:
-    """Recursive walk -> list of (relpath '/foo/bar', size_bytes, mtime_ns)."""
-    ignore = ignore_substrings or []
-    if HAVE_NATIVE:
-        return _rs.scan_dir(root, ignore)
-    out: list[tuple[str, int, int]] = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames
-                       if not any(s in os.path.join(dirpath, d) for s in ignore)]
-        for fn in filenames:
-            full = os.path.join(dirpath, fn)
-            if any(s in full for s in ignore):
-                continue
-            try:
-                st = os.stat(full)
-            except OSError:
-                continue
-            rel = "/" + os.path.relpath(full, root).replace("\\", "/")
-            out.append((rel, st.st_size, int(st.st_mtime * 1e9)))
-    return out
 
 
 def linear_grep_file(path: str, pattern: str, case_insensitive: bool = False,
@@ -137,37 +114,3 @@ def tail_lines(path: str, n: int = 20) -> list[str]:
     if lines and lines[-1] == "":
         lines = lines[:-1]
     return lines[-n:]
-
-
-def jsonl_record_count(path: str) -> int:
-    if HAVE_NATIVE:
-        return _rs.jsonl_record_count(path)
-    n = 0
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
-        for line in f:
-            if line.strip():
-                n += 1
-    return n
-
-
-def jsonl_field_texts(path: str, fields: list[str], max_records: int = 1_000_000) -> list[str]:
-    if HAVE_NATIVE:
-        return _rs.jsonl_field_texts(path, fields, max_records)
-    out: list[str] = []
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            try:
-                val = json.loads(line)
-            except ValueError:
-                continue
-            parts = []
-            for fld in fields:
-                if fld in val and val[fld] is not None:
-                    v = val[fld]
-                    parts.append(f"{fld}: {v if isinstance(v, str) else json.dumps(v)}")
-            out.append("\n".join(parts))
-            if len(out) >= max_records:
-                break
-    return out
