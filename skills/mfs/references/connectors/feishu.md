@@ -32,15 +32,17 @@ app_id         = "cli_a0xxx..."
 credential_ref = "env:FEISHU_APP_SECRET"      # the app secret
 ```
 
-How to create:
-1. open.feishu.cn (or open.larksuite.com) → 开发者后台 → 应用管理 →
-   "创建应用" → choose "企业自建应用"
-2. 凭证与基础信息 → copy `App ID` + `App Secret`
-3. 权限管理 → enable scopes:
+How to create (Lark menu names shown; Feishu has the equivalent in Chinese):
+1. open.larksuite.com (Lark / overseas) or open.feishu.cn (Feishu / China) →
+   Developer Console → Apps → "Create App" → choose "Custom App for the
+   organization" (a.k.a. self-built enterprise app).
+2. Credentials & Basic Info → copy `App ID` + `App Secret`.
+3. Permissions & Scopes → enable:
    - `im:message:read_only` — read messages in chats the app is in
    - `im:chat:read_only` — list / inspect chats
    - `contact:user.id:read_only` — resolve sender IDs (optional)
-4. 版本管理与发布 → 创建版本 → 申请上线 → 管理员审核
+4. Version Management & Release → Create Version → Submit for Review →
+   wait for admin approval.
 5. **In each target chat**, invite the app as a member (the app must be a
    chat member to read its messages).
 
@@ -97,7 +99,7 @@ EOF
 mfs add feishu://acme --config feishu-acme.toml
 
 # 4. Search.
-mfs search "客户提出的安全合规问题" --connector-uri feishu://acme
+mfs search "customer security compliance concerns" --connector-uri feishu://acme
 mfs cat feishu://acme/chats/customer-acme__oc_xxx/messages.jsonl \
        --locator '{"thread_id":"..."}'
 
@@ -124,7 +126,7 @@ with `start_time > <last>` via paginated `message.list`.
    `thread_id` per the preset; sub-chunking carries `chunk_index` for
    long threads.
 5. **Lark vs Feishu domains**: Lark (overseas, open.larksuite.com) and
-   Feishu (国内, open.feishu.cn) are separate cloud regions with separate
+   Feishu (China-only, open.feishu.cn) are separate cloud regions with separate
    app registries. Configure the SDK appropriately — the connector
    currently targets the default region via env (the SDK auto-detects from
    the app_id's domain).
