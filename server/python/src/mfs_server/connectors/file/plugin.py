@@ -46,6 +46,23 @@ DOC_EXT = {".md", ".markdown", ".rst", ".txt", ".pdf", ".docx", ".doc", ".pptx",
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".tiff"}
 TEXTBLOB_EXT = {".json", ".csv", ".tsv", ".log", ".jsonl", ".ndjson", ".yaml", ".yml", ".toml", ".ini"}
 
+# --- Progressive-availability priority table (design 02-architecture.md §6.3) ---
+# Smaller priority = runs earlier. The buckets are matched in this order; first
+# hit wins (so e.g. a tests/README.md still buckets as the README, not tests).
+# v0.4 hard-codes the table; users can't tune it — priority only affects perceived
+# ordering, never correctness. All basename/top-dir matches are case-insensitive.
+_ENTRYPOINT_BASENAMES = {"readme.md", "claude.md", "skill.md", "index.md"}
+_CONFIG_MANIFEST_BASENAMES = {
+    "pyproject.toml", "package.json", "cargo.toml", "go.mod",
+    "requirements.txt", "setup.py", "setup.cfg", "gemfile", "pom.xml",
+    "build.gradle", "build.gradle.kts", "makefile", "cmakelists.txt",
+    "tsconfig.json", "deno.json", "composer.json",
+}
+_CORE_SRC_TOPDIRS = {"src", "lib", "app"}
+_DOCS_TOPDIRS = {"docs", "guides"}
+_TESTS_TOPDIRS = {"tests", "test", "__tests__", "fixtures"}
+_GENERATED_TOPDIRS = {"dist", "build", "vendor", "node_modules", "target", "out"}
+
 
 @dataclass
 class FileConfig:
@@ -113,6 +130,39 @@ class FilePlugin(ConnectorPlugin):
         if ext in TEXTBLOB_EXT:
             return "text_blob"
         return "binary"
+
+    def task_priority(self, change: ObjectChange) -> int:
+        """Progressive-availability bias for `mfs add .` — see design §6.3.
+
+        Smaller = earlier. We classify the change URI (root-relative path) into
+        the buckets in that section's table: entrypoints (README/CLAUDE/SKILL/
+        INDEX) → -350; build manifests → -260; src/lib/app → -220; docs/guides
+        → -190; tests/fixtures → +80; dist/build/vendor → +260; everything else
+        → 0. Effect: by the time the long tail (tests / generated) is still
+        building, the things an agent actually reaches for first are already
+        in the index. Basename match wins over top-dir match — a README inside
+        tests/ is still a README."""
+        rel = change.uri or ""
+        parts = [p for p in rel.split("/") if p]
+        if not parts:
+            return 0
+        base = parts[-1].lower()
+        if base in _ENTRYPOINT_BASENAMES:
+            return -350
+        if base in _CONFIG_MANIFEST_BASENAMES:
+            return -260
+        top = parts[0].lower() if len(parts) > 1 else None
+        if top is None:
+            return 0
+        if top in _CORE_SRC_TOPDIRS:
+            return -220
+        if top in _DOCS_TOPDIRS:
+            return -190
+        if top in _TESTS_TOPDIRS:
+            return 80
+        if top in _GENERATED_TOPDIRS:
+            return 260
+        return 0
 
     def _media_type(self, real: Path) -> Optional[str]:
         ext = real.suffix.lower()

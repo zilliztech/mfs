@@ -10,11 +10,13 @@ connector at it. The pages are interlinked so the BFS crawl has to:
   - canonicalise URL -> /pages/<host>/<path>.md
   - run markitdown HTML->md so semantic search hits page CONTENT, not raw HTML
   - second sync with same ETag -> 304 path: no chunk_count regression, the unique
-    "v1" content stays cached + searchable; mutating the seed (start_url) bumps
-    its etag and the new content surfaces. (NB: the connector short-circuits
-    link discovery on a 304 — deep pages aren't re-visited unless their parent
-    page returns 200, so we mutate the seed itself, which is the path that's
-    always re-fetched.)
+    "v1" content stays cached + searchable.
+  - mutating the seed (start_url) bumps its etag and the new content surfaces.
+  - mutating a DEEP page (not the seed) — covered by the 304-link-discovery fix:
+    the plugin persists each fetched page's child links into state, so when the
+    seed returns 304 we still re-enqueue its known children and discover the
+    deep mutation. Previously the BFS would short-circuit on the seed's 304
+    and the deep page would never be re-fetched in that run.
 
 Self-contained — needs OPENAI_API_KEY for embeddings (bash -ic), aiohttp + bs4 +
 markitdown which the project already vendors."""
@@ -224,24 +226,50 @@ async def main():
               all(after.get(k, 0) >= (v or 0) for k, v in before.items()))
 
         # --- 5) mutate the seed page (new etag) -> next sync picks up the new content
-        # The seed ('/') is re-fetched on every sync; a 200 there re-runs link
-        # discovery + indexes the new content. Deep-page mutation alone wouldn't
-        # surface, because a 304 on the seed short-circuits the BFS.
-        new_marker = "syzygy-orbital-mechanics-marker-12345"
+        # The seed ('/') is re-fetched on every sync; a 200 there indexes the new
+        # content. This is the simple path — works regardless of the deep-page
+        # 304 behaviour.
+        seed_marker = "syzygy-orbital-mechanics-marker-12345"
         PAGES["/"] = {
             "html": _page(
                 "<h1>Fixture index v2</h1>"
-                f"<p>Updated index references {new_marker} as a fresh topic.</p>"
+                f"<p>Updated index references {seed_marker} as a fresh topic.</p>"
                 "<a href='/about'>About</a> <a href='/docs'>Docs</a>",
                 etag="v2-idx"),
             "etag": '"v2-idx"',
         }
         await eng.add(conn_uri, config=cfg_web)
-        mut_hits = await eng.search(new_marker, connector_uri=conn_uri,
+        seed_hits = await eng.search(seed_marker, connector_uri=conn_uri,
                                      mode="hybrid", top_k=5)
-        with_marker = [r for r in mut_hits if new_marker in (r.get("content") or "")]
+        seed_with_marker = [r for r in seed_hits if seed_marker in (r.get("content") or "")]
         check(f"after etag bump on seed /: new content surfaces in search "
-              f"({len(with_marker)} hits contain marker)", len(with_marker) >= 1)
+              f"({len(seed_with_marker)} hits contain marker)", len(seed_with_marker) >= 1)
+
+        # --- 6) mutate a DEEP page while the seed is now stable -> still surfaces
+        # The seed's etag matches what we stored in step 5, so it returns 304 this
+        # time. The 304-link-discovery fix means we still re-enqueue the seed's
+        # known children, so /about (or /docs) gets re-fetched and the mutation
+        # lands. Pick whichever child actually got indexed earlier.
+        deep_marker = "boustrophedon-hydraulic-marker-67890"
+        deep_path = None
+        for cand in ("/about", "/docs"):
+            if any(p.endswith(cand + ".md") for p in paths):
+                deep_path = cand; break
+        if deep_path:
+            PAGES[deep_path] = {
+                "html": _page(
+                    f"<h1>{deep_path[1:]} v2</h1>"
+                    f"<p>This page now references {deep_marker} as a new topic.</p>",
+                    etag=f"v2-{deep_path[1:]}"),
+                "etag": f'"v2-{deep_path[1:]}"',
+            }
+            await eng.add(conn_uri, config=cfg_web)
+            deep_hits = await eng.search(deep_marker, connector_uri=conn_uri,
+                                         mode="hybrid", top_k=5)
+            deep_with = [r for r in deep_hits if deep_marker in (r.get("content") or "")]
+            check(f"after etag bump on deep {deep_path} (seed is 304): "
+                  f"deep mutation surfaces in search ({len(deep_with)} hits contain marker)",
+                  len(deep_with) >= 1)
     finally:
         try: eng.milvus.drop_collection("default")
         except Exception: pass

@@ -72,7 +72,13 @@ class WebPlugin(ConnectorPlugin):
 
     async def fingerprint(self, path: str) -> Optional[str]:
         pages = await self.state.get("pages") or {}
-        return pages.get(path)
+        entry = pages.get(path)
+        # State schema migrated from `{path: etag_str}` (v0.4 early) to
+        # `{path: {"etag": ..., "links": [...]}}` so we can re-walk the BFS
+        # past a 304 without losing children. Old entries still parse cleanly.
+        if isinstance(entry, dict):
+            return entry.get("etag")
+        return entry
 
     def _html_to_md(self, html: str) -> str:
         from markitdown import MarkItDown
@@ -93,6 +99,16 @@ class WebPlugin(ConnectorPlugin):
                 out.append(u)
         return out
 
+    @staticmethod
+    def _entry(prev) -> tuple[Optional[str], list[str]]:
+        """Unpack a state.pages entry, tolerating the legacy `etag-string` form
+        alongside the current `{etag, links}` dict form."""
+        if isinstance(prev, dict):
+            return prev.get("etag"), list(prev.get("links") or [])
+        if isinstance(prev, str):
+            return prev, []                  # legacy: etag known, links lost
+        return None, []
+
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
         import aiohttp
         self.ctx.declare_enumeration("full")
@@ -110,12 +126,22 @@ class WebPlugin(ConnectorPlugin):
                     continue
                 visited.add(url)
                 path = self.url_to_path(url)
+                prev_etag, prev_links = self._entry(old_pages.get(path))
                 headers = {}
-                if path in old_pages and old_pages[path]:
-                    headers["If-None-Match"] = old_pages[path]
+                if prev_etag:
+                    headers["If-None-Match"] = prev_etag
                 try:
                     async with sess.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=20)) as resp:
                         if resp.status == 304:
+                            # Content unchanged — but BFS must continue: re-enqueue
+                            # the children we discovered last time, otherwise a
+                            # mutation deeper in the tree would never be re-fetched
+                            # this run. (Bug fix: previously this `continue` threw
+                            # away link discovery for the page's subtree.)
+                            for link in prev_links:
+                                if link not in visited:
+                                    queue.append(link)
+                            crawled += 1
                             continue
                         if resp.status != 200:
                             continue
@@ -126,9 +152,12 @@ class WebPlugin(ConnectorPlugin):
                 md = self._html_to_md(html)
                 self._md_cache[path] = md
                 kind = "modified" if path in old_pages else "added"
-                pages[path] = etag
+                links = self._extract_links(html, url)
+                # Persist both the etag (for next 304) AND the link list (so the
+                # 304 path above can still drive BFS).
+                pages[path] = {"etag": etag, "links": links}
                 yield ObjectChange(uri=path, kind=kind)
-                for link in self._extract_links(html, url):
+                for link in links:
                     if link not in visited:
                         queue.append(link)
                 crawled += 1
