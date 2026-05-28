@@ -172,10 +172,35 @@ file.list. So discovery cannot rely on auto-listing; it needs the folder-share
 model. This is now reflected in the plugin (`docs_folder_token` for the bulk
 path, `extra_docs` for the escape hatch) and the connector reference doc.
 
-- [ ] **P1.1** — Implement Device Flow handshake + token refresh + CLI subcommand.
-- [ ] **P1.2** — Add `auth = "user"` switch in connector connect().
-- [ ] **P1.3** — `[STOP]` Ask user to grant user-token scopes + run auth login.
-- [ ] **P1.4** — Live e2e for OAuth user mode. Commit.
+- [x] **P1.1** — Device Flow handshake + refresh helpers (`feishu/oauth.py`) + CLI
+      entry point (`feishu/auth_login.py`). Endpoints copied from larksuite/cli:
+      device_authorization at `https://accounts.feishu.cn/oauth/v1/device_authorization`,
+      token at `https://open.feishu.cn/open-apis/authen/v2/oauth/token`.
+- [x] **P1.2** — `auth = "user"` switch in connect() — reads `oauth_state_file`,
+      refreshes, threads `RequestOption.user_access_token(...)` into every SDK call.
+- [x] **P1.3** — User did the Device Flow dance, granted 6 of 7 requested scopes
+      (message scopes denied by tenant policy; the rest worked).
+- [x] **P1.4** — Live e2e `phase13_feishu_user_smoke` 8/8 green: connect, rotation,
+      write-back, app_id/secret preserved, extra_docs indexed via USER token, cat+search.
+
+**Three bugs discovered + fixed during P1**:
+1. **Refresh token is ONE-SHOT** — Feishu revokes the old refresh_token the moment
+   it issues a new one. The first connect() crashed the second because the rotated
+   token wasn't persisted. Fix: atomic write-back of the new token to oauth.json
+   inside connect(), before any other API call could fail.
+2. **Field name `oauth_token_file` got REDACTED** — engine's `_SECRET_SUBSTRINGS`
+   blacklist contains "token", so any config key with "token" in the name was
+   replaced with `<redacted>` before persistence. Fix: renamed to `oauth_state_file`.
+3. **Granted scopes != requested scopes** — Feishu silently dropped
+   `im:message.group_msg:readonly` and `im:message.p2p_msg:readonly` from the user's
+   consent grant (admin policy?). User mode therefore can list chats + read drive +
+   read docs, but CAN'T read message content. Logged but not blocking — user OAuth
+   for message content can be reconsidered if admin loosens the scope policy.
+
+**Refresh token TTL gotcha**: Feishu's `refresh_token_expires_in` came back as
+604800 (7 days), not the 2592000 (30 days) often cited. So `auth_login` must be
+re-run at most weekly. Code already uses the value Feishu returns; no hardcoded
+30 days.
 - [ ] **P1.5.1** — Add `extra_chats` config field + sync wiring.
 - [ ] **P1.5.2** — `[STOP]` Ask user for chat_ids to test against.
 - [ ] **P1.5.3** — Live e2e for extra_chats. Commit.

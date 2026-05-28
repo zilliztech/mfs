@@ -4,13 +4,26 @@ Two subtrees in one connector:
   /chats/<name>__<chat-id>/messages.jsonl   group messages (lazy stream)
   /docs/<title>__<doc-token>.md             docx document body (rendered text)
 
-Auth: tenant_access_token (bot). p2p single chats are NOT enumerable via REST
-(documented Feishu limit on chat.list); docs require the bot to be a collaborator.
+Two auth modes (selected by `auth = "tenant" | "user"` in the connector config):
+
+  * tenant (default) — bot identity, app_id + app_secret. Covers only chats
+    the bot is a member of + docs the bot is a collaborator on. p2p single
+    chats are NOT enumerable via REST under tenant auth (documented Feishu
+    limit on chat.list).
+
+  * user — OAuth Device Flow user identity. Covers everything the human user
+    sees. `oauth_state_file` (NOT credential_ref — Feishu's refresh_token is
+    one-shot, rotated every refresh, so the plugin must own read/write of the
+    file) points at an oauth.json blob produced by
+    `python -m mfs_server.connectors.feishu.auth_login`. The plugin refreshes
+    the access_token on every connect, atomically writes the rotated
+    refresh_token back, and every API call carries
+    `RequestOption.user_access_token(...)` so the SDK acts as the user.
 
 API endpoints used (all sync, wrapped in asyncio.to_thread):
-  im.v1.chat.list                    -> the bot's group chats
+  im.v1.chat.list                    -> caller's group chats
   im.v1.message.list                 -> messages in one chat
-  drive.v1.file.list                 -> docs/sheets/etc. accessible to the bot
+  drive.v1.file.list                 -> docs/sheets/etc. visible to caller
   docx.v1.document.raw_content       -> plain-text body of a docx document
   docx.v1.document.get               -> document metadata (title, revision_id)
 """
@@ -69,11 +82,72 @@ class FeishuPlugin(ConnectorPlugin):
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._client = None
+        self._user_token: Optional[str] = None    # set when auth = "user"
 
     def _cfg(self, k, d=None):
         return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
 
+    def _opt(self):
+        """Build a per-call option override. tenant mode -> None (SDK uses its
+        own tenant_access_token derived from app_id+secret); user mode -> a
+        RequestOption carrying the refreshed user_access_token so every API
+        call acts as the human, not the bot."""
+        if self._user_token:
+            return lark.RequestOption.builder().user_access_token(self._user_token).build()
+        return None
+
     async def connect(self) -> None:
+        auth_mode = self._cfg("auth", "tenant")
+        if auth_mode == "user":
+            # User mode reads + WRITES the oauth.json file: Feishu's refresh_token is
+            # ONE-SHOT (each refresh issues a new refresh_token AND revokes the old
+            # one). credential_ref is read-only by design, so we use a dedicated
+            # config field `oauth_state_file` that the plugin owns.
+            import json as _json
+            from pathlib import Path
+            tok_path_cfg = self._cfg("oauth_state_file")
+            if not tok_path_cfg:
+                raise ValueError(
+                    "feishu auth='user' requires `oauth_state_file = \"/path/to/oauth.json\"` "
+                    "in the connector config — created via "
+                    "`python -m mfs_server.connectors.feishu.auth_login`. (Don't use "
+                    "credential_ref here; the file is read AND written each connect.)")
+            tok_path = Path(tok_path_cfg).expanduser()
+            try:
+                blob = _json.loads(tok_path.read_text())
+            except (OSError, ValueError) as e:
+                raise ValueError(
+                    f"feishu oauth_state_file {tok_path}: cannot load ({e}). "
+                    "Re-run `python -m mfs_server.connectors.feishu.auth_login --output ...`."
+                ) from e
+            app_id, app_secret = blob.get("app_id"), blob.get("app_secret")
+            refresh = blob.get("refresh_token")
+            if not (app_id and app_secret and refresh):
+                raise ValueError(
+                    f"feishu oauth_state_file {tok_path}: missing app_id / app_secret / "
+                    "refresh_token. Re-run auth_login to regenerate.")
+            from .oauth import refresh_user_token
+            tok = await asyncio.to_thread(refresh_user_token, app_id, app_secret, refresh)
+            self._user_token = tok["access_token"]
+            # CRITICAL: persist the rotated refresh_token immediately. Feishu revokes the
+            # old one the moment it issued the new one — if we crash before writing this
+            # back, the next connect can't authenticate and the user has to redo the
+            # browser dance. Atomic write via temp + replace.
+            import time as _time
+            now = int(_time.time())
+            new_blob = dict(blob)
+            new_blob["refresh_token"] = tok["refresh_token"]
+            new_blob["obtained_at"] = now
+            new_blob["refresh_expires_at"] = now + tok.get("refresh_token_expires_in", 604800)
+            tmp = tok_path.with_suffix(tok_path.suffix + ".tmp")
+            tmp.write_text(_json.dumps(new_blob, ensure_ascii=False, indent=2))
+            tmp.chmod(0o600)
+            tmp.replace(tok_path)
+            self._client = await asyncio.to_thread(
+                lambda: lark.Client.builder().app_id(app_id).app_secret(app_secret).build())
+            return
+
+        # Default: tenant (bot) identity.
         def build():
             return lark.Client.builder() \
                 .app_id(self._cfg("app_id")) \
@@ -94,7 +168,7 @@ class FeishuPlugin(ConnectorPlugin):
     async def _chats(self) -> list[dict]:
         def run():
             req = ListChatRequest.builder().build()
-            resp = self._client.im.v1.chat.list(req)
+            resp = self._client.im.v1.chat.list(req, self._opt())
             if not resp.success():
                 raise RuntimeError(f"feishu chat.list failed: code={resp.code} msg={resp.msg}")
             return [{"chat_id": c.chat_id, "name": c.name} for c in (resp.data.items or [])]
@@ -129,7 +203,7 @@ class FeishuPlugin(ConnectorPlugin):
             b = ListFileRequest.builder().folder_token(folder_token).page_size(100)
             if pt:
                 b = b.page_token(pt)
-            resp = self._client.drive.v1.file.list(b.build())
+            resp = self._client.drive.v1.file.list(b.build(), self._opt())
             if not resp.success():
                 raise RuntimeError(
                     f"feishu drive.file.list(folder={folder_token}) failed: "
@@ -215,7 +289,7 @@ class FeishuPlugin(ConnectorPlugin):
         """
         def fetch():
             req = RawContentDocumentRequest.builder().document_id(doc_id).build()
-            resp = self._client.docx.v1.document.raw_content(req)
+            resp = self._client.docx.v1.document.raw_content(req, self._opt())
             if not resp.success():
                 raise RuntimeError(
                     f"feishu docx.raw_content({doc_id}) failed: code={resp.code} msg={resp.msg}")
@@ -226,7 +300,7 @@ class FeishuPlugin(ConnectorPlugin):
         """Document metadata (title + revision_id) for fingerprinting."""
         def fetch():
             req = GetDocumentRequest.builder().document_id(doc_id).build()
-            resp = self._client.docx.v1.document.get(req)
+            resp = self._client.docx.v1.document.get(req, self._opt())
             if not resp.success():
                 raise RuntimeError(
                     f"feishu docx.get({doc_id}) failed: code={resp.code} msg={resp.msg}")
@@ -287,7 +361,7 @@ class FeishuPlugin(ConnectorPlugin):
                 b = ListMessageRequest.builder().container_id_type("chat").container_id(chat_id)
                 if pt:
                     b = b.page_token(pt)
-                resp = self._client.im.v1.message.list(b.build())
+                resp = self._client.im.v1.message.list(b.build(), self._opt())
                 if not resp.success():
                     raise RuntimeError(f"feishu message.list failed: code={resp.code} msg={resp.msg}")
                 return resp.data
