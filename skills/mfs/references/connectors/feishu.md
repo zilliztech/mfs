@@ -105,13 +105,15 @@ credential_ref = "env:FEISHU_APP_SECRET"
    - `drive:drive:readonly`
    - `docx:document:readonly`
    - `contact:user.id:readonly`
-2. On the MFS server host, run the Device Flow login once:
+2. On the MFS server host, run the Device Flow login once (add `--region lark`
+   for the overseas region):
 
    ```bash
    python -m mfs_server.connectors.feishu.auth_login \
      --app-id cli_xxx \
      --app-secret-env FEISHU_APP_SECRET \
      --output ~/.feishu/oauth.json
+     # --region lark      # uncomment for the overseas Lark tenant
    ```
 
    The script prints a URL + 8-char code. Open the URL in any browser, log
@@ -136,6 +138,10 @@ have to re-run `auth_login`.
 ## Connector config TOML — full reference
 
 ```toml
+# ─── region: pick ONE (default "feishu") ───
+# region = "feishu"     # 国内, hosts open.feishu.cn / accounts.feishu.cn (default)
+# region = "lark"       # 海外, hosts open.larksuite.com / accounts.larksuite.com
+
 # ─── auth: pick ONE ───
 auth = "tenant"                                       # bot identity (default)
 app_id = "cli_xxx..."
@@ -145,6 +151,8 @@ credential_ref = "env:FEISHU_APP_SECRET"
 
 # auth = "user"                                       # human identity (OAuth)
 # oauth_state_file = "/var/run/secrets/feishu/oauth.json"
+# (in user mode the region is recorded inside oauth.json by `auth_login --region`
+#  and read back on every connect — the `region =` field above is optional then.)
 
 # ─── docs discovery (pick any combination, both optional) ───
 # Folder model: user shares a Drive folder with the connector identity,
@@ -288,7 +296,9 @@ mfs add feishu://mine --no-full
 6. **Rich content lossy**: images / files / cards in messages become
    `[image]` / `[file]` / `[card]` placeholders. Search hits won't surface
    those payloads.
-7. **Lark vs Feishu**: this connector currently targets `open.feishu.cn`
-   (China region). Lark (overseas, `open.larksuite.com`) uses the same API
-   shapes but different hostnames — supporting it cleanly is a future
-   parameterisation.
+7. **Lark vs Feishu**: pick the cloud region with the `region` config field
+   — `"feishu"` (default, `open.feishu.cn`, 国内) vs `"lark"` (overseas,
+   `open.larksuite.com`). All API paths are identical between regions; only
+   hostnames differ. For user mode pass `--region lark` to `auth_login` so
+   the OAuth dance hits the right host (the value is persisted into
+   `oauth.json` and read back on every connect).

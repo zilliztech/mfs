@@ -20,14 +20,27 @@ from typing import Optional
 
 import httpx
 
-# Feishu (国内). Lark (海外) uses larksuite.com hosts; we only target Feishu here
-# because the connector is currently scoped to open.feishu.cn — multi-region
-# support can be added by parameterising these.
-_HOST_ACCOUNTS = "https://accounts.feishu.cn"
-_HOST_OPEN     = "https://open.feishu.cn"
+# Feishu (国内) vs Lark (海外). The two cloud regions share the same API surface
+# (path, request/response shapes, scopes) but use distinct host pairs. Region is
+# selected via the `region` config field on the connector / `--region` flag on
+# auth_login. Default = "feishu".
+_REGIONS = {
+    "feishu": {"accounts": "https://accounts.feishu.cn",
+               "open":     "https://open.feishu.cn"},
+    "lark":   {"accounts": "https://accounts.larksuite.com",
+               "open":     "https://open.larksuite.com"},
+}
 
 _PATH_DEVICE_AUTH = "/oauth/v1/device_authorization"
 _PATH_TOKEN_V2    = "/open-apis/authen/v2/oauth/token"
+
+
+def endpoints(region: str = "feishu") -> dict:
+    """Resolve `region` -> {accounts, open} host URLs. Raises on unknown region."""
+    if region not in _REGIONS:
+        raise ValueError(
+            f"feishu connector: unknown region {region!r}; expected one of {sorted(_REGIONS)}")
+    return _REGIONS[region]
 
 # Default scope set covering the read paths the feishu connector uses today.
 #
@@ -65,7 +78,8 @@ def _basic_auth(app_id: str, app_secret: str) -> str:
 
 
 def request_device_authorization(app_id: str, app_secret: str,
-                                  scopes: Optional[list[str]] = None) -> dict:
+                                  scopes: Optional[list[str]] = None,
+                                  region: str = "feishu") -> dict:
     """Step 1 of Device Flow: get a device_code + user_code + verification URL.
 
     Returns a dict with: device_code, user_code, verification_uri,
@@ -80,7 +94,8 @@ def request_device_authorization(app_id: str, app_secret: str,
         "Content-Type": "application/x-www-form-urlencoded",
         "Authorization": _basic_auth(app_id, app_secret),
     }
-    r = httpx.post(_HOST_ACCOUNTS + _PATH_DEVICE_AUTH, data=body, headers=headers, timeout=20)
+    hosts = endpoints(region)
+    r = httpx.post(hosts["accounts"] + _PATH_DEVICE_AUTH, data=body, headers=headers, timeout=20)
     data = r.json()
     if r.status_code >= 400 or "error" in data:
         raise OAuthError(data.get("error", f"http_{r.status_code}"),
@@ -97,7 +112,8 @@ def request_device_authorization(app_id: str, app_secret: str,
 
 
 def poll_for_device_token(app_id: str, app_secret: str, device_code: str,
-                           interval: int = 5, expires_in: int = 240) -> dict:
+                           interval: int = 5, expires_in: int = 240,
+                           region: str = "feishu") -> dict:
     """Step 2 of Device Flow: poll until the user approves in the browser.
 
     Returns a dict with: access_token, refresh_token, expires_in, scope.
@@ -105,6 +121,7 @@ def poll_for_device_token(app_id: str, app_secret: str, device_code: str,
     """
     deadline = time.time() + expires_in
     poll_interval = max(1, interval)
+    hosts = endpoints(region)
     while time.time() < deadline:
         time.sleep(poll_interval)
         body = {
@@ -113,7 +130,7 @@ def poll_for_device_token(app_id: str, app_secret: str, device_code: str,
             "client_id": app_id,
             "client_secret": app_secret,
         }
-        r = httpx.post(_HOST_OPEN + _PATH_TOKEN_V2, data=body, timeout=20,
+        r = httpx.post(hosts["open"] + _PATH_TOKEN_V2, data=body, timeout=20,
                        headers={"Content-Type": "application/x-www-form-urlencoded"})
         data = r.json()
         # RFC 8628 standard pending errors — keep polling.
@@ -139,7 +156,8 @@ def poll_for_device_token(app_id: str, app_secret: str, device_code: str,
     raise OAuthError("timeout", "device flow timed out before user approved")
 
 
-def refresh_user_token(app_id: str, app_secret: str, refresh_token: str) -> dict:
+def refresh_user_token(app_id: str, app_secret: str, refresh_token: str,
+                        region: str = "feishu") -> dict:
     """Exchange a refresh_token for a fresh access_token (+ rotated refresh_token).
 
     Feishu rotates the refresh_token on each refresh — the caller MUST persist
@@ -151,7 +169,8 @@ def refresh_user_token(app_id: str, app_secret: str, refresh_token: str) -> dict
         "client_id": app_id,
         "client_secret": app_secret,
     }
-    r = httpx.post(_HOST_OPEN + _PATH_TOKEN_V2, data=body, timeout=20,
+    hosts = endpoints(region)
+    r = httpx.post(hosts["open"] + _PATH_TOKEN_V2, data=body, timeout=20,
                    headers={"Content-Type": "application/x-www-form-urlencoded"})
     data = r.json()
     if r.status_code >= 400 or "error" in data:

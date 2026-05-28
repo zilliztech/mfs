@@ -50,6 +50,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--output", "-o", required=True,
                    help="Path to write oauth.json (referenced by oauth_state_file in config)")
     p.add_argument("--scope", help="Space-separated scope list (overrides defaults)")
+    p.add_argument("--region", default="feishu", choices=["feishu", "lark"],
+                   help="Cloud region (default: feishu / China; use 'lark' for overseas)")
     args = p.parse_args(argv)
 
     secret = args.app_secret or os.environ.get(args.app_secret_env)
@@ -59,9 +61,9 @@ def main(argv: list[str] | None = None) -> int:
 
     scopes = args.scope.split() if args.scope else DEFAULT_SCOPES
 
-    _info(f"Requesting device authorization (scopes: {' '.join(scopes)}) ...")
+    _info(f"Requesting device authorization (region={args.region}, scopes: {' '.join(scopes)}) ...")
     try:
-        dev = request_device_authorization(args.app_id, secret, scopes)
+        dev = request_device_authorization(args.app_id, secret, scopes, region=args.region)
     except OAuthError as e:
         _fail(f"device_authorization failed: {e}")
         return 1
@@ -78,7 +80,8 @@ def main(argv: list[str] | None = None) -> int:
     _info("Polling for approval ... (Ctrl-C to abort)")
     try:
         tok = poll_for_device_token(args.app_id, secret, dev["device_code"],
-                                     interval=dev["interval"], expires_in=dev["expires_in"])
+                                     interval=dev["interval"], expires_in=dev["expires_in"],
+                                     region=args.region)
     except OAuthError as e:
         _fail(f"device flow failed: {e}")
         return 1
@@ -92,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         "app_id": args.app_id,
         "app_secret": secret,
         "refresh_token": tok["refresh_token"],
+        "region": args.region,
         "scope": tok.get("scope", ""),
         "obtained_at": now,
         "refresh_expires_at": now + tok.get("refresh_token_expires_in", 2592000),

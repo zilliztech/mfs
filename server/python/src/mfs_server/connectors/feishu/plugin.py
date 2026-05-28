@@ -86,6 +86,7 @@ class FeishuPlugin(ConnectorPlugin):
         self._user_token: Optional[str] = None    # set when auth = "user"
         self._app_id: Optional[str] = None        # cached from config / oauth.json blob
         self._app_secret: Optional[str] = None    # used for tenant_access_token mint
+        self._region: str = "feishu"              # "feishu" (open.feishu.cn) | "lark" (open.larksuite.com)
 
     def _cfg(self, k, d=None):
         return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
@@ -98,6 +99,13 @@ class FeishuPlugin(ConnectorPlugin):
         if self._user_token:
             return lark.RequestOption.builder().user_access_token(self._user_token).build()
         return None
+
+    @staticmethod
+    def _sdk_domain(region: str):
+        # lark-oapi ships FEISHU_DOMAIN / LARK_DOMAIN string constants we hand to
+        # Client.builder().domain(); this maps our "feishu" / "lark" config value
+        # to whichever the installed SDK exposes (constant names are stable).
+        return lark.LARK_DOMAIN if region == "lark" else lark.FEISHU_DOMAIN
 
     async def connect(self) -> None:
         auth_mode = self._cfg("auth", "tenant")
@@ -129,8 +137,12 @@ class FeishuPlugin(ConnectorPlugin):
                 raise ValueError(
                     f"feishu oauth_state_file {tok_path}: missing app_id / app_secret / "
                     "refresh_token. Re-run auth_login to regenerate.")
+            # Region: prefer the value persisted in the blob (auth_login records the
+            # region the OAuth was performed against — must match for refresh to work).
+            # Fall back to the config field, then "feishu".
+            self._region = blob.get("region") or self._cfg("region", "feishu")
             from .oauth import refresh_user_token
-            tok = await asyncio.to_thread(refresh_user_token, app_id, app_secret, refresh)
+            tok = await asyncio.to_thread(refresh_user_token, app_id, app_secret, refresh, self._region)
             self._user_token = tok["access_token"]
             self._app_id, self._app_secret = app_id, app_secret
             # CRITICAL: persist the rotated refresh_token immediately. Feishu revokes the
@@ -143,21 +155,29 @@ class FeishuPlugin(ConnectorPlugin):
             new_blob["refresh_token"] = tok["refresh_token"]
             new_blob["obtained_at"] = now
             new_blob["refresh_expires_at"] = now + tok.get("refresh_token_expires_in", 604800)
+            # Make sure the persisted region is set (auth_login writes it; legacy
+            # blobs without it default to "feishu").
+            new_blob["region"] = self._region
             tmp = tok_path.with_suffix(tok_path.suffix + ".tmp")
             tmp.write_text(_json.dumps(new_blob, ensure_ascii=False, indent=2))
             tmp.chmod(0o600)
             tmp.replace(tok_path)
+            dom = self._sdk_domain(self._region)
             self._client = await asyncio.to_thread(
-                lambda: lark.Client.builder().app_id(app_id).app_secret(app_secret).build())
+                lambda: lark.Client.builder()
+                    .app_id(app_id).app_secret(app_secret).domain(dom).build())
             return
 
         # Default: tenant (bot) identity.
+        self._region = self._cfg("region", "feishu")
         self._app_id = self._cfg("app_id")
         self._app_secret = self._cfg("app_secret") or self.credential
+        dom = self._sdk_domain(self._region)
         def build():
             return lark.Client.builder() \
                 .app_id(self._app_id) \
                 .app_secret(self._app_secret) \
+                .domain(dom) \
                 .build()
         self._client = await asyncio.to_thread(build)
 
@@ -177,8 +197,9 @@ class FeishuPlugin(ConnectorPlugin):
         if self._user_token:
             return self._user_token
         # tenant mode — mint a tenant_access_token via /auth/v3/internal
+        from .oauth import endpoints
         r = httpx.post(
-            "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
+            endpoints(self._region)["open"] + "/open-apis/auth/v3/tenant_access_token/internal",
             json={"app_id": self._app_id, "app_secret": self._app_secret}, timeout=15)
         return r.json()["tenant_access_token"]
 
@@ -193,9 +214,11 @@ class FeishuPlugin(ConnectorPlugin):
         if not partner_open_ids:
             return []
         token = await asyncio.to_thread(self._access_token)
+        from .oauth import endpoints
+        url = endpoints(self._region)["open"] + "/open-apis/im/v1/chat_p2p/batch_query"
         def fetch():
             return httpx.post(
-                "https://open.feishu.cn/open-apis/im/v1/chat_p2p/batch_query",
+                url,
                 headers={"Authorization": f"Bearer {token}",
                          "Content-Type": "application/json"},
                 params={"chatter_id_type": "open_id"},
