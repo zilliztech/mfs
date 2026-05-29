@@ -42,7 +42,20 @@ class HubSpotPlugin(ConnectorPlugin):
         self._client = await asyncio.to_thread(hubspot.Client.create, access_token=token)
 
     def _objects(self) -> list[str]:
-        return list(self._cfg("objects") or _DEFAULT_OBJECTS)
+        # `object_types` is the plugin-level enumerate list (which CRM
+        # objects to walk). The framework already reserves `objects` for
+        # [[objects]] match configs (text_fields/locator_fields/...);
+        # accepting both here would collide on the same key. Prefer
+        # `object_types`; fall back to `objects` ONLY when it's the legacy
+        # flat list of strings.
+        types = self._cfg("object_types")
+        if types:
+            return list(types)
+        legacy = self._cfg("objects")
+        if (isinstance(legacy, list) and legacy
+                and all(isinstance(o, str) for o in legacy)):
+            return list(legacy)
+        return list(_DEFAULT_OBJECTS)
 
     def _basic_api(self, obj: str):
         # client.crm.contacts.basic_api / .companies / .deals / .tickets
