@@ -221,7 +221,7 @@ mfs grep "ERR_TIMEOUT" <path>
         超过 `max_grep_bytes` 时截断并提示
 ```
 
-输出按 path/URI 分组（unix grep 风格）；下推 / artifact 线性扫这类能定位到行的路径给行号，BM25 路径给 chunk 片段 + `locator`/`lines`：
+输出按 path/URI 分组（unix grep 风格）；下推 / artifact 线性扫这类能定位到行的路径给行号，BM25 路径给 chunk 片段 + `locator`（body chunk 形如 `{"lines":[s,e]}`，结构化对象是连接器 PK dict）：
 
 ```text
 $ mfs grep "ERR_TIMEOUT" s3://logs/app/2026-05-10

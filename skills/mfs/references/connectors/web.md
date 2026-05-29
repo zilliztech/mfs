@@ -72,7 +72,7 @@ chunking pipeline (chonkie RecursiveChunker).
 | `mfs cat ... --range A:B` | line-range slice of the markdown. |
 | `mfs head -n N` / `tail -n N` | first/last N lines of markdown. |
 | `mfs grep "PATTERN" <path>` | linear grep over the markdown body (Rust accel). |
-| `mfs search "QUERY"` | Milvus hybrid; hits return `{path, lines:[start,end]}` — reopen with `cat --range`. |
+| `mfs search "QUERY"` | Milvus hybrid; hits return `{path, locator:{"lines":[start,end]}}` — reopen with `cat --range`. |
 
 ## Typical workflow
 

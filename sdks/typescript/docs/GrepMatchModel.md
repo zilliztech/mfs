@@ -7,7 +7,7 @@
 Name | Type
 ------------ | -------------
 `source` | string
-`lines` | Array&lt;number&gt;
+`locator` | { [key: string]: any; } — text/code line hits: `{"lines":[n,n]}`; structured pushdown: connector PK dict; notice rows: null.
 `content` | string
 `via` | string
 
@@ -19,7 +19,7 @@ import type { GrepMatchModel } from '@mfs/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "source": null,
-  "lines": null,
+  "locator": null,
   "content": null,
   "via": null,
 } satisfies GrepMatchModel

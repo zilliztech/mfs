@@ -26,19 +26,20 @@ export interface GrepMatchModel {
      */
     source?: string | null;
     /**
-     * 
-     * @type {Array<number>}
+     * per-hit identity. text/code line hits: {"lines":[n,n]}; structured
+     * pushdown: connector PK dict; notice rows: null.
+     * @type {{ [key: string]: any; }}
      * @memberof GrepMatchModel
      */
-    lines?: Array<number> | null;
+    locator?: { [key: string]: any; } | null;
     /**
-     * 
+     *
      * @type {string}
      * @memberof GrepMatchModel
      */
     content?: string;
     /**
-     * bm25 | linear | pushdown
+     * bm25 | linear | pushdown | notice
      * @type {string}
      * @memberof GrepMatchModel
      */
@@ -61,9 +62,9 @@ export function GrepMatchModelFromJSONTyped(json: any, ignoreDiscriminator: bool
         return json;
     }
     return {
-        
+
         'source': json['source'] == null ? undefined : json['source'],
-        'lines': json['lines'] == null ? undefined : json['lines'],
+        'locator': json['locator'] == null ? undefined : json['locator'],
         'content': json['content'] == null ? undefined : json['content'],
         'via': json['via'] == null ? undefined : json['via'],
     };
@@ -79,9 +80,9 @@ export function GrepMatchModelToJSONTyped(value?: GrepMatchModel | null, ignoreD
     }
 
     return {
-        
+
         'source': value['source'],
-        'lines': value['lines'],
+        'locator': value['locator'],
         'content': value['content'],
         'via': value['via'],
     };

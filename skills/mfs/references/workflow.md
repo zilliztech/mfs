@@ -19,16 +19,18 @@ overkill — just `grep`/`rg`/read. MFS's index adds little there.
    - `--mode keyword` when you want BM25 term matching over the index.
    - `--all` to search every registered connector; scope to a `<path>` to stay focused.
 
-2. **Locate the exact spot** from each result's envelope (see json-envelope.md):
-   - **text / code** hit carries `lines: [start, end]`:
+2. **Locate the exact spot** from each result's `locator` (see json-envelope.md):
+   - **text / code** hit → `locator: {"lines":[start,end]}`:
      ```bash
      mfs cat <source> --range <start>:<end>
      ```
-   - **structured** hit (DB row, issue, slack thread) carries a `locator` (pk / number / thread_ts), `lines` is null:
+   - **structured** hit (DB row, issue, slack thread) → `locator: {<pk>}`:
      ```bash
      mfs cat <source> --locator '{"id":12}'      # exact single record (flat, keyed by locator_fields)
      ```
-     Prefer `locator` over guessing; it reopens the precise unit.
+     Pass the locator back verbatim; it reopens the precise unit.
+   - **once-per-object** chunk (dir summary, image VLM) → `locator: null`:
+     `mfs cat <source>` is enough.
 
 3. **Browse nearby** to verify context before answering/editing:
    ```bash

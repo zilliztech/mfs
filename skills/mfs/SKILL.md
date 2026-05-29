@@ -77,11 +77,13 @@ Each step in concrete form:
    mfs search "<what the user actually wants>" <path-or-uri> --top-k 10
    ```
 
-2. **Locate** — every hit's envelope is enough to reopen:
-   - Text/code hit → has `lines: [start, end]` →
+2. **Locate** — every hit's envelope carries `locator` (one unified field):
+   - Text/code hit → `locator: {"lines":[start,end]}` →
      `mfs cat <source> --range start:end`
-   - Structured hit (DB row, issue, slack thread) → has `locator` →
+   - Structured hit (DB row, issue, slack thread) → `locator: {<pk>}` →
      `mfs cat <source> --locator '{...}'`
+   - Once-per-object kinds (dir/schema summary, image VLM) → `locator: null` →
+     `mfs cat <source>`
 
 3. **Browse** — verify, only as much as needed:
    ```bash
@@ -331,7 +333,7 @@ Most common guidance is already in this file. Open these only when you
 need more detail:
 
 - **Workflow patterns + scoping + recovery** → [references/workflow.md](references/workflow.md)
-- **Result envelope fields (locator / lines / metadata / source)** → [references/json-envelope.md](references/json-envelope.md)
+- **Result envelope fields (source / locator / content / metadata)** → [references/json-envelope.md](references/json-envelope.md)
 - **Error codes and recovery** → [references/error-codes.md](references/error-codes.md)
 - **Per-connector reference** (URI shape, auth, TOML config, command behaviour, gotchas) → `references/connectors/<scheme>.md`. Read the one matching the URI scheme **before** registering a new source or guessing its layout. Available schemes: `file`, `web`, `s3`, `gdrive`, `postgres`, `mysql`, `snowflake`, `bigquery`, `mongo`, `github`, `jira`, `linear`, `hubspot`, `salesforce`, `notion`, `zendesk`, `slack`, `discord`, `gmail`, `feishu`.
 

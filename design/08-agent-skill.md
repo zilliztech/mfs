@@ -90,7 +90,6 @@ watch -n 60 'mfs add s3://logs && mfs head -n 50 s3://logs/app/today.jsonl'
 ```json
 {
   "source": "postgres://prod/public/tickets/rows.jsonl",
-  "lines": null,
   "content": "Login broken after SSO migration",
   "score": 0.842,
   "locator": {
@@ -117,30 +116,37 @@ agent 关心的字段：
 |---|---|
 | `source` | 喂给下一个命令（cat / head / grep / export） |
 | `content` | 给 LLM 看的内容 snippet |
-| `locator` | 当 source 是集合对象时，精确指向单条 record |
+| `locator` | per-chunk 身份；看里面是什么 key 决定 reopen 方式（见下） |
 | `score` | 排序参考；低于 0.5 通常不可靠 |
 | `metadata.chunk_kind` | 区分召回类型（body / row_text / thread_aggregate / vlm_description / directory_summary） |
 | `metadata.media_type` | 判断对象类型，决定下一步用什么命令 |
 | `metadata.fields` | 不打开对象就能看到的业务字段（status / priority 等） |
 
-### 从结果回到对象：locator 优先，lines 次之
+### 从结果回到对象：看 `locator` 里面是什么
 
-`lines` 和 `locator` 是**两个独立的可选字段，不互斥**——有的 chunk 两个都有（如 slack thread：既在 messages.jsonl 有行位置，又有 thread_ts locator）。agent 按这个优先级用：
+`locator` 是统一字段，三种形态。agent 看里面有什么 key 就知道怎么 reopen：
 
-1. **`locator` 非空 → 优先用它**精确定位单元（DB row / issue / ticket / thread）：
-
-```bash
-mfs cat <source> --locator '{"pk":{"id":12}}'      # 推荐：按 locator 精确取回单条完整记录
-mfs export <source> /tmp/data.jsonl && jq 'select(.id == 12)' /tmp/data.jsonl   # 备选：导出后过滤
-```
-
-2. **只有 `lines` 非空（locator 为 null）→ 用行区间**（纯文本 / document / code）：
+1. **里面含 `lines` key → body/code/document 的行区间**（纯文本 / 代码 / markdown）：
 
 ```bash
-mfs cat <source> --range <start>:<end>      # 直接读那段
+mfs cat <source> --range <start>:<end>
+# 等价于:
+mfs cat <source> --locator '{"lines":[<start>,<end>]}'
 ```
 
-每种 chunk_kind 填哪些字段是稳定契约，见 [06 §15](06-search-and-retrieval.md#15-json-envelope-searchgrep)。`locator` 的内部 schema per-connector，agent 不要硬编码——读 skill 里该 connector 的 `references/connectors/<name>.md`（或 [06 §3](06-search-and-retrieval.md#3-locator-schema-per-connector) 的表）拿它文档化的 locator schema。
+2. **其它 key → 结构化记录的 PK dict**（DB row / issue / ticket / thread）：
+
+```bash
+mfs cat <source> --locator '{"pk":{"id":12}}'           # postgres / mysql
+mfs cat <source> --locator '{"number":42}'              # github issue/pull
+mfs cat <source> --locator '{"thread_ts":"..."}'        # slack
+```
+
+3. **`null` → 一次性 chunk**（dir_summary / schema_summary / vlm_description）：source 本身就是单位，`mfs cat <source>` 即可。
+
+每种 chunk_kind 的 `locator` 形态是稳定契约，见 [06 §15](06-search-and-retrieval.md#15-json-envelope-searchgrep)。结构化 connector 的 PK schema per-connector，agent 不要硬编码——读 skill 里该 connector 的 `references/connectors/<name>.md`（或 [06 §3](06-search-and-retrieval.md#3-locator-schema-per-connector) 的表）拿它文档化的 locator schema。
+
+框架预留 `lines` 作为 `locator` dict 的 reserved key——连接器的 `[[objects]].locator_fields` 不能声明 `lines`，启动时校验会拒绝。
 
 ## 4. 反模式
 

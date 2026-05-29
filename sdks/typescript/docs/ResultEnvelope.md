@@ -8,10 +8,9 @@ One search/grep hit (design/06 §7). Outer shape is stable across connectors; lo
 Name | Type
 ------------ | -------------
 `source` | string
-`lines` | Array&lt;number&gt;
 `content` | string
 `score` | number
-`locator` | { [key: string]: any; }
+`locator` | { [key: string]: any; } — body/code/document: `{"lines":[start,end]}`; structured (DB row, issue, slack thread): connector PK dict; once-per-object: null.
 `metadata` | { [key: string]: any; }
 
 ## Example
@@ -22,7 +21,6 @@ import type { ResultEnvelope } from '@mfs/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "source": null,
-  "lines": null,
   "content": null,
   "score": null,
   "locator": null,

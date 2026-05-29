@@ -185,7 +185,7 @@ MFS 第一受众是 **agent**，不是人。所以主接口是 **shell-native CL
 MFS 把"幂等"当成贯穿全局的硬约束，每一个操作都能安全地重复执行：
 
 - `mfs add` 再跑 = 再同步一次（注册 + 同步同一个入口，幂等）
-- `chunk_id = sha1(namespace + connector + object_uri + chunk_kind + locator + lines)` 内容寻址（`locator`/`lines` 区分同一 object 内的多个 chunk）——写 chunk = DELETE + INSERT，任何 worker / 重试 / 并发对同一 chunk_id 的写都等效
+- `chunk_id = sha1(namespace + connector + object_uri + chunk_kind + locator)` 内容寻址（`locator` 区分同一 object 内的多个 chunk：body/code 用 `{"lines":[s,e]}`，结构化对象用 PK dict）——写 chunk = DELETE + INSERT，任何 worker / 重试 / 并发对同一 chunk_id 的写都等效
 - `mfs remove` 幂等（目标状态就是"消失"，重复 remove 仍然成功）
 - per-object 原子 + state 末尾提交：中途崩溃 → state 不 commit → 下次从上个成功点重跑
 

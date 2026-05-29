@@ -28,12 +28,11 @@ class ResultEnvelope(BaseModel):
     One search/grep hit (design/06 §7). Outer shape is stable across connectors; locator + metadata.fields are per-connector but documented.
     """ # noqa: E501
     source: StrictStr = Field(description="object URI — feed to cat/head/export")
-    lines: Optional[List[StrictInt]] = Field(default=None, description="[start,end] for text/code; null for structured")
     content: Optional[StrictStr] = Field(default='', description="snippet to read")
     score: Optional[Union[StrictFloat, StrictInt]] = Field(default=None, description="ranking score; <0.5 often unreliable")
-    locator: Optional[Dict[str, Any]] = Field(default=None, description="structured unit key (pk/number/thread_ts)")
+    locator: Optional[Dict[str, Any]] = Field(default=None, description="per-chunk identity. body/code/document: {'lines':[start,end]}; structured (DB row, issue, slack thread): connector PK dict; once-per-object: null.")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="chunk_kind, connector_type, fields, ...")
-    __properties: ClassVar[List[str]] = ["source", "lines", "content", "score", "locator", "metadata"]
+    __properties: ClassVar[List[str]] = ["source", "content", "score", "locator", "metadata"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -74,11 +73,6 @@ class ResultEnvelope(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # set to None if lines (nullable) is None
-        # and model_fields_set contains the field
-        if self.lines is None and "lines" in self.model_fields_set:
-            _dict['lines'] = None
-
         # set to None if score (nullable) is None
         # and model_fields_set contains the field
         if self.score is None and "score" in self.model_fields_set:
@@ -102,7 +96,6 @@ class ResultEnvelope(BaseModel):
 
         _obj = cls.model_validate({
             "source": obj.get("source"),
-            "lines": obj.get("lines"),
             "content": obj.get("content") if obj.get("content") is not None else '',
             "score": obj.get("score"),
             "locator": obj.get("locator"),

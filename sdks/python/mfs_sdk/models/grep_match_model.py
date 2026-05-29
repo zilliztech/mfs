@@ -28,10 +28,10 @@ class GrepMatchModel(BaseModel):
     GrepMatchModel
     """ # noqa: E501
     source: Optional[StrictStr] = None
-    lines: Optional[List[StrictInt]] = None
+    locator: Optional[Dict[str, Any]] = Field(default=None, description="per-hit identity. text/code line hits: {'lines':[n,n]}; structured pushdown: connector PK dict; notice rows: null.")
     content: Optional[StrictStr] = ''
-    via: Optional[StrictStr] = Field(default=None, description="bm25 | linear | pushdown")
-    __properties: ClassVar[List[str]] = ["source", "lines", "content", "via"]
+    via: Optional[StrictStr] = Field(default=None, description="bm25 | linear | pushdown | notice")
+    __properties: ClassVar[List[str]] = ["source", "locator", "content", "via"]
 
     model_config = ConfigDict(
         validate_by_name=True,
@@ -77,10 +77,10 @@ class GrepMatchModel(BaseModel):
         if self.source is None and "source" in self.model_fields_set:
             _dict['source'] = None
 
-        # set to None if lines (nullable) is None
+        # set to None if locator (nullable) is None
         # and model_fields_set contains the field
-        if self.lines is None and "lines" in self.model_fields_set:
-            _dict['lines'] = None
+        if self.locator is None and "locator" in self.model_fields_set:
+            _dict['locator'] = None
 
         # set to None if via (nullable) is None
         # and model_fields_set contains the field
@@ -100,7 +100,7 @@ class GrepMatchModel(BaseModel):
 
         _obj = cls.model_validate({
             "source": obj.get("source"),
-            "lines": obj.get("lines"),
+            "locator": obj.get("locator"),
             "content": obj.get("content") if obj.get("content") is not None else '',
             "via": obj.get("via")
         })

@@ -7,10 +7,9 @@ One search/grep hit (design/06 §7). Outer shape is stable across connectors; lo
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **source** | **str** | object URI — feed to cat/head/export | 
-**lines** | **List[int]** | [start,end] for text/code; null for structured | [optional] 
 **content** | **str** | snippet to read | [optional] [default to '']
 **score** | **float** | ranking score; &lt;0.5 often unreliable | [optional] 
-**locator** | **Dict[str, object]** | structured unit key (pk/number/thread_ts) | [optional] 
+**locator** | **Dict[str, object]** | per-chunk identity. body/code/document: `{'lines':[start,end]}`; structured (DB row, issue, slack thread): connector PK dict; once-per-object: null. | [optional] 
 **metadata** | **Dict[str, object]** | chunk_kind, connector_type, fields, ... | [optional] 
 
 ## Example

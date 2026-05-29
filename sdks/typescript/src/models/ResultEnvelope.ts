@@ -27,12 +27,6 @@ export interface ResultEnvelope {
      */
     source: string;
     /**
-     * [start,end] for text/code; null for structured
-     * @type {Array<number>}
-     * @memberof ResultEnvelope
-     */
-    lines?: Array<number> | null;
-    /**
      * snippet to read
      * @type {string}
      * @memberof ResultEnvelope
@@ -45,7 +39,8 @@ export interface ResultEnvelope {
      */
     score?: number | null;
     /**
-     * structured unit key (pk/number/thread_ts)
+     * per-chunk identity. body/code/document: {"lines":[start,end]}; structured
+     * (DB row, issue, slack thread): connector PK dict; once-per-object: null.
      * @type {{ [key: string]: any; }}
      * @memberof ResultEnvelope
      */
@@ -75,9 +70,8 @@ export function ResultEnvelopeFromJSONTyped(json: any, ignoreDiscriminator: bool
         return json;
     }
     return {
-        
+
         'source': json['source'],
-        'lines': json['lines'] == null ? undefined : json['lines'],
         'content': json['content'] == null ? undefined : json['content'],
         'score': json['score'] == null ? undefined : json['score'],
         'locator': json['locator'] == null ? undefined : json['locator'],
@@ -95,9 +89,8 @@ export function ResultEnvelopeToJSONTyped(value?: ResultEnvelope | null, ignoreD
     }
 
     return {
-        
+
         'source': value['source'],
-        'lines': value['lines'],
         'content': value['content'],
         'score': value['score'],
         'locator': value['locator'],

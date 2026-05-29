@@ -264,7 +264,7 @@ upstream 变没变？ ← connector 用便宜手段判断（file: mtime+size / D
 
 **chunker 不进 cache**：它是本地确定性计算、毫秒级，重跑比"查表 + 比对"还省事，所以没有"chunker 版本指纹"一说——它升级了，影响通过"切出来的 text 变了 → embed 的 cache key 变了"自然传导。仍建议在 `pyproject.toml` pin 死 Chonkie 版本（可复现），但那是依赖管理，不是数据指纹。
 
-**chunk_id 仍是幂等主键**：`chunk_id = sha1(namespace + connector + object_uri + chunk_kind + locator + lines)`，跟内容 / 配置无关（`locator`/`lines` 区分同一 object 内的多个 chunk，见 [02 §7](02-architecture.md#7-一致性)）。重跑一个 object = `DELETE WHERE object_uri = Y` + 重新 INSERT 切出来的所有 chunk，幂等、无脏行——不需要 chunk 级别的 fingerprint 字段来判断 stale。
+**chunk_id 仍是幂等主键**：`chunk_id = sha1(namespace + connector + object_uri + chunk_kind + locator)`，跟内容 / 配置无关。`locator` 是同一 object 内的 per-chunk 身份：body/code/document 用 `{"lines":[s,e]}`，结构化对象（row/thread/issue）用 PK dict，once-per-object 类（dir/schema/vlm summary）用 null（见 [02 §7](02-architecture.md#7-一致性)）。重跑一个 object = `DELETE WHERE object_uri = Y` + 重新 INSERT 切出来的所有 chunk，幂等、无脏行——不需要 chunk 级别的 fingerprint 字段来判断 stale。
 
 #### 框架配置变化：v0.4 手动 --force-index
 
@@ -573,9 +573,9 @@ renamed event 进 framework 后，**chunk 内容、向量都不变**——只有
 
 ```
 对 old_uri 在 Milvus 里的所有 chunks:
-  ① 读出 dense_vec / sparse_vec / content / locator / lines / chunk_kind / metadata
-  ② 算新 chunk_id = sha1(namespace + connector + new_uri + chunk_kind + locator + lines)
-     （locator / lines 沿用旧 chunk，只有 object_uri 从 old_uri 换成 new_uri）
+  ① 读出 dense_vec / sparse_vec / content / locator / chunk_kind / metadata
+  ② 算新 chunk_id = sha1(namespace + connector + new_uri + chunk_kind + locator)
+     （locator 沿用旧 chunk，只有 object_uri 从 old_uri 换成 new_uri）
   ③ INSERT 新行（向量 + content 直接复用，不调 embedder）
   ④ DELETE 旧行（按旧 chunk_id 或按 object_uri 批量删）
 

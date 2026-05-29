@@ -32,7 +32,9 @@ with mfs_sdk.ApiClient(cfg) as api:
     check("search returns results", len(res.results) >= 1)
     top = res.results[0]
     check("envelope: source is auth.md", top.source.endswith("auth.md"))
-    check("envelope: lines is [start,end]", isinstance(top.lines, list) and len(top.lines) == 2)
+    check("envelope: locator carries {'lines':[start,end]} for body chunks",
+          isinstance(top.locator, dict) and isinstance(top.locator.get("lines"), list)
+          and len(top.locator["lines"]) == 2)
     check("envelope: content non-empty", bool(top.content))
     check("envelope: metadata typed dict", isinstance(top.metadata, dict))
 

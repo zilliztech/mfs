@@ -88,7 +88,7 @@ server.toml. Without these, images are listed but not indexed.
 | `mfs head -n N <file>` | first N lines (Rust accel reads from EOF if `tail`; standard read for `head`). |
 | `mfs tail -n N <file>` | last N lines, **Rust-accelerated** (reverse-read from EOF, never loads the whole file). |
 | `mfs grep "PATTERN" <path>` | Rust-accelerated linear grep (regex + literal). Walks the tree honouring gitignore. |
-| `mfs search "QUERY" <path>` | Milvus hybrid search; returns chunks with `{path, lines:[start,end], chunk_kind}`. |
+| `mfs search "QUERY" <path>` | Milvus hybrid search; chunks return with `locator={"lines":[start,end]}` + `chunk_kind`. Reopen via `cat --range start:end`. |
 | `mfs export <path>` | streams the raw file (or converted-md for converted formats). |
 
 ## Typical workflow on a large repo
