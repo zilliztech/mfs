@@ -2,7 +2,7 @@
 name: mfs
 version: 0.4.0
 mfs_compat: ">=0.4,<0.5"
-description: Use this skill to search, browse, and read across large, indexed multi-source collections — codebases, docs, PDFs, images, web crawls, GitHub repos, databases (Postgres/MySQL/Mongo/Snowflake/BigQuery), CRMs (Salesforce/HubSpot), issue trackers (Jira/Linear), chat (Slack/Discord/Gmail/Feishu), object stores (S3/R2/GCS) — through the MFS shell-native CLI. MFS earns its keep on LARGE collections by building a hybrid (semantic + keyword) index so search is fast and high-recall, then you locate the exact spot and browse nearby. For tiny scopes or known literals, plain grep/read is simpler.
+description: Search, browse, and read across large indexed multi-source collections via the `mfs` CLI — codebases, docs, PDFs, web crawls, databases (postgres/mysql/mongo/snowflake/bigquery), issue trackers (jira/linear/github), CRMs (salesforce/hubspot), chat (slack/discord/gmail/feishu), object stores (s3/gdrive). Use whenever the user asks to find, search, look up, or locate something across a large repo, database, workspace, issue tracker, or cross-source collection — even if they don't say "MFS". Trigger phrases include "search the codebase for", "find anywhere about", "where is X mentioned", "look across our [slack/jira/postgres/etc]", "any past tickets/RFCs/commits about", "what does our wiki say about". Do NOT use for: a known single file (use `cat`/`grep` directly), a single record fetched by exact id (use `mfs cat --locator` directly without searching first), or any write/delete operation — MFS is read-only.
 ---
 
 # MFS — Multi-source File-like Search
@@ -53,7 +53,7 @@ before guessing how that source is laid out.
 **Rule:** use the smallest tool that answers the question. MFS is a
 heavyweight stack — fire it up when the scope is too big for `rg`.
 
-## 3. The core workflow on large collections: **search → locate → browse**
+## 3. The core workflow: **search → locate → browse**
 
 ```
         search                locate                  browse
@@ -64,11 +64,18 @@ heavyweight stack — fire it up when the scope is too big for `rg`.
   └──────────────────┘   └──────────────────┘   └─────────────────────┘
 ```
 
-**Why this loop wins on large data.** Reading whole files just to scan
-them doesn't scale. The index lets you ask in natural language, get back
-ranked candidates with exact line/record handles, and **read only the
-part that matters** to verify. For a 5000-file repo or a 50k-ticket
-queue, this is the difference between minutes and hours.
+**On large collections** (5000-file repos, 50k-ticket queues, big
+cross-source workspaces) this loop is the whole point: reading whole
+files to scan them doesn't scale, but the index lets you ask in natural
+language, get back ranked candidates with exact line/record handles, and
+**read only the part that matters** to verify. Minutes vs hours.
+
+**On small collections** (a few dozen files, one project's docs) the
+same toolset still works, lighter: either `mfs search` and skip the
+locate step (the snippet is often enough), or skip search entirely and
+flip through with `mfs ls / tree / cat --peek` — the index isn't doing
+much extra work on this size, so optimise for whichever feels more
+direct.
 
 Each step in concrete form:
 
@@ -92,9 +99,6 @@ Each step in concrete form:
    mfs head -n 20 <uri>       # first records of a structured object
    mfs tree <uri> -L 2        # subtree shape
    ```
-
-Detailed playbook (weak-result recovery, multi-part prompts, candidate
-comparison): **[references/workflow.md](references/workflow.md)**.
 
 ## 4. Semantic search modes
 
@@ -332,7 +336,6 @@ mfs cat <best> --range <start>:<end>
 Most common guidance is already in this file. Open these only when you
 need more detail:
 
-- **Workflow patterns + scoping + recovery** → [references/workflow.md](references/workflow.md)
 - **Result envelope fields (source / locator / content / metadata)** → [references/json-envelope.md](references/json-envelope.md)
 - **Error codes and recovery** → [references/error-codes.md](references/error-codes.md)
 - **Per-connector reference** (URI shape, auth, TOML config, command behaviour, gotchas) → `references/connectors/<scheme>.md`. Read the one matching the URI scheme **before** registering a new source or guessing its layout. Available schemes: `file`, `web`, `s3`, `gdrive`, `postgres`, `mysql`, `snowflake`, `bigquery`, `mongo`, `github`, `jira`, `linear`, `hubspot`, `salesforce`, `notion`, `zendesk`, `slack`, `discord`, `gmail`, `feishu`.
