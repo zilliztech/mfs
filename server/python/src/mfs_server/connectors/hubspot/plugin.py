@@ -33,6 +33,10 @@ class HubSpotPlugin(ConnectorPlugin):
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._client = None
+        # Connect-time result of probing _DEFAULT_OBJECTS for availability
+        # in this portal. None until connect() has run with no user-supplied
+        # enumerate list; set to the filtered list otherwise.
+        self._probed_defaults: Optional[list[str]] = None
 
     def _cfg(self, k, d=None):
         return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
@@ -40,6 +44,23 @@ class HubSpotPlugin(ConnectorPlugin):
     async def connect(self) -> None:
         token = self._cfg("access_token") or self.credential
         self._client = await asyncio.to_thread(hubspot.Client.create, access_token=token)
+        # Probe-and-skip path: if the user hasn't supplied an enumerate list,
+        # try get_page(limit=1) on each default object and quietly drop the
+        # ones the portal rejects (403 on tickets in Free CRM, 403 on
+        # quotes when Sales Hub is off, etc.). When the user IS explicit
+        # we respect their list verbatim — a 403 there is a misconfig that
+        # should bubble up as the actual sync error.
+        if self._cfg("object_types") or self._cfg("objects"):
+            return
+        available: list[str] = []
+        for obj in _DEFAULT_OBJECTS:
+            try:
+                await asyncio.to_thread(
+                    lambda o=obj: self._basic_api(o).get_page(limit=1))
+                available.append(obj)
+            except Exception:  # noqa: BLE001 — 403/404/etc all skip
+                pass
+        self._probed_defaults = available
 
     def _objects(self) -> list[str]:
         # `object_types` is the plugin-level enumerate list (which CRM
@@ -47,7 +68,8 @@ class HubSpotPlugin(ConnectorPlugin):
         # [[objects]] match configs (text_fields/locator_fields/...);
         # accepting both here would collide on the same key. Prefer
         # `object_types`; fall back to `objects` ONLY when it's the legacy
-        # flat list of strings.
+        # flat list of strings. With neither, use the connect-time probe
+        # result (defaults filtered against actual portal availability).
         types = self._cfg("object_types")
         if types:
             return list(types)
@@ -55,6 +77,8 @@ class HubSpotPlugin(ConnectorPlugin):
         if (isinstance(legacy, list) and legacy
                 and all(isinstance(o, str) for o in legacy)):
             return list(legacy)
+        if self._probed_defaults is not None:
+            return list(self._probed_defaults)
         return list(_DEFAULT_OBJECTS)
 
     def _basic_api(self, obj: str):

@@ -270,15 +270,34 @@ async def main():
               f"(api delta={eng.embed.api_calls})",
               eng.embed.api_calls == 0)
 
-        # ----- T14: tickets-in-defaults finding ---------
-        # _DEFAULT_OBJECTS includes "tickets" which only Service Hub portals
-        # have. Pin the gap so a future fix (probe + skip on 403, or drop
-        # tickets from defaults) flips the assertion.
-        print("\n--- T14 · finding: tickets in _DEFAULT_OBJECTS ---")
+        # ----- T14: connect-time probe drops portal-unavailable objects ----
+        # _DEFAULT_OBJECTS still includes 'tickets' (Service Hub object) but
+        # the connect-time probe ought to drop it on a Free CRM portal that
+        # 403s on tickets.basic_api.get_page. Verify both: defaults still
+        # list it AND a NO-CONFIG add lands the right object set
+        # (contacts/companies/deals only, no tickets).
+        print("\n--- T14 · connect-time probe filters portal-unavailable objects ---")
         from mfs_server.connectors.hubspot.plugin import _DEFAULT_OBJECTS
-        check(f"T14 finding: _DEFAULT_OBJECTS still hardcodes 'tickets' "
-              f"({_DEFAULT_OBJECTS}); Free CRM portals 403 on tickets",
+        check(f"T14 _DEFAULT_OBJECTS still ships with tickets "
+              f"(Service Hub users get it for free) (got {_DEFAULT_OBJECTS})",
               "tickets" in _DEFAULT_OBJECTS)
+        # Add a connector with NEITHER object_types NOR objects — plugin
+        # must fall back to probing _DEFAULT_OBJECTS and silently drop the
+        # ones this portal rejects.
+        await eng.add("hubspot://t14-probe",
+                       config={"credential_ref": "env:HUBSPOT_ACCESS_TOKEN"})
+        probe_cid = (await eng.meta.fetchone(
+            "SELECT id FROM connectors WHERE root_uri='hubspot://t14-probe'"))["id"]
+        probe_objs = await eng.meta.fetchall(
+            "SELECT object_uri FROM objects WHERE connector_id=?", (probe_cid,))
+        probe_paths = {o["object_uri"] for o in probe_objs}
+        check(f"T14 probe path: Free CRM enumerates contacts+companies+deals "
+              f"(got {sorted(probe_paths)})",
+              {"/contacts/records.jsonl", "/companies/records.jsonl",
+               "/deals/records.jsonl"} <= probe_paths)
+        check(f"T14 probe path: tickets dropped — Service Hub not enabled "
+              f"(got {sorted(probe_paths)})",
+              "/tickets/records.jsonl" not in probe_paths)
 
     finally:
         try: eng.milvus.drop_collection("default")
