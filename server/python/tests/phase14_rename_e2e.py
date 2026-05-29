@@ -14,9 +14,9 @@ test covers each branch of that contract end-to-end:
   T5. Multiple parallel renames in one sync            — both pair independently,
                                                           third file untouched
   T6. Artifact migration on HTML rename                — converted_md follows
-                                                          the rename; also
-                                                          surfaces the artifact_cache
-                                                          table-row gap (see note)
+                                                          the rename: bytes AND
+                                                          the artifact_cache row
+                                                          both land at the new uri
   T7. §6.3 priority follows the NEW path bucket        — src/foo.py (-220) ->
                                                           tests/foo.py (+80)
   T8. Chained rename a -> a2 -> a3                     — each step pairs, total
@@ -385,19 +385,35 @@ async def main():
               "Octopus chromatophores" in body)
         check(f"T6 cat re-run added zero markitdown calls "
               f"(delta={eng.converter.api_calls})", eng.converter.api_calls == 0)
-        # Honest finding: artifact_cache TABLE rows are NOT updated by move_artifacts.
-        # The bytes physically follow the rename (good), but the indirection row
-        # keyed by object_uri stays at the old path. last_accessed bumps + LRU
-        # eviction won't see the new uri until a fresh _put_artifact happens.
+        # artifact_cache row migrated: the indirection row now lives under the
+        # new uri AND its storage_path points at the new per-object dir, so
+        # LRU + last_accessed bookkeeping keep working post-rename.
         row_at_old = await eng.meta.fetchone(
             "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=? "
             "AND artifact_kind='converted_md'", (ns, uri6 + "/notes.html"))
         row_at_new = await eng.meta.fetchone(
-            "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=? "
-            "AND artifact_kind='converted_md'", (ns, uri6 + "/notes_v2.html"))
-        check("T6 finding: artifact_cache table row STILL at old object_uri "
-              "(bytes moved, indirection row stale — known gap in v0.4)",
-              row_at_old is not None and row_at_new is None)
+            "SELECT storage_path FROM artifact_cache WHERE namespace_id=? "
+            "AND object_uri=? AND artifact_kind='converted_md'",
+            (ns, uri6 + "/notes_v2.html"))
+        check("T6 artifact_cache row migrated to the new object_uri",
+              row_at_old is None and row_at_new is not None)
+        check("T6 artifact_cache.storage_path updated to the new per-uri dir",
+              row_at_new and row_at_new["storage_path"] == str(new_dir / "converted_md"))
+
+        # A cat under the new uri should bump last_accessed now that the row
+        # tracks the new uri — i.e. LRU recency works again.
+        ts_before = (await eng.meta.fetchone(
+            "SELECT last_accessed FROM artifact_cache WHERE namespace_id=? "
+            "AND object_uri=? AND artifact_kind='converted_md'",
+            (ns, uri6 + "/notes_v2.html")))["last_accessed"]
+        time.sleep(0.05)
+        _ = await eng.cat(uri6 + "/notes_v2.html")
+        ts_after = (await eng.meta.fetchone(
+            "SELECT last_accessed FROM artifact_cache WHERE namespace_id=? "
+            "AND object_uri=? AND artifact_kind='converted_md'",
+            (ns, uri6 + "/notes_v2.html")))["last_accessed"]
+        check(f"T6 cat(new uri) bumps last_accessed on the migrated row "
+              f"({ts_before!r} -> {ts_after!r})", ts_after > ts_before)
 
         # =====================================================
         # T7 — §6.3 priority follows the NEW path bucket

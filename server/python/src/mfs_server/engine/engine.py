@@ -1236,6 +1236,19 @@ class Engine:
                 await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, old_full)
                 await asyncio.to_thread(self.milvus.upsert, ns, rows)
                 await asyncio.to_thread(self.object_store.move_artifacts, ns, old_full, full_uri)
+                # move_artifacts moved the per-object dir; bring the artifact_cache
+                # indirection rows along too so LRU bookkeeping (size accounting,
+                # last_accessed bumps on cat) tracks the artifact under its new uri.
+                artifact_rows = await self.meta.fetchall(
+                    "SELECT artifact_kind FROM artifact_cache "
+                    "WHERE namespace_id=? AND object_uri=?", (ns, old_full))
+                for ar in artifact_rows:
+                    new_storage = str(self.object_store.artifact_path(
+                        ns, full_uri, ar["artifact_kind"]))
+                    await self.meta.execute(
+                        "UPDATE artifact_cache SET object_uri=?, storage_path=? "
+                        "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
+                        (full_uri, new_storage, ns, old_full, ar["artifact_kind"]))
                 st = await plugin.stat(relpath)
                 await self.meta.execute("DELETE FROM objects WHERE connector_id=? AND object_uri=?", (cid, task["old_uri"]))
                 await self.meta.execute(
