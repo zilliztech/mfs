@@ -194,6 +194,141 @@ async def main():
         check(f"T7 second sync: embedding API calls bounded by new content "
               f"(api delta={eng.embed.api_calls})", eng.embed.api_calls <= 5)
 
+        # ----- T8: ls /projects shows UED + users.jsonl at root --------
+        print("\n--- T8 · ls structure ---")
+        ls_root = await eng.ls(conn_uri)
+        root_names = {e["name"] for e in ls_root["entries"]}
+        check(f"T8 ls / lists 'projects' dir + 'users.jsonl' "
+              f"(got {sorted(root_names)})",
+              {"projects", "users.jsonl"} <= root_names)
+        ls_proj = await eng.ls(conn_uri + "/projects")
+        proj_names = {e["name"] for e in ls_proj["entries"]}
+        check(f"T8 ls /projects contains {project_key} "
+              f"(got {sorted(proj_names)})",
+              project_key in proj_names)
+
+        # ----- T9: flatten_issue field coverage ----------------------
+        print("\n--- T9 · flatten_issue exposes the full field set ---")
+        # _flatten_issue (plugin.py) writes: key, id, summary, description,
+        # status, priority, assignee, reporter, labels, created, updated.
+        # The rendered content joins fields the user configured via
+        # text_fields. Status / priority / assignee go to metadata (T2);
+        # reporter / created / updated / labels go nowhere unless the
+        # user adds them. Verify the source dict itself carries them by
+        # reopening one issue and checking the raw flattened record.
+        sample_chunk = next((c for c in chunks
+                              if (c.get("locator") or {}).get("key")), None)
+        if sample_chunk:
+            sample_key = sample_chunk["locator"]["key"]
+            cat_res = await eng.cat(conn_uri + issues_uri,
+                                     locator={"key": sample_key})
+            rec = _json.loads(cat_res["content"])
+            expected_keys = {"key", "id", "summary", "status", "priority",
+                              "assignee", "reporter", "labels",
+                              "created", "updated"}
+            present = expected_keys & set(rec.keys())
+            check(f"T9 flatten_issue exposes the documented field set "
+                  f"({len(present)} / {len(expected_keys)}; "
+                  f"missing={sorted(expected_keys - present)})",
+                  present == expected_keys)
+
+        # ----- T10: enhanced_jql multi-page pagination ---------------
+        # The new /search/jql is cursor-paginated via nextPageToken; with
+        # page_size=100 (internal) and max_read_rows=200, sync MUST do at
+        # least two enhanced_jql calls. Verify by spinning up a SECOND
+        # connector with a larger cap and confirming chunk_count > 100,
+        # which can only land if pagination worked.
+        print("\n--- T10 · enhanced_jql pagination (nextPageToken loop) ---")
+        cfg_paginate = {**cfg_obj, "max_read_rows": 200}
+        cfg_paginate["objects"] = [
+            {**cfg_obj["objects"][0]}  # same shape but bigger cap
+        ]
+        await eng.add("jira://t14-paginate", config=cfg_paginate)
+        pag_cid = (await eng.meta.fetchone(
+            "SELECT id FROM connectors WHERE root_uri='jira://t14-paginate'"))["id"]
+        pag_ro = await eng.meta.fetchone(
+            "SELECT chunk_count FROM objects WHERE connector_id=? "
+            "AND object_uri=?", (pag_cid, issues_uri))
+        # >= 101 forces at least one nextPageToken roundtrip (page_size=100
+        # internal). UED has 2900+ issues, so this is reachable.
+        check(f"T10 multi-page sync produced > 100 chunks (proves nextPageToken "
+              f"loop ran) — chunk_count={pag_ro['chunk_count'] if pag_ro else None}",
+              pag_ro and pag_ro["chunk_count"] > 100)
+
+        # ----- T11: chunk_max user override triggers 'partial' --------
+        # Use a tiny cap via [[objects]].chunk_max so the framework truncates
+        # (NOT max_read_rows; that's plugin-level pre-read cap). chunk_max
+        # is the SAME flag we test on mysql / mongo / snowflake.
+        print("\n--- T11 · chunk_max user override -> partial state ---")
+        cfg_capped = {**cfg_obj}
+        cfg_capped["objects"] = [{
+            **cfg_obj["objects"][0],
+            "chunk_max": 5,
+        }]
+        # Also bump max_read_rows so the plugin gives the framework enough
+        # rows to truncate. (max_read_rows caps inside the plugin; chunk_max
+        # caps inside the framework's record_collection pipeline.)
+        cfg_capped["max_read_rows"] = 50
+        await eng.add("jira://t14-chunkcap", config=cfg_capped)
+        cap_cid = (await eng.meta.fetchone(
+            "SELECT id FROM connectors WHERE root_uri='jira://t14-chunkcap'"))["id"]
+        cap_ro = await eng.meta.fetchone(
+            "SELECT chunk_count, search_status FROM objects "
+            "WHERE connector_id=? AND object_uri=?", (cap_cid, issues_uri))
+        check(f"T11 chunk_max=5 caps chunk_count "
+              f"(got {cap_ro['chunk_count'] if cap_ro else None})",
+              cap_ro and cap_ro["chunk_count"] == 5)
+        check(f"T11 chunk_max truncation flips search_status='partial' "
+              f"(got {cap_ro['search_status'] if cap_ro else None!r})",
+              cap_ro and cap_ro["search_status"] == "partial")
+        cap_hits = await eng.search("project", connector_uri="jira://t14-chunkcap",
+                                     mode="hybrid", top_k=5)
+        check(f"T11 partial slice still searchable ({len(cap_hits)} hits)",
+              len(cap_hits) >= 1)
+
+        # ----- T12: cat --range on the issues.jsonl ------------------
+        # cat --range on a structured object slices via record_collection
+        # pushdown: read_records(range=Range(start,end)) yields just rows
+        # [start, end). For Jira that means "first 3 issues by updated DESC".
+        print("\n--- T12 · cat --range on a structured object ---")
+        sliced = await eng.cat(conn_uri + issues_uri, range=(0, 3))
+        # cat --range on structured returns newline-joined JSON records
+        lines = [ln for ln in (sliced or "").splitlines() if ln.strip()]
+        decoded = [_json.loads(ln) for ln in lines]
+        check(f"T12 cat --range (0,3) returns 3 newline-joined records "
+              f"(got {len(decoded)})", len(decoded) == 3)
+        check(f"T12 each record carries the issue's 'key' field",
+              all(isinstance(r.get("key"), str) and r["key"].startswith(f"{project_key}-")
+                  for r in decoded))
+
+        # ----- T13: keyword search vs semantic search ---------------
+        # Search modes should behave differently on the SAME query: keyword
+        # mode requires the literal term in chunk content; semantic mode
+        # doesn't. Use the same anchor token we found in T3.
+        print("\n--- T13 · keyword mode vs semantic mode ---")
+        if tokens:
+            kw_hits = await eng.search(term, connector_uri=conn_uri,
+                                        mode="keyword", top_k=5)
+            sem_hits = await eng.search(term, connector_uri=conn_uri,
+                                         mode="semantic", top_k=5)
+            check(f"T13 keyword mode returns hit(s) containing the literal "
+                  f"term '{term}' ({len(kw_hits)} hits)",
+                  any(term.lower() in (h.get("content") or "").lower()
+                      for h in kw_hits))
+            check(f"T13 semantic mode also returns hits "
+                  f"({len(sem_hits)} hits)", len(sem_hits) >= 1)
+
+        # ----- T14: comment / attachment fields NOT indexed today (finding) --
+        # plugin._flatten_issue intentionally drops `comment` and
+        # `attachment` (they need explicit expand=). Pin this so the gap
+        # is visible — a future fix that surfaces comments can flip it.
+        print("\n--- T14 · finding: comments + attachments not in flattened record ---")
+        check("T14 flatten_issue output has NO 'comment' or 'attachment' field "
+              "(plugin doesn't request expand=comments; gap is intentional today)",
+              sample_chunk is not None
+              and "comment" not in rec and "attachment" not in rec
+              and "comments" not in rec and "attachments" not in rec)
+
     finally:
         try: eng.milvus.drop_collection("default")
         except Exception: pass
