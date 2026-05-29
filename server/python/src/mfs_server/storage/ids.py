@@ -1,9 +1,13 @@
 """Content-addressable IDs: chunk_id (idempotent Milvus primary key) and cache_key.
 
-chunk_id = sha1(namespace_id + connector_uri + object_uri + chunk_kind + locator + lines)
-. locator/lines disambiguate multiple chunks within one object:
-  structured objects use locator (pk/thread_ts/number); body/code/document use lines
-  ([start,end] line range). Both can be null for once-per-object kinds (summary etc.).
+chunk_id = sha1(namespace_id + connector_uri + object_uri + chunk_kind + locator).
+The locator disambiguates multiple chunks within one object:
+  - structured objects use a PK dict (table pk / thread_ts / issue number / ...);
+  - body / code / document chunks use a reserved {"lines": [start, end]} form;
+  - once-per-object kinds (directory_summary, vlm_description, schema_summary)
+    use locator=None.
+The framework reserves "lines" as a key in the locator dict — connector
+[[objects]].locator_fields is rejected at startup if it tries to claim it.
 """
 from __future__ import annotations
 
@@ -29,7 +33,6 @@ def chunk_id(
     object_uri: str,
     chunk_kind: str,
     locator: Optional[dict] = None,
-    lines: Optional[list] = None,
 ) -> str:
     raw = "|".join(
         [
@@ -38,7 +41,6 @@ def chunk_id(
             object_uri,
             chunk_kind,
             _canonical(locator),
-            _canonical(lines),
         ]
     )
     return sha1_hex(raw.encode("utf-8"))

@@ -125,11 +125,14 @@ async def main():
         # ChonkieCodeChunker for python typically splits each function/class into its own
         # chunk; we just want >1 chunk + valid line ranges
         check(f"calc.py produced multiple chunks via CodeChunker (got {n_chunks})", n_chunks >= 2)
+        def _lines(c):
+            return ((c.get("locator") or {}).get("lines")) or None
         line_ranges_ok = all(
-            isinstance(c.get("lines"), list) and len(c.get("lines") or []) == 2 and
-            c["lines"][0] >= 1 and c["lines"][1] >= c["lines"][0]
+            isinstance(_lines(c), list) and len(_lines(c)) == 2 and
+            _lines(c)[0] >= 1 and _lines(c)[1] >= _lines(c)[0]
             for c in calc_chunks)
-        check("every calc.py chunk carries a valid [start,end] line range", line_ranges_ok)
+        check("every calc.py chunk carries a valid locator={'lines':[start,end]} range",
+              line_ranges_ok)
 
         # ---- semantic search hits the right function in calc.py
         res = await eng.search("calculator multiply two numbers",

@@ -151,6 +151,17 @@ class ObjectConfig:
     chunk_max: int = 1_000_000
     group_by: Optional[str] = None         # message_stream: override the auto-detected thread key
 
+    def __post_init__(self) -> None:
+        # "lines" is a framework-reserved key inside the locator dict (body /
+        # code / document chunks use {"lines": [start, end]}). A connector
+        # [[objects]] config that tries to claim it would collide with the
+        # body-chunk identity and break cat-by-locator dispatch.
+        if "lines" in (self.locator_fields or ()):
+            raise ValueError(
+                "locator_fields contains the reserved key 'lines'; pick a "
+                "different column name (it is owned by the framework for "
+                "body/code/document chunks).")
+
 
 # Built-in presets for public SaaS / message connectors: users get a
 # searchable index without writing [[objects]] config. Keys are <connector>.<object>.

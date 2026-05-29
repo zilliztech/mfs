@@ -32,11 +32,18 @@ def build_filter(namespace_id: str, connector_uri: Optional[str] = None,
 
 
 def to_envelope(hit: dict) -> dict:
-    """Milvus hit -> stable envelope."""
+    """Milvus hit -> stable envelope.
+
+    `locator` carries the per-chunk identity in a single field:
+      - body / code / document chunks  -> {"lines": [start, end]}
+      - structured rows / msgs / issues -> connector PK dict
+      - once-per-object kinds            -> None
+    Agents dispatch on what's inside: see `lines` -> `cat --range` (or
+    `cat --locator '{"lines":[s,e]}'`); see other keys -> `cat --locator`.
+    """
     e = hit.get("entity", hit)
     return {
         "source": e.get("object_uri"),
-        "lines": e.get("lines"),
         "content": e.get("content"),
         "score": hit.get("distance"),
         "locator": e.get("locator"),

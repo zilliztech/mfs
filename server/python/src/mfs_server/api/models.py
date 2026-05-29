@@ -96,10 +96,14 @@ class ResultEnvelope(BaseModel):
     """One search/grep hit. Outer shape is stable across connectors;
     locator + metadata.fields are per-connector but documented."""
     source: str = Field(..., description="object URI — feed to cat/head/export")
-    lines: Optional[list[int]] = Field(None, description="[start,end] for text/code; null for structured")
     content: str = Field("", description="snippet to read")
     score: Optional[float] = Field(None, description="ranking score; <0.5 often unreliable")
-    locator: Optional[dict[str, Any]] = Field(None, description="structured unit key (pk/number/thread_ts)")
+    locator: Optional[dict[str, Any]] = Field(
+        None,
+        description=("per-chunk identity. body/code/document chunks: "
+                     "{'lines':[start,end]}; structured (DB row, issue, slack "
+                     "thread): connector PK dict (e.g. {'id':1}, {'number':42}, "
+                     "{'thread_ts':'...'}); once-per-object kinds: null."))
     metadata: dict[str, Any] = Field(default_factory=dict, description="chunk_kind, connector_type, fields, ...")
 
 
@@ -109,9 +113,12 @@ class SearchResponse(BaseModel):
 
 class GrepMatchModel(BaseModel):
     source: Optional[str] = None
-    lines: Optional[list[int]] = None
+    locator: Optional[dict[str, Any]] = Field(
+        None,
+        description=("per-hit identity. text/code line hits: {'lines':[n,n]}; "
+                     "structured pushdown: connector PK dict; notice rows: null."))
     content: str = ""
-    via: Optional[str] = Field(None, description="bm25 | linear | pushdown")
+    via: Optional[str] = Field(None, description="bm25 | linear | pushdown | notice")
 
 
 class GrepResponse(BaseModel):

@@ -1110,9 +1110,9 @@ class Engine:
         if summ.strip():
             vec = (await self.embed.batch_embed([summ]))[0]
             row = {
-                "chunk_id": chunk_id(ns, connector_uri, full_uri, "directory_summary", None, None),
+                "chunk_id": chunk_id(ns, connector_uri, full_uri, "directory_summary", None),
                 "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
-                "locator": None, "lines": None, "content": summ[:65000], "dense_vec": vec,
+                "locator": None, "content": summ[:65000], "dense_vec": vec,
                 "chunk_kind": "directory_summary", "metadata": {}, "indexed_at": int(time.time() * 1000)}
             await asyncio.to_thread(self.milvus.upsert, ns, [row])
 
@@ -1226,11 +1226,11 @@ class Engine:
             if old_chunks:
                 rows = []
                 for ch in old_chunks:
-                    loc, ln = ch.get("locator"), ch.get("lines")
+                    loc = ch.get("locator")
                     rows.append({
-                        "chunk_id": chunk_id(ns, connector_uri, full_uri, ch["chunk_kind"], loc, ln),
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, ch["chunk_kind"], loc),
                         "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
-                        "locator": loc, "lines": ln, "content": ch["content"], "dense_vec": ch["dense_vec"],
+                        "locator": loc, "content": ch["content"], "dense_vec": ch["dense_vec"],
                         "chunk_kind": ch["chunk_kind"], "metadata": ch.get("metadata") or {},
                         "indexed_at": ch.get("indexed_at") or int(time.time() * 1000)})
                 await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, old_full)
@@ -1300,10 +1300,13 @@ class Engine:
                 now_ms = int(time.time() * 1000)
                 rows = []
                 for (ctext, lines), vec in zip(pairs, vecs):
+                    # Body chunks: the per-chunk identity is the line range,
+                    # stored as the reserved "lines" key inside locator.
+                    loc = {"lines": lines}
                     rows.append({
-                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "body", None, lines),
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "body", loc),
                         "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
-                        "locator": None, "lines": lines, "content": ctext[:65000],
+                        "locator": loc, "content": ctext[:65000],
                         "dense_vec": vec, "chunk_kind": "body", "metadata": {}, "indexed_at": now_ms,
                     })
                 # No per-file summary: a whole-file LLM summary is only meaningful at the
@@ -1321,9 +1324,9 @@ class Engine:
             if desc.strip():
                 vec = (await self.embed.batch_embed([desc]))[0]
                 row = {
-                    "chunk_id": chunk_id(ns, connector_uri, full_uri, "vlm_description", None, None),
+                    "chunk_id": chunk_id(ns, connector_uri, full_uri, "vlm_description", None),
                     "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
-                    "locator": None, "lines": None, "content": desc[:65000], "dense_vec": vec,
+                    "locator": None, "content": desc[:65000], "dense_vec": vec,
                     "chunk_kind": "vlm_description", "metadata": {}, "indexed_at": int(time.time() * 1000),
                 }
                 await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
@@ -1378,9 +1381,9 @@ class Engine:
                     vecs = await self.embed.batch_embed([p[0] for p in pairs])
                     now_ms = int(time.time() * 1000)
                     rows = [{
-                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "thread_aggregate", loc, None),
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "thread_aggregate", loc),
                         "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
-                        "locator": loc, "lines": None, "content": ctext[:65000], "dense_vec": vec,
+                        "locator": loc, "content": ctext[:65000], "dense_vec": vec,
                         "chunk_kind": "thread_aggregate", "metadata": {}, "indexed_at": now_ms,
                     } for (ctext, loc), vec in zip(pairs, vecs)]
                     await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
@@ -1422,9 +1425,9 @@ class Engine:
                     vecs = await self.embed.batch_embed([p[0] for p in pairs])
                     now_ms = int(time.time() * 1000)
                     rows = [{
-                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "row_text", loc, None),
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "row_text", loc),
                         "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
-                        "locator": loc, "lines": None, "content": ctext[:65000], "dense_vec": vec,
+                        "locator": loc, "content": ctext[:65000], "dense_vec": vec,
                         "chunk_kind": "row_text", "metadata": meta, "indexed_at": now_ms,
                     } for (ctext, loc, meta), vec in zip(pairs, vecs)]
                     await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
@@ -1448,9 +1451,9 @@ class Engine:
                 if summ.strip():
                     vec = (await self.embed.batch_embed([summ]))[0]
                     row = {
-                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "schema_summary", None, None),
+                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "schema_summary", None),
                         "namespace_id": ns, "connector_uri": connector_uri, "object_uri": full_uri,
-                        "locator": None, "lines": None, "content": summ[:65000], "dense_vec": vec,
+                        "locator": None, "content": summ[:65000], "dense_vec": vec,
                         "chunk_kind": "schema_summary", "metadata": {}, "indexed_at": int(time.time() * 1000)}
                     await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
                     await asyncio.to_thread(self.milvus.upsert, ns, [row])
@@ -1772,7 +1775,12 @@ class Engine:
     def _locator_matches(rec: dict, ocfg, idx: int, locator: dict) -> bool:
         if "_row" in locator:
             return idx == int(locator["_row"])
-        keys = ocfg.locator_fields or list(locator.keys())
+        # "lines" is the framework-reserved key for body/code chunks and is never a
+        # structured-record PK — never compare it against the row. The cat router
+        # dispatches body-chunk reads through plugin.read(range=...) before reaching
+        # this helper, so seeing it here is a misconfiguration we just ignore.
+        keys = [k for k in (ocfg.locator_fields or list(locator.keys()))
+                 if k != "lines"]
         # resolve with the SAME JSONPath-lite used to WRITE the locator (engine indexing:
         # {f: _resolve_path(rec, f)}); plain rec.get() couldn't reopen a nested locator key.
         return all(str(_resolve_path(rec, k)) == str(locator.get(k)) for k in keys if k in locator)
@@ -1793,6 +1801,20 @@ class Engine:
                         "size_hint": st.size_hint, "fingerprint": st.fingerprint}
             okind = plugin.object_kind_of(rel)
             structured = okind in ("table_rows", "record_collection", "message_stream")
+
+            # --- locator with reserved "lines" key: route to the range path ---
+            # Body / code / document chunks store identity as {"lines":[s,e]};
+            # reopening one means slicing the file by line range, not iterating
+            # structured records.
+            if (locator is not None and isinstance(locator, dict)
+                    and "lines" in locator and len(locator) == 1
+                    and not structured):
+                s, e = locator["lines"][0], locator["lines"][1]
+                rg = Range(int(s), int(e))
+                buf = bytearray()
+                async for ch in plugin.read(rel, rg):
+                    buf += ch
+                return bytes(buf).decode("utf-8", errors="replace")
 
             # --- locator: reopen a single structured record ---
             if locator is not None:
@@ -1986,8 +2008,12 @@ class Engine:
                 gen = None
             if gen is not None:
                 async for gm in gen:
-                    results.append({"source": curi + gm.path, "lines": [gm.line_no, gm.line_no]
-                                    if gm.line_no else None, "locator": gm.locator,
+                    # Structured pushdown carries gm.locator (PK dict); text/code
+                    # pushdown carries gm.line_no (we wrap as {"lines":[n,n]}).
+                    loc = (gm.locator if gm.locator is not None
+                           else ({"lines": [gm.line_no, gm.line_no]}
+                                  if gm.line_no else None))
+                    results.append({"source": curi + gm.path, "locator": loc,
                                     "content": gm.content, "via": "pushdown"})
                 return results
             # 2b BM25 over indexed objects in scope
@@ -1995,7 +2021,7 @@ class Engine:
             hits = await asyncio.to_thread(self.milvus.sparse_search, self.ns, pattern, top_k, expr)
             for h in hits:
                 e = h.get("entity", h)
-                results.append({"source": e.get("object_uri"), "lines": e.get("lines"),
+                results.append({"source": e.get("object_uri"), "locator": e.get("locator"),
                                 "content": e.get("content"), "via": "bm25"})
             # 2c linear scan over not_indexed objects in scope (file connector)
             root_abs = curi.replace("file://local", "", 1) if curi.startswith("file://local") else None
@@ -2007,7 +2033,7 @@ class Engine:
                 # don't silently scan a subset and imply it was exhaustive — tell the agent
                 # so it can narrow the path or index first.
                 results.append({
-                    "source": None, "lines": None, "via": "notice",
+                    "source": None, "locator": None, "via": "notice",
                     "content": f"(grep linear scan capped at {_GREP_LINEAR_SCAN_MAX} of "
                                f"{len(not_idx)} not-indexed files in scope; narrow the path "
                                f"or run `mfs add` to index them for complete results)"})
@@ -2020,7 +2046,8 @@ class Engine:
                         for ln, line in await asyncio.to_thread(
                                 accel.linear_grep_file, abs_file, pattern,
                                 False, regex, 200):
-                            results.append({"source": curi + relp, "lines": [ln, ln],
+                            results.append({"source": curi + relp,
+                                            "locator": {"lines": [ln, ln]},
                                             "content": line, "via": "linear"})
                     else:
                         rx = re.compile(pattern if regex else re.escape(pattern))
@@ -2030,7 +2057,8 @@ class Engine:
                         text = bytes(buf).decode("utf-8", errors="replace")
                         for i, line in enumerate(text.splitlines(), 1):
                             if rx.search(line):
-                                results.append({"source": curi + relp, "lines": [i, i],
+                                results.append({"source": curi + relp,
+                                                "locator": {"lines": [i, i]},
                                                 "content": line, "via": "linear"})
                 except Exception:  # noqa: BLE001
                     pass

@@ -154,8 +154,12 @@ async def main():
         # chunk_id and dense_vec invariants:
         #   - chunk_id MUST change (new uri folded into the hash)
         #   - content + dense_vec MUST match what we had on old chunks
-        old_by_lines = {tuple(c["lines"] or []): c for c in old_chunks}
-        new_by_lines = {tuple(c["lines"] or []): c for c in new_chunks}
+        # Body chunks now identify themselves via locator={"lines":[s,e]};
+        # the rename branch carries the whole locator over to the new uri.
+        def _lns(c):
+            return tuple(((c.get("locator") or {}).get("lines")) or [])
+        old_by_lines = {_lns(c): c for c in old_chunks}
+        new_by_lines = {_lns(c): c for c in new_chunks}
         check("T1 each new chunk pairs with an old chunk by line range",
               set(old_by_lines) == set(new_by_lines))
         chunk_id_changed_all = all(
@@ -164,8 +168,9 @@ async def main():
         check("T1 chunk_id rewritten (new uri folded into the hash)",
               chunk_id_changed_all)
         # recompute the expected chunk_id and compare to what landed
-        expected_id = chunk_id(ns, uri1, uri1 + "/src/auth_v2.py", "body", None,
-                                next(iter(new_by_lines)))
+        sample_lines = next(iter(new_by_lines))
+        expected_id = chunk_id(ns, uri1, uri1 + "/src/auth_v2.py", "body",
+                                {"lines": list(sample_lines)})
         check("T1 new chunk_id matches sha1(ns + connector_uri + new_uri + ...)",
               expected_id in {c["chunk_id"] for c in new_chunks})
         content_preserved = all(

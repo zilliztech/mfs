@@ -197,40 +197,44 @@ async def main():
         # chunk_id stability — deterministic + factor-sensitive + normalized
         # =====================================================
         print("\n--- chunk_id stability ---")
+        # chunk_id signature collapsed to a single 'locator' arg — body chunks
+        # embed their line range there as {"lines":[s,e]}, structured chunks
+        # use the connector PK dict. (See storage/ids.py docstring.)
         ns_x = "alpha"
         curi = "file://local/repo"
         ouri = "/src/auth.py"
         kind = "body"
         loc1 = {"row": 7, "col": 12}
         loc2 = {"col": 12, "row": 7}  # same dict, different declaration order
-        lines = [10, 20]
 
-        h1 = chunk_id(ns_x, curi, ouri, kind, loc1, lines)
-        h2 = chunk_id(ns_x, curi, ouri, kind, loc1, lines)
+        h1 = chunk_id(ns_x, curi, ouri, kind, loc1)
+        h2 = chunk_id(ns_x, curi, ouri, kind, loc1)
         check(f"chunk_id is deterministic across calls (h1={h1[:12]}...)",
               h1 == h2)
 
         # locator dict order doesn't change the hash (canonical JSON sorts keys)
-        h1_reordered = chunk_id(ns_x, curi, ouri, kind, loc2, lines)
+        h1_reordered = chunk_id(ns_x, curi, ouri, kind, loc2)
         check(f"chunk_id is locator-key-order independent "
               f"({h1[:12]}.. == {h1_reordered[:12]}..)",
               h1 == h1_reordered)
 
-        # each factor must be hash-sensitive
+        # each factor must be hash-sensitive — lines moved INSIDE locator, so
+        # the "lines change" case now flips a different locator dict.
         cases = [
-            ("namespace_id", chunk_id("beta", curi, ouri, kind, loc1, lines)),
-            ("connector_uri", chunk_id(ns_x, "file://local/other", ouri, kind, loc1, lines)),
-            ("object_uri", chunk_id(ns_x, curi, "/src/util.py", kind, loc1, lines)),
-            ("chunk_kind", chunk_id(ns_x, curi, ouri, "summary", loc1, lines)),
-            ("locator", chunk_id(ns_x, curi, ouri, kind, {"row": 8, "col": 12}, lines)),
-            ("lines", chunk_id(ns_x, curi, ouri, kind, loc1, [10, 21])),
+            ("namespace_id", chunk_id("beta", curi, ouri, kind, loc1)),
+            ("connector_uri", chunk_id(ns_x, "file://local/other", ouri, kind, loc1)),
+            ("object_uri", chunk_id(ns_x, curi, "/src/util.py", kind, loc1)),
+            ("chunk_kind", chunk_id(ns_x, curi, ouri, "summary", loc1)),
+            ("locator (other key)", chunk_id(ns_x, curi, ouri, kind, {"row": 8, "col": 12})),
+            ("locator.lines (body chunk identity)",
+             chunk_id(ns_x, curi, ouri, kind, {"lines": [10, 20]})),
         ]
         for factor, h in cases:
             check(f"chunk_id changes when {factor} changes", h != h1)
 
         # locator=None vs locator={} — different (None canonicalizes to "", {} to "{}")
-        h_none = chunk_id(ns_x, curi, ouri, kind, None, lines)
-        h_empty = chunk_id(ns_x, curi, ouri, kind, {}, lines)
+        h_none = chunk_id(ns_x, curi, ouri, kind, None)
+        h_empty = chunk_id(ns_x, curi, ouri, kind, {})
         check(f"chunk_id distinguishes locator=None from locator={{}} "
               f"({h_none[:12]} vs {h_empty[:12]})", h_none != h_empty)
 
@@ -241,7 +245,7 @@ async def main():
         sample = b_milvus_chunks[0]
         recomputed = chunk_id(
             "beta", f"file://local{repo}", f"file://local{repo}/src/color.py",
-            sample["chunk_kind"], sample.get("locator"), sample.get("lines"))
+            sample["chunk_kind"], sample.get("locator"))
         check(f"NS-B Milvus chunk_id matches recomputed sha1 "
               f"(stored={sample['chunk_id'][:12]}.., recomputed={recomputed[:12]}..)",
               sample["chunk_id"] == recomputed)

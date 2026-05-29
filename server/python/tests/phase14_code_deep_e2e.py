@@ -408,9 +408,11 @@ async def main():
                   len(chunks) == cc)
             check(f"{f}: all chunks have chunk_kind='body'",
                   all(c.get("chunk_kind") == "body" for c in chunks))
-            check(f"{f}: every chunk carries valid [start,end] line range",
-                  all(isinstance(c.get("lines"), list) and len(c.get("lines") or []) == 2
-                      and c["lines"][0] >= 1 and c["lines"][1] >= c["lines"][0]
+            def _ln(c):
+                return ((c.get("locator") or {}).get("lines")) or None
+            check(f"{f}: every chunk has locator={{'lines':[start,end]}} range",
+                  all(isinstance(_ln(c), list) and len(_ln(c)) == 2
+                      and _ln(c)[0] >= 1 and _ln(c)[1] >= _ln(c)[0]
                       for c in chunks))
             check(f"{f}: anchor symbol {anchor!r} appears in at least one chunk's content",
                   any(anchor in (c.get("content") or "") for c in chunks))

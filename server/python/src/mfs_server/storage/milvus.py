@@ -19,7 +19,7 @@ from ..config import ServerConfig
 # field, changed BM25 function, etc.). It is baked into the collection name together with the
 # embedding dim, so a build always targets a collection built for ITS schema/model and never
 # silently reuses an incompatible one written by a different version (migrations out of scope).
-_COLLECTION_SCHEMA_VERSION = 2
+_COLLECTION_SCHEMA_VERSION = 1
 
 
 def _lit(v: str) -> str:
@@ -67,8 +67,13 @@ class MilvusStore:
         # per-object relpath on top, so it needs even more headroom (cap is Milvus' 65535).
         schema.add_field("connector_uri", DataType.VARCHAR, max_length=512, is_partition_key=True)
         schema.add_field("object_uri", DataType.VARCHAR, max_length=4096)
+        # locator is the unified per-chunk identity within an object:
+        #   body / code / document chunks  -> {"lines": [start, end]}
+        #   structured rows / msgs / issues -> connector PK dict
+        #   once-per-object kinds (dir/schema/vlm summaries) -> null
+        # The framework reserves "lines" as a key; user-configured
+        # locator_fields is rejected at startup if it tries to use it.
         schema.add_field("locator", DataType.JSON, nullable=True)
-        schema.add_field("lines", DataType.JSON, nullable=True)
         schema.add_field("content", DataType.VARCHAR, max_length=65535, enable_analyzer=True)
         schema.add_field("dense_vec", DataType.FLOAT_VECTOR, dim=self.dim)
         schema.add_field("sparse_vec", DataType.SPARSE_FLOAT_VECTOR)
