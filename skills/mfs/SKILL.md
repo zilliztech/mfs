@@ -333,12 +333,34 @@ mfs cat <best> --range <start>:<end>
 
 ## 11. Route to the right reference
 
-Most common guidance is already in this file. Open these only when you
-need more detail:
+Most common guidance is already in this file. The references below are
+loaded ONLY when the situation matches — don't open them speculatively.
 
-- **Result envelope fields (source / locator / content / metadata)** → [references/json-envelope.md](references/json-envelope.md)
-- **Error codes and recovery** → [references/error-codes.md](references/error-codes.md)
-- **Per-connector reference** (URI shape, auth, TOML config, command behaviour, gotchas) → `references/connectors/<scheme>.md`. Read the one matching the URI scheme **before** registering a new source or guessing its layout. Available schemes: `file`, `web`, `s3`, `gdrive`, `postgres`, `mysql`, `snowflake`, `bigquery`, `mongo`, `github`, `jira`, `linear`, `hubspot`, `salesforce`, `notion`, `zendesk`, `slack`, `discord`, `gmail`, `feishu`.
+- **[`references/json-envelope.md`](references/json-envelope.md)** —
+  Open WHEN parsing a `--json` search/grep result and the `locator`
+  shape is unfamiliar (composite PKs, `thread_ts`, nested keys); OR
+  when uncertain how to feed a hit back into `mfs cat` (range vs locator
+  dispatch). Skip if §3 above already gave you a working reopen
+  command.
+
+- **[`references/error-codes.md`](references/error-codes.md)** —
+  Open WHEN an `mfs` command returned `--json` error output with a `code`
+  field and you need the specific recovery action; OR when a sync / job
+  stalled with an unfamiliar error category. Don't open just because a
+  command failed — read the error message first.
+
+- **`references/connectors/<scheme>.md`** —
+  Open WHEN: (a) about to run `mfs add <new-uri>` for a connector scheme
+  you haven't used in this session — the file documents URI shape, auth
+  setup, TOML config keys, and per-command behaviour for that connector;
+  (b) an existing connector's command is behaving unexpectedly (auth
+  fail, missing fields, weird locator shape, partial state) and the
+  symptom matches no `mfs` error code. STOP and read the matching one
+  BEFORE guessing the URI layout, TOML keys, or how the connector
+  enumerates objects. Available schemes: `file`, `web`, `s3`, `gdrive`,
+  `postgres`, `mysql`, `snowflake`, `bigquery`, `mongo`, `github`,
+  `jira`, `linear`, `hubspot`, `salesforce`, `notion`, `zendesk`,
+  `slack`, `discord`, `gmail`, `feishu`.
 
 Runtime capability for a specific URI is queried structurally via
 `mfs ls <uri> --json` (`capabilities`, `search_status`); the static

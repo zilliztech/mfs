@@ -1,5 +1,30 @@
 # feishu connector (`feishu://` — Feishu / Lark)
 
+## Contents
+
+This file is ~330 lines because Feishu / Lark has two auth modes, two
+content subtrees (docs + chats), and a region split. Jump to the section
+that matches the task:
+
+- **Hard limits to know up-front** — read FIRST: API constraints (no
+  full-text search, p2p chats not in `chat.list`, etc.) that shape what's
+  achievable.
+- **URI shape** — virtual filesystem layout.
+- **Setup — `user` mode (OAuth Device Flow)** — personal identity; sees
+  everything the user sees. Read when registering for personal use.
+- **Setup — `tenant` mode (bot identity)** — bot identity; sees only docs
+  / chats the bot is invited to. Read when registering an integration bot.
+- **Connector config TOML — full reference** — region / auth / docs /
+  chats / tuning. Open when writing the TOML.
+- **What each command does** — per-command behaviour table. Open when a
+  specific command (`grep`/`cat`/`search`/...) is misbehaving on this
+  connector.
+- **Typical workflow** — end-to-end recipe for both modes.
+- **Where to find the IDs / tokens** — folder_token, doc_token, chat_id
+  locations in URLs / UI. Open when you have a URL and need the token.
+- **Incremental sync** — what gets re-fetched on re-run.
+- **Gotchas** — recurring traps re-stated.
+
 ## What this is
 
 Feishu (a.k.a. Lark) connector with **two subtrees** and **two auth modes**.
