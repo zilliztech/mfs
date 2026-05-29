@@ -101,19 +101,30 @@ class JiraPlugin(ConnectorPlugin):
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
         parts = self._parts(path)
         if len(parts) == 3 and parts[0] == "projects" and parts[2] == "issues.jsonl":
+            # Atlassian removed the legacy /rest/api/3/search endpoint in 2025
+            # (https://developer.atlassian.com/changelog/#CHANGE-2046); the new
+            # /search/jql is cursor-paginated and bounded to 5000 rows per
+            # token. Use the SDK's enhanced_jql helper — it returns
+            # {issues, nextPageToken, isLast}.
             jql = f'project = "{parts[1]}" ORDER BY updated DESC'
-            start, page = 0, 100
+            page = 100
             limit = self._cfg("max_read_rows", 100000)
-            while start < limit:
-                res = await asyncio.to_thread(self._jira.jql, jql, start=start, limit=page)
+            n, token = 0, None
+            while n < limit:
+                res = await asyncio.to_thread(
+                    self._jira.enhanced_jql, jql,
+                    fields="*all", nextPageToken=token, limit=page)
                 issues = (res or {}).get("issues", [])
-                if not issues:
-                    break
                 for it in issues:
                     yield self._flatten_issue(it)
-                if len(issues) < page:
+                    n += 1
+                    if n >= limit:
+                        break
+                if (res or {}).get("isLast") or not (res or {}).get("nextPageToken"):
                     break
-                start += page
+                token = res["nextPageToken"]
+            if n >= limit:
+                self.ctx.declare_partial(path)
         elif len(parts) == 1 and parts[0] == "users.jsonl":
             users = await asyncio.to_thread(self._jira.get_all_users, limit=1000) if hasattr(self._jira, "get_all_users") else []
             for u in (users or []):
@@ -122,8 +133,12 @@ class JiraPlugin(ConnectorPlugin):
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
         if len(parts) == 3 and parts[0] == "projects" and parts[2] == "issues.jsonl":
-            res = await asyncio.to_thread(self._jira.jql, f'project = "{parts[1]}"', start=0, limit=1)
-            return f"total:{(res or {}).get('total', 0)}"
+            # approximate_issue_count is the v3 replacement for the legacy
+            # search endpoint's `total`. Returns {"count": N}.
+            res = await asyncio.to_thread(
+                self._jira.approximate_issue_count, f'project = "{parts[1]}"')
+            cnt = res.get("count") if isinstance(res, dict) else res
+            return f"count:{cnt or 0}"
         return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
