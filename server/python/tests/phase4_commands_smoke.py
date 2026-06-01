@@ -4,6 +4,7 @@ ls / cat / cat --range / head / cat --meta, plus grep dispatch: BM25 main path
 (indexed document) AND linear-scan fallback (a not_indexed .log text_blob). Lite only
 (command logic is backend-agnostic; Phase 8 matrix re-runs on Zilliz).
 """
+
 import asyncio
 import os
 import shutil
@@ -28,7 +29,9 @@ async def main():
         raise SystemExit(2)
     root = tempfile.mkdtemp(prefix="mfs_p4c_repo_")
     os.makedirs(f"{root}/src")
-    open(f"{root}/auth.md", "w").write("# Session storage\n\nUser sessions live in Redis.\nSecond line here.\nThird line.\n")
+    open(f"{root}/auth.md", "w").write(
+        "# Session storage\n\nUser sessions live in Redis.\nSecond line here.\nThird line.\n"
+    )
     open(f"{root}/src/app.py", "w").write("def login():\n    pass\n")
     open(f"{root}/events.log", "w").write("INFO start\nERROR ERR_TIMEOUT at 12:00\nINFO done\n")
 
@@ -57,7 +60,10 @@ async def main():
         check("cat returns content", "Session storage" in text)
         # cat range (lines 1:2 -> first two lines)
         rng = await eng.cat(f"{root}/auth.md", range=(0, 2))
-        check("cat --range 0:2 gives 2 lines", rng.count("\n") <= 2 and "Session storage" in rng and "Third" not in rng)
+        check(
+            "cat --range 0:2 gives 2 lines",
+            rng.count("\n") <= 2 and "Session storage" in rng and "Third" not in rng,
+        )
         # head
         hd = await eng.head(f"{root}/auth.md", n=1)
         check("head -n 1", hd.strip().startswith("# Session"))
@@ -92,7 +98,7 @@ async def main():
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
-    print(f"\n{'='*40}\nPhase 4 commands: {passed}/{total} checks passed")
+    print(f"\n{'=' * 40}\nPhase 4 commands: {passed}/{total} checks passed")
     if passed != total:
         print("FAILED:", [n for n, c in results if not c])
         raise SystemExit(1)

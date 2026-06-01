@@ -15,6 +15,7 @@ The user's chat.list returns 0 (p2p only, no groups) and drive root returns
 path is what proves the user_access_token is actually being passed through.
 
 Env: OPENAI_API_KEY + a populated ~/.feishu/oauth.json. Lite-ish."""
+
 import asyncio
 import json as _json
 import os
@@ -26,22 +27,31 @@ from mfs_server.engine.engine import Engine
 OK, FAIL = "\033[32mOK\033[0m", "\033[31mFAIL\033[0m"
 results = []
 
-DOC_TOKEN = "ZsnVdP2IaoJei1xpIqScnZ64nqg"          # the user's test docx (shared with bot earlier)
-EXTRA_CHAT_ID = "oc_efc1ce35c096f645d7b0dc2d879b7e65"   # user's p2p with the bot (literal chat_id form)
-BOT_OPEN_ID  = "ou_60bcd808fec6049eaece331df5fe3d72"    # bot's open_id (partner_open_id auto-resolve form)
+DOC_TOKEN = "ZsnVdP2IaoJei1xpIqScnZ64nqg"  # the user's test docx (shared with bot earlier)
+EXTRA_CHAT_ID = (
+    "oc_efc1ce35c096f645d7b0dc2d879b7e65"  # user's p2p with the bot (literal chat_id form)
+)
+BOT_OPEN_ID = (
+    "ou_60bcd808fec6049eaece331df5fe3d72"  # bot's open_id (partner_open_id auto-resolve form)
+)
 OAUTH_FILE = pathlib.Path.home() / ".feishu" / "oauth.json"
 
 
 def check(name, cond):
-    results.append(bool(cond)); print(f"  [{OK if cond else FAIL}] {name}"); return cond
+    results.append(bool(cond))
+    print(f"  [{OK if cond else FAIL}] {name}")
+    return cond
 
 
 async def main():
     if not os.environ.get("OPENAI_API_KEY"):
-        print("OPENAI_API_KEY not set — run via bash -ic"); raise SystemExit(2)
+        print("OPENAI_API_KEY not set — run via bash -ic")
+        raise SystemExit(2)
     if not OAUTH_FILE.exists():
-        print(f"{OAUTH_FILE} missing — run "
-              "`python -m mfs_server.connectors.feishu.auth_login --output ~/.feishu/oauth.json`")
+        print(
+            f"{OAUTH_FILE} missing — run "
+            "`python -m mfs_server.connectors.feishu.auth_login --output ~/.feishu/oauth.json`"
+        )
         raise SystemExit(2)
 
     # snapshot refresh_token + mtime BEFORE — connect() must rotate it
@@ -49,10 +59,14 @@ async def main():
     pre_rt = pre_blob["refresh_token"]
     pre_mtime = OAUTH_FILE.stat().st_mtime
 
-    base = f"/tmp/mfs_fs_user_{os.getpid()}"; os.system(f"rm -rf '{base}'*")
+    base = f"/tmp/mfs_fs_user_{os.getpid()}"
+    os.system(f"rm -rf '{base}'*")
     cfg = load_server_config(apply_env=False)
-    cfg.metadata.path = base + "_m.db"; cfg.milvus.uri = base + "_v.db"; cfg.milvus.token = ""
-    cfg.object_store.root = base + "_c"; cfg.transformation_cache.db_path = base + "_t.db"
+    cfg.metadata.path = base + "_m.db"
+    cfg.milvus.uri = base + "_v.db"
+    cfg.milvus.token = ""
+    cfg.object_store.root = base + "_c"
+    cfg.transformation_cache.db_path = base + "_t.db"
     eng = Engine(cfg)
     await eng.startup()
 
@@ -73,7 +87,8 @@ async def main():
         ],
     }
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
         await eng.add(conn_uri, config=cfg_obj)
 
         # 1) connector registered (= connect() succeeded with user token)
@@ -87,48 +102,67 @@ async def main():
         post_mtime = OAUTH_FILE.stat().st_mtime
         check("oauth.json was written by connect() (mtime advanced)", post_mtime > pre_mtime)
         check("refresh_token rotated (new value != old value)", post_rt != pre_rt)
-        check("oauth.json kept app_id + app_secret", post_blob.get("app_id") and post_blob.get("app_secret"))
+        check(
+            "oauth.json kept app_id + app_secret",
+            post_blob.get("app_id") and post_blob.get("app_secret"),
+        )
 
         # 3) extra_docs got indexed via user_access_token
         doc_objs = await eng.meta.fetchall(
             "SELECT object_uri, chunk_count, search_status FROM objects "
-            "WHERE connector_id=? AND object_uri LIKE '/docs/%'", (cid,))
-        check(f"docs subtree contains the extra_doc (got {len(doc_objs)} doc paths)",
-              len(doc_objs) == 1)
+            "WHERE connector_id=? AND object_uri LIKE '/docs/%'",
+            (cid,),
+        )
+        check(
+            f"docs subtree contains the extra_doc (got {len(doc_objs)} doc paths)",
+            len(doc_objs) == 1,
+        )
         if doc_objs:
             d = doc_objs[0]
-            check(f"doc indexed with >=1 chunk via USER token (got {d['chunk_count']})",
-                  (d["chunk_count"] or 0) >= 1)
+            check(
+                f"doc indexed with >=1 chunk via USER token (got {d['chunk_count']})",
+                (d["chunk_count"] or 0) >= 1,
+            )
 
             full_uri = conn_uri + d["object_uri"]
             content = await eng.cat(full_uri)
-            check(f"cat returns markdown body via USER token ({len(content) if isinstance(content,str) else '?'} chars)",
-                  isinstance(content, str) and len(content) > 100)
+            check(
+                f"cat returns markdown body via USER token ({len(content) if isinstance(content, str) else '?'} chars)",
+                isinstance(content, str) and len(content) > 100,
+            )
 
-            res = await eng.search("1M context Claude Code DeepSeek",
-                                   connector_uri=conn_uri, mode="hybrid", top_k=5)
+            res = await eng.search(
+                "1M context Claude Code DeepSeek", connector_uri=conn_uri, mode="hybrid", top_k=5
+            )
             on_us = [r for r in res if (r.get("source") or "").startswith(conn_uri)]
-            check(f"search returns >=1 hit on this connector (got {len(on_us)})",
-                  len(on_us) >= 1)
+            check(f"search returns >=1 hit on this connector (got {len(on_us)})", len(on_us) >= 1)
 
         # P1.5: extra_chats (p2p messages via user OAuth + im:message.p2p_msg:get_as_user)
         chat_objs = await eng.meta.fetchall(
             "SELECT object_uri, chunk_count, search_status FROM objects "
-            "WHERE connector_id=? AND object_uri LIKE '/chats/%'", (cid,))
-        check(f"chats subtree contains the extra_chat (got {len(chat_objs)} chat paths)",
-              len(chat_objs) == 1)
+            "WHERE connector_id=? AND object_uri LIKE '/chats/%'",
+            (cid,),
+        )
+        check(
+            f"chats subtree contains the extra_chat (got {len(chat_objs)} chat paths)",
+            len(chat_objs) == 1,
+        )
         if chat_objs:
             c = chat_objs[0]
-            check(f"p2p chat indexed with >=1 thread_aggregate chunk (got {c['chunk_count']})",
-                  (c["chunk_count"] or 0) >= 1)
+            check(
+                f"p2p chat indexed with >=1 thread_aggregate chunk (got {c['chunk_count']})",
+                (c["chunk_count"] or 0) >= 1,
+            )
     finally:
-        try: eng.milvus.drop_collection("default")
-        except Exception: pass
+        try:
+            eng.milvus.drop_collection("default")
+        except Exception:
+            pass
         await eng.shutdown()
         os.system(f"rm -rf '{base}'*")
 
     passed = sum(results)
-    print(f"\n{'='*46}\n  feishu user-mode live: {passed}/{len(results)} checks passed")
+    print(f"\n{'=' * 46}\n  feishu user-mode live: {passed}/{len(results)} checks passed")
     raise SystemExit(0 if passed == len(results) else 1)
 
 

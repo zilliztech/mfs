@@ -3,6 +3,7 @@
 Drives the FastAPI /v1 endpoints via TestClient (triggers lifespan startup): add ->
 search (hybrid) -> grep -> ls -> cat -> status -> job. Lite backend, temp paths.
 """
+
 import os
 import shutil
 import tempfile
@@ -28,7 +29,9 @@ def main():
         print("OPENAI_API_KEY not set — run via bash -ic")
         raise SystemExit(2)
     root = tempfile.mkdtemp(prefix="mfs_p4api_repo_")
-    open(f"{root}/auth.md", "w").write("# Session storage\n\nUser sessions live in Redis with a TTL.\n")
+    open(f"{root}/auth.md", "w").write(
+        "# Session storage\n\nUser sessions live in Redis with a TTL.\n"
+    )
     open(f"{root}/README.md", "w").write("# Demo\n\nUnrelated banana content.\n")
 
     base = f"/tmp/mfs_p4api_{os.getpid()}"
@@ -44,7 +47,9 @@ def main():
     try:
         with TestClient(app) as client:
             r = client.get("/v1/server/info")
-            check("GET /v1/server/info 200", r.status_code == 200 and r.json()["version"] == "0.4.0")
+            check(
+                "GET /v1/server/info 200", r.status_code == 200 and r.json()["version"] == "0.4.0"
+            )
 
             # add is async: returns a job_id immediately; the in-process worker (sqlite)
             # drains it in the background, so poll the job to completion before searching.
@@ -61,23 +66,39 @@ def main():
                 time.sleep(0.5)
             check("GET /v1/jobs/{id} succeeded (async drain)", status == "succeeded")
 
-            r = client.get("/v1/search", params={"q": "user sessions storage", "path": root, "mode": "hybrid", "top_k": 5})
+            r = client.get(
+                "/v1/search",
+                params={"q": "user sessions storage", "path": root, "mode": "hybrid", "top_k": 5},
+            )
             res = r.json()["results"]
             check("GET /v1/search returns results", r.status_code == 200 and len(res) > 0)
-            check("search top is session-related", any("auth.md" in (x["source"] or "") for x in res[:2]))
+            check(
+                "search top is session-related",
+                any("auth.md" in (x["source"] or "") for x in res[:2]),
+            )
 
             r = client.get("/v1/grep", params={"pattern": "Session", "path": root})
-            check("GET /v1/grep returns hits", r.status_code == 200 and len(r.json()["results"]) > 0)
+            check(
+                "GET /v1/grep returns hits", r.status_code == 200 and len(r.json()["results"]) > 0
+            )
 
             r = client.get("/v1/ls", params={"path": root})
             names = {e["name"] for e in r.json()["entries"]}
-            check("GET /v1/ls lists files", r.status_code == 200 and {"auth.md", "README.md"} <= names)
+            check(
+                "GET /v1/ls lists files", r.status_code == 200 and {"auth.md", "README.md"} <= names
+            )
 
             r = client.get("/v1/cat", params={"path": f"{root}/auth.md"})
-            check("GET /v1/cat returns content", r.status_code == 200 and "Session storage" in r.json()["content"])
+            check(
+                "GET /v1/cat returns content",
+                r.status_code == 200 and "Session storage" in r.json()["content"],
+            )
 
             r = client.get("/v1/cat", params={"path": f"{root}/auth.md", "range": "0:1"})
-            check("GET /v1/cat --range", r.status_code == 200 and "Session storage" in r.json()["content"])
+            check(
+                "GET /v1/cat --range",
+                r.status_code == 200 and "Session storage" in r.json()["content"],
+            )
 
             r = client.get("/v1/status")
             check("GET /v1/status", r.status_code == 200 and len(r.json()["connectors"]) >= 1)
@@ -87,7 +108,7 @@ def main():
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
-    print(f"\n{'='*40}\nPhase 4 HTTP API: {passed}/{total} checks passed")
+    print(f"\n{'=' * 40}\nPhase 4 HTTP API: {passed}/{total} checks passed")
     if passed != total:
         print("FAILED:", [n for n, c in results if not c])
         raise SystemExit(1)

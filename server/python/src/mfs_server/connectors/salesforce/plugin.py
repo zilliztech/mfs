@@ -7,6 +7,7 @@ security_token) | (instance_url, session_id); sf.query_all_iter(soql) lazy itera
 of record dicts; sf.<Object>.describe() -> {'fields': [{'name','type',...}]}. No async
 API (sync only). NOT end-to-end tested (needs org creds).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -16,8 +17,16 @@ from typing import Optional
 from simple_salesforce import Salesforce
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions, safe_ident,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
+    safe_ident,
 )
 
 # default SObjects to expose if none configured
@@ -29,24 +38,37 @@ class SalesforcePlugin(ConnectorPlugin):
     URI_SCHEME = "salesforce"
     DISPLAY_NAME = "Salesforce"
     PROMPT = "Salesforce SObjects as /<object>/records.jsonl + schema.json."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="LastModifiedDate",
-                                full_scan=True, delete_detection="full_scan", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="LastModifiedDate",
+        full_scan=True,
+        delete_detection="full_scan",
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._sf: Optional[Salesforce] = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     async def connect(self) -> None:
         def build():
             if self._cfg("session_id"):
-                return Salesforce(instance_url=self._cfg("instance_url"),
-                                  session_id=self._cfg("session_id"))
-            return Salesforce(username=self._cfg("username"), password=self._cfg("password"),
-                              security_token=self._cfg("security_token") or self.credential,
-                              domain=self._cfg("domain", "login"))
+                return Salesforce(
+                    instance_url=self._cfg("instance_url"), session_id=self._cfg("session_id")
+                )
+            return Salesforce(
+                username=self._cfg("username"),
+                password=self._cfg("password"),
+                security_token=self._cfg("security_token") or self.credential,
+                domain=self._cfg("domain", "login"),
+            )
+
         self._sf = await asyncio.to_thread(build)
 
     async def healthcheck(self) -> HealthStatus:
@@ -71,7 +93,9 @@ class SalesforcePlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith("records.jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True})
+            return PathStat(
+                path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True}
+            )
         if path.endswith("schema.json"):
             return PathStat(path=path, type="file", media_type="application/json")
         return PathStat(path=path, type="dir")
@@ -81,8 +105,10 @@ class SalesforcePlugin(ConnectorPlugin):
         if len(parts) == 0:
             return [Entry(o, "dir") for o in self._objects()]
         if len(parts) == 1:
-            return [Entry("schema.json", "file", "application/json"),
-                    Entry("records.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
+            return [
+                Entry("schema.json", "file", "application/json"),
+                Entry("records.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+            ]
         return []
 
     async def _fields(self, sobject: str) -> list[dict]:
@@ -102,9 +128,12 @@ class SalesforcePlugin(ConnectorPlugin):
                 yield r
         elif len(parts) == 2 and parts[1] == "schema.json":
             fields = await self._fields(safe_ident(parts[0]))
-            yield {"object": parts[0],
-                   "fields": [{"name": f["name"], "type": f["type"], "label": f.get("label")}
-                              for f in fields]}
+            yield {
+                "object": parts[0],
+                "fields": [
+                    {"name": f["name"], "type": f["type"], "label": f.get("label")} for f in fields
+                ],
+            }
 
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
@@ -116,7 +145,9 @@ class SalesforcePlugin(ConnectorPlugin):
             # max() catches in-place record edits that leave the count unchanged.
             mx = None
             try:
-                m = await asyncio.to_thread(self._sf.query, f"SELECT MAX(SystemModstamp) m FROM {obj}")
+                m = await asyncio.to_thread(
+                    self._sf.query, f"SELECT MAX(SystemModstamp) m FROM {obj}"
+                )
                 recs = m.get("records") or []
                 mx = recs[0].get("m") if recs else None
             except Exception:  # noqa: BLE001 - object without SystemModstamp -> count only

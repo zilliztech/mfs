@@ -4,6 +4,7 @@ CachingEmbeddingClient.batch_embed: cache_key lookup -> miss-only API call (batc
 -> write back. Vectors stored in tx cache as packed float32. OpenAI provider (reads
 OPENAI_API_KEY from env). Tracks api_calls / cache_hits for observability/tests.
 """
+
 from __future__ import annotations
 
 import array
@@ -33,7 +34,7 @@ class CachingEmbeddingClient:
         self.dim = cfg.embedding.dim
         self.batch_size = cfg.embedding.batch_size
         self.tx_cache = tx_cache
-        self._client = None      # lazy: built on first API call so the server boots
+        self._client = None  # lazy: built on first API call so the server boots
         # without OPENAI_API_KEY (browse/ls/cat/grep don't need embeddings)
         # observability
         self.api_calls = 0
@@ -49,11 +50,14 @@ class CachingEmbeddingClient:
         downloaded + cached on first use."""
         if self._client is None:
             from fastembed import TextEmbedding
+
             self._client = TextEmbedding(model_name=self.model)
         return self._client
 
     def _key(self, text: str) -> str:
-        return cache_key(sha1_hex(text.encode()), "embedding", self.provider, self.model, self.version)
+        return cache_key(
+            sha1_hex(text.encode()), "embedding", self.provider, self.model, self.version
+        )
 
     async def batch_embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
@@ -74,17 +78,25 @@ class CachingEmbeddingClient:
             puts = []
             for j, i in enumerate(miss_idx):
                 result[i] = vecs[j]
-                puts.append({
-                    "cache_key": keys[i], "kind": "embedding", "input_hash": sha1_hex(texts[i].encode()),
-                    "provider": self.provider, "model": self.model, "model_version": self.version,
-                    "output_bytes": encode_vec(vecs[j]), "output_size": len(vecs[j]) * 4,
-                })
+                puts.append(
+                    {
+                        "cache_key": keys[i],
+                        "kind": "embedding",
+                        "input_hash": sha1_hex(texts[i].encode()),
+                        "provider": self.provider,
+                        "model": self.model,
+                        "model_version": self.version,
+                        "output_bytes": encode_vec(vecs[j]),
+                        "output_size": len(vecs[j]) * 4,
+                    }
+                )
             await self.tx_cache.batch_put(puts)
         return result  # type: ignore[return-value]
 
     async def _embed_api(self, texts: list[str]) -> list[list[float]]:
         if self.provider == "onnx":
             import asyncio
+
             model = self._ensure_onnx()
             vecs = await asyncio.to_thread(lambda: [v.tolist() for v in model.embed(texts)])
             self.api_calls += len(texts)

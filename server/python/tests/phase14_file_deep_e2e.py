@@ -14,6 +14,7 @@ end-to-end through the engine:
     map back to real code).
 
 Self-contained; needs OPENAI_API_KEY (bash -ic)."""
+
 import asyncio
 import os
 import pathlib
@@ -27,7 +28,9 @@ results = []
 
 
 def check(name, cond):
-    results.append(bool(cond)); print(f"  [{OK if cond else FAIL}] {name}"); return cond
+    results.append(bool(cond))
+    print(f"  [{OK if cond else FAIL}] {name}")
+    return cond
 
 
 CODE_FILE = '''\
@@ -64,16 +67,21 @@ class Calculator:
 
 async def main():
     if not os.environ.get("OPENAI_API_KEY"):
-        print("OPENAI_API_KEY not set — run via bash -ic"); raise SystemExit(2)
+        print("OPENAI_API_KEY not set — run via bash -ic")
+        raise SystemExit(2)
 
-    base = f"/tmp/mfs_fdeep_{os.getpid()}"; os.system(f"rm -rf '{base}'*")
+    base = f"/tmp/mfs_fdeep_{os.getpid()}"
+    os.system(f"rm -rf '{base}'*")
     repo = pathlib.Path(f"{base}_repo")
     cfg = load_server_config(apply_env=False)
-    cfg.metadata.path = base + "_m.db"; cfg.milvus.uri = base + "_v.db"; cfg.milvus.token = ""
-    cfg.object_store.root = base + "_c"; cfg.transformation_cache.db_path = base + "_t.db"
+    cfg.metadata.path = base + "_m.db"
+    cfg.milvus.uri = base + "_v.db"
+    cfg.milvus.token = ""
+    cfg.object_store.root = base + "_c"
+    cfg.transformation_cache.db_path = base + "_t.db"
     cfg.summary.enabled = False
-    cfg.chunk.chunk_size = 200    # small budget so the calc.py file is forced to split
-                                  # into multiple chonkie CodeChunker chunks
+    cfg.chunk.chunk_size = 200  # small budget so the calc.py file is forced to split
+    # into multiple chonkie CodeChunker chunks
     eng = Engine(cfg)
     await eng.startup()
 
@@ -85,25 +93,30 @@ async def main():
 
     (repo / "README.md").write_text("# project readme\nshould be indexed.\n")
     (repo / "src" / "calc.py").write_text(CODE_FILE)
-    (repo / "src" / "app.log").write_text("INFO startup at 2024-01-01\n")           # ignored by .gitignore (*.log)
-    (repo / "src" / "keep.log").write_text("KEPT: explicitly negated\n")            # un-ignored by !keep.log
-    (repo / "node_modules" / "pkg" / "index.js").write_text("// junk\n")            # ignored by .mfsignore (node_modules/)
-    (repo / "build" / "out.o").write_text("binary garbage")                          # ignored by .mfsignore (build/)
-    (repo / "secret_creds.txt").write_text("hunter2")                                # ignored by .mfsignore (secret_*)
+    (repo / "src" / "app.log").write_text(
+        "INFO startup at 2024-01-01\n"
+    )  # ignored by .gitignore (*.log)
+    (repo / "src" / "keep.log").write_text("KEPT: explicitly negated\n")  # un-ignored by !keep.log
+    (repo / "node_modules" / "pkg" / "index.js").write_text(
+        "// junk\n"
+    )  # ignored by .mfsignore (node_modules/)
+    (repo / "build" / "out.o").write_text("binary garbage")  # ignored by .mfsignore (build/)
+    (repo / "secret_creds.txt").write_text("hunter2")  # ignored by .mfsignore (secret_*)
     (repo / ".gitignore").write_text("*.log\n!keep.log\n")
     (repo / ".mfsignore").write_text("node_modules/\nbuild/\nsecret_*\n")
 
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
         await eng.add(str(repo))
 
-        crow = await eng.meta.fetchone(
-            "SELECT id, root_uri FROM connectors WHERE type='file'")
+        crow = await eng.meta.fetchone("SELECT id, root_uri FROM connectors WHERE type='file'")
         cid = crow["id"]
         uri = crow["root_uri"]
 
         objs = await eng.meta.fetchall(
-            "SELECT object_uri FROM objects WHERE connector_id=?", (cid,))
+            "SELECT object_uri FROM objects WHERE connector_id=?", (cid,)
+        )
         paths = {r["object_uri"] for r in objs}
 
         # ---- gitignore + mfsignore semantics ----
@@ -111,32 +124,45 @@ async def main():
         check("src/calc.py indexed", "/src/calc.py" in paths)
         check(".gitignore '*.log' filters src/app.log", "/src/app.log" not in paths)
         check(".gitignore '!keep.log' (negation) keeps src/keep.log", "/src/keep.log" in paths)
-        check(".mfsignore 'node_modules/' filters whole tree",
-              not any(p.startswith("/node_modules/") for p in paths))
-        check(".mfsignore 'build/' filters whole tree",
-              not any(p.startswith("/build/") for p in paths))
+        check(
+            ".mfsignore 'node_modules/' filters whole tree",
+            not any(p.startswith("/node_modules/") for p in paths),
+        )
+        check(
+            ".mfsignore 'build/' filters whole tree",
+            not any(p.startswith("/build/") for p in paths),
+        )
         check(".mfsignore 'secret_*' filters by glob", "/secret_creds.txt" not in paths)
 
         # ---- code chunking: calc.py must produce >1 chunk with non-overlapping line ranges
         calc_full_uri = uri + "/src/calc.py"
         calc_chunks = await asyncio.to_thread(
-            eng.milvus.get_chunks_by_object, "default", uri, calc_full_uri)
+            eng.milvus.get_chunks_by_object, "default", uri, calc_full_uri
+        )
         n_chunks = len(calc_chunks)
         # ChonkieCodeChunker for python typically splits each function/class into its own
         # chunk; we just want >1 chunk + valid line ranges
         check(f"calc.py produced multiple chunks via CodeChunker (got {n_chunks})", n_chunks >= 2)
+
         def _lines(c):
             return ((c.get("locator") or {}).get("lines")) or None
+
         line_ranges_ok = all(
-            isinstance(_lines(c), list) and len(_lines(c)) == 2 and
-            _lines(c)[0] >= 1 and _lines(c)[1] >= _lines(c)[0]
-            for c in calc_chunks)
-        check("every calc.py chunk carries a valid locator={'lines':[start,end]} range",
-              line_ranges_ok)
+            isinstance(_lines(c), list)
+            and len(_lines(c)) == 2
+            and _lines(c)[0] >= 1
+            and _lines(c)[1] >= _lines(c)[0]
+            for c in calc_chunks
+        )
+        check(
+            "every calc.py chunk carries a valid locator={'lines':[start,end]} range",
+            line_ranges_ok,
+        )
 
         # ---- semantic search hits the right function in calc.py
-        res = await eng.search("calculator multiply two numbers",
-                               connector_uri=uri, mode="hybrid", top_k=5)
+        res = await eng.search(
+            "calculator multiply two numbers", connector_uri=uri, mode="hybrid", top_k=5
+        )
         on_calc = [r for r in res if (r.get("source") or "").endswith("/src/calc.py")]
         check(f"search for 'multiply' hits calc.py ({len(on_calc)} hits)", len(on_calc) >= 1)
 
@@ -150,26 +176,32 @@ async def main():
         await eng.add(str(repo))
 
         objs2 = await eng.meta.fetchall(
-            "SELECT object_uri FROM objects WHERE connector_id=?", (cid,))
+            "SELECT object_uri FROM objects WHERE connector_id=?", (cid,)
+        )
         paths2 = {r["object_uri"] for r in objs2}
         check("after rename: old path /src/calc.py gone", "/src/calc.py" not in paths2)
         check("after rename: new path /src/calc_v2.py present", "/src/calc_v2.py" in paths2)
 
         # Search must still find content under the new path
-        res2 = await eng.search("calculator multiply two numbers",
-                                connector_uri=uri, mode="hybrid", top_k=5)
+        res2 = await eng.search(
+            "calculator multiply two numbers", connector_uri=uri, mode="hybrid", top_k=5
+        )
         new_calc = [r for r in res2 if (r.get("source") or "").endswith("/src/calc_v2.py")]
-        check(f"after rename: search surfaces hits under /src/calc_v2.py ({len(new_calc)})",
-              len(new_calc) >= 1)
+        check(
+            f"after rename: search surfaces hits under /src/calc_v2.py ({len(new_calc)})",
+            len(new_calc) >= 1,
+        )
     finally:
-        try: eng.milvus.drop_collection("default")
-        except Exception: pass
+        try:
+            eng.milvus.drop_collection("default")
+        except Exception:
+            pass
         await eng.shutdown()
         shutil.rmtree(repo, ignore_errors=True)
         os.system(f"rm -rf '{base}'*")
 
     passed = sum(results)
-    print(f"\n{'='*46}\n  file deep e2e: {passed}/{len(results)} checks passed")
+    print(f"\n{'=' * 46}\n  file deep e2e: {passed}/{len(results)} checks passed")
     raise SystemExit(0 if passed == len(results) else 1)
 
 

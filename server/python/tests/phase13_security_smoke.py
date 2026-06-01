@@ -1,8 +1,9 @@
 """Phase 13 — security (matrix I1 / I2 / I7), no external services.
 
-  I1/I2 auth: /v1/* requires the bearer token (401 without/with wrong), /healthz is open.
-  I7 redaction: _redact_config masks secret-looking keys and inline-credential URIs.
+I1/I2 auth: /v1/* requires the bearer token (401 without/with wrong), /healthz is open.
+I7 redaction: _redact_config masks secret-looking keys and inline-credential URIs.
 """
+
 import os
 import shutil
 import tempfile
@@ -18,14 +19,20 @@ results = []
 
 
 def check(name, cond):
-    results.append(bool(cond)); print(f"  [{OK if cond else FAIL}] {name}"); return cond
+    results.append(bool(cond))
+    print(f"  [{OK if cond else FAIL}] {name}")
+    return cond
 
 
 def main():
-    base = f"/tmp/mfs_sec_{os.getpid()}"; os.system(f"rm -rf '{base}'*")
+    base = f"/tmp/mfs_sec_{os.getpid()}"
+    os.system(f"rm -rf '{base}'*")
     cfg = load_server_config(apply_env=False)
-    cfg.metadata.path = base + "_m.db"; cfg.milvus.uri = base + "_v.db"; cfg.milvus.token = ""
-    cfg.object_store.root = base + "_c"; cfg.transformation_cache.db_path = base + "_t.db"
+    cfg.metadata.path = base + "_m.db"
+    cfg.milvus.uri = base + "_v.db"
+    cfg.milvus.token = ""
+    cfg.object_store.root = base + "_c"
+    cfg.transformation_cache.db_path = base + "_t.db"
     cfg.auth_token = "sekret-token"
     app = create_app(cfg)
     try:
@@ -41,8 +48,11 @@ def main():
 
         # I7 — redaction of secret-looking keys + inline-credential connection strings
         cfg2 = load_server_config(apply_env=False)
-        cfg2.metadata.path = base + "_m.db"; cfg2.milvus.uri = base + "_v.db"; cfg2.milvus.token = ""
-        cfg2.object_store.root = base + "_c"; cfg2.transformation_cache.db_path = base + "_t.db"
+        cfg2.metadata.path = base + "_m.db"
+        cfg2.milvus.uri = base + "_v.db"
+        cfg2.milvus.token = ""
+        cfg2.object_store.root = base + "_c"
+        cfg2.transformation_cache.db_path = base + "_t.db"
         eng = Engine(cfg2)
         cfgblob = {
             "dsn": "postgresql://user:hunter2@db.internal:5432/app",
@@ -64,7 +74,7 @@ def main():
         os.system(f"rm -rf '{base}'*")
 
     passed = sum(results)
-    print(f"\n{'='*46}\n  security: {passed}/{len(results)} checks passed")
+    print(f"\n{'=' * 46}\n  security: {passed}/{len(results)} checks passed")
     raise SystemExit(0 if passed == len(results) else 1)
 
 

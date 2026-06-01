@@ -10,6 +10,7 @@ client.conversations_list(types, cursor) -> resp["channels"] + resp["response_me
 ["next_cursor"]; conversations_history(channel, cursor, limit, oldest); users_list(cursor)
 -> resp["members"]. NOT end-to-end tested (needs a bot token).
 """
+
 from __future__ import annotations
 
 import re
@@ -19,8 +20,15 @@ from typing import Optional
 from slack_sdk.web.async_client import AsyncWebClient
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 
 _SANITIZE = re.compile(r"[^a-zA-Z0-9_.-]+")
@@ -35,15 +43,23 @@ class SlackPlugin(ConnectorPlugin):
     URI_SCHEME = "slack"
     DISPLAY_NAME = "Slack"
     PROMPT = "Slack channels as /channels/<name>__<id>/messages.jsonl + users.jsonl."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="ts",
-                                full_scan=True, delete_detection="never", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="ts",
+        full_scan=True,
+        delete_detection="never",
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._client: Optional[AsyncWebClient] = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     async def connect(self) -> None:
         self._client = AsyncWebClient(token=self._cfg("token") or self.credential)
@@ -89,14 +105,18 @@ class SlackPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith(".jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True})
+            return PathStat(
+                path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True}
+            )
         return PathStat(path=path, type="dir")
 
     async def list(self, path: str) -> list[Entry]:
         parts = self._parts(path)
         if len(parts) == 0:
-            return [Entry("channels", "dir"),
-                    Entry("users.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
+            return [
+                Entry("channels", "dir"),
+                Entry("users.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+            ]
         if len(parts) == 1 and parts[0] == "channels":
             return [Entry(self._dir_name(c), "dir") for c in await self._channels()]
         if len(parts) == 2 and parts[0] == "channels":
@@ -107,12 +127,13 @@ class SlackPlugin(ConnectorPlugin):
         parts = self._parts(path)
         if len(parts) == 3 and parts[0] == "channels" and parts[2] == "messages.jsonl":
             channel = self._channel_id(parts[1])
-            oldest = self._cfg("oldest")     # optional unix ts lower bound
+            oldest = self._cfg("oldest")  # optional unix ts lower bound
             limit = self._cfg("max_read_rows", 50000)
             n, cursor = 0, None
             while n < limit:
                 resp = await self._client.conversations_history(
-                    channel=channel, cursor=cursor, limit=200, oldest=oldest)
+                    channel=channel, cursor=cursor, limit=200, oldest=oldest
+                )
                 for m in resp["messages"]:
                     # ensure thread grouping key: thread_ts present for replies, else own ts
                     m.setdefault("thread_ts", m.get("ts"))
@@ -124,7 +145,7 @@ class SlackPlugin(ConnectorPlugin):
                 if not cursor:
                     break
             if n >= limit:
-                self.ctx.declare_partial(path)        # hit max_read_rows -> partial recall
+                self.ctx.declare_partial(path)  # hit max_read_rows -> partial recall
         elif len(parts) == 1 and parts[0] == "users.jsonl":
             cursor = None
             while True:

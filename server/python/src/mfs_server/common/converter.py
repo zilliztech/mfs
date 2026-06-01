@@ -3,6 +3,7 @@
 Result also stored as converted_md artifact by the engine. Web crawler does NOT use
 this path (its HTML->md is backend-coupled inside the connector).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -19,7 +20,7 @@ CONVERT_EXTS = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".htm
 
 class CachingConverterClient:
     def __init__(self, cfg: ServerConfig, tx_cache: TransformationCache):
-        self.default = cfg.converter.default      # "markitdown"
+        self.default = cfg.converter.default  # "markitdown"
         self.provider = "markitdown"
         self.version = "1"
         self.tx_cache = tx_cache
@@ -38,15 +39,25 @@ class CachingConverterClient:
             return cached[key].decode("utf-8", errors="replace")
         md = await asyncio.to_thread(self._convert_sync, data, ext)
         self.api_calls += 1
-        await self.tx_cache.batch_put([{
-            "cache_key": key, "kind": "convert", "input_hash": sha1_hex(data),
-            "provider": self.provider, "model": self.default, "model_version": self.version,
-            "output_bytes": md.encode(), "output_size": len(md.encode()),
-        }])
+        await self.tx_cache.batch_put(
+            [
+                {
+                    "cache_key": key,
+                    "kind": "convert",
+                    "input_hash": sha1_hex(data),
+                    "provider": self.provider,
+                    "model": self.default,
+                    "model_version": self.version,
+                    "output_bytes": md.encode(),
+                    "output_size": len(md.encode()),
+                }
+            ]
+        )
         return md
 
     def _convert_sync(self, data: bytes, ext: str) -> str:
         from markitdown import MarkItDown
+
         if self._md is None:
             self._md = MarkItDown()
         with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f:

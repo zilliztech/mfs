@@ -7,6 +7,7 @@ The whole codebase writes SQLite-style `?` placeholders + portable
 and adapt the DDL (BLOB→BYTEA, text CURRENT_TIMESTAMP defaults), so call sites are
 backend-agnostic.
 """
+
 from __future__ import annotations
 
 import re
@@ -157,7 +158,9 @@ def _to_pg_ddl(ddl: str) -> str:
     (timestamptz can't default a TEXT column) -> now()::text. Everything else
     (TEXT/INTEGER/PRIMARY KEY/UNIQUE/partial indexes/IF NOT EXISTS) is portable."""
     ddl = re.sub(r"\bBLOB\b", "BYTEA", ddl)
-    ddl = re.sub(r"\bINTEGER\b", "BIGINT", ddl)   # SQLite INTEGER is 64-bit; PG INTEGER is 32-bit (mtime_ns overflows)
+    ddl = re.sub(
+        r"\bINTEGER\b", "BIGINT", ddl
+    )  # SQLite INTEGER is 64-bit; PG INTEGER is 32-bit (mtime_ns overflows)
     ddl = ddl.replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT now()::text")
     return ddl
 
@@ -181,7 +184,7 @@ class MetadataStore:
         self.path = cfg.metadata.path
         self.dsn = cfg.metadata.dsn
         self._db: Optional[aiosqlite.Connection] = None
-        self._pool = None      # asyncpg pool (postgres)
+        self._pool = None  # asyncpg pool (postgres)
 
     @property
     def is_pg(self) -> bool:
@@ -190,6 +193,7 @@ class MetadataStore:
     async def connect(self) -> None:
         if self.is_pg:
             import asyncpg
+
             self._pool = await asyncpg.create_pool(self.dsn, min_size=1, max_size=8)
             return
         if self.backend != "sqlite":
@@ -211,7 +215,8 @@ class MetadataStore:
                 f"metadata schema mismatch: DB is version {sorted(existing)}, this build "
                 f"expects {CURRENT_SCHEMA_VERSION}. The schema changed across MFS versions "
                 f"and migrations are out of scope — point MFS_HOME / the metadata DSN at a "
-                f"fresh database (or drop the existing one).")
+                f"fresh database (or drop the existing one)."
+            )
 
     async def init_schema(self) -> None:
         if self.is_pg:
@@ -222,8 +227,9 @@ class MetadataStore:
                 existing = {r["version"] for r in rows}
                 self._guard_schema_version(existing)
                 if not existing:
-                    await c.execute("INSERT INTO schema_version (version) VALUES ($1)",
-                                    CURRENT_SCHEMA_VERSION)
+                    await c.execute(
+                        "INSERT INTO schema_version (version) VALUES ($1)", CURRENT_SCHEMA_VERSION
+                    )
             return
         assert self._db is not None
         for ddl in SQLITE_DDL:
@@ -232,7 +238,9 @@ class MetadataStore:
         existing = {r[0] for r in await cur.fetchall()}
         self._guard_schema_version(existing)
         if not existing:
-            await self._db.execute("INSERT INTO schema_version (version) VALUES (?)", (CURRENT_SCHEMA_VERSION,))
+            await self._db.execute(
+                "INSERT INTO schema_version (version) VALUES (?)", (CURRENT_SCHEMA_VERSION,)
+            )
         await self._db.commit()
 
     async def execute(self, sql: str, params: Sequence[Any] = ()) -> None:
@@ -253,7 +261,7 @@ class MetadataStore:
             async with self._pool.acquire() as c:
                 status = await c.execute(_qmark_to_dollar(sql), *params)
             try:
-                return int(status.split()[-1])      # asyncpg command tag, e.g. "UPDATE 1"
+                return int(status.split()[-1])  # asyncpg command tag, e.g. "UPDATE 1"
             except (ValueError, IndexError, AttributeError):
                 return 0
         assert self._db is not None

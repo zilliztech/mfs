@@ -2,6 +2,7 @@
 same table_rows pipeline as postgres. aiomysql; layout /<table>/{schema.json,rows.jsonl}
 within the configured database. grep pushdown -> SQL LIKE.
 """
+
 from __future__ import annotations
 
 import json
@@ -11,8 +12,18 @@ from typing import Optional
 import aiomysql
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, GrepMatch, GrepOptions, HealthStatus,
-    ObjectChange, ObjectKind, PathStat, Range, SyncOptions, safe_ident,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    GrepMatch,
+    GrepOptions,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
+    safe_ident,
 )
 
 
@@ -21,25 +32,39 @@ class MySQLPlugin(ConnectorPlugin):
     URI_SCHEME = "mysql"
     DISPLAY_NAME = "MySQL"
     PROMPT = "MySQL tables as /<table>/rows.jsonl + schema.json (within one database)."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="updated_at",
-                                full_scan=True, delete_detection="full_scan",
-                                grep_pushdown=True, search_pushdown=False, paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="updated_at",
+        full_scan=True,
+        delete_detection="full_scan",
+        grep_pushdown=True,
+        search_pushdown=False,
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._pool = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     async def connect(self) -> None:
         self._pool = await aiomysql.create_pool(
-            host=self._cfg("host", "127.0.0.1"), port=int(self._cfg("port", 3306)),
+            host=self._cfg("host", "127.0.0.1"),
+            port=int(self._cfg("port", 3306)),
             user=self._cfg("user", "root"),
             # fall back to the resolved credential_ref so the password survives reopen
             # (the inline `password` config field is redacted before persistence)
             password=str(self._cfg("password") or self.credential or ""),
-            db=self._cfg("database"), autocommit=True, minsize=1, maxsize=4)
+            db=self._cfg("database"),
+            autocommit=True,
+            minsize=1,
+            maxsize=4,
+        )
 
     async def close(self) -> None:
         if self._pool:
@@ -75,8 +100,13 @@ class MySQLPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith("rows.jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson",
-                            fingerprint=await self.fingerprint(path), extra={"lazy": True})
+            return PathStat(
+                path=path,
+                type="file",
+                media_type="application/x-ndjson",
+                fingerprint=await self.fingerprint(path),
+                extra={"lazy": True},
+            )
         if path.endswith("schema.json"):
             return PathStat(path=path, type="file", media_type="application/json")
         return PathStat(path=path, type="dir")
@@ -86,8 +116,10 @@ class MySQLPlugin(ConnectorPlugin):
         if len(parts) == 0:
             return [Entry(t, "dir") for t in await self._list_tables()]
         if len(parts) == 1:
-            return [Entry("schema.json", "file", "application/json"),
-                    Entry("rows.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
+            return [
+                Entry("schema.json", "file", "application/json"),
+                Entry("rows.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+            ]
         return []
 
     async def _columns(self, table: str) -> list[dict]:
@@ -96,7 +128,8 @@ class MySQLPlugin(ConnectorPlugin):
                 await cur.execute(
                     "SELECT column_name, data_type FROM information_schema.columns "
                     "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position",
-                    (self._cfg("database"), table))
+                    (self._cfg("database"), table),
+                )
                 rows = await cur.fetchall()
         return [{"name": r[0], "type": r[1]} for r in rows]
 
@@ -120,7 +153,7 @@ class MySQLPlugin(ConnectorPlugin):
                         return
                     await cur.execute(f"SELECT count(*) AS n FROM `{t}`")
                     if (await cur.fetchone())["n"] > lim:
-                        self.ctx.declare_partial(path)        # capped -> search_status=partial
+                        self.ctx.declare_partial(path)  # capped -> search_status=partial
                     await cur.execute(f"SELECT * FROM `{t}` LIMIT {lim}")
                     for r in await cur.fetchall():
                         yield r
@@ -130,7 +163,8 @@ class MySQLPlugin(ConnectorPlugin):
                     await cur.execute(
                         "SELECT column_name, data_type FROM information_schema.columns "
                         "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position",
-                        (self._cfg("database"), parts[0]))
+                        (self._cfg("database"), parts[0]),
+                    )
                     cols = await cur.fetchall()
             yield {"table": parts[0], "columns": cols}
 
@@ -141,7 +175,9 @@ class MySQLPlugin(ConnectorPlugin):
             async with c.cursor() as cur:
                 await cur.execute(
                     "SELECT column_name FROM information_schema.columns "
-                    "WHERE table_schema=%s AND table_name=%s", (self._cfg("database"), table))
+                    "WHERE table_schema=%s AND table_name=%s",
+                    (self._cfg("database"), table),
+                )
                 names = {r[0].lower(): r[0] for r in await cur.fetchall()}
         configured = self._cfg("cursor_column")
         if configured and configured.lower() in names:
@@ -186,7 +222,9 @@ class MySQLPlugin(ConnectorPlugin):
             yield ObjectChange(p, "deleted")
         await self.state.set("tables", seen)
 
-    async def grep(self, pattern: str, path: str, options: GrepOptions) -> Optional[AsyncIterator[GrepMatch]]:
+    async def grep(
+        self, pattern: str, path: str, options: GrepOptions
+    ) -> Optional[AsyncIterator[GrepMatch]]:
         parts = self._parts(path)
         if len(parts) != 2 or parts[1] != "rows.jsonl" or not options.text_fields:
             return None
@@ -201,4 +239,5 @@ class MySQLPlugin(ConnectorPlugin):
                     await cur.execute(f"SELECT * FROM `{table}` WHERE {where} LIMIT 100", args)
                     for r in await cur.fetchall():
                         yield GrepMatch(path=path, content=json.dumps(r, default=str))
+
         return gen()

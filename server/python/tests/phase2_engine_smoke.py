@@ -6,6 +6,7 @@ object_tasks (succeeded). Then re-add (idempotent, 0 tasks) and modify (1 task).
 Milvus = Lite (collection ensured at startup; dropped in cleanup). No embedding yet
 (Phase 2 stub).
 """
+
 import asyncio
 import os
 import shutil
@@ -50,7 +51,9 @@ async def main():
         # 1. first add
         job_id = await eng.add(root)
         conn = await eng.meta.fetchone("SELECT * FROM connectors WHERE type='file'")
-        check("connector registered", conn is not None and conn["root_uri"] == f"file://local{root}")
+        check(
+            "connector registered", conn is not None and conn["root_uri"] == f"file://local{root}"
+        )
         cid = conn["id"]
         objs = await eng.meta.fetchall("SELECT * FROM objects WHERE connector_id=?", (cid,))
         ouris = {o["object_uri"]: o for o in objs}
@@ -60,8 +63,13 @@ async def main():
         job = await eng.meta.fetchone("SELECT * FROM connector_jobs WHERE id=?", (job_id,))
         check("job succeeded", job["status"] == "succeeded")
         check("job succeeded_objects == 3", job["succeeded_objects"] == 3)
-        tasks = await eng.meta.fetchall("SELECT * FROM object_tasks WHERE connector_job_id=?", (job_id,))
-        check("all tasks succeeded", all(t["status"] == "succeeded" for t in tasks) and len(tasks) == 3)
+        tasks = await eng.meta.fetchall(
+            "SELECT * FROM object_tasks WHERE connector_job_id=?", (job_id,)
+        )
+        check(
+            "all tasks succeeded",
+            all(t["status"] == "succeeded" for t in tasks) and len(tasks) == 3,
+        )
         fs = await eng.meta.fetchall("SELECT * FROM file_state WHERE connector_id=?", (cid,))
         check("file_state all indexed", all(r["status"] == "indexed" for r in fs) and len(fs) == 3)
 
@@ -74,7 +82,10 @@ async def main():
         open(f"{root}/a.md", "w").write("hello world CHANGED bigger content")
         job3 = await eng.add(root)
         t3 = await eng.meta.fetchall("SELECT * FROM object_tasks WHERE connector_job_id=?", (job3,))
-        check("modify -> 1 task", len(t3) == 1 and t3[0]["change_kind"] == "modified" and t3[0]["status"] == "succeeded")
+        check(
+            "modify -> 1 task",
+            len(t3) == 1 and t3[0]["change_kind"] == "modified" and t3[0]["status"] == "succeeded",
+        )
     finally:
         try:
             eng.milvus.drop_collection(cfg.namespace)
@@ -86,7 +97,7 @@ async def main():
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
-    print(f"\n{'='*40}\nPhase 2 engine: {passed}/{total} checks passed")
+    print(f"\n{'=' * 40}\nPhase 2 engine: {passed}/{total} checks passed")
     if passed != total:
         print("FAILED:", [n for n, c in results if not c])
         raise SystemExit(1)

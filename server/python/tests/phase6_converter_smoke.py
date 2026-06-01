@@ -1,6 +1,7 @@
 """Phase 6 converter smoke — pdf/html -> markdown -> chunk -> search + cat. Needs
 OPENAI_API_KEY (bash -ic). Lite + Zilliz.
 """
+
 import asyncio
 import os
 import shutil
@@ -26,12 +27,17 @@ def seed() -> str:
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("helvetica", size=12)
-    pdf.multi_cell(0, 8, "Quarterly Financial Report. Revenue grew by 30 percent this fiscal year, "
-                          "driven by enterprise subscription expansion and reduced churn.")
+    pdf.multi_cell(
+        0,
+        8,
+        "Quarterly Financial Report. Revenue grew by 30 percent this fiscal year, "
+        "driven by enterprise subscription expansion and reduced churn.",
+    )
     pdf.output(f"{root}/report.pdf")
     open(f"{root}/api.html", "w").write(
         "<html><body><h1>Authentication</h1><p>The API authenticates requests using OAuth 2.0 "
-        "bearer tokens passed in the Authorization header.</p></body></html>")
+        "bearer tokens passed in the Authorization header.</p></body></html>"
+    )
     open(f"{root}/notes.md", "w").write("# Notes\n\nPlain markdown about gardening tomatoes.\n")
     return root
 
@@ -55,23 +61,44 @@ async def run(label: str, uri: str, token: str, repo: str):
         await eng.add(repo)
 
         conn = await eng.meta.fetchone("SELECT id FROM connectors WHERE type='file'")
-        objs = {o["object_uri"]: o for o in await eng.meta.fetchall(
-            "SELECT object_uri, chunk_count, search_status FROM objects WHERE connector_id=?", (conn["id"],))}
-        check(f"[{label}] report.pdf converted+indexed",
-              objs.get("/report.pdf", {}).get("chunk_count", 0) > 0 and objs["/report.pdf"]["search_status"] == "indexed")
-        check(f"[{label}] api.html converted+indexed",
-              objs.get("/api.html", {}).get("chunk_count", 0) > 0)
+        objs = {
+            o["object_uri"]: o
+            for o in await eng.meta.fetchall(
+                "SELECT object_uri, chunk_count, search_status FROM objects WHERE connector_id=?",
+                (conn["id"],),
+            )
+        }
+        check(
+            f"[{label}] report.pdf converted+indexed",
+            objs.get("/report.pdf", {}).get("chunk_count", 0) > 0
+            and objs["/report.pdf"]["search_status"] == "indexed",
+        )
+        check(
+            f"[{label}] api.html converted+indexed",
+            objs.get("/api.html", {}).get("chunk_count", 0) > 0,
+        )
 
-        rev = await eng.search("revenue growth enterprise", connector_uri=conn_uri, mode="hybrid", top_k=3)
-        check(f"[{label}] search 'revenue' -> report.pdf",
-              any("report.pdf" in (e["source"] or "") for e in rev[:2]))
+        rev = await eng.search(
+            "revenue growth enterprise", connector_uri=conn_uri, mode="hybrid", top_k=3
+        )
+        check(
+            f"[{label}] search 'revenue' -> report.pdf",
+            any("report.pdf" in (e["source"] or "") for e in rev[:2]),
+        )
 
-        au = await eng.search("oauth bearer token authentication", connector_uri=conn_uri, mode="hybrid", top_k=3)
-        check(f"[{label}] search 'oauth' -> api.html",
-              any("api.html" in (e["source"] or "") for e in au[:2]))
+        au = await eng.search(
+            "oauth bearer token authentication", connector_uri=conn_uri, mode="hybrid", top_k=3
+        )
+        check(
+            f"[{label}] search 'oauth' -> api.html",
+            any("api.html" in (e["source"] or "") for e in au[:2]),
+        )
 
         md = await eng.cat(f"{repo}/report.pdf")
-        check(f"[{label}] cat report.pdf returns converted markdown", "Revenue" in md or "revenue" in md)
+        check(
+            f"[{label}] cat report.pdf returns converted markdown",
+            "Revenue" in md or "revenue" in md,
+        )
     finally:
         try:
             eng.milvus.drop_collection(cfg.namespace)
@@ -98,7 +125,7 @@ async def main():
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
-    print(f"\n{'='*40}\nPhase 6 converter: {passed}/{total} checks passed")
+    print(f"\n{'=' * 40}\nPhase 6 converter: {passed}/{total} checks passed")
     if passed != total:
         print("FAILED:", [n for n, c in results if not c])
         raise SystemExit(1)

@@ -3,6 +3,7 @@ Typed request/response models (api/models.py) make the generated OpenAPI rich en
 for the multi-language SDKs. `add` indexes inline by default (returns job_id when done)
 or enqueues for the standalone worker when process=false.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -15,9 +16,23 @@ from fastapi.responses import JSONResponse
 from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
 from .models import (
-    AddRequest, AddResponse, CancelResponse, CatMeta, CatResponse, EstimateResponse,
-    GrepResponse, JobResponse, LsResponse, ManifestRequest, ManifestResponse,
-    ProbeRequest, ProbeResponse, RemoveResponse, SearchResponse, ServerInfo, StatusResponse,
+    AddRequest,
+    AddResponse,
+    CancelResponse,
+    CatMeta,
+    CatResponse,
+    EstimateResponse,
+    GrepResponse,
+    JobResponse,
+    LsResponse,
+    ManifestRequest,
+    ManifestResponse,
+    ProbeRequest,
+    ProbeResponse,
+    RemoveResponse,
+    SearchResponse,
+    ServerInfo,
+    StatusResponse,
 )
 
 # Canonical error codes -> suggested next actions. The endpoints
@@ -37,8 +52,13 @@ _CODE_SUGGESTIONS = {
     "not_found": ["check the URI"],
 }
 # HTTP status -> code when `detail` isn't already a canonical code (human strings).
-_STATUS_CODE = {400: "bad_request", 404: "not_found", 409: "conflict",
-                422: "validation_error", 502: "connector_unhealthy"}
+_STATUS_CODE = {
+    400: "bad_request",
+    404: "not_found",
+    409: "conflict",
+    422: "validation_error",
+    502: "connector_unhealthy",
+}
 
 
 def create_app(cfg: ServerConfig | None = None) -> FastAPI:
@@ -67,10 +87,15 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
                     pass
             await eng.shutdown()
 
-    app = FastAPI(title="MFS", version="0.4.0", lifespan=lifespan,
-                  description="Multi-source File-like Search — HTTP /v1 control plane.")
+    app = FastAPI(
+        title="MFS",
+        version="0.4.0",
+        lifespan=lifespan,
+        description="Multi-source File-like Search — HTTP /v1 control plane.",
+    )
 
     if cfg.auth_token:
+
         @app.middleware("http")
         async def _auth(request: Request, call_next):
             """Bearer-token gate: when auth_token is configured,
@@ -80,9 +105,14 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             if request.url.path == "/healthz":
                 return await call_next(request)
             if request.headers.get("authorization", "") != f"Bearer {cfg.auth_token}":
-                return JSONResponse(status_code=401, content={
-                    "code": "unauthorized", "detail": "missing or invalid bearer token",
-                    "suggestions": ["set a profile token (Authorization: Bearer <token>)"]})
+                return JSONResponse(
+                    status_code=401,
+                    content={
+                        "code": "unauthorized",
+                        "detail": "missing or invalid bearer token",
+                        "suggestions": ["set a profile token (Authorization: Bearer <token>)"],
+                    },
+                )
             return await call_next(request)
 
     @app.exception_handler(HTTPException)
@@ -94,52 +124,86 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         code = detail if detail in _CODE_SUGGESTIONS else _STATUS_CODE.get(exc.status_code, "error")
         return JSONResponse(
             status_code=exc.status_code,
-            content={"code": code, "detail": detail, "suggestions": _CODE_SUGGESTIONS.get(code, [])})
+            content={
+                "code": code,
+                "detail": detail,
+                "suggestions": _CODE_SUGGESTIONS.get(code, []),
+            },
+        )
 
     @app.exception_handler(RequestValidationError)
     async def _val_exc(_request: Request, exc: RequestValidationError) -> JSONResponse:
-        return JSONResponse(status_code=422, content={
-            "code": "validation_error", "detail": str(exc), "suggestions": ["fix request shape"]})
+        return JSONResponse(
+            status_code=422,
+            content={
+                "code": "validation_error",
+                "detail": str(exc),
+                "suggestions": ["fix request shape"],
+            },
+        )
 
     @app.exception_handler(Exception)
     async def _unhandled_exc(_request: Request, exc: Exception) -> JSONResponse:
         """Any uncaught error still returns the stable envelope so SDKs can switch on
         `code` instead of parsing a raw 500 body."""
-        return JSONResponse(status_code=500, content={
-            "code": "internal_error", "detail": str(exc), "suggestions": []})
+        return JSONResponse(
+            status_code=500,
+            content={"code": "internal_error", "detail": str(exc), "suggestions": []},
+        )
 
     def eng() -> Engine:
         return app.state.engine
 
-    @app.get("/v1/server/info", response_model=ServerInfo, operation_id="getServerInfo", tags=["server"])
+    @app.get(
+        "/v1/server/info", response_model=ServerInfo, operation_id="getServerInfo", tags=["server"]
+    )
     async def server_info() -> ServerInfo:
         import socket
+
         return ServerInfo(version="0.4.0", machine_id=socket.gethostname(), namespace=cfg.namespace)
 
     @app.post("/v1/add", response_model=AddResponse, operation_id="addSource", tags=["ingest"])
     async def add(body: AddRequest) -> AddResponse:
         try:
-            job_id = await eng().add(body.target, config=body.config, full=body.full,
-                                     since=body.since, process=body.process, update_config=body.update)
+            job_id = await eng().add(
+                body.target,
+                config=body.config,
+                full=body.full,
+                since=body.since,
+                process=body.process,
+                update_config=body.update,
+            )
         except ValueError as e:
             code = str(e)
             status = 409 if code in ("sync_already_running", "connector_removing") else 400
-            raise HTTPException(status, code)        # -> error envelope
+            raise HTTPException(status, code)  # -> error envelope
         return AddResponse(job_id=job_id)
 
-    @app.post("/v1/jobs/{job_id}/cancel", response_model=CancelResponse,
-              operation_id="cancelJob", tags=["ingest"])
+    @app.post(
+        "/v1/jobs/{job_id}/cancel",
+        response_model=CancelResponse,
+        operation_id="cancelJob",
+        tags=["ingest"],
+    )
     async def cancel_job(job_id: str) -> CancelResponse:
         ok = await eng().cancel_job(job_id)
         return CancelResponse(job_id=job_id, cancelled=ok)
 
-    @app.post("/v1/connectors/probe", response_model=ProbeResponse,
-              operation_id="probeConnector", tags=["connectors"])
+    @app.post(
+        "/v1/connectors/probe",
+        response_model=ProbeResponse,
+        operation_id="probeConnector",
+        tags=["connectors"],
+    )
     async def probe(body: ProbeRequest) -> ProbeResponse:
         return ProbeResponse(**await eng().probe(body.target, body.config))
 
-    @app.post("/v1/connectors/estimate", response_model=EstimateResponse,
-              operation_id="estimateConnector", tags=["connectors"])
+    @app.post(
+        "/v1/connectors/estimate",
+        response_model=EstimateResponse,
+        operation_id="estimateConnector",
+        tags=["connectors"],
+    )
     async def estimate(body: ProbeRequest) -> EstimateResponse:
         """Zero-billing pre-flight estimate: object/chunk/token counts via
         metadata + a local chunker/tokenizer dry-run. No embedding API calls."""
@@ -152,12 +216,18 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             raise HTTPException(404, "connector not found")
         return out
 
-    @app.delete("/v1/connectors", response_model=RemoveResponse,
-                operation_id="removeConnector", tags=["connectors"])
+    @app.delete(
+        "/v1/connectors",
+        response_model=RemoveResponse,
+        operation_id="removeConnector",
+        tags=["connectors"],
+    )
     async def remove(target: str) -> RemoveResponse:
         return RemoveResponse(target=target, removed=await eng().remove_connector(target))
 
-    @app.post("/v1/upload", response_model=AddResponse, operation_id="uploadSource", tags=["ingest"])
+    @app.post(
+        "/v1/upload", response_model=AddResponse, operation_id="uploadSource", tags=["ingest"]
+    )
     async def upload(request: Request, name: str, process: bool = True) -> AddResponse:
         """CS upload flow: POST a tar(.gz) of a tree as the raw body (?name=<label>);
         the server stages + indexes it. For client/server without a shared filesystem."""
@@ -170,19 +240,26 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             raise HTTPException(400, str(e))
         return AddResponse(job_id=out["job_id"])
 
-    @app.post("/v1/files/manifest", response_model=ManifestResponse,
-              operation_id="filesManifest", tags=["ingest"])
+    @app.post(
+        "/v1/files/manifest",
+        response_model=ManifestResponse,
+        operation_id="filesManifest",
+        tags=["ingest"],
+    )
     async def files_manifest(body: ManifestRequest) -> ManifestResponse:
         """Manifest-diff upload step ②: stat-only manifest in, need_sha1 + deletion
         candidates out. No bytes transferred here."""
-        out = await eng().files_manifest(body.client_id, body.root,
-                                         [f.model_dump() for f in body.files])
+        out = await eng().files_manifest(
+            body.client_id, body.root, [f.model_dump() for f in body.files]
+        )
         return ManifestResponse(**out)
 
-    @app.put("/v1/files/upload", response_model=AddResponse,
-             operation_id="filesUpload", tags=["ingest"])
-    async def files_upload(request: Request, client_id: str, root: str,
-                           process: bool = True, full: bool = False) -> AddResponse:
+    @app.put(
+        "/v1/files/upload", response_model=AddResponse, operation_id="filesUpload", tags=["ingest"]
+    )
+    async def files_upload(
+        request: Request, client_id: str, root: str, process: bool = True, full: bool = False
+    ) -> AddResponse:
         """Manifest-diff upload step ④: PUT a tar(.gz) carrying a `.mfs-meta.json`
         member (hashes/renames/deletions) + the changed file bytes. The server applies
         it to the staging area and triggers the file-connector sync. full=true
@@ -197,16 +274,29 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         return AddResponse(job_id=out["job_id"])
 
     @app.get("/v1/search", response_model=SearchResponse, operation_id="search", tags=["retrieval"])
-    async def search(q: str, path: str | None = None, mode: str = "hybrid",
-                     top_k: int = 10, collapse: bool = False, kind: str | None = None) -> SearchResponse:
+    async def search(
+        q: str,
+        path: str | None = None,
+        mode: str = "hybrid",
+        top_k: int = 10,
+        collapse: bool = False,
+        kind: str | None = None,
+    ) -> SearchResponse:
         connector_uri = None
         object_prefix = None
         if path:
             connector_uri, object_prefix = await eng().resolve_connector_uri(path)
         # comma-separated chunk_kinds, e.g. ?kind=body,directory_summary
         chunk_kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
-        results = await eng().search(q, connector_uri=connector_uri, object_prefix=object_prefix,
-                                     mode=mode, top_k=top_k, chunk_kinds=chunk_kinds, collapse=collapse)
+        results = await eng().search(
+            q,
+            connector_uri=connector_uri,
+            object_prefix=object_prefix,
+            mode=mode,
+            top_k=top_k,
+            chunk_kinds=chunk_kinds,
+            collapse=collapse,
+        )
         return SearchResponse(results=results)
 
     @app.get("/v1/grep", response_model=GrepResponse, operation_id="grep", tags=["retrieval"])
@@ -220,16 +310,27 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         except (FileNotFoundError, NotADirectoryError, ValueError) as e:
             raise HTTPException(404, str(e))
 
-    @app.get("/v1/cat", operation_id="cat", tags=["browse"],
-             response_model=None, responses={200: {"model": CatResponse}})
-    async def cat(path: str, range: str | None = None, meta: bool = False,
-                  density: str | None = None, locator: str | None = None):
+    @app.get(
+        "/v1/cat",
+        operation_id="cat",
+        tags=["browse"],
+        response_model=None,
+        responses={200: {"model": CatResponse}},
+    )
+    async def cat(
+        path: str,
+        range: str | None = None,
+        meta: bool = False,
+        density: str | None = None,
+        locator: str | None = None,
+    ):
         import json as _json
+
         rg = None
         if range:
-            a, _, b = range.partition(":")      # supports "a:b", "a:", ":b", "a"
+            a, _, b = range.partition(":")  # supports "a:b", "a:", ":b", "a"
             start = int(a) if a.strip() else 0
-            end = int(b) if b.strip() else (2 ** 63 - 1)
+            end = int(b) if b.strip() else (2**63 - 1)
             rg = (start, end)
         loc = None
         if locator:
@@ -252,7 +353,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             raise HTTPException(404, str(e))
         if meta:
             return CatMeta(**out) if isinstance(out, dict) else out
-        if isinstance(out, dict):     # locator hit -> {source, locator, content}
+        if isinstance(out, dict):  # locator hit -> {source, locator, content}
             return CatResponse(source=out.get("source", path), content=out.get("content", ""))
         return CatResponse(source=path, content=out)
 
@@ -289,19 +390,25 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     @app.get("/v1/status", response_model=StatusResponse, operation_id="status", tags=["server"])
     async def status() -> StatusResponse:
         conns = await eng().meta.fetchall(
-            "SELECT root_uri, type, status FROM connectors WHERE namespace_id=?", (cfg.namespace,))
+            "SELECT root_uri, type, status FROM connectors WHERE namespace_id=?", (cfg.namespace,)
+        )
         jobs = await eng().meta.fetchall(
-            "SELECT status, count(*) AS n FROM connector_jobs GROUP BY status")
-        return StatusResponse(connectors=[dict(c) for c in conns],
-                              jobs={j["status"]: j["n"] for j in jobs})
+            "SELECT status, count(*) AS n FROM connector_jobs GROUP BY status"
+        )
+        return StatusResponse(
+            connectors=[dict(c) for c in conns], jobs={j["status"]: j["n"] for j in jobs}
+        )
 
     @app.get("/v1/jobs", response_model=list[JobResponse], operation_id="listJobs", tags=["ingest"])
     async def list_jobs(limit: int = 20) -> list[JobResponse]:
         rows = await eng().meta.fetchall(
-            "SELECT * FROM connector_jobs ORDER BY started_at DESC LIMIT ?", (limit,))
+            "SELECT * FROM connector_jobs ORDER BY started_at DESC LIMIT ?", (limit,)
+        )
         return [JobResponse(**{k: dict(r).get(k) for k in JobResponse.model_fields}) for r in rows]
 
-    @app.get("/v1/jobs/{job_id}", response_model=JobResponse, operation_id="getJob", tags=["ingest"])
+    @app.get(
+        "/v1/jobs/{job_id}", response_model=JobResponse, operation_id="getJob", tags=["ingest"]
+    )
     async def job(job_id: str) -> JobResponse:
         row = await eng().meta.fetchone("SELECT * FROM connector_jobs WHERE id=?", (job_id,))
         if not row:

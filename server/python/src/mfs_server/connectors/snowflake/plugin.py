@@ -10,6 +10,7 @@ optional `private_key_passphrase_ref` config field (also env:/file: resolved).
 snowflake-connector-python (sync; DictCursor + execute/fetchmany wrapped in
 asyncio.to_thread). Layout /<database>/<schema>/tables/<table>/{schema.json,rows.jsonl}.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -21,8 +22,16 @@ import snowflake.connector
 from snowflake.connector import DictCursor
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions, safe_ident,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
+    safe_ident,
 )
 
 
@@ -47,31 +56,42 @@ class SnowflakePlugin(ConnectorPlugin):
     URI_SCHEME = "snowflake"
     DISPLAY_NAME = "Snowflake"
     PROMPT = "Snowflake tables as /<database>/<schema>/tables/<table>/rows.jsonl + schema.json."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="row_count",
-                                full_scan=True, delete_detection="full_scan", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="row_count",
+        full_scan=True,
+        delete_detection="full_scan",
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._conn = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     async def connect(self) -> None:
         # key-pair auth only — credential_ref must resolve to a PEM RSA private key.
         # Snowflake driver takes the key as DER-encoded PKCS#8 bytes + authenticator JWT.
         from cryptography.hazmat.primitives import serialization
+
         if not self.credential:
             raise ValueError(
                 "snowflake connector requires credential_ref pointing to a PEM RSA private "
                 "key file (e.g. credential_ref='file:/etc/secrets/snowflake_rsa.p8'). The "
                 "matching public key must be installed on the Snowflake user via "
-                "ALTER USER <user> SET RSA_PUBLIC_KEY = '...'.")
+                "ALTER USER <user> SET RSA_PUBLIC_KEY = '...'."
+            )
         pem = self.credential.encode() if isinstance(self.credential, str) else self.credential
         passphrase = _resolve_secret_ref(self._cfg("private_key_passphrase_ref"))
         try:
             pk_obj = serialization.load_pem_private_key(
-                pem, password=passphrase.encode() if passphrase else None)
+                pem, password=passphrase.encode() if passphrase else None
+            )
         except Exception as e:
             raise ValueError(
                 f"snowflake: failed to load PEM private key ({type(e).__name__}: {e}). "
@@ -80,10 +100,13 @@ class SnowflakePlugin(ConnectorPlugin):
         pk_der = pk_obj.private_bytes(
             encoding=serialization.Encoding.DER,
             format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption())
-        kw = {k: self._cfg(k) for k in ("account", "user", "role",
-                                        "warehouse", "database", "schema")
-              if self._cfg(k) is not None}
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+        kw = {
+            k: self._cfg(k)
+            for k in ("account", "user", "role", "warehouse", "database", "schema")
+            if self._cfg(k) is not None
+        }
         kw["authenticator"] = "SNOWFLAKE_JWT"
         kw["private_key"] = pk_der
         self._conn = await asyncio.to_thread(snowflake.connector.connect, **kw)
@@ -101,6 +124,7 @@ class SnowflakePlugin(ConnectorPlugin):
                 return cur.fetchall()
             finally:
                 cur.close()
+
         return await asyncio.to_thread(run)
 
     async def healthcheck(self) -> HealthStatus:
@@ -123,13 +147,16 @@ class SnowflakePlugin(ConnectorPlugin):
     async def _schemas(self, database: str) -> list[str]:
         rows = await self._query(
             f'SELECT schema_name FROM "{safe_ident(database)}".information_schema.schemata '
-            "WHERE schema_name NOT IN ('INFORMATION_SCHEMA') ORDER BY schema_name")
+            "WHERE schema_name NOT IN ('INFORMATION_SCHEMA') ORDER BY schema_name"
+        )
         return [r["SCHEMA_NAME"] for r in rows]
 
     async def _tables(self, database: str, schema: str) -> list[str]:
         rows = await self._query(
             f'SELECT table_name FROM "{safe_ident(database)}".information_schema.tables '
-            "WHERE table_schema=%s ORDER BY table_name", (schema,))
+            "WHERE table_schema=%s ORDER BY table_name",
+            (schema,),
+        )
         return [r["TABLE_NAME"] for r in rows]
 
     def object_kind_of(self, path: str) -> ObjectKind:
@@ -141,8 +168,13 @@ class SnowflakePlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith("rows.jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson",
-                            fingerprint=await self.fingerprint(path), extra={"lazy": True})
+            return PathStat(
+                path=path,
+                type="file",
+                media_type="application/x-ndjson",
+                fingerprint=await self.fingerprint(path),
+                extra={"lazy": True},
+            )
         if path.endswith("schema.json"):
             return PathStat(path=path, type="file", media_type="application/json")
         return PathStat(path=path, type="dir")
@@ -158,8 +190,10 @@ class SnowflakePlugin(ConnectorPlugin):
         if len(parts) == 3 and parts[2] == "tables":
             return [Entry(t, "dir") for t in await self._tables(parts[0], parts[1])]
         if len(parts) == 4:
-            return [Entry("schema.json", "file", "application/json"),
-                    Entry("rows.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
+            return [
+                Entry("schema.json", "file", "application/json"),
+                Entry("rows.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+            ]
         return []
 
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
@@ -175,18 +209,33 @@ class SnowflakePlugin(ConnectorPlugin):
             db, schema, table = safe_ident(parts[0]), safe_ident(parts[1]), safe_ident(parts[3])
             cols = await self._query(
                 f'SELECT column_name, data_type FROM "{db}".information_schema.columns '
-                "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position", (schema, table))
-            yield {"database": db, "schema": schema, "table": table,
-                   "columns": [{"name": c["COLUMN_NAME"], "type": c["DATA_TYPE"]} for c in cols]}
+                "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position",
+                (schema, table),
+            )
+            yield {
+                "database": db,
+                "schema": schema,
+                "table": table,
+                "columns": [{"name": c["COLUMN_NAME"], "type": c["DATA_TYPE"]} for c in cols],
+            }
 
-    _CURSOR_CANDIDATES = ("updated_at", "modified_at", "last_modified", "updated", "modified", "mtime")
+    _CURSOR_CANDIDATES = (
+        "updated_at",
+        "modified_at",
+        "last_modified",
+        "updated",
+        "modified",
+        "mtime",
+    )
 
     async def _cursor_col(self, db: str, schema: str, table: str) -> Optional[str]:
         """The table's change-cursor column (configured `cursor_column` or a common
         timestamp name) so the fingerprint catches in-place updates, not just count."""
         cols = await self._query(
             f'SELECT column_name FROM "{safe_ident(db)}".information_schema.columns '
-            "WHERE table_schema=%s AND table_name=%s", (schema, table))
+            "WHERE table_schema=%s AND table_name=%s",
+            (schema, table),
+        )
         names = {c["COLUMN_NAME"].lower(): c["COLUMN_NAME"] for c in cols}
         configured = self._cfg("cursor_column")
         if configured and configured.lower() in names:
@@ -206,7 +255,8 @@ class SnowflakePlugin(ConnectorPlugin):
             mx = None
             if cur_col:
                 m = await self._query(
-                    f'SELECT max("{safe_ident(cur_col)}") AS m FROM "{db}"."{schema}"."{table}"')
+                    f'SELECT max("{safe_ident(cur_col)}") AS m FROM "{db}"."{schema}"."{table}"'
+                )
                 mx = m[0]["M"] if m else None
             return f"count:{cnt}|{cur_col}:{mx}" if cur_col else f"count:{cnt}"
         if len(parts) == 5 and parts[2] == "tables" and parts[4] == "schema.json":
@@ -214,7 +264,9 @@ class SnowflakePlugin(ConnectorPlugin):
             db, schema, table = parts[0], parts[1], parts[3]
             cols = await self._query(
                 f'SELECT column_name, data_type FROM "{safe_ident(db)}".information_schema.columns '
-                "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position", (schema, table))
+                "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position",
+                (schema, table),
+            )
             return "schema:" + ";".join(f"{c['COLUMN_NAME']}:{c['DATA_TYPE']}" for c in cols)
         return None
 

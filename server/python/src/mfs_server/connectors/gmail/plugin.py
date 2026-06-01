@@ -8,6 +8,7 @@ API verified against google-api-python-client Gmail v1 docs: service = build('gm
 userId, labelIds, pageToken, q) -> {'messages':[{'id','threadId'}], 'nextPageToken'};
 .messages().get(userId, id, format='full') -> full message. NOT end-to-end tested.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -20,8 +21,15 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 
 _SANITIZE = re.compile(r"[^a-zA-Z0-9_.-]+")
@@ -33,6 +41,7 @@ def _sanitize(name: str) -> str:
 
 def _decode_body(payload: dict) -> str:
     """Walk MIME parts, return first text/plain (fallback text/html stripped)."""
+
     def walk(part) -> str:
         mt = part.get("mimeType", "")
         body = part.get("body", {})
@@ -47,6 +56,7 @@ def _decode_body(payload: dict) -> str:
             html = base64.urlsafe_b64decode(data).decode("utf-8", errors="replace")
             return re.sub(r"<[^>]+>", " ", html)
         return ""
+
     return walk(payload or {})
 
 
@@ -55,22 +65,34 @@ class GmailPlugin(ConnectorPlugin):
     URI_SCHEME = "gmail"
     DISPLAY_NAME = "Gmail"
     PROMPT = "Gmail labels as /labels/<label>/messages.jsonl (grouped into threads)."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="historyId",
-                                full_scan=True, delete_detection="never", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="historyId",
+        full_scan=True,
+        delete_detection="never",
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._svc = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     async def connect(self) -> None:
         def build_svc():
             tok = self._cfg("token") or {}
-            creds = Credentials.from_authorized_user_info(tok) if isinstance(tok, dict) else \
-                Credentials(token=tok)
+            creds = (
+                Credentials.from_authorized_user_info(tok)
+                if isinstance(tok, dict)
+                else Credentials(token=tok)
+            )
             return build("gmail", "v1", credentials=creds, cache_discovery=False)
+
         self._svc = await asyncio.to_thread(build_svc)
 
     async def healthcheck(self) -> HealthStatus:
@@ -86,7 +108,8 @@ class GmailPlugin(ConnectorPlugin):
     async def _labels(self) -> list[dict]:
         cfg = self._cfg("labels")
         resp = await asyncio.to_thread(
-            lambda: self._svc.users().labels().list(userId="me").execute())
+            lambda: self._svc.users().labels().list(userId="me").execute()
+        )
         labels = resp.get("labels", [])
         if cfg:
             labels = [lb for lb in labels if lb["name"] in cfg or lb["id"] in cfg]
@@ -102,7 +125,9 @@ class GmailPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith(".jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True})
+            return PathStat(
+                path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True}
+            )
         return PathStat(path=path, type="dir")
 
     async def list(self, path: str) -> list[Entry]:
@@ -110,7 +135,9 @@ class GmailPlugin(ConnectorPlugin):
         if len(parts) == 0:
             return [Entry("labels", "dir")]
         if len(parts) == 1 and parts[0] == "labels":
-            return [Entry(f"{_sanitize(lb['name'])}__{lb['id']}", "dir") for lb in await self._labels()]
+            return [
+                Entry(f"{_sanitize(lb['name'])}__{lb['id']}", "dir") for lb in await self._labels()
+            ]
         if len(parts) == 2 and parts[0] == "labels":
             return [Entry("messages.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
         return []
@@ -119,10 +146,14 @@ class GmailPlugin(ConnectorPlugin):
         payload = msg.get("payload", {}) or {}
         headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
         return {
-            "id": msg.get("id"), "threadId": msg.get("threadId"),
-            "subject": headers.get("subject"), "from": headers.get("from"),
-            "to": headers.get("to"), "date": headers.get("date"),
-            "snippet": msg.get("snippet"), "body": _decode_body(payload),
+            "id": msg.get("id"),
+            "threadId": msg.get("threadId"),
+            "subject": headers.get("subject"),
+            "from": headers.get("from"),
+            "to": headers.get("to"),
+            "date": headers.get("date"),
+            "snippet": msg.get("snippet"),
+            "body": _decode_body(payload),
         }
 
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
@@ -133,19 +164,29 @@ class GmailPlugin(ConnectorPlugin):
             n, page_token = 0, None
             while n < limit:
                 resp = await asyncio.to_thread(
-                    lambda pt=page_token: self._svc.users().messages().list(
-                        userId="me", labelIds=[label_id], pageToken=pt, maxResults=100).execute())
+                    lambda pt=page_token: (
+                        self._svc.users()
+                        .messages()
+                        .list(userId="me", labelIds=[label_id], pageToken=pt, maxResults=100)
+                        .execute()
+                    )
+                )
                 for ref in resp.get("messages", []):
                     full = await asyncio.to_thread(
-                        lambda mid=ref["id"]: self._svc.users().messages().get(
-                            userId="me", id=mid, format="full").execute())
+                        lambda mid=ref["id"]: (
+                            self._svc.users()
+                            .messages()
+                            .get(userId="me", id=mid, format="full")
+                            .execute()
+                        )
+                    )
                     yield self._flatten(full)
                     n += 1
                 page_token = resp.get("nextPageToken")
                 if not page_token:
                     break
             if n >= limit:
-                self.ctx.declare_partial(path)        # hit max_read_rows -> partial recall
+                self.ctx.declare_partial(path)  # hit max_read_rows -> partial recall
 
     async def fingerprint(self, path: str) -> Optional[str]:
         return None

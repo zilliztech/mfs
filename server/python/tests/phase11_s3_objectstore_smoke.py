@@ -3,6 +3,7 @@ container (endpoint 127.0.0.1:9100, no AWS account). Verifies artifact put/get v
 the engine pipeline: an HTML doc indexes -> converted_md artifact lands in the S3
 bucket and `cat` reads it back from S3. Needs MinIO container + OPENAI_API_KEY.
 """
+
 import asyncio
 import os
 
@@ -22,24 +23,33 @@ def check(name, cond):
 
 def _cfg_s3(cfg):
     oc = cfg.object_store
-    oc.backend = "s3"; oc.bucket = "mfs-test"; oc.prefix = "mfs"
-    oc.endpoint_url = "http://127.0.0.1:9100"; oc.region = "us-east-1"
-    oc.access_key_id = "mfsadmin"; oc.secret_access_key = "mfsadmin123"
+    oc.backend = "s3"
+    oc.bucket = "mfs-test"
+    oc.prefix = "mfs"
+    oc.endpoint_url = "http://127.0.0.1:9100"
+    oc.region = "us-east-1"
+    oc.access_key_id = "mfsadmin"
+    oc.secret_access_key = "mfsadmin123"
 
 
 async def main():
     if not os.environ.get("OPENAI_API_KEY"):
-        print("OPENAI_API_KEY not set — run via bash -ic"); raise SystemExit(2)
+        print("OPENAI_API_KEY not set — run via bash -ic")
+        raise SystemExit(2)
     base = f"/tmp/mfs_s3_{os.getpid()}"
     os.system(f"rm -rf '{base}'*")
-    repo = base + "_repo"; os.makedirs(repo, exist_ok=True)
+    repo = base + "_repo"
+    os.makedirs(repo, exist_ok=True)
     # an .html doc -> converter produces a converted_md artifact (stored in S3)
     open(repo + "/page.html", "w").write(
-        "<html><body><h1>SSO</h1><p>Single sign-on via SAML token service.</p></body></html>")
+        "<html><body><h1>SSO</h1><p>Single sign-on via SAML token service.</p></body></html>"
+    )
 
     cfg = load_server_config(apply_env=False)
-    cfg.milvus.uri = base + "_milvus.db"; cfg.milvus.token = ""
-    cfg.metadata.path = base + "_meta.db"; cfg.transformation_cache.db_path = base + "_tx.db"
+    cfg.milvus.uri = base + "_milvus.db"
+    cfg.milvus.token = ""
+    cfg.metadata.path = base + "_meta.db"
+    cfg.transformation_cache.db_path = base + "_tx.db"
     cfg.object_store.root = base + "_staging"
     _cfg_s3(cfg)
 
@@ -47,7 +57,8 @@ async def main():
     check("engine uses S3ObjectStore", isinstance(eng.object_store, S3ObjectStore))
     await eng.startup()
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
         await eng.add(repo)
 
         # artifact landed in the S3 bucket
@@ -55,7 +66,9 @@ async def main():
         conn = await eng.meta.fetchone("SELECT root_uri FROM connectors WHERE type='file'")
         curi = conn["root_uri"]
         full_uri = curi + "/page.html"
-        art = await asyncio.to_thread(eng.object_store.get_artifact, eng.ns, full_uri, "converted_md")
+        art = await asyncio.to_thread(
+            eng.object_store.get_artifact, eng.ns, full_uri, "converted_md"
+        )
         check("converted_md artifact retrievable from S3", art is not None and b"SSO" in art)
 
         # list bucket directly to prove bytes are really in MinIO
@@ -72,20 +85,23 @@ async def main():
         res = await eng.search("single sign-on SAML", connector_uri=curi, mode="hybrid", top_k=2)
         check("search hits the html page", res and res[0]["source"].endswith("page.html"))
     finally:
-        try: eng.milvus.drop_collection("default")
-        except Exception: pass
+        try:
+            eng.milvus.drop_collection("default")
+        except Exception:
+            pass
         # clean the test bucket
         try:
             s3 = eng.object_store._s3
             objs = s3.list_objects_v2(Bucket="mfs-test").get("Contents", [])
             for o in objs:
                 s3.delete_object(Bucket="mfs-test", Key=o["Key"])
-        except Exception: pass
+        except Exception:
+            pass
         await eng.shutdown()
         os.system(f"rm -rf '{base}'*")
 
     passed = sum(results)
-    print(f"\n{'='*46}\n  S3/MinIO object store: {passed}/{len(results)} checks passed")
+    print(f"\n{'=' * 46}\n  S3/MinIO object store: {passed}/{len(results)} checks passed")
     raise SystemExit(0 if passed == len(results) else 1)
 
 

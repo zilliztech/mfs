@@ -4,6 +4,7 @@ a synthetic in-memory connector yields canned messages across 3 threads; the eng
 must group them into 3 thread_aggregate chunks, embed, upsert to Milvus Lite, and
 make them searchable. Needs OPENAI_API_KEY (run via bash -ic). Milvus Lite.
 """
+
 import asyncio
 import os
 from collections.abc import AsyncIterator
@@ -12,7 +13,14 @@ from typing import Optional
 from mfs_server.config import load_server_config
 from mfs_server.connectors import registry
 from mfs_server.connectors.base import (
-    Capabilities, ConnectorPlugin, Entry, ObjectChange, ObjectKind, PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 from mfs_server.engine.engine import Engine
 
@@ -28,11 +36,31 @@ def check(name, cond):
 
 # canned messages: 3 threads (t1 SSO outage, t2 billing, t3 deploy)
 _MSGS = [
-    {"ts": "1", "thread_ts": "t1", "user": "ann", "text": "SSO login is broken after the migration"},
-    {"ts": "2", "thread_ts": "t1", "user": "bob", "text": "confirmed, redirect loops back to the IdP"},
-    {"ts": "3", "thread_ts": "t2", "user": "cara", "text": "customer disputes the May invoice amount"},
+    {
+        "ts": "1",
+        "thread_ts": "t1",
+        "user": "ann",
+        "text": "SSO login is broken after the migration",
+    },
+    {
+        "ts": "2",
+        "thread_ts": "t1",
+        "user": "bob",
+        "text": "confirmed, redirect loops back to the IdP",
+    },
+    {
+        "ts": "3",
+        "thread_ts": "t2",
+        "user": "cara",
+        "text": "customer disputes the May invoice amount",
+    },
     {"ts": "4", "thread_ts": "t2", "user": "ann", "text": "issuing a partial refund for billing"},
-    {"ts": "5", "thread_ts": "t3", "user": "dan", "text": "production deploy of v0.4 finished cleanly"},
+    {
+        "ts": "5",
+        "thread_ts": "t3",
+        "user": "dan",
+        "text": "production deploy of v0.4 finished cleanly",
+    },
 ]
 
 
@@ -72,42 +100,70 @@ async def main():
     base = f"/tmp/mfs_p10ms_{os.getpid()}"
     os.system(f"rm -rf '{base}'*")
     cfg = load_server_config(apply_env=False)
-    cfg.metadata.path = base + "_meta.db"; cfg.milvus.uri = base + "_milvus.db"; cfg.milvus.token = ""
-    cfg.object_store.root = base + "_cache"; cfg.transformation_cache.db_path = base + "_tx.db"
+    cfg.metadata.path = base + "_meta.db"
+    cfg.milvus.uri = base + "_milvus.db"
+    cfg.milvus.token = ""
+    cfg.object_store.root = base + "_cache"
+    cfg.transformation_cache.db_path = base + "_tx.db"
     eng = Engine(cfg)
     await eng.startup()
     # allow the memmsg scheme through target resolution
     orig = eng._resolve_target
-    eng._resolve_target = lambda t: ("memmsg", t, "memmsg", {}) if t.startswith("memmsg://") else orig(t)
+    eng._resolve_target = lambda t: (
+        ("memmsg", t, "memmsg", {}) if t.startswith("memmsg://") else orig(t)
+    )
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
-        msg_config = {"objects": [{"match": "*messages.jsonl",
-                                   "text_fields": ["user", "text"],
-                                   "chunk_strategy": "per_group", "group_by": "thread_ts"}]}
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
+        msg_config = {
+            "objects": [
+                {
+                    "match": "*messages.jsonl",
+                    "text_fields": ["user", "text"],
+                    "chunk_strategy": "per_group",
+                    "group_by": "thread_ts",
+                }
+            ]
+        }
         await eng.add("memmsg://test", config=msg_config)
 
         conn = await eng.meta.fetchone("SELECT id FROM connectors WHERE type='memmsg'")
         check("memmsg connector registered", conn is not None)
         o = await eng.meta.fetchone(
             "SELECT chunk_count, search_status FROM objects WHERE connector_id=? "
-            "AND object_uri='/channels/general__C1/messages.jsonl'", (conn["id"],))
-        check("5 messages -> 3 thread_aggregate chunks",
-              o and o["chunk_count"] == 3 and o["search_status"] == "indexed")
+            "AND object_uri='/channels/general__C1/messages.jsonl'",
+            (conn["id"],),
+        )
+        check(
+            "5 messages -> 3 thread_aggregate chunks",
+            o and o["chunk_count"] == 3 and o["search_status"] == "indexed",
+        )
 
-        res = await eng.search("single sign-on authentication failure", connector_uri="memmsg://test",
-                               mode="hybrid", top_k=3)
+        res = await eng.search(
+            "single sign-on authentication failure",
+            connector_uri="memmsg://test",
+            mode="hybrid",
+            top_k=3,
+        )
         top = res[0] if res else {}
-        check("search SSO -> thread_aggregate chunk_kind",
-              top.get("metadata", {}).get("chunk_kind") == "thread_aggregate")
-        check("search SSO locates thread t1",
-              (top.get("locator") or {}).get("thread_ts") == "t1")
+        check(
+            "search SSO -> thread_aggregate chunk_kind",
+            top.get("metadata", {}).get("chunk_kind") == "thread_aggregate",
+        )
+        check("search SSO locates thread t1", (top.get("locator") or {}).get("thread_ts") == "t1")
         # aggregate content must contain BOTH messages of the thread (grouped, not per-message)
-        check("t1 aggregate fuses both replies",
-              "broken" in top.get("content", "") and "redirect loops" in top.get("content", ""))
+        check(
+            "t1 aggregate fuses both replies",
+            "broken" in top.get("content", "") and "redirect loops" in top.get("content", ""),
+        )
 
-        res2 = await eng.search("refund customer invoice", connector_uri="memmsg://test", mode="hybrid", top_k=3)
-        check("search billing -> thread t2",
-              res2 and (res2[0].get("locator") or {}).get("thread_ts") == "t2")
+        res2 = await eng.search(
+            "refund customer invoice", connector_uri="memmsg://test", mode="hybrid", top_k=3
+        )
+        check(
+            "search billing -> thread t2",
+            res2 and (res2[0].get("locator") or {}).get("thread_ts") == "t2",
+        )
     finally:
         try:
             eng.milvus.drop_collection("default")
@@ -117,7 +173,7 @@ async def main():
         os.system(f"rm -rf '{base}'*")
 
     passed = sum(1 for _, c in results if c)
-    print(f"\n{'='*48}\n  {passed}/{len(results)} checks passed")
+    print(f"\n{'=' * 48}\n  {passed}/{len(results)} checks passed")
     raise SystemExit(0 if passed == len(results) else 1)
 
 

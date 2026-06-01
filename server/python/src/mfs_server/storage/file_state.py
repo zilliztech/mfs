@@ -1,6 +1,7 @@
 """file_state DAO — file connector's per-path manifest.
 Backed by the file_state table in the metadata DB (shares its connection).
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -33,9 +34,17 @@ class FileStateStore:
         )
         return {r["path"] for r in rows}
 
-    async def upsert(self, path: str, size: int, mtime_ns: int, inode: Optional[int],
-                     sha1: str, status: str = "indexed", renamed_from: Optional[str] = None,
-                     indexed_at: Optional[str] = None) -> None:
+    async def upsert(
+        self,
+        path: str,
+        size: int,
+        mtime_ns: int,
+        inode: Optional[int],
+        sha1: str,
+        status: str = "indexed",
+        renamed_from: Optional[str] = None,
+        indexed_at: Optional[str] = None,
+    ) -> None:
         await self.meta.execute(
             "INSERT INTO file_state (namespace_id, connector_id, path, size, mtime_ns, inode, "
             " sha1, status, renamed_from, indexed_at) VALUES (?,?,?,?,?,?,?,?,?,?) "
@@ -43,7 +52,18 @@ class FileStateStore:
             " size=excluded.size, mtime_ns=excluded.mtime_ns, inode=excluded.inode, "
             " sha1=excluded.sha1, status=excluded.status, renamed_from=excluded.renamed_from, "
             " indexed_at=excluded.indexed_at",
-            (self.ns, self.cid, path, size, mtime_ns, inode, sha1, status, renamed_from, indexed_at),
+            (
+                self.ns,
+                self.cid,
+                path,
+                size,
+                mtime_ns,
+                inode,
+                sha1,
+                status,
+                renamed_from,
+                indexed_at,
+            ),
         )
 
     async def update_mtime(self, path: str, mtime_ns: int) -> None:
@@ -71,5 +91,13 @@ class FileStateStore:
         if old is None:
             return
         await self.delete(old_path)
-        await self.upsert(new_path, old["size"], old["mtime_ns"], old["inode"], old["sha1"],
-                          status=old["status"], renamed_from=old_path, indexed_at=old["indexed_at"])
+        await self.upsert(
+            new_path,
+            old["size"],
+            old["mtime_ns"],
+            old["inode"],
+            old["sha1"],
+            status=old["status"],
+            renamed_from=old_path,
+            indexed_at=old["indexed_at"],
+        )

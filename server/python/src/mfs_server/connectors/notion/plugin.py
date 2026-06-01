@@ -9,6 +9,7 @@ The 'database' filter value Notion accepted previously is now rejected — see N
 2025 database/data_source split (a database can hold N data_sources; each data_source is
 the row collection).
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -17,8 +18,15 @@ from typing import Optional
 from notion_client import AsyncClient
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 
 
@@ -56,15 +64,23 @@ class NotionPlugin(ConnectorPlugin):
     URI_SCHEME = "notion"
     DISPLAY_NAME = "Notion"
     PROMPT = "Notion pages as /pages/<id>.md, data sources as /data_sources/<id>/records.jsonl."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="last_edited_time",
-                                full_scan=True, delete_detection="full_scan", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="last_edited_time",
+        full_scan=True,
+        delete_detection="full_scan",
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._client: Optional[AsyncClient] = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     async def connect(self) -> None:
         self._client = AsyncClient(auth=self._cfg("token") or self.credential)
@@ -110,7 +126,9 @@ class NotionPlugin(ConnectorPlugin):
         if path.endswith(".md"):
             return PathStat(path=path, type="file", media_type="text/markdown")
         if path.endswith("records.jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True})
+            return PathStat(
+                path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True}
+            )
         if path.endswith("schema.json"):
             return PathStat(path=path, type="file", media_type="application/json")
         return PathStat(path=path, type="dir")
@@ -120,12 +138,16 @@ class NotionPlugin(ConnectorPlugin):
         if len(parts) == 0:
             return [Entry("pages", "dir"), Entry("data_sources", "dir")]
         if len(parts) == 1 and parts[0] == "pages":
-            return [Entry(f"{p['id']}.md", "file", "text/markdown") for p in await self._search("page")]
+            return [
+                Entry(f"{p['id']}.md", "file", "text/markdown") for p in await self._search("page")
+            ]
         if len(parts) == 1 and parts[0] == "data_sources":
             return [Entry(d["id"], "dir") for d in await self._search("data_source")]
         if len(parts) == 2 and parts[0] == "data_sources":
-            return [Entry("schema.json", "file", "application/json"),
-                    Entry("records.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
+            return [
+                Entry("schema.json", "file", "application/json"),
+                Entry("records.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+            ]
         return []
 
     async def read(self, path: str, range: Optional[Range] = None) -> AsyncIterator[bytes]:
@@ -187,8 +209,11 @@ class NotionPlugin(ConnectorPlugin):
                 cursor = resp.get("next_cursor")
         elif len(parts) == 3 and parts[0] == "data_sources" and parts[2] == "schema.json":
             ds = await self._client.data_sources.retrieve(data_source_id=parts[1])
-            yield {"id": parts[1], "title": _rich_text(ds.get("title", [])),
-                   "properties": {k: v.get("type") for k, v in ds.get("properties", {}).items()}}
+            yield {
+                "id": parts[1],
+                "title": _rich_text(ds.get("title", [])),
+                "properties": {k: v.get("type") for k, v in ds.get("properties", {}).items()},
+            }
 
     async def fingerprint(self, path: str) -> Optional[str]:
         return None

@@ -6,6 +6,7 @@ C) failure + recovery: an object's indexing fails once (task=failed, file_state 
    staged, not indexed); next add retries and succeeds (objects indexed, chunks present).
 Monitors object_tasks state machine, objects rows, Milvus count, embed api/cache counters.
 """
+
 import asyncio
 import os
 import shutil
@@ -31,7 +32,7 @@ def mkcfg(base):
     cfg.milvus.token = ""
     cfg.object_store.root = base + "_cache"
     cfg.transformation_cache.db_path = base + "_tx.db"
-    cfg.worker.backoff_initial_ms = 0      # no real backoff sleep in tests
+    cfg.worker.backoff_initial_ms = 0  # no real backoff sleep in tests
     return cfg
 
 
@@ -44,22 +45,27 @@ async def case_a_model_change():
     eng = Engine(mkcfg(base))
     await eng.startup()
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
         await eng.add(root)
         calls1 = eng.embed.api_calls
         check("A: first add embedded", calls1 > 0)
         # simulate switching embedding model: version bump -> cache keys change
         eng.embed.version = "model-v2"
-        await eng.add(root, full=True)        # force-index: re-chunk same text, new model -> all miss
+        await eng.add(root, full=True)  # force-index: re-chunk same text, new model -> all miss
         calls2 = eng.embed.api_calls
         check("A: model change force-index re-embeds (cache miss)", calls2 > calls1)
         # force-index again with same (new) model -> cache hit, no new calls
         await eng.add(root, full=True)
         check("A: re-run same model hits cache (no new API calls)", eng.embed.api_calls == calls2)
     finally:
-        try: eng.milvus.drop_collection("default")
-        except Exception: pass
-        await eng.shutdown(); shutil.rmtree(root, ignore_errors=True); os.system(f"rm -rf '{base}'*")
+        try:
+            eng.milvus.drop_collection("default")
+        except Exception:
+            pass
+        await eng.shutdown()
+        shutil.rmtree(root, ignore_errors=True)
+        os.system(f"rm -rf '{base}'*")
 
 
 async def case_b_deletion():
@@ -72,27 +78,45 @@ async def case_b_deletion():
     eng = Engine(mkcfg(base))
     await eng.startup()
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
         await eng.add(root)
         conn = await eng.meta.fetchone("SELECT id FROM connectors WHERE type='file'")
-        n0 = len(await eng.meta.fetchall("SELECT 1 FROM objects WHERE connector_id=?", (conn["id"],)))
+        n0 = len(
+            await eng.meta.fetchall("SELECT 1 FROM objects WHERE connector_id=?", (conn["id"],))
+        )
         c0 = await asyncio.to_thread(eng.milvus.count, "default")
         check("B: both files indexed", n0 == 2 and c0 >= 2)
         os.remove(f"{root}/gone.md")
         job = await eng.add(root)
-        tk = await eng.meta.fetchall("SELECT change_kind FROM object_tasks WHERE connector_job_id=?", (job,))
-        check("B: deletion produced a 'deleted' task", any(t["change_kind"] == "deleted" for t in tk))
-        gone = await eng.meta.fetchone("SELECT 1 FROM objects WHERE connector_id=? AND object_uri='/gone.md'", (conn["id"],))
+        tk = await eng.meta.fetchall(
+            "SELECT change_kind FROM object_tasks WHERE connector_job_id=?", (job,)
+        )
+        check(
+            "B: deletion produced a 'deleted' task", any(t["change_kind"] == "deleted" for t in tk)
+        )
+        gone = await eng.meta.fetchone(
+            "SELECT 1 FROM objects WHERE connector_id=? AND object_uri='/gone.md'", (conn["id"],)
+        )
         check("B: gone.md removed from objects", gone is None)
         c1 = await asyncio.to_thread(eng.milvus.count, "default")
         check("B: Milvus chunk count decreased", c1 < c0)
         # search no longer returns gone.md
-        res = await eng.search("file will be deleted", connector_uri=f"file://local{root}", mode="hybrid", top_k=5)
-        check("B: search no longer returns gone.md", not any("gone.md" in (e["source"] or "") for e in res))
+        res = await eng.search(
+            "file will be deleted", connector_uri=f"file://local{root}", mode="hybrid", top_k=5
+        )
+        check(
+            "B: search no longer returns gone.md",
+            not any("gone.md" in (e["source"] or "") for e in res),
+        )
     finally:
-        try: eng.milvus.drop_collection("default")
-        except Exception: pass
-        await eng.shutdown(); shutil.rmtree(root, ignore_errors=True); os.system(f"rm -rf '{base}'*")
+        try:
+            eng.milvus.drop_collection("default")
+        except Exception:
+            pass
+        await eng.shutdown()
+        shutil.rmtree(root, ignore_errors=True)
+        os.system(f"rm -rf '{base}'*")
 
 
 async def case_c_failure_recovery():
@@ -105,7 +129,8 @@ async def case_c_failure_recovery():
     eng = Engine(mkcfg(base))
     await eng.startup()
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
         # monkeypatch _index_object to fail once on flaky.md
         orig = eng._index_object
         state = {"count": 0}
@@ -120,50 +145,90 @@ async def case_c_failure_recovery():
         eng._index_object = flaky_index
         await eng.add(root)
         conn = await eng.meta.fetchone("SELECT id FROM connectors WHERE type='file'")
-        flaky = await eng.meta.fetchone("SELECT search_status FROM objects WHERE connector_id=? AND object_uri='/flaky.md'", (conn["id"],))
-        failed = await eng.meta.fetchall("SELECT 1 FROM object_tasks WHERE object_uri='/flaky.md' AND status='failed'")
+        flaky = await eng.meta.fetchone(
+            "SELECT search_status FROM objects WHERE connector_id=? AND object_uri='/flaky.md'",
+            (conn["id"],),
+        )
+        failed = await eng.meta.fetchall(
+            "SELECT 1 FROM object_tasks WHERE object_uri='/flaky.md' AND status='failed'"
+        )
         check("C: flaky.md task failed first run", len(failed) >= 1)
         check("C: flaky.md not indexed yet", flaky is None or flaky["search_status"] != "indexed")
-        good = await eng.meta.fetchone("SELECT search_status FROM objects WHERE connector_id=? AND object_uri='/good.md'", (conn["id"],))
-        check("C: good.md indexed (other tasks unaffected)", good and good["search_status"] == "indexed")
+        good = await eng.meta.fetchone(
+            "SELECT search_status FROM objects WHERE connector_id=? AND object_uri='/good.md'",
+            (conn["id"],),
+        )
+        check(
+            "C: good.md indexed (other tasks unaffected)",
+            good and good["search_status"] == "indexed",
+        )
 
         # recovery: next add (flaky no longer fails) — staged file re-yielded + failed task inherited
         await eng.add(root)
-        flaky2 = await eng.meta.fetchone("SELECT search_status, chunk_count FROM objects WHERE connector_id=? AND object_uri='/flaky.md'", (conn["id"],))
-        check("C: flaky.md recovered (indexed with chunks)", flaky2 and flaky2["search_status"] == "indexed" and flaky2["chunk_count"] > 0)
+        flaky2 = await eng.meta.fetchone(
+            "SELECT search_status, chunk_count FROM objects WHERE connector_id=? AND object_uri='/flaky.md'",
+            (conn["id"],),
+        )
+        check(
+            "C: flaky.md recovered (indexed with chunks)",
+            flaky2 and flaky2["search_status"] == "indexed" and flaky2["chunk_count"] > 0,
+        )
     finally:
-        try: eng.milvus.drop_collection("default")
-        except Exception: pass
-        await eng.shutdown(); shutil.rmtree(root, ignore_errors=True); os.system(f"rm -rf '{base}'*")
+        try:
+            eng.milvus.drop_collection("default")
+        except Exception:
+            pass
+        await eng.shutdown()
+        shutil.rmtree(root, ignore_errors=True)
+        os.system(f"rm -rf '{base}'*")
 
 
 async def case_d_circuit_breaker():
     print("== D) circuit breaker on consecutive fatal (quota) ==")
     root = tempfile.mkdtemp(prefix="mfs_p7d_")
     for i in range(8):
-        open(f"{root}/f{i}.md", "w").write(f"# Doc {i}\n\nContent number {i} about distributed systems.\n")
+        open(f"{root}/f{i}.md", "w").write(
+            f"# Doc {i}\n\nContent number {i} about distributed systems.\n"
+        )
     base = f"/tmp/mfs_p7d_{os.getpid()}"
     os.system(f"rm -rf '{base}'*")
     eng = Engine(mkcfg(base))
     await eng.startup()
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
 
         async def quota_fail(texts):
-            raise RuntimeError("Error code: 429 - insufficient_quota: You exceeded your current quota")
+            raise RuntimeError(
+                "Error code: 429 - insufficient_quota: You exceeded your current quota"
+            )
 
-        eng.embed.batch_embed = quota_fail      # simulate API key out of quota
+        eng.embed.batch_embed = quota_fail  # simulate API key out of quota
         job = await eng.add(root)
         jr = await eng.meta.fetchone("SELECT status, error FROM connector_jobs WHERE id=?", (job,))
-        check("D: job failed via circuit breaker", jr["status"] == "failed" and jr["error"] == "circuit_breaker_tripped")
-        cancelled = await eng.meta.fetchall("SELECT 1 FROM object_tasks WHERE connector_job_id=? AND status='cancelled'", (job,))
+        check(
+            "D: job failed via circuit breaker",
+            jr["status"] == "failed" and jr["error"] == "circuit_breaker_tripped",
+        )
+        cancelled = await eng.meta.fetchall(
+            "SELECT 1 FROM object_tasks WHERE connector_job_id=? AND status='cancelled'", (job,)
+        )
         check("D: remaining tasks cancelled (not wastefully run)", len(cancelled) > 0)
-        failed = await eng.meta.fetchall("SELECT 1 FROM object_tasks WHERE connector_job_id=? AND status='failed'", (job,))
-        check("D: fatal failures reached threshold", len(failed) >= eng.cfg.worker.consecutive_fatal_threshold)
+        failed = await eng.meta.fetchall(
+            "SELECT 1 FROM object_tasks WHERE connector_job_id=? AND status='failed'", (job,)
+        )
+        check(
+            "D: fatal failures reached threshold",
+            len(failed) >= eng.cfg.worker.consecutive_fatal_threshold,
+        )
     finally:
-        try: eng.milvus.drop_collection("default")
-        except Exception: pass
-        await eng.shutdown(); shutil.rmtree(root, ignore_errors=True); os.system(f"rm -rf '{base}'*")
+        try:
+            eng.milvus.drop_collection("default")
+        except Exception:
+            pass
+        await eng.shutdown()
+        shutil.rmtree(root, ignore_errors=True)
+        os.system(f"rm -rf '{base}'*")
 
 
 async def main():
@@ -177,7 +242,7 @@ async def main():
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
-    print(f"\n{'='*40}\nPhase 7 robustness: {passed}/{total} checks passed")
+    print(f"\n{'=' * 40}\nPhase 7 robustness: {passed}/{total} checks passed")
     if passed != total:
         print("FAILED:", [n for n, c in results if not c])
         raise SystemExit(1)

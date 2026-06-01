@@ -24,6 +24,7 @@ granted access to:
 
 Env: NOTION_TOKEN + OPENAI_API_KEY (bash -ic). The integration must have
 been added to at least one page in the workspace, or sync finds nothing."""
+
 import asyncio
 import os
 
@@ -35,18 +36,25 @@ results = []
 
 
 def check(name, cond):
-    results.append(bool(cond)); print(f"  [{OK if cond else FAIL}] {name}"); return cond
+    results.append(bool(cond))
+    print(f"  [{OK if cond else FAIL}] {name}")
+    return cond
 
 
 async def main():
     for v in ("OPENAI_API_KEY", "NOTION_TOKEN"):
         if not os.environ.get(v):
-            print(f"{v} not set — run via bash -ic"); raise SystemExit(2)
+            print(f"{v} not set — run via bash -ic")
+            raise SystemExit(2)
 
-    base = f"/tmp/mfs_ntdeep_{os.getpid()}"; os.system(f"rm -rf '{base}'*")
+    base = f"/tmp/mfs_ntdeep_{os.getpid()}"
+    os.system(f"rm -rf '{base}'*")
     cfg = load_server_config(apply_env=False)
-    cfg.metadata.path = base + "_m.db"; cfg.milvus.uri = base + "_v.db"; cfg.milvus.token = ""
-    cfg.object_store.root = base + "_c"; cfg.transformation_cache.db_path = base + "_t.db"
+    cfg.metadata.path = base + "_m.db"
+    cfg.milvus.uri = base + "_v.db"
+    cfg.milvus.token = ""
+    cfg.object_store.root = base + "_c"
+    cfg.transformation_cache.db_path = base + "_t.db"
     cfg.summary.enabled = False
     eng = Engine(cfg)
     await eng.startup()
@@ -54,31 +62,36 @@ async def main():
     conn_uri = "notion://t14"
     cfg_obj = {"credential_ref": "env:NOTION_TOKEN"}
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
 
         # ----- T1: connector registers + at least 1 page lands -----
         print("\n--- T1 · page enumeration ---")
         eng.embed.api_calls = 0
         await eng.add(conn_uri, config=cfg_obj)
-        cid_row = await eng.meta.fetchone(
-            "SELECT id FROM connectors WHERE root_uri=?", (conn_uri,))
+        cid_row = await eng.meta.fetchone("SELECT id FROM connectors WHERE root_uri=?", (conn_uri,))
         check(f"T1 notion connector registered", cid_row is not None)
         cid = cid_row["id"]
         page_rows = await eng.meta.fetchall(
             "SELECT object_uri, chunk_count, search_status FROM objects "
             "WHERE connector_id=? AND object_uri LIKE '/pages/%' "
-            "ORDER BY chunk_count DESC", (cid,))
+            "ORDER BY chunk_count DESC",
+            (cid,),
+        )
         ds_rows = await eng.meta.fetchall(
             "SELECT object_uri, chunk_count FROM objects "
             "WHERE connector_id=? AND object_uri LIKE '/data_sources/%' "
-            "ORDER BY object_uri", (cid,))
+            "ORDER BY object_uri",
+            (cid,),
+        )
         print(f"  DEBUG pages={len(page_rows)} data_source_objects={len(ds_rows)}")
-        check(f"T1 at least 1 page indexed (got {len(page_rows)})",
-              len(page_rows) >= 1)
+        check(f"T1 at least 1 page indexed (got {len(page_rows)})", len(page_rows) >= 1)
         non_empty = [r for r in page_rows if (r["chunk_count"] or 0) > 0]
-        check(f"T1 at least 1 non-empty page produced chunks "
-              f"(got {len(non_empty)} non-empty / {len(page_rows)} total)",
-              len(non_empty) >= 1)
+        check(
+            f"T1 at least 1 non-empty page produced chunks "
+            f"(got {len(non_empty)} non-empty / {len(page_rows)} total)",
+            len(non_empty) >= 1,
+        )
 
         # Sample a non-empty page for downstream checks
         sample = non_empty[0]
@@ -88,76 +101,87 @@ async def main():
         print("\n--- T2 · ls /pages structure ---")
         ls = await eng.ls(conn_uri + "/pages")
         names = {e["name"] for e in ls["entries"]}
-        sample_name = sample["object_uri"].rsplit("/", 1)[-1]   # /pages/<id>.md -> <id>.md
-        check(f"T2 ls /pages contains the sample page ({sample_name!r})",
-              sample_name in names)
-        check("T2 every ls entry under /pages is a file",
-              all(e["type"] == "file" for e in ls["entries"]))
+        sample_name = sample["object_uri"].rsplit("/", 1)[-1]  # /pages/<id>.md -> <id>.md
+        check(f"T2 ls /pages contains the sample page ({sample_name!r})", sample_name in names)
+        check(
+            "T2 every ls entry under /pages is a file",
+            all(e["type"] == "file" for e in ls["entries"]),
+        )
 
         # ----- T3: cat the sample page returns markdown -----
         print("\n--- T3 · cat sample page returns markdown ---")
         cat_res = await eng.cat(sample_uri)
         body = cat_res if isinstance(cat_res, str) else (cat_res or {}).get("content") or ""
-        check(f"T3 cat returns non-empty markdown (len={len(body)})",
-              isinstance(body, str) and len(body.strip()) > 0)
+        check(
+            f"T3 cat returns non-empty markdown (len={len(body)})",
+            isinstance(body, str) and len(body.strip()) > 0,
+        )
 
         # ----- T4: search for a real token from the sample page -----
         print("\n--- T4 · search hits the sample page on a real token ---")
         # pull a meaningfully unique-looking word (>= 6 chars, alphanumeric)
         import re as _re
-        candidates = [w for w in _re.findall(r"[A-Za-z][A-Za-z0-9]{6,18}", body)
-                       if w.lower() not in {"notion", "default", "untitled"}]
+
+        candidates = [
+            w
+            for w in _re.findall(r"[A-Za-z][A-Za-z0-9]{6,18}", body)
+            if w.lower() not in {"notion", "default", "untitled"}
+        ]
         if candidates:
-            term = candidates[len(candidates) // 2]   # middle-ish, not first
-            hits = await eng.search(term, connector_uri=conn_uri,
-                                     mode="hybrid", top_k=10)
-            on_sample = [h for h in hits
-                          if (h.get("source") or "") == sample_uri]
-            check(f"T4 search('{term}') surfaces hits including the sample page "
-                  f"({len(hits)} hits total, {len(on_sample)} on sample)",
-                  len(hits) >= 1)
+            term = candidates[len(candidates) // 2]  # middle-ish, not first
+            hits = await eng.search(term, connector_uri=conn_uri, mode="hybrid", top_k=10)
+            on_sample = [h for h in hits if (h.get("source") or "") == sample_uri]
+            check(
+                f"T4 search('{term}') surfaces hits including the sample page "
+                f"({len(hits)} hits total, {len(on_sample)} on sample)",
+                len(hits) >= 1,
+            )
         else:
-            check("T4 sample page body too thin for a unique-term probe (skipped)",
-                  True)
+            check("T4 sample page body too thin for a unique-term probe (skipped)", True)
 
         # ----- T5: chunk_kinds=['body'] gates the result set -----
         print("\n--- T5 · chunk_kinds=['body'] filter ---")
         body_only = await eng.search(
-            "page", connector_uri=conn_uri, mode="hybrid", top_k=10,
-            chunk_kinds=["body"])
-        check(f"T5 every hit is chunk_kind='body' "
-              f"({len(body_only)} hits)",
-              len(body_only) == 0 or all(
-                  (h.get("metadata") or {}).get("chunk_kind") == "body"
-                  for h in body_only))
+            "page", connector_uri=conn_uri, mode="hybrid", top_k=10, chunk_kinds=["body"]
+        )
+        check(
+            f"T5 every hit is chunk_kind='body' ({len(body_only)} hits)",
+            len(body_only) == 0
+            or all((h.get("metadata") or {}).get("chunk_kind") == "body" for h in body_only),
+        )
 
         # ----- T6: object_prefix='/pages/' scopes to the pages subtree -----
         print("\n--- T6 · object_prefix='/pages/' scoping ---")
         page_scoped = await eng.search(
-            "page", connector_uri=conn_uri,
-            object_prefix=conn_uri + "/pages/", mode="hybrid", top_k=20)
-        check(f"T6 every scoped hit has source under /pages/ "
-              f"({len(page_scoped)} hits)",
-              len(page_scoped) == 0 or all(
-                  "/pages/" in (h.get("source") or "")
-                  for h in page_scoped))
+            "page",
+            connector_uri=conn_uri,
+            object_prefix=conn_uri + "/pages/",
+            mode="hybrid",
+            top_k=20,
+        )
+        check(
+            f"T6 every scoped hit has source under /pages/ ({len(page_scoped)} hits)",
+            len(page_scoped) == 0 or all("/pages/" in (h.get("source") or "") for h in page_scoped),
+        )
 
         # ----- T7: idempotent re-add -----
         print("\n--- T7 · idempotent re-add (no upstream change) ---")
         tasks_before = await eng.meta.fetchall(
-            "SELECT id FROM object_tasks WHERE connector_id=? "
-            "AND change_kind != 'dir_summary'", (cid,))
+            "SELECT id FROM object_tasks WHERE connector_id=? AND change_kind != 'dir_summary'",
+            (cid,),
+        )
         eng.embed.api_calls = 0
         await eng.add(conn_uri, config=cfg_obj)
         tasks_after = await eng.meta.fetchall(
-            "SELECT id FROM object_tasks WHERE connector_id=? "
-            "AND change_kind != 'dir_summary'", (cid,))
+            "SELECT id FROM object_tasks WHERE connector_id=? AND change_kind != 'dir_summary'",
+            (cid,),
+        )
         new_tasks = len(tasks_after) - len(tasks_before)
-        check(f"T7 second sync adds 0 new body tasks "
-              f"({new_tasks} new tasks)",
-              new_tasks == 0)
-        check(f"T7 second sync: 0 embedding API calls "
-              f"(api delta={eng.embed.api_calls})", eng.embed.api_calls == 0)
+        check(f"T7 second sync adds 0 new body tasks ({new_tasks} new tasks)", new_tasks == 0)
+        check(
+            f"T7 second sync: 0 embedding API calls (api delta={eng.embed.api_calls})",
+            eng.embed.api_calls == 0,
+        )
 
         # ----- T8: data_source surfacing (lenient — workspace may have zero) -----
         print("\n--- T8 · data_source surfacing ---")
@@ -168,23 +192,27 @@ async def main():
             ds_pairs.setdefault(ds_id, set()).add(uri.rsplit("/", 1)[-1])
         if ds_pairs:
             # Each data_source should have both records.jsonl + schema.json
-            complete = [d for d, leaves in ds_pairs.items()
-                         if {"records.jsonl", "schema.json"} <= leaves]
-            check(f"T8 data_source(s) present and each has BOTH "
-                  f"records.jsonl + schema.json ({len(complete)} / {len(ds_pairs)})",
-                  len(complete) == len(ds_pairs))
+            complete = [
+                d for d, leaves in ds_pairs.items() if {"records.jsonl", "schema.json"} <= leaves
+            ]
+            check(
+                f"T8 data_source(s) present and each has BOTH "
+                f"records.jsonl + schema.json ({len(complete)} / {len(ds_pairs)})",
+                len(complete) == len(ds_pairs),
+            )
         else:
-            check("T8 workspace has no data_sources (lenient pass)",
-                  True)
+            check("T8 workspace has no data_sources (lenient pass)", True)
 
     finally:
-        try: eng.milvus.drop_collection("default")
-        except Exception: pass
+        try:
+            eng.milvus.drop_collection("default")
+        except Exception:
+            pass
         await eng.shutdown()
         os.system(f"rm -rf '{base}'*")
 
     passed = sum(results)
-    print(f"\n{'='*46}\n  notion deep e2e: {passed}/{len(results)} checks passed")
+    print(f"\n{'=' * 46}\n  notion deep e2e: {passed}/{len(results)} checks passed")
     raise SystemExit(0 if passed == len(results) else 1)
 
 

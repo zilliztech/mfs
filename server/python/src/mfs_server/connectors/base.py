@@ -5,6 +5,7 @@ sync/object_kind_of) + optional overrides. Everything else (chunk/embed/Milvus/
 retrieval/cache/HTTP/queue) is framework. No `acl` (dropped in v0.4). `PathStat`
 (not FileStat) — the abstraction isn't file-specific.
 """
+
 from __future__ import annotations
 
 import re
@@ -15,14 +16,28 @@ from typing import Any, Literal, Optional, Protocol
 
 # --- object_kind (framework-fixed) ---
 ObjectKind = Literal[
-    "document", "code", "image", "binary", "text_blob",
-    "table_rows", "table_schema", "message_stream", "record_collection", "directory",
+    "document",
+    "code",
+    "image",
+    "binary",
+    "text_blob",
+    "table_rows",
+    "table_schema",
+    "message_stream",
+    "record_collection",
+    "directory",
 ]
 
 # --- chunk_kind (framework-fixed, 8 kinds) ---
 ChunkKind = Literal[
-    "body", "row_text", "thread_aggregate", "record_aggregate",
-    "summary", "vlm_description", "directory_summary", "schema_summary",
+    "body",
+    "row_text",
+    "thread_aggregate",
+    "record_aggregate",
+    "summary",
+    "vlm_description",
+    "directory_summary",
+    "schema_summary",
 ]
 
 DeleteDetection = Literal["never", "explicit", "full_scan", "state_change"]
@@ -70,21 +85,21 @@ class Range:
 class ObjectChange:
     uri: str
     kind: Literal["added", "modified", "deleted", "renamed"]
-    old_uri: Optional[str] = None      # only for renamed
+    old_uri: Optional[str] = None  # only for renamed
 
 
 @dataclass
 class SyncOptions:
-    full: bool = False                 # user --force-index
-    since: Optional[str] = None        # user --since <date>, overrides state cursor
-    dry_run: bool = False              # estimate pre-flight: enumerate only, NO state writes
+    full: bool = False  # user --force-index
+    since: Optional[str] = None  # user --since <date>, overrides state cursor
+    dry_run: bool = False  # estimate pre-flight: enumerate only, NO state writes
 
 
 @dataclass
 class GrepMatch:
     path: str
-    locator: Optional[dict] = None     # structured connectors (pk etc.)
-    line_no: Optional[int] = None      # text connectors
+    locator: Optional[dict] = None  # structured connectors (pk etc.)
+    line_no: Optional[int] = None  # text connectors
     content: str = ""
     context_before: list[str] = field(default_factory=list)
     context_after: list[str] = field(default_factory=list)
@@ -95,7 +110,7 @@ class GrepOptions:
     pattern: str
     case_insensitive: bool = False
     context_lines: int = 0
-    text_fields: list[str] = field(default_factory=list)       # injected from ObjectConfig
+    text_fields: list[str] = field(default_factory=list)  # injected from ObjectConfig
     metadata_fields: list[str] = field(default_factory=list)
 
 
@@ -122,8 +137,10 @@ class Capabilities:
     def to_dict(self) -> dict:
         return {
             "sync": {
-                "manual": self.manual_sync, "watch": self.watch,
-                "cursor": self.cursor_kind, "full_scan": self.full_scan,
+                "manual": self.manual_sync,
+                "watch": self.watch,
+                "cursor": self.cursor_kind,
+                "full_scan": self.full_scan,
                 "delete_detection": self.delete_detection,
             },
             "object": {
@@ -144,12 +161,13 @@ class ObjectConfig:
     here are just: which fields become embedding text / locator / metadata, whether
     to index at all, and an upper bound on chunks per object.
     """
+
     text_fields: list[str] = field(default_factory=list)
     metadata_fields: list[str] = field(default_factory=list)
     locator_fields: list[str] = field(default_factory=list)
     indexable: bool = True
     chunk_max: int = 1_000_000
-    group_by: Optional[str] = None         # message_stream: override the auto-detected thread key
+    group_by: Optional[str] = None  # message_stream: override the auto-detected thread key
 
     def __post_init__(self) -> None:
         # "lines" is a framework-reserved key inside the locator dict (body /
@@ -160,7 +178,8 @@ class ObjectConfig:
             raise ValueError(
                 "locator_fields contains the reserved key 'lines'; pick a "
                 "different column name (it is owned by the framework for "
-                "body/code/document chunks).")
+                "body/code/document chunks)."
+            )
 
 
 # Built-in presets for public SaaS / message connectors: users get a
@@ -169,33 +188,42 @@ PRESETS: dict[str, dict] = {
     "github.issues": dict(
         text_fields=["title", "body", "comments[].body"],
         metadata_fields=["state", "labels[*]", "author", "assignees[*]", "updated_at"],
-        locator_fields=["number"]),
+        locator_fields=["number"],
+    ),
     "github.pulls": dict(
         text_fields=["title", "body", "reviews[].body", "comments[].body"],
         metadata_fields=["state", "draft", "labels[*]", "author", "merged_at", "updated_at"],
-        locator_fields=["number"]),
+        locator_fields=["number"],
+    ),
     "slack.messages": dict(
         group_by="thread_ts",
-        text_fields=["text"], metadata_fields=["channel", "user", "ts"],
-        locator_fields=["thread_ts"]),
+        text_fields=["text"],
+        metadata_fields=["channel", "user", "ts"],
+        locator_fields=["thread_ts"],
+    ),
     "discord.messages": dict(
         group_by="thread_id",
-        text_fields=["content"], metadata_fields=["channel_id", "author", "timestamp"],
-        locator_fields=["thread_id"]),
+        text_fields=["content"],
+        metadata_fields=["channel_id", "author", "timestamp"],
+        locator_fields=["thread_id"],
+    ),
     "gmail.messages": dict(
         group_by="threadId",
         text_fields=["subject", "from", "to", "body", "snippet"],
         metadata_fields=["from", "to", "date", "labelIds[*]"],
-        locator_fields=["threadId", "id"]),
+        locator_fields=["threadId", "id"],
+    ),
     "zendesk.tickets": dict(
         text_fields=["subject", "description"],
         metadata_fields=["status", "priority", "tags[*]", "updated_at"],
-        locator_fields=["id"]),
+        locator_fields=["id"],
+    ),
     "feishu.messages": dict(
         group_by="thread_id",
         text_fields=["text"],
         metadata_fields=["msg_type", "create_time", "sender"],
-        locator_fields=["message_id"]),
+        locator_fields=["message_id"],
+    ),
 }
 
 
@@ -210,23 +238,25 @@ def preset_object_config(key: str) -> Optional["ObjectConfig"]:
 
 class StateStore(Protocol):
     """Persistent per-connector KV (connector_state table). Not in-memory."""
+
     async def get(self, key: str) -> Any | None: ...
     async def set(self, key: str, value: Any) -> None: ...
     async def delete(self, key: str) -> None: ...
-    async def checkpoint(self) -> None: ...    # cursor / monotonic-set state only
+    async def checkpoint(self) -> None: ...  # cursor / monotonic-set state only
 
 
 class ConnectorContext:
     """Framework-injected runtime context."""
 
-    def __init__(self, state: StateStore, connector_id: str, namespace_id: str,
-                 object_config_resolver=None):
+    def __init__(
+        self, state: StateStore, connector_id: str, namespace_id: str, object_config_resolver=None
+    ):
         self.state = state
         self.connector_id = connector_id
         self.namespace_id = namespace_id
         self._resolver = object_config_resolver
-        self.enumeration_mode: EnumerationMode = "incremental"   # default = safest
-        self._partial: set[str] = set()      # objects a connector read only partially (cap hit)
+        self.enumeration_mode: EnumerationMode = "incremental"  # default = safest
+        self._partial: set[str] = set()  # objects a connector read only partially (cap hit)
 
     def object_config_for(self, path: str) -> ObjectConfig:
         if self._resolver is None:
@@ -291,7 +321,9 @@ class ConnectorPlugin(ABC):
         async for r in records:
             yield (json.dumps(r, default=str) + "\n").encode()
 
-    def read_records(self, path: str, range: Optional[Range] = None) -> Optional[AsyncIterator[dict]]:
+    def read_records(
+        self, path: str, range: Optional[Range] = None
+    ) -> Optional[AsyncIterator[dict]]:
         """Structured connectors override as async generator. Base returns None
         (plain def, so `is None` distinguishes implemented vs not)."""
         return None
@@ -308,11 +340,13 @@ class ConnectorPlugin(ABC):
     def object_kind_of(self, path: str) -> ObjectKind: ...
 
     # --- optional overrides (base defaults) ---
-    async def grep(self, pattern: str, path: str, options: GrepOptions) -> Optional[AsyncIterator[GrepMatch]]:
-        return None     # framework default dispatch (pushdown? no -> BM25/linear)
+    async def grep(
+        self, pattern: str, path: str, options: GrepOptions
+    ) -> Optional[AsyncIterator[GrepMatch]]:
+        return None  # framework default dispatch (pushdown? no -> BM25/linear)
 
     async def search(self, query: str, path: str, options: Any) -> Optional[AsyncIterator[Any]]:
-        return None     # framework default: Milvus recall
+        return None  # framework default: Milvus recall
 
     def preset_for(self, path: str) -> Optional[str]:
         """Built-in preset KEY for this path, used when the user didn't

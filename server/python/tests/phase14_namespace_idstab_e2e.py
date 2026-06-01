@@ -24,6 +24,7 @@ Two layered contracts:
     zero-duplicate proof rides on them.
 
 Needs OPENAI_API_KEY (bash -ic) for the actual cross-ns sync."""
+
 import asyncio
 import os
 import pathlib
@@ -38,7 +39,9 @@ results = []
 
 
 def check(name, cond):
-    results.append(bool(cond)); print(f"  [{OK if cond else FAIL}] {name}"); return cond
+    results.append(bool(cond))
+    print(f"  [{OK if cond else FAIL}] {name}")
+    return cond
 
 
 UNIQUE_BODY = (
@@ -64,11 +67,15 @@ def _seed(root: pathlib.Path) -> None:
 
 async def main():
     if not os.environ.get("OPENAI_API_KEY"):
-        print("OPENAI_API_KEY not set — run via bash -ic"); raise SystemExit(2)
+        print("OPENAI_API_KEY not set — run via bash -ic")
+        raise SystemExit(2)
 
-    base = f"/tmp/mfs_ns_{os.getpid()}"; os.system(f"rm -rf '{base}'*")
-    tmp = pathlib.Path(f"{base}_work"); tmp.mkdir()
-    repo = tmp / "repo"; _seed(repo)
+    base = f"/tmp/mfs_ns_{os.getpid()}"
+    os.system(f"rm -rf '{base}'*")
+    tmp = pathlib.Path(f"{base}_work")
+    tmp.mkdir()
+    repo = tmp / "repo"
+    _seed(repo)
 
     # Two engines share the same physical storage but use distinct namespaces.
     def _cfg(ns: str):
@@ -97,28 +104,34 @@ async def main():
         # NS-A · first engine: cold sync — embeds via API
         # =====================================================
         print("\n--- NS-A · cold sync ---")
-        eng_a.embed.api_calls = 0; eng_a.embed.cache_hits = 0
+        eng_a.embed.api_calls = 0
+        eng_a.embed.cache_hits = 0
         await eng_a.add(str(repo))
         a_calls = eng_a.embed.api_calls
         a_hits = eng_a.embed.cache_hits
-        cid_a = (await eng_a.meta.fetchone(
-            "SELECT id FROM connectors WHERE namespace_id='alpha' AND root_uri=?",
-            (f"file://local{repo}",)))["id"]
+        cid_a = (
+            await eng_a.meta.fetchone(
+                "SELECT id FROM connectors WHERE namespace_id='alpha' AND root_uri=?",
+                (f"file://local{repo}",),
+            )
+        )["id"]
         objs_a = await eng_a.meta.fetchall(
-            "SELECT object_uri, chunk_count FROM objects WHERE connector_id=?", (cid_a,))
-        check(f"NS-A cold sync: embedded via API "
-              f"(calls={a_calls}, hits={a_hits}, objects={len(objs_a)})",
-              a_calls >= 1 and len(objs_a) >= 2)
+            "SELECT object_uri, chunk_count FROM objects WHERE connector_id=?", (cid_a,)
+        )
+        check(
+            f"NS-A cold sync: embedded via API "
+            f"(calls={a_calls}, hits={a_hits}, objects={len(objs_a)})",
+            a_calls >= 1 and len(objs_a) >= 2,
+        )
         a_chunks_total = sum(o["chunk_count"] or 0 for o in objs_a)
-        check(f"NS-A indexed >= 1 chunk per file (total={a_chunks_total})",
-              a_chunks_total >= 2)
+        check(f"NS-A indexed >= 1 chunk per file (total={a_chunks_total})", a_chunks_total >= 2)
 
         # snapshot tx_cache size after A — every body chunk should have one row
-        rows_a = await eng_a.tx_cache._db.execute_fetchall(   # noqa: SLF001
-            "SELECT count(*) AS n FROM transformation_cache WHERE kind='embedding'")
+        rows_a = await eng_a.tx_cache._db.execute_fetchall(  # noqa: SLF001
+            "SELECT count(*) AS n FROM transformation_cache WHERE kind='embedding'"
+        )
         tx_after_a = rows_a[0]["n"]
-        check(f"NS-A tx_cache populated ({tx_after_a} embedding rows)",
-              tx_after_a >= 2)
+        check(f"NS-A tx_cache populated ({tx_after_a} embedding rows)", tx_after_a >= 2)
 
         # shut down A so namespace_id='alpha' isn't leaking into B's view
         await eng_a.shutdown()
@@ -129,34 +142,45 @@ async def main():
         print("\n--- NS-B · second engine, same fixture, tx_cache shared cross-ns ---")
         eng_b = Engine(_cfg("beta"))
         await eng_b.startup()
-        eng_b.embed.api_calls = 0; eng_b.embed.cache_hits = 0
+        eng_b.embed.api_calls = 0
+        eng_b.embed.cache_hits = 0
         await eng_b.add(str(repo))
         b_calls = eng_b.embed.api_calls
         b_hits = eng_b.embed.cache_hits
         cid_b_row = await eng_b.meta.fetchone(
             "SELECT id FROM connectors WHERE namespace_id='beta' AND root_uri=?",
-            (f"file://local{repo}",))
-        check(f"NS-B: zero embedding API calls — tx_cache absorbs all chunks "
-              f"(calls={b_calls}, hits={b_hits})",
-              b_calls == 0 and b_hits >= 2)
-        check(f"NS-B: registered a SEPARATE connector row "
-              f"(cid_a={cid_a}, cid_b={cid_b_row['id']})",
-              cid_b_row and cid_b_row["id"] != cid_a)
+            (f"file://local{repo}",),
+        )
+        check(
+            f"NS-B: zero embedding API calls — tx_cache absorbs all chunks "
+            f"(calls={b_calls}, hits={b_hits})",
+            b_calls == 0 and b_hits >= 2,
+        )
+        check(
+            f"NS-B: registered a SEPARATE connector row (cid_a={cid_a}, cid_b={cid_b_row['id']})",
+            cid_b_row and cid_b_row["id"] != cid_a,
+        )
 
         # tx_cache count unchanged — same texts, no new keys
-        rows_b = await eng_b.tx_cache._db.execute_fetchall(   # noqa: SLF001
-            "SELECT count(*) AS n FROM transformation_cache WHERE kind='embedding'")
+        rows_b = await eng_b.tx_cache._db.execute_fetchall(  # noqa: SLF001
+            "SELECT count(*) AS n FROM transformation_cache WHERE kind='embedding'"
+        )
         tx_after_b = rows_b[0]["n"]
-        check(f"NS-B: tx_cache row count unchanged "
-              f"(was {tx_after_a}, now {tx_after_b})", tx_after_b == tx_after_a)
+        check(
+            f"NS-B: tx_cache row count unchanged (was {tx_after_a}, now {tx_after_b})",
+            tx_after_b == tx_after_a,
+        )
 
         # NS-A's connector row still there and untouched
         a_still = await eng_b.meta.fetchone(
             "SELECT id, namespace_id FROM connectors WHERE namespace_id='alpha' AND root_uri=?",
-            (f"file://local{repo}",))
-        check(f"NS-B engine sees NS-A's row (rows are tenant-tagged but shared metadata) "
-              f"({a_still!r})",
-              a_still and a_still["id"] == cid_a)
+            (f"file://local{repo}",),
+        )
+        check(
+            f"NS-B engine sees NS-A's row (rows are tenant-tagged but shared metadata) "
+            f"({a_still!r})",
+            a_still and a_still["id"] == cid_a,
+        )
 
         # =====================================================
         # search isolation — engine_b.search ONLY returns NS-B chunks
@@ -171,18 +195,28 @@ async def main():
         # Verify via Milvus directly: NS-A's collection has chunks for the file,
         # NS-B's collection also has chunks, but they're disjoint sets of chunk_ids.
         a_milvus_chunks = await asyncio.to_thread(
-            eng_b.milvus.get_chunks_by_object, "alpha", f"file://local{repo}",
-            f"file://local{repo}/src/color.py")
+            eng_b.milvus.get_chunks_by_object,
+            "alpha",
+            f"file://local{repo}",
+            f"file://local{repo}/src/color.py",
+        )
         b_milvus_chunks = await asyncio.to_thread(
-            eng_b.milvus.get_chunks_by_object, "beta", f"file://local{repo}",
-            f"file://local{repo}/src/color.py")
-        check(f"each ns has its own Milvus chunks for color.py "
-              f"(alpha={len(a_milvus_chunks)}, beta={len(b_milvus_chunks)})",
-              len(a_milvus_chunks) >= 1 and len(b_milvus_chunks) >= 1)
+            eng_b.milvus.get_chunks_by_object,
+            "beta",
+            f"file://local{repo}",
+            f"file://local{repo}/src/color.py",
+        )
+        check(
+            f"each ns has its own Milvus chunks for color.py "
+            f"(alpha={len(a_milvus_chunks)}, beta={len(b_milvus_chunks)})",
+            len(a_milvus_chunks) >= 1 and len(b_milvus_chunks) >= 1,
+        )
         a_ids = {c["chunk_id"] for c in a_milvus_chunks}
         b_ids = {c["chunk_id"] for c in b_milvus_chunks}
-        check(f"chunk_id sets are disjoint between namespaces (ns folded into hash)",
-              a_ids and b_ids and a_ids.isdisjoint(b_ids))
+        check(
+            f"chunk_id sets are disjoint between namespaces (ns folded into hash)",
+            a_ids and b_ids and a_ids.isdisjoint(b_ids),
+        )
 
         # artifact_cache is also namespace-scoped — A's artifacts wouldn't leak
         # into B even if both reference the same connector_uri. (Sanity probe;
@@ -191,7 +225,8 @@ async def main():
         check(
             "artifact_cache PK includes namespace_id (alpha + beta rows would "
             "coexist if both existed)",
-            True)        # schema-level invariant; verified by table DDL not by runtime
+            True,
+        )  # schema-level invariant; verified by table DDL not by runtime
 
         # =====================================================
         # chunk_id stability — deterministic + factor-sensitive + normalized
@@ -209,14 +244,14 @@ async def main():
 
         h1 = chunk_id(ns_x, curi, ouri, kind, loc1)
         h2 = chunk_id(ns_x, curi, ouri, kind, loc1)
-        check(f"chunk_id is deterministic across calls (h1={h1[:12]}...)",
-              h1 == h2)
+        check(f"chunk_id is deterministic across calls (h1={h1[:12]}...)", h1 == h2)
 
         # locator dict order doesn't change the hash (canonical JSON sorts keys)
         h1_reordered = chunk_id(ns_x, curi, ouri, kind, loc2)
-        check(f"chunk_id is locator-key-order independent "
-              f"({h1[:12]}.. == {h1_reordered[:12]}..)",
-              h1 == h1_reordered)
+        check(
+            f"chunk_id is locator-key-order independent ({h1[:12]}.. == {h1_reordered[:12]}..)",
+            h1 == h1_reordered,
+        )
 
         # each factor must be hash-sensitive — lines moved INSIDE locator, so
         # the "lines change" case now flips a different locator dict.
@@ -226,8 +261,10 @@ async def main():
             ("object_uri", chunk_id(ns_x, curi, "/src/util.py", kind, loc1)),
             ("chunk_kind", chunk_id(ns_x, curi, ouri, "summary", loc1)),
             ("locator (other key)", chunk_id(ns_x, curi, ouri, kind, {"row": 8, "col": 12})),
-            ("locator.lines (body chunk identity)",
-             chunk_id(ns_x, curi, ouri, kind, {"lines": [10, 20]})),
+            (
+                "locator.lines (body chunk identity)",
+                chunk_id(ns_x, curi, ouri, kind, {"lines": [10, 20]}),
+            ),
         ]
         for factor, h in cases:
             check(f"chunk_id changes when {factor} changes", h != h1)
@@ -235,8 +272,11 @@ async def main():
         # locator=None vs locator={} — different (None canonicalizes to "", {} to "{}")
         h_none = chunk_id(ns_x, curi, ouri, kind, None)
         h_empty = chunk_id(ns_x, curi, ouri, kind, {})
-        check(f"chunk_id distinguishes locator=None from locator={{}} "
-              f"({h_none[:12]} vs {h_empty[:12]})", h_none != h_empty)
+        check(
+            f"chunk_id distinguishes locator=None from locator={{}} "
+            f"({h_none[:12]} vs {h_empty[:12]})",
+            h_none != h_empty,
+        )
 
         # =====================================================
         # cross-engine reproducibility — recompute under NS-B
@@ -244,11 +284,17 @@ async def main():
         # =====================================================
         sample = b_milvus_chunks[0]
         recomputed = chunk_id(
-            "beta", f"file://local{repo}", f"file://local{repo}/src/color.py",
-            sample["chunk_kind"], sample.get("locator"))
-        check(f"NS-B Milvus chunk_id matches recomputed sha1 "
-              f"(stored={sample['chunk_id'][:12]}.., recomputed={recomputed[:12]}..)",
-              sample["chunk_id"] == recomputed)
+            "beta",
+            f"file://local{repo}",
+            f"file://local{repo}/src/color.py",
+            sample["chunk_kind"],
+            sample.get("locator"),
+        )
+        check(
+            f"NS-B Milvus chunk_id matches recomputed sha1 "
+            f"(stored={sample['chunk_id'][:12]}.., recomputed={recomputed[:12]}..)",
+            sample["chunk_id"] == recomputed,
+        )
 
         await eng_b.shutdown()
     finally:
@@ -256,7 +302,7 @@ async def main():
         os.system(f"rm -rf '{base}'*")
 
     passed = sum(results)
-    print(f"\n{'='*46}\n  ns + chunk_id e2e: {passed}/{len(results)} checks passed")
+    print(f"\n{'=' * 46}\n  ns + chunk_id e2e: {passed}/{len(results)} checks passed")
     raise SystemExit(0 if passed == len(results) else 1)
 
 

@@ -10,6 +10,7 @@ Two backends with the same interface: LocalObjectStore (fs) and S3ObjectStore
 Upload staging (files_root / uploads_dir) is always local fs (ephemeral scratch the
 worker scans); only artifacts go to S3. Synchronous; callers wrap in asyncio.to_thread.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -37,16 +38,19 @@ class LocalObjectStore:
     def artifact_path(self, namespace_id: str, object_uri: str, artifact_kind: str) -> Path:
         return self._artifact_dir(namespace_id, object_uri) / artifact_kind
 
-    def put_artifact(self, namespace_id: str, object_uri: str, artifact_kind: str,
-                     data: bytes) -> str:
+    def put_artifact(
+        self, namespace_id: str, object_uri: str, artifact_kind: str, data: bytes
+    ) -> str:
         p = self.artifact_path(namespace_id, object_uri, artifact_kind)
         p.parent.mkdir(parents=True, exist_ok=True)
         tmp = p.with_suffix(p.suffix + ".tmp")
         tmp.write_bytes(data)
-        tmp.replace(p)            # atomic
+        tmp.replace(p)  # atomic
         return str(p)
 
-    def get_artifact(self, namespace_id: str, object_uri: str, artifact_kind: str) -> Optional[bytes]:
+    def get_artifact(
+        self, namespace_id: str, object_uri: str, artifact_kind: str
+    ) -> Optional[bytes]:
         p = self.artifact_path(namespace_id, object_uri, artifact_kind)
         return p.read_bytes() if p.exists() else None
 
@@ -80,11 +84,12 @@ class S3ObjectStore:
 
     def __init__(self, cfg: ServerConfig):
         import boto3
+
         self.backend = "s3"
         oc = cfg.object_store
         self.bucket = oc.bucket
         self.prefix = (oc.prefix or "").strip("/")
-        self.root = Path(cfg.object_store.root or "/tmp/mfs-staging")   # local staging scratch
+        self.root = Path(cfg.object_store.root or "/tmp/mfs-staging")  # local staging scratch
         kw = {"region_name": oc.region}
         if oc.endpoint_url:
             kw["endpoint_url"] = oc.endpoint_url
@@ -96,6 +101,7 @@ class S3ObjectStore:
 
     def _ensure_bucket(self) -> None:
         from botocore.exceptions import ClientError
+
         try:
             self._s3.head_bucket(Bucket=self.bucket)
         except ClientError:
@@ -117,30 +123,44 @@ class S3ObjectStore:
     def artifact_path(self, namespace_id: str, object_uri: str, artifact_kind: str) -> str:
         return f"s3://{self.bucket}/{self._key(namespace_id, object_uri, artifact_kind)}"
 
-    def put_artifact(self, namespace_id: str, object_uri: str, artifact_kind: str, data: bytes) -> str:
+    def put_artifact(
+        self, namespace_id: str, object_uri: str, artifact_kind: str, data: bytes
+    ) -> str:
         key = self._key(namespace_id, object_uri, artifact_kind)
         self._s3.put_object(Bucket=self.bucket, Key=key, Body=data)
         return self.artifact_path(namespace_id, object_uri, artifact_kind)
 
-    def get_artifact(self, namespace_id: str, object_uri: str, artifact_kind: str) -> Optional[bytes]:
+    def get_artifact(
+        self, namespace_id: str, object_uri: str, artifact_kind: str
+    ) -> Optional[bytes]:
         from botocore.exceptions import ClientError
+
         try:
-            resp = self._s3.get_object(Bucket=self.bucket, Key=self._key(namespace_id, object_uri, artifact_kind))
+            resp = self._s3.get_object(
+                Bucket=self.bucket, Key=self._key(namespace_id, object_uri, artifact_kind)
+            )
             return resp["Body"].read()
         except ClientError:
             return None
 
     def delete_artifact(self, namespace_id: str, object_uri: str, artifact_kind: str) -> None:
-        self._s3.delete_object(Bucket=self.bucket, Key=self._key(namespace_id, object_uri, artifact_kind))
+        self._s3.delete_object(
+            Bucket=self.bucket, Key=self._key(namespace_id, object_uri, artifact_kind)
+        )
 
     def move_artifacts(self, namespace_id: str, old_uri: str, new_uri: str) -> None:
         """Rename: copy every artifact under the old object prefix to the new one, delete old."""
-        old_pref, new_pref = self._obj_prefix(namespace_id, old_uri), self._obj_prefix(namespace_id, new_uri)
+        old_pref, new_pref = (
+            self._obj_prefix(namespace_id, old_uri),
+            self._obj_prefix(namespace_id, new_uri),
+        )
         resp = self._s3.list_objects_v2(Bucket=self.bucket, Prefix=old_pref)
         for obj in resp.get("Contents", []):
             old_key = obj["Key"]
-            new_key = new_pref + old_key[len(old_pref):]
-            self._s3.copy_object(Bucket=self.bucket, CopySource={"Bucket": self.bucket, "Key": old_key}, Key=new_key)
+            new_key = new_pref + old_key[len(old_pref) :]
+            self._s3.copy_object(
+                Bucket=self.bucket, CopySource={"Bucket": self.bucket, "Key": old_key}, Key=new_key
+            )
             self._s3.delete_object(Bucket=self.bucket, Key=old_key)
 
     def files_root(self, namespace_id: str, connector_id: str) -> Path:

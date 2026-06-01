@@ -3,6 +3,7 @@ asyncpg; virtual layout /<schema>/<table>/{schema.json,rows.jsonl}. read_records
 streams rows as dicts; framework's table_rows pipeline does per_row chunk (text_fields
 joined) + locator (locator_fields). grep pushdown -> SQL ILIKE.
 """
+
 from __future__ import annotations
 
 import json
@@ -12,8 +13,18 @@ from typing import Optional
 import asyncpg
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, GrepMatch, GrepOptions, HealthStatus,
-    ObjectChange, ObjectKind, PathStat, Range, SyncOptions, safe_ident,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    GrepMatch,
+    GrepOptions,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
+    safe_ident,
 )
 
 
@@ -22,16 +33,25 @@ class PostgresPlugin(ConnectorPlugin):
     URI_SCHEME = "postgres"
     DISPLAY_NAME = "Postgres"
     PROMPT = "Postgres tables as /<schema>/<table>/rows.jsonl + schema.json."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="updated_at",
-                                full_scan=True, delete_detection="full_scan",
-                                grep_pushdown=True, search_pushdown=False, paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="updated_at",
+        full_scan=True,
+        delete_detection="full_scan",
+        grep_pushdown=True,
+        search_pushdown=False,
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._pool: Optional[asyncpg.Pool] = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     def _dsn(self) -> str:
         return self._cfg("dsn") or self.credential
@@ -59,7 +79,9 @@ class PostgresPlugin(ConnectorPlugin):
         async with self._pool.acquire() as c:
             rows = await c.fetch(
                 "SELECT table_name FROM information_schema.tables "
-                "WHERE table_schema=$1 AND table_type='BASE TABLE' ORDER BY table_name", schema)
+                "WHERE table_schema=$1 AND table_type='BASE TABLE' ORDER BY table_name",
+                schema,
+            )
         return [r["table_name"] for r in rows]
 
     def object_kind_of(self, path: str) -> ObjectKind:
@@ -71,8 +93,13 @@ class PostgresPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith("rows.jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson",
-                            fingerprint=await self.fingerprint(path), extra={"lazy": True})
+            return PathStat(
+                path=path,
+                type="file",
+                media_type="application/x-ndjson",
+                fingerprint=await self.fingerprint(path),
+                extra={"lazy": True},
+            )
         if path.endswith("schema.json"):
             return PathStat(path=path, type="file", media_type="application/json")
         return PathStat(path=path, type="dir")
@@ -84,21 +111,30 @@ class PostgresPlugin(ConnectorPlugin):
         if len(parts) == 1:
             return [Entry(t, "dir") for t in await self._list_tables(parts[0])]
         if len(parts) == 2:
-            return [Entry("schema.json", "file", "application/json"),
-                    Entry("rows.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
+            return [
+                Entry("schema.json", "file", "application/json"),
+                Entry("rows.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+            ]
         return []
 
     async def _columns(self, schema: str, table: str) -> list[dict]:
         async with self._pool.acquire() as c:
             cols = await c.fetch(
                 "SELECT column_name, data_type FROM information_schema.columns "
-                "WHERE table_schema=$1 AND table_name=$2 ORDER BY ordinal_position", schema, table)
+                "WHERE table_schema=$1 AND table_name=$2 ORDER BY ordinal_position",
+                schema,
+                table,
+            )
         return [{"name": r["column_name"], "type": r["data_type"]} for r in cols]
 
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
         parts = self._parts(path)
         if len(parts) == 3 and parts[2] == "schema.json":
-            yield {"schema": parts[0], "table": parts[1], "columns": await self._columns(parts[0], parts[1])}
+            yield {
+                "schema": parts[0],
+                "table": parts[1],
+                "columns": await self._columns(parts[0], parts[1]),
+            }
             return
         if len(parts) == 3 and parts[2] == "rows.jsonl":
             schema, table = safe_ident(parts[0]), safe_ident(parts[1])
@@ -111,20 +147,26 @@ class PostgresPlugin(ConnectorPlugin):
                     cnt = max(0, int(range.end) - off)
                     async with c.transaction():
                         async for r in c.cursor(
-                                f'SELECT * FROM "{schema}"."{table}" OFFSET {off} LIMIT {cnt}'):
+                            f'SELECT * FROM "{schema}"."{table}" OFFSET {off} LIMIT {cnt}'
+                        ):
                             yield dict(r)
                     return
                 total = await c.fetchval(f'SELECT count(*) FROM "{schema}"."{table}"')
                 if total is not None and total > lim:
-                    self.ctx.declare_partial(path)    # capped -> framework marks search_status=partial
-                async with c.transaction():        # asyncpg cursors require a transaction
+                    self.ctx.declare_partial(
+                        path
+                    )  # capped -> framework marks search_status=partial
+                async with c.transaction():  # asyncpg cursors require a transaction
                     async for r in c.cursor(f'SELECT * FROM "{schema}"."{table}" LIMIT {lim}'):
                         yield dict(r)
         elif len(parts) == 3 and parts[2] == "schema.json":
             async with self._pool.acquire() as c:
                 cols = await c.fetch(
                     "SELECT column_name, data_type FROM information_schema.columns "
-                    "WHERE table_schema=$1 AND table_name=$2 ORDER BY ordinal_position", parts[0], parts[1])
+                    "WHERE table_schema=$1 AND table_name=$2 ORDER BY ordinal_position",
+                    parts[0],
+                    parts[1],
+                )
             yield {"schema": parts[0], "table": parts[1], "columns": [dict(x) for x in cols]}
 
     async def _cursor_col(self, schema: str, table: str) -> Optional[str]:
@@ -134,7 +176,10 @@ class PostgresPlugin(ConnectorPlugin):
         async with self._pool.acquire() as c:
             rows = await c.fetch(
                 "SELECT column_name FROM information_schema.columns "
-                "WHERE table_schema=$1 AND table_name=$2", schema, table)
+                "WHERE table_schema=$1 AND table_name=$2",
+                schema,
+                table,
+            )
         names = {r["column_name"].lower(): r["column_name"] for r in rows}
         configured = self._cfg("cursor_column")
         if configured and configured.lower() in names:
@@ -154,8 +199,13 @@ class PostgresPlugin(ConnectorPlugin):
             cur_col = await self._cursor_col(parts[0], parts[1])
             async with self._pool.acquire() as c:
                 cnt = await c.fetchval(f'SELECT count(*) FROM "{schema}"."{table}"')
-                mx = await c.fetchval(
-                    f'SELECT max("{safe_ident(cur_col)}") FROM "{schema}"."{table}"') if cur_col else None
+                mx = (
+                    await c.fetchval(
+                        f'SELECT max("{safe_ident(cur_col)}") FROM "{schema}"."{table}"'
+                    )
+                    if cur_col
+                    else None
+                )
             # count alone misses in-place updates; max(cursor) catches content changes too
             return f"count:{cnt}|{cur_col}:{mx}" if cur_col else f"count:{cnt}"
         return None
@@ -176,7 +226,9 @@ class PostgresPlugin(ConnectorPlugin):
             yield ObjectChange(p, "deleted")
         await self.state.set("tables", seen)
 
-    async def grep(self, pattern: str, path: str, options: GrepOptions) -> Optional[AsyncIterator[GrepMatch]]:
+    async def grep(
+        self, pattern: str, path: str, options: GrepOptions
+    ) -> Optional[AsyncIterator[GrepMatch]]:
         parts = self._parts(path)
         if len(parts) != 3 or parts[2] != "rows.jsonl" or not options.text_fields:
             return None
@@ -186,7 +238,10 @@ class PostgresPlugin(ConnectorPlugin):
 
         async def gen():
             async with pool.acquire() as c:
-                rows = await c.fetch(f'SELECT * FROM "{schema}"."{table}" WHERE {where} LIMIT 100', f"%{pattern}%")
+                rows = await c.fetch(
+                    f'SELECT * FROM "{schema}"."{table}" WHERE {where} LIMIT 100', f"%{pattern}%"
+                )
                 for r in rows:
                     yield GrepMatch(path=path, content=json.dumps(dict(r), default=str))
+
         return gen()

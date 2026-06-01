@@ -4,6 +4,7 @@ These give the generated OpenAPI typed schemas so the
 multi-language SDKs (python/typescript/go/java) get real models instead of opaque
 dicts.
 """
+
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -20,13 +21,21 @@ class ServerInfo(BaseModel):
 class AddRequest(BaseModel):
     target: str = Field(..., description="path or connector URI to register + index")
     config: Optional[dict[str, Any]] = Field(
-        None, description="connector config ([[objects]], schemas, _credential_ref, ...); "
-                          "the CLI loads this from --config <file.toml>")
+        None,
+        description="connector config ([[objects]], schemas, _credential_ref, ...); "
+        "the CLI loads this from --config <file.toml>",
+    )
     full: bool = Field(False, description="force full re-index (ignore caches/fingerprints)")
     since: Optional[str] = Field(None, description="only index changes since this cursor/date")
-    process: bool = Field(False, description="False (default): enqueue and return the job_id immediately "
-                                             "(poll GET /v1/jobs/{id}); True: index inline and return when done")
-    update: bool = Field(False, description="apply config to an existing connector (connector update); add ignores it")
+    process: bool = Field(
+        False,
+        description="False (default): enqueue and return the job_id immediately "
+        "(poll GET /v1/jobs/{id}); True: index inline and return when done",
+    )
+    update: bool = Field(
+        False,
+        description="apply config to an existing connector (connector update); add ignores it",
+    )
 
 
 class CancelResponse(BaseModel):
@@ -57,7 +66,9 @@ class EstimateResponse(BaseModel):
     objects: int = Field(..., description="total objects discovered (metadata-only count)")
     sampled_objects: int = Field(..., description="objects actually sampled for the dry-run")
     est_chunks: int = Field(..., description="extrapolated chunk count (±50%)")
-    est_tokens: int = Field(..., description="extrapolated token count; apply your provider rate for $")
+    est_tokens: int = Field(
+        ..., description="extrapolated token count; apply your provider rate for $"
+    )
 
 
 class AddResponse(BaseModel):
@@ -72,7 +83,9 @@ class ManifestFile(BaseModel):
 
 
 class ManifestRequest(BaseModel):
-    client_id: str = Field(..., description="stable client id (from client.toml) — connector identity")
+    client_id: str = Field(
+        ..., description="stable client id (from client.toml) — connector identity"
+    )
     root: str = Field(..., description="client absolute path of the upload root (identity + scope)")
     files: list[ManifestFile] = Field(default_factory=list, description="stat-only manifest")
 
@@ -87,24 +100,34 @@ class DeletionCandidate(BaseModel):
 class ManifestResponse(BaseModel):
     connector_uri: str
     staging: str
-    need_sha1: list[str] = Field(default_factory=list, description="paths whose bytes the server needs")
+    need_sha1: list[str] = Field(
+        default_factory=list, description="paths whose bytes the server needs"
+    )
     deletion_candidates: list[DeletionCandidate] = Field(
-        default_factory=list, description="server-known paths absent from the manifest (for rename pairing)")
+        default_factory=list,
+        description="server-known paths absent from the manifest (for rename pairing)",
+    )
 
 
 class ResultEnvelope(BaseModel):
     """One search/grep hit. Outer shape is stable across connectors;
     locator + metadata.fields are per-connector but documented."""
+
     source: str = Field(..., description="object URI — feed to cat/head/export")
     content: str = Field("", description="snippet to read")
     score: Optional[float] = Field(None, description="ranking score; <0.5 often unreliable")
     locator: Optional[dict[str, Any]] = Field(
         None,
-        description=("per-chunk identity. body/code/document chunks: "
-                     "{'lines':[start,end]}; structured (DB row, issue, slack "
-                     "thread): connector PK dict (e.g. {'id':1}, {'number':42}, "
-                     "{'thread_ts':'...'}); once-per-object kinds: null."))
-    metadata: dict[str, Any] = Field(default_factory=dict, description="chunk_kind, connector_type, fields, ...")
+        description=(
+            "per-chunk identity. body/code/document chunks: "
+            "{'lines':[start,end]}; structured (DB row, issue, slack "
+            "thread): connector PK dict (e.g. {'id':1}, {'number':42}, "
+            "{'thread_ts':'...'}); once-per-object kinds: null."
+        ),
+    )
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="chunk_kind, connector_type, fields, ..."
+    )
 
 
 class SearchResponse(BaseModel):
@@ -115,8 +138,11 @@ class GrepMatchModel(BaseModel):
     source: Optional[str] = None
     locator: Optional[dict[str, Any]] = Field(
         None,
-        description=("per-hit identity. text/code line hits: {'lines':[n,n]}; "
-                     "structured pushdown: connector PK dict; notice rows: null."))
+        description=(
+            "per-hit identity. text/code line hits: {'lines':[n,n]}; "
+            "structured pushdown: connector PK dict; notice rows: null."
+        ),
+    )
     content: str = ""
     via: Optional[str] = Field(None, description="bm25 | linear | pushdown | notice")
 
@@ -131,13 +157,19 @@ class LsEntry(BaseModel):
     media_type: Optional[str] = None
     size_hint: Optional[int] = None
     path: Optional[str] = Field(None, description="full object URI — feed to cat/search")
-    search_status: Optional[str] = Field(None, description="indexed | partial | not_indexed | null if unseen")
-    indexable: Optional[bool] = Field(None, description="whether this object is eligible for indexing")
+    search_status: Optional[str] = Field(
+        None, description="indexed | partial | not_indexed | null if unseen"
+    )
+    indexable: Optional[bool] = Field(
+        None, description="whether this object is eligible for indexing"
+    )
 
 
 class LsResponse(BaseModel):
     entries: list[LsEntry]
-    capabilities: dict[str, Any] = Field(default_factory=dict, description="connector capabilities (sync/object)")
+    capabilities: dict[str, Any] = Field(
+        default_factory=dict, description="connector capabilities (sync/object)"
+    )
 
 
 class CatResponse(BaseModel):

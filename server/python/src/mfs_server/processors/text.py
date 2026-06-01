@@ -4,6 +4,7 @@ Chonkie RecursiveChunker (markdown/text) + CodeChunker (AST/tree-sitter). Return
 (content, lines=[start,end]) per chunk; chonkie gives char offsets which we convert
 to 1-based line numbers for the Milvus `lines` field / chunk_id.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -12,9 +13,23 @@ from chonkie import CodeChunker, RecursiveChunker
 
 # ext -> tree-sitter language for CodeChunker
 _LANG = {
-    ".py": "python", ".js": "javascript", ".ts": "typescript", ".tsx": "tsx", ".jsx": "javascript",
-    ".go": "go", ".rs": "rust", ".java": "java", ".c": "c", ".h": "c", ".cpp": "cpp", ".hpp": "cpp",
-    ".cc": "cpp", ".rb": "ruby", ".php": "php", ".sh": "bash", ".bash": "bash",
+    ".py": "python",
+    ".js": "javascript",
+    ".ts": "typescript",
+    ".tsx": "tsx",
+    ".jsx": "javascript",
+    ".go": "go",
+    ".rs": "rust",
+    ".java": "java",
+    ".c": "c",
+    ".h": "c",
+    ".cpp": "cpp",
+    ".hpp": "cpp",
+    ".cc": "cpp",
+    ".rb": "ruby",
+    ".php": "php",
+    ".sh": "bash",
+    ".bash": "bash",
 }
 
 
@@ -32,7 +47,9 @@ def _offset_to_line(text: str, off: int) -> int:
     return text.count("\n", 0, off) + 1
 
 
-def chunk_body(content: str, object_kind: str, ext: str, chunk_size: int) -> list[tuple[str, list[int]]]:
+def chunk_body(
+    content: str, object_kind: str, ext: str, chunk_size: int
+) -> list[tuple[str, list[int]]]:
     if not content.strip():
         return []
     if object_kind == "code":

@@ -7,6 +7,7 @@ https://api.linear.app/graphql, auth header `Authorization: <personal-api-key>`
 Layout /teams/<team>/issues.jsonl + /users.jsonl. API shape verified against
 Linear developer docs. NOT end-to-end tested (needs an API key).
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -15,8 +16,15 @@ from typing import Optional
 import httpx
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 
 ENDPOINT = "https://api.linear.app/graphql"
@@ -44,11 +52,19 @@ class LinearPlugin(ConnectorPlugin):
     URI_SCHEME = "linear"
     DISPLAY_NAME = "Linear"
     PROMPT = "Linear issues as /teams/<team>/issues.jsonl + users.jsonl."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="updatedAt",
-                                full_scan=True, delete_detection="full_scan", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="updatedAt",
+        full_scan=True,
+        delete_detection="full_scan",
+        paged_cat=True,
+    )
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     def _headers(self) -> dict:
         key = self._cfg("api_key") or self.credential
@@ -87,15 +103,22 @@ class LinearPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith(".jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson",
-                            fingerprint=None, extra={"lazy": True})
+            return PathStat(
+                path=path,
+                type="file",
+                media_type="application/x-ndjson",
+                fingerprint=None,
+                extra={"lazy": True},
+            )
         return PathStat(path=path, type="dir")
 
     async def list(self, path: str) -> list[Entry]:
         parts = self._parts(path)
         if len(parts) == 0:
-            return [Entry("teams", "dir"),
-                    Entry("users.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
+            return [
+                Entry("teams", "dir"),
+                Entry("users.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+            ]
         if len(parts) == 1 and parts[0] == "teams":
             return [Entry(t["key"], "dir") for t in await self._teams()]
         if len(parts) == 2 and parts[0] == "teams":
@@ -105,12 +128,15 @@ class LinearPlugin(ConnectorPlugin):
     @staticmethod
     def _flatten(node: dict) -> dict:
         return {
-            "identifier": node.get("identifier"), "title": node.get("title"),
-            "description": node.get("description"), "priority": node.get("priority"),
+            "identifier": node.get("identifier"),
+            "title": node.get("title"),
+            "description": node.get("description"),
+            "priority": node.get("priority"),
             "state": (node.get("state") or {}).get("name"),
             "assignee": (node.get("assignee") or {}).get("name"),
             "labels": [n["name"] for n in (node.get("labels") or {}).get("nodes", [])],
-            "createdAt": node.get("createdAt"), "updatedAt": node.get("updatedAt"),
+            "createdAt": node.get("createdAt"),
+            "updatedAt": node.get("updatedAt"),
         }
 
     async def _team_id(self, key: str) -> Optional[str]:
@@ -140,7 +166,7 @@ class LinearPlugin(ConnectorPlugin):
                 yield u
 
     async def fingerprint(self, path: str) -> Optional[str]:
-        return None     # GraphQL issue count needs a separate query; full_scan diff covers it
+        return None  # GraphQL issue count needs a separate query; full_scan diff covers it
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
         self.ctx.declare_enumeration("full")

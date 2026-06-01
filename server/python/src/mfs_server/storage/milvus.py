@@ -7,6 +7,7 @@ built-in BM25 Function from `content`, so writers only provide content + dense_v
 pymilvus MilvusClient is synchronous; callers (worker/engine) wrap calls in
 asyncio.to_thread. Works against Milvus Lite (local file) and Zilliz Cloud.
 """
+
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -93,9 +94,15 @@ class MilvusStore:
     def _build_index_params(self):
         assert self.client is not None
         ip = MilvusClient.prepare_index_params()
-        ip.add_index(field_name="dense_vec", index_type="HNSW", metric_type="COSINE",
-                     params={"M": 16, "efConstruction": 200})
-        ip.add_index(field_name="sparse_vec", index_type="SPARSE_INVERTED_INDEX", metric_type="BM25")
+        ip.add_index(
+            field_name="dense_vec",
+            index_type="HNSW",
+            metric_type="COSINE",
+            params={"M": 16, "efConstruction": 200},
+        )
+        ip.add_index(
+            field_name="sparse_vec", index_type="SPARSE_INVERTED_INDEX", metric_type="BM25"
+        )
         # NOTE: scalar INVERTED indexes (namespace_id/object_uri/chunk_kind)
         # are a filter optimization, not functionally required — Milvus filters work without
         # them (full scan, fine at small scale). Milvus Lite 3.0 rejects scalar create_index
@@ -153,7 +160,7 @@ class MilvusStore:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         if not self.client.has_collection(name):
-            return        # nothing to purge — a delete must never wedge on a missing collection
+            return  # nothing to purge — a delete must never wedge on a missing collection
         flt = (
             f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}" '
             f'and object_uri == "{_lit(object_uri)}"'
@@ -164,7 +171,7 @@ class MilvusStore:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         if not self.client.has_collection(name):
-            return        # collection already gone (dropped/reset) — removal must still succeed
+            return  # collection already gone (dropped/reset) — removal must still succeed
         flt = f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}"'
         self.client.delete(collection_name=name, filter=flt)
 
@@ -173,29 +180,53 @@ class MilvusStore:
         name = self.resolve_collection(namespace_id)
         if not self.client.has_collection(name):
             return 0
-        rows = self.client.query(collection_name=name, filter=expr or "chunk_id != ''",
-                                 output_fields=["count(*)"], consistency_level="Strong")
+        rows = self.client.query(
+            collection_name=name,
+            filter=expr or "chunk_id != ''",
+            output_fields=["count(*)"],
+            consistency_level="Strong",
+        )
         if rows and "count(*)" in rows[0]:
             return int(rows[0]["count(*)"])
         return 0
 
-    def get_chunks_by_object(self, namespace_id: str, connector_uri: str, object_uri: str) -> list[dict]:
+    def get_chunks_by_object(
+        self, namespace_id: str, connector_uri: str, object_uri: str
+    ) -> list[dict]:
         """All chunks of an object incl. dense_vec — for rename chunk_id rewrite (reuse
         vectors, zero re-embed)."""
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         if not self.client.has_collection(name):
             return []
-        flt = (f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}" '
-               f'and object_uri == "{_lit(object_uri)}"')
+        flt = (
+            f'namespace_id == "{_lit(namespace_id)}" and connector_uri == "{_lit(connector_uri)}" '
+            f'and object_uri == "{_lit(object_uri)}"'
+        )
         return self.client.query(
-            collection_name=name, filter=flt,
-            output_fields=["content", "dense_vec", "chunk_kind", "locator", "lines", "metadata", "indexed_at"],
-            consistency_level="Strong")
+            collection_name=name,
+            filter=flt,
+            output_fields=[
+                "content",
+                "dense_vec",
+                "chunk_kind",
+                "locator",
+                "lines",
+                "metadata",
+                "indexed_at",
+            ],
+            consistency_level="Strong",
+        )
 
-    def search_dense(self, namespace_id: str, query_vec: list[float], limit: int,
-                     expr: str = "", output_fields: Optional[list[str]] = None,
-                     consistency_level: str = "Strong") -> list[dict]:
+    def search_dense(
+        self,
+        namespace_id: str,
+        query_vec: list[float],
+        limit: int,
+        expr: str = "",
+        output_fields: Optional[list[str]] = None,
+        consistency_level: str = "Strong",
+    ) -> list[dict]:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         if not self.client.has_collection(name):
@@ -206,17 +237,32 @@ class MilvusStore:
             anns_field="dense_vec",
             limit=limit,
             filter=expr,
-            output_fields=output_fields or ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "lines", "metadata"],
+            output_fields=output_fields
+            or ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "lines", "metadata"],
             search_params={"metric_type": "COSINE"},
             consistency_level=consistency_level,
         )
         return list(res[0]) if res else []
 
-    _DEFAULT_OUT = ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "lines", "metadata"]
+    _DEFAULT_OUT = [
+        "chunk_id",
+        "object_uri",
+        "content",
+        "chunk_kind",
+        "locator",
+        "lines",
+        "metadata",
+    ]
 
-    def sparse_search(self, namespace_id: str, query_text: str, limit: int, expr: str = "",
-                      output_fields: Optional[list[str]] = None,
-                      consistency_level: str = "Strong") -> list[dict]:
+    def sparse_search(
+        self,
+        namespace_id: str,
+        query_text: str,
+        limit: int,
+        expr: str = "",
+        output_fields: Optional[list[str]] = None,
+        consistency_level: str = "Strong",
+    ) -> list[dict]:
         """BM25 keyword search: Milvus turns query_text into a sparse vector via the
         content_bm25 Function. (verified: pymilvus search(data=[text], anns_field='sparse_vec'))."""
         assert self.client is not None
@@ -224,27 +270,49 @@ class MilvusStore:
         if not self.client.has_collection(name):
             return []
         res = self.client.search(
-            collection_name=name, data=[query_text], anns_field="sparse_vec", limit=limit,
-            filter=expr, output_fields=output_fields or self._DEFAULT_OUT,
+            collection_name=name,
+            data=[query_text],
+            anns_field="sparse_vec",
+            limit=limit,
+            filter=expr,
+            output_fields=output_fields or self._DEFAULT_OUT,
             consistency_level=consistency_level,
         )
         return list(res[0]) if res else []
 
-    def hybrid_search(self, namespace_id: str, query_vec: list[float], query_text: str, limit: int,
-                      expr: str = "", output_fields: Optional[list[str]] = None,
-                      over_fetch: int = 3, consistency_level: str = "Strong") -> list[dict]:
+    def hybrid_search(
+        self,
+        namespace_id: str,
+        query_vec: list[float],
+        query_text: str,
+        limit: int,
+        expr: str = "",
+        output_fields: Optional[list[str]] = None,
+        over_fetch: int = 3,
+        consistency_level: str = "Strong",
+    ) -> list[dict]:
         """dense + BM25 sparse fused with RRF."""
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         if not self.client.has_collection(name):
             return []
         k = limit * over_fetch
-        rd = AnnSearchRequest(data=[query_vec], anns_field="dense_vec",
-                              param={"metric_type": "COSINE"}, limit=k, expr=expr or None)
-        rs = AnnSearchRequest(data=[query_text], anns_field="sparse_vec",
-                              param={}, limit=k, expr=expr or None)
+        rd = AnnSearchRequest(
+            data=[query_vec],
+            anns_field="dense_vec",
+            param={"metric_type": "COSINE"},
+            limit=k,
+            expr=expr or None,
+        )
+        rs = AnnSearchRequest(
+            data=[query_text], anns_field="sparse_vec", param={}, limit=k, expr=expr or None
+        )
         res = self.client.hybrid_search(
-            collection_name=name, reqs=[rd, rs], ranker=RRFRanker(), limit=limit,
-            output_fields=output_fields or self._DEFAULT_OUT, consistency_level=consistency_level,
+            collection_name=name,
+            reqs=[rd, rs],
+            ranker=RRFRanker(),
+            limit=limit,
+            output_fields=output_fields or self._DEFAULT_OUT,
+            consistency_level=consistency_level,
         )
         return list(res[0]) if res else []

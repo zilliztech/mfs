@@ -27,6 +27,7 @@ API endpoints used (all sync, wrapped in asyncio.to_thread):
   docx.v1.document.raw_content       -> plain-text body of a docx document
   docx.v1.document.get               -> document metadata (title, revision_id)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -42,8 +43,15 @@ from lark_oapi.api.drive.v1 import ListFileRequest
 from lark_oapi.api.im.v1 import ListChatRequest, ListMessageRequest
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 
 _SANITIZE = re.compile(r"[^a-zA-Z0-9_.-]+")
@@ -61,9 +69,9 @@ def _extract_text(msg_type: str, content: str) -> str:
         return content or ""
     if msg_type == "text":
         return data.get("text", "")
-    if msg_type == "post":          # rich text
+    if msg_type == "post":  # rich text
         out = []
-        for block in (data.get("content") or []):
+        for block in data.get("content") or []:
             for el in block:
                 if isinstance(el, dict) and el.get("text"):
                     out.append(el["text"])
@@ -75,21 +83,31 @@ class FeishuPlugin(ConnectorPlugin):
     NAME = "feishu"
     URI_SCHEME = "feishu"
     DISPLAY_NAME = "Feishu / Lark"
-    PROMPT = ("Feishu group chats as /chats/<name>__<id>/messages.jsonl + "
-              "docx documents as /docs/<title>__<doc-token>.md.")
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="create_time",
-                                full_scan=True, delete_detection="never", paged_cat=True)
+    PROMPT = (
+        "Feishu group chats as /chats/<name>__<id>/messages.jsonl + "
+        "docx documents as /docs/<title>__<doc-token>.md."
+    )
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="create_time",
+        full_scan=True,
+        delete_detection="never",
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._client = None
-        self._user_token: Optional[str] = None    # set when auth = "user"
-        self._app_id: Optional[str] = None        # cached from config / oauth.json blob
-        self._app_secret: Optional[str] = None    # used for tenant_access_token mint
-        self._region: str = "feishu"              # "feishu" (open.feishu.cn) | "lark" (open.larksuite.com)
+        self._user_token: Optional[str] = None  # set when auth = "user"
+        self._app_id: Optional[str] = None  # cached from config / oauth.json blob
+        self._app_secret: Optional[str] = None  # used for tenant_access_token mint
+        self._region: str = "feishu"  # "feishu" (open.feishu.cn) | "lark" (open.larksuite.com)
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     def _opt(self):
         """Build a per-call option override. tenant mode -> None (SDK uses its
@@ -116,13 +134,15 @@ class FeishuPlugin(ConnectorPlugin):
             # config field `oauth_state_file` that the plugin owns.
             import json as _json
             from pathlib import Path
+
             tok_path_cfg = self._cfg("oauth_state_file")
             if not tok_path_cfg:
                 raise ValueError(
                     "feishu auth='user' requires `oauth_state_file = \"/path/to/oauth.json\"` "
                     "in the connector config — created via "
                     "`python -m mfs_server.connectors.feishu.auth_login`. (Don't use "
-                    "credential_ref here; the file is read AND written each connect.)")
+                    "credential_ref here; the file is read AND written each connect.)"
+                )
             tok_path = Path(tok_path_cfg).expanduser()
             try:
                 blob = _json.loads(tok_path.read_text())
@@ -136,13 +156,17 @@ class FeishuPlugin(ConnectorPlugin):
             if not (app_id and app_secret and refresh):
                 raise ValueError(
                     f"feishu oauth_state_file {tok_path}: missing app_id / app_secret / "
-                    "refresh_token. Re-run auth_login to regenerate.")
+                    "refresh_token. Re-run auth_login to regenerate."
+                )
             # Region: prefer the value persisted in the blob (auth_login records the
             # region the OAuth was performed against — must match for refresh to work).
             # Fall back to the config field, then "feishu".
             self._region = blob.get("region") or self._cfg("region", "feishu")
             from .oauth import refresh_user_token
-            tok = await asyncio.to_thread(refresh_user_token, app_id, app_secret, refresh, self._region)
+
+            tok = await asyncio.to_thread(
+                refresh_user_token, app_id, app_secret, refresh, self._region
+            )
             self._user_token = tok["access_token"]
             self._app_id, self._app_secret = app_id, app_secret
             # CRITICAL: persist the rotated refresh_token immediately. Feishu revokes the
@@ -150,6 +174,7 @@ class FeishuPlugin(ConnectorPlugin):
             # back, the next connect can't authenticate and the user has to redo the
             # browser dance. Atomic write via temp + replace.
             import time as _time
+
             now = int(_time.time())
             new_blob = dict(blob)
             new_blob["refresh_token"] = tok["refresh_token"]
@@ -164,8 +189,10 @@ class FeishuPlugin(ConnectorPlugin):
             tmp.replace(tok_path)
             dom = self._sdk_domain(self._region)
             self._client = await asyncio.to_thread(
-                lambda: lark.Client.builder()
-                    .app_id(app_id).app_secret(app_secret).domain(dom).build())
+                lambda: (
+                    lark.Client.builder().app_id(app_id).app_secret(app_secret).domain(dom).build()
+                )
+            )
             return
 
         # Default: tenant (bot) identity.
@@ -173,12 +200,16 @@ class FeishuPlugin(ConnectorPlugin):
         self._app_id = self._cfg("app_id")
         self._app_secret = self._cfg("app_secret") or self.credential
         dom = self._sdk_domain(self._region)
+
         def build():
-            return lark.Client.builder() \
-                .app_id(self._app_id) \
-                .app_secret(self._app_secret) \
-                .domain(dom) \
+            return (
+                lark.Client.builder()
+                .app_id(self._app_id)
+                .app_secret(self._app_secret)
+                .domain(dom)
                 .build()
+            )
+
         self._client = await asyncio.to_thread(build)
 
     async def healthcheck(self) -> HealthStatus:
@@ -198,9 +229,12 @@ class FeishuPlugin(ConnectorPlugin):
             return self._user_token
         # tenant mode — mint a tenant_access_token via /auth/v3/internal
         from .oauth import endpoints
+
         r = httpx.post(
             endpoints(self._region)["open"] + "/open-apis/auth/v3/tenant_access_token/internal",
-            json={"app_id": self._app_id, "app_secret": self._app_secret}, timeout=15)
+            json={"app_id": self._app_id, "app_secret": self._app_secret},
+            timeout=15,
+        )
         return r.json()["tenant_access_token"]
 
     async def _resolve_p2p_chats(self, partner_open_ids: list[str]) -> list[dict]:
@@ -215,26 +249,34 @@ class FeishuPlugin(ConnectorPlugin):
             return []
         token = await asyncio.to_thread(self._access_token)
         from .oauth import endpoints
+
         url = endpoints(self._region)["open"] + "/open-apis/im/v1/chat_p2p/batch_query"
+
         def fetch():
             return httpx.post(
                 url,
-                headers={"Authorization": f"Bearer {token}",
-                         "Content-Type": "application/json"},
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
                 params={"chatter_id_type": "open_id"},
-                json={"chatter_ids": list(partner_open_ids)}, timeout=20)
+                json={"chatter_ids": list(partner_open_ids)},
+                timeout=20,
+            )
+
         r = await asyncio.to_thread(fetch)
         if r.status_code >= 400:
             raise RuntimeError(
-                f"feishu chat_p2p/batch_query failed: {r.status_code} {r.text[:200]}")
+                f"feishu chat_p2p/batch_query failed: {r.status_code} {r.text[:200]}"
+            )
         body = r.json()
         if body.get("code") != 0:
             raise RuntimeError(
-                f"feishu chat_p2p/batch_query: code={body.get('code')} msg={body.get('msg')}")
+                f"feishu chat_p2p/batch_query: code={body.get('code')} msg={body.get('msg')}"
+            )
         return [
-            {"chat_id": p.get("chat_id"),
-             "chatter_id1": p.get("chatter_id1"),
-             "chatter_id2": p.get("chatter_id2")}
+            {
+                "chat_id": p.get("chat_id"),
+                "chatter_id1": p.get("chatter_id1"),
+                "chatter_id2": p.get("chatter_id2"),
+            }
             for p in (body.get("data", {}).get("p2p_chats") or [])
             if p.get("chat_id")
         ]
@@ -256,19 +298,21 @@ class FeishuPlugin(ConnectorPlugin):
            is on every contact's Feishu profile, and the bot's own open_id is in the
            developer console).
         """
+
         def run():
             req = ListChatRequest.builder().build()
             resp = self._client.im.v1.chat.list(req, self._opt())
             if not resp.success():
                 raise RuntimeError(f"feishu chat.list failed: code={resp.code} msg={resp.msg}")
             return [{"chat_id": c.chat_id, "name": c.name} for c in (resp.data.items or [])]
+
         chats = await asyncio.to_thread(run)
         by_id: dict[str, dict] = {c["chat_id"]: c for c in chats}
 
         # Literal chat_ids — wins over chat.list (the user knows best)
         literal_partner_oids: list[str] = []
         partner_label: dict[str, str] = {}
-        for ex in (self._cfg("extra_chats") or []):
+        for ex in self._cfg("extra_chats") or []:
             if not isinstance(ex, dict):
                 continue
             cid = ex.get("chat_id")
@@ -287,8 +331,11 @@ class FeishuPlugin(ConnectorPlugin):
             for p in resolved:
                 cid = p["chat_id"]
                 # the partner is whichever chatter_id is NOT us
-                partner = p["chatter_id1"] if p["chatter_id1"] in requested \
+                partner = (
+                    p["chatter_id1"]
+                    if p["chatter_id1"] in requested
                     else (p["chatter_id2"] if p["chatter_id2"] in requested else None)
+                )
                 label = partner_label.get(partner) or partner or cid
                 by_id[cid] = {"chat_id": cid, "name": label}
 
@@ -327,22 +374,25 @@ class FeishuPlugin(ConnectorPlugin):
             if not resp.success():
                 raise RuntimeError(
                     f"feishu drive.file.list(folder={folder_token}) failed: "
-                    f"code={resp.code} msg={resp.msg}")
+                    f"code={resp.code} msg={resp.msg}"
+                )
             return resp.data
 
         page_token = None
         while True:
             data = await asyncio.to_thread(fetch, page_token)
-            for f in (data.files or []):
+            for f in data.files or []:
                 t = getattr(f, "type", None)
                 if t == "docx":
                     # only docx for now — sheets / bitable / mindnote etc. have very
                     # different read APIs and aren't usefully searchable as plain text.
-                    docs.append({
-                        "token": f.token,
-                        "name": getattr(f, "name", None) or f.token,
-                        "modified_time": getattr(f, "modified_time", None),
-                    })
+                    docs.append(
+                        {
+                            "token": f.token,
+                            "name": getattr(f, "name", None) or f.token,
+                            "modified_time": getattr(f, "modified_time", None),
+                        }
+                    )
                 elif t == "folder":
                     subfolders.append(f.token)
             if not getattr(data, "has_more", False):
@@ -379,7 +429,7 @@ class FeishuPlugin(ConnectorPlugin):
                 out[d["token"]] = d
 
         # 2) explicit extra_docs
-        for extra in (self._cfg("extra_docs") or []):
+        for extra in self._cfg("extra_docs") or []:
             if not isinstance(extra, dict):
                 continue
             tok = extra.get("token")
@@ -407,28 +457,34 @@ class FeishuPlugin(ConnectorPlugin):
         markdown we could walk `document_block.list` instead, but raw_content is
         enough for embedding-based search and is one API call vs N.
         """
+
         def fetch():
             req = RawContentDocumentRequest.builder().document_id(doc_id).build()
             resp = self._client.docx.v1.document.raw_content(req, self._opt())
             if not resp.success():
                 raise RuntimeError(
-                    f"feishu docx.raw_content({doc_id}) failed: code={resp.code} msg={resp.msg}")
+                    f"feishu docx.raw_content({doc_id}) failed: code={resp.code} msg={resp.msg}"
+                )
             return getattr(resp.data, "content", "") or ""
+
         return await asyncio.to_thread(fetch)
 
     async def _doc_meta(self, doc_id: str) -> dict:
         """Document metadata (title + revision_id) for fingerprinting."""
+
         def fetch():
             req = GetDocumentRequest.builder().document_id(doc_id).build()
             resp = self._client.docx.v1.document.get(req, self._opt())
             if not resp.success():
                 raise RuntimeError(
-                    f"feishu docx.get({doc_id}) failed: code={resp.code} msg={resp.msg}")
+                    f"feishu docx.get({doc_id}) failed: code={resp.code} msg={resp.msg}"
+                )
             d = resp.data.document if resp.data else None
             return {
                 "title": getattr(d, "title", None) if d else None,
                 "revision_id": getattr(d, "revision_id", None) if d else None,
             }
+
         return await asyncio.to_thread(fetch)
 
     def preset_for(self, path: str):
@@ -449,7 +505,9 @@ class FeishuPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith(".jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True})
+            return PathStat(
+                path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True}
+            )
         if path.startswith("/docs/") and path.endswith(".md"):
             return PathStat(path=path, type="file", media_type="text/markdown")
         return PathStat(path=path, type="dir")
@@ -488,16 +546,19 @@ class FeishuPlugin(ConnectorPlugin):
                     b = b.page_token(pt)
                 resp = self._client.im.v1.message.list(b.build(), self._opt())
                 if not resp.success():
-                    raise RuntimeError(f"feishu message.list failed: code={resp.code} msg={resp.msg}")
+                    raise RuntimeError(
+                        f"feishu message.list failed: code={resp.code} msg={resp.msg}"
+                    )
                 return resp.data
 
             while n < limit:
                 data = await asyncio.to_thread(fetch, page_token)
-                for it in (data.items or []):
+                for it in data.items or []:
                     msg_type = it.msg_type
                     content = it.body.content if it.body else ""
                     yield {
-                        "message_id": it.message_id, "msg_type": msg_type,
+                        "message_id": it.message_id,
+                        "msg_type": msg_type,
                         "create_time": it.create_time,
                         "sender": getattr(it.sender, "id", None) if it.sender else None,
                         "thread_id": getattr(it, "thread_id", None) or getattr(it, "root_id", None),

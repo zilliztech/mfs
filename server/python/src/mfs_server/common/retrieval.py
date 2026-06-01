@@ -1,6 +1,7 @@
 """Retrieval helpers: Milvus filter expr builder + result envelope. search modes
 hybrid/semantic/keyword are dispatched in engine.search.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -13,8 +14,12 @@ def _lit(v: str) -> str:
     return str(v).replace("\\", "\\\\").replace('"', '\\"')
 
 
-def build_filter(namespace_id: str, connector_uri: Optional[str] = None,
-                 object_prefix: Optional[str] = None, chunk_kinds: Optional[list[str]] = None) -> str:
+def build_filter(
+    namespace_id: str,
+    connector_uri: Optional[str] = None,
+    object_prefix: Optional[str] = None,
+    chunk_kinds: Optional[list[str]] = None,
+) -> str:
     parts = [f'namespace_id == "{_lit(namespace_id)}"']
     if connector_uri:
         parts.append(f'connector_uri == "{_lit(connector_uri)}"')

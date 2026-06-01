@@ -9,8 +9,8 @@
 //! Every function has a pure-Python fallback in `mfs_server.common.accel`, so the
 //! server runs identically whether or not this native module is installed.
 
-use pyo3::prelude::*;
 use pyo3::exceptions::PyIOError;
+use pyo3::prelude::*;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use walkdir::WalkDir;
@@ -81,7 +81,9 @@ fn tail_lines(path: &str, n: usize) -> PyResult<Vec<String>> {
         return Ok(Vec::new());
     }
     let mut file = fs::File::open(path).map_err(|e| PyIOError::new_err(e.to_string()))?;
-    let size = file.seek(SeekFrom::End(0)).map_err(|e| PyIOError::new_err(e.to_string()))?;
+    let size = file
+        .seek(SeekFrom::End(0))
+        .map_err(|e| PyIOError::new_err(e.to_string()))?;
     let mut buf: Vec<u8> = Vec::new();
     let mut pos = size;
     let chunk = 65536u64;
@@ -89,9 +91,11 @@ fn tail_lines(path: &str, n: usize) -> PyResult<Vec<String>> {
     while pos > 0 {
         let read = chunk.min(pos);
         pos -= read;
-        file.seek(SeekFrom::Start(pos)).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        file.seek(SeekFrom::Start(pos))
+            .map_err(|e| PyIOError::new_err(e.to_string()))?;
         let mut tmp = vec![0u8; read as usize];
-        file.read_exact(&mut tmp).map_err(|e| PyIOError::new_err(e.to_string()))?;
+        file.read_exact(&mut tmp)
+            .map_err(|e| PyIOError::new_err(e.to_string()))?;
         let mut merged = tmp;
         merged.extend_from_slice(&buf);
         buf = merged;
@@ -129,7 +133,7 @@ fn walk_tree(root: &str, patterns: Vec<String>) -> PyResult<Vec<(String, u64, i6
     let mut out: Vec<(String, u64, i64, u64)> = Vec::new();
     let walker = WalkDir::new(root).into_iter().filter_entry(|e| {
         if e.depth() == 0 {
-            return true;        // the root itself is never matched/pruned
+            return true; // the root itself is never matched/pruned
         }
         match e.path().strip_prefix(root_path) {
             Ok(rel) => !gi.matched(rel, e.file_type().is_dir()).is_ignore(),
@@ -141,9 +145,18 @@ fn walk_tree(root: &str, patterns: Vec<String>) -> PyResult<Vec<(String, u64, i6
         if !entry.file_type().is_file() {
             continue;
         }
-        let md = entry.metadata().map_err(|e| PyIOError::new_err(e.to_string()))?;
-        let rel = entry.path().strip_prefix(root_path).unwrap().to_string_lossy().replace('\\', "/");
-        let mtime_ns = md.modified().ok()
+        let md = entry
+            .metadata()
+            .map_err(|e| PyIOError::new_err(e.to_string()))?;
+        let rel = entry
+            .path()
+            .strip_prefix(root_path)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        let mtime_ns = md
+            .modified()
+            .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_nanos() as i64)
             .unwrap_or(0);
@@ -174,7 +187,10 @@ fn sha1_one(path: &str) -> Option<String> {
 fn sha1_files(py: Python<'_>, paths: Vec<String>) -> PyResult<Vec<(String, Option<String>)>> {
     use rayon::prelude::*;
     let res = py.allow_threads(|| {
-        paths.par_iter().map(|p| (p.clone(), sha1_one(p))).collect::<Vec<_>>()
+        paths
+            .par_iter()
+            .map(|p| (p.clone(), sha1_one(p)))
+            .collect::<Vec<_>>()
     });
     Ok(res)
 }

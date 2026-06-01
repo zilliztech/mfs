@@ -7,6 +7,7 @@ MaxKeys) -> {Contents:[{Key,Size,ETag,LastModified}], IsTruncated, NextContinuat
 get_object(Bucket, Key)['Body'] (StreamingBody). aioboto3 mirrors this with `async with
 session.client('s3') as s3`. NOT end-to-end tested (MinIO locally testable later).
 """
+
 from __future__ import annotations
 
 import mimetypes
@@ -17,7 +18,14 @@ from typing import Optional
 import aioboto3
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, ObjectChange, ObjectKind, PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 from ..file.plugin import CODE_EXT, DOC_EXT, IMAGE_EXT, TEXTBLOB_EXT
 
@@ -27,11 +35,19 @@ class S3Plugin(ConnectorPlugin):
     URI_SCHEME = "s3"
     DISPLAY_NAME = "S3 / R2 / GCS / MinIO"
     PROMPT = "An S3-compatible bucket's object-key tree (files at their key paths)."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="etag",
-                                full_scan=True, delete_detection="full_scan", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="etag",
+        full_scan=True,
+        delete_detection="full_scan",
+        paged_cat=True,
+    )
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     def _bucket(self) -> str:
         return self._cfg("bucket")
@@ -47,12 +63,13 @@ class S3Plugin(ConnectorPlugin):
 
     def _session(self) -> aioboto3.Session:
         ak, sk = self._creds()
-        return aioboto3.Session(aws_access_key_id=ak, aws_secret_access_key=sk,
-                                region_name=self._cfg("region"))
+        return aioboto3.Session(
+            aws_access_key_id=ak, aws_secret_access_key=sk, region_name=self._cfg("region")
+        )
 
     def _client_kwargs(self) -> dict:
         kw = {}
-        if self._cfg("endpoint_url"):       # R2 / GCS / MinIO
+        if self._cfg("endpoint_url"):  # R2 / GCS / MinIO
             kw["endpoint_url"] = self._cfg("endpoint_url")
         return kw
 
@@ -78,8 +95,9 @@ class S3Plugin(ConnectorPlugin):
         if path == "/" or path.endswith("/"):
             return PathStat(path=path, type="dir")
         keys = await self.state.get("keys") or {}
-        return PathStat(path=path, type="file", media_type=self._media_type(path),
-                        fingerprint=keys.get(path))
+        return PathStat(
+            path=path, type="file", media_type=self._media_type(path), fingerprint=keys.get(path)
+        )
 
     async def list(self, path: str) -> list[Entry]:
         keys = await self.state.get("keys") or {}
@@ -87,11 +105,13 @@ class S3Plugin(ConnectorPlugin):
         seen: dict[str, str] = {}
         for k in keys:
             if k.startswith(prefix):
-                rest = k[len(prefix):]
+                rest = k[len(prefix) :]
                 parts = rest.split("/", 1)
                 seen[parts[0]] = "file" if len(parts) == 1 else "dir"
-        return [Entry(name=n, type=t, media_type=self._media_type(n) if t == "file" else None)
-                for n, t in sorted(seen.items())]
+        return [
+            Entry(name=n, type=t, media_type=self._media_type(n) if t == "file" else None)
+            for n, t in sorted(seen.items())
+        ]
 
     async def read(self, path: str, range: Optional[Range] = None) -> AsyncIterator[bytes]:
         key = path.lstrip("/")

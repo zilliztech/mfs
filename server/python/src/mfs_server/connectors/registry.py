@@ -1,4 +1,5 @@
 """Connector registry: URI scheme -> plugin class."""
+
 from __future__ import annotations
 
 from importlib import import_module
@@ -27,11 +28,29 @@ def load_builtin() -> None:
     """Import built-in connectors so their @register runs. Import lazily to avoid
     pulling optional deps (aiohttp etc.) unless that connector is used."""
     from . import file  # noqa: F401  (file has no extra deps)
+
     # each optional connector pulls its own SDK; skip if that extra isn't installed
-    for mod in ("web", "github", "postgres", "mysql", "mongo",
-                "slack", "discord", "gmail", "notion", "jira", "linear",
-                "zendesk", "salesforce", "hubspot", "bigquery", "snowflake",
-                "s3", "gdrive", "feishu"):
+    for mod in (
+        "web",
+        "github",
+        "postgres",
+        "mysql",
+        "mongo",
+        "slack",
+        "discord",
+        "gmail",
+        "notion",
+        "jira",
+        "linear",
+        "zendesk",
+        "salesforce",
+        "hubspot",
+        "bigquery",
+        "snowflake",
+        "s3",
+        "gdrive",
+        "feishu",
+    ):
         try:
             import_module(f"{__package__}.{mod}")
         except ImportError:

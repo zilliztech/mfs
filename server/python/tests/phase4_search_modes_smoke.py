@@ -4,6 +4,7 @@ Per backend (Lite + Zilliz): add a repo, then exercise engine.search in hybrid /
 semantic / keyword modes + collapse. Asserts session-related objects rank above the
 unrelated README, and keyword(BM25 'redis') hits the files literally containing it.
 """
+
 import asyncio
 import os
 import shutil
@@ -27,10 +28,12 @@ def seed_repo() -> str:
     os.makedirs(f"{root}/src")
     open(f"{root}/auth.md", "w").write(
         "# Session storage\n\nUser sessions are stored in Redis with a 30 minute TTL. "
-        "When a session expires the user must re-authenticate.\n")
+        "When a session expires the user must re-authenticate.\n"
+    )
     open(f"{root}/src/store.py", "w").write(
         "class SessionStore:\n    def save(self, session):\n"
-        "        self.redis.setex(session.id, 1800, session.serialize())\n")
+        "        self.redis.setex(session.id, 1800, session.serialize())\n"
+    )
     open(f"{root}/README.md", "w").write("# Demo\n\nA project about unrelated banana recipes.\n")
     return root
 
@@ -55,32 +58,46 @@ async def run(label: str, uri: str, token: str, repo: str):
 
         def session_related(envs, n=2):
             top = [(e["source"] or "") for e in envs[:n]]
-            return any("auth.md" in s or "store.py" in s for s in top) and \
-                   all("README" not in s for s in top)
+            return any("auth.md" in s or "store.py" in s for s in top) and all(
+                "README" not in s for s in top
+            )
 
-        hy = await eng.search("how are user login sessions stored", connector_uri=conn_uri, mode="hybrid", top_k=5)
+        hy = await eng.search(
+            "how are user login sessions stored", connector_uri=conn_uri, mode="hybrid", top_k=5
+        )
         check(f"[{label}] hybrid returns results", len(hy) > 0)
         check(f"[{label}] hybrid: session objects rank above README", session_related(hy))
 
-        se = await eng.search("how are user login sessions stored", connector_uri=conn_uri, mode="semantic", top_k=5)
+        se = await eng.search(
+            "how are user login sessions stored", connector_uri=conn_uri, mode="semantic", top_k=5
+        )
         check(f"[{label}] semantic: session objects top", session_related(se))
 
         kw = await eng.search("redis", connector_uri=conn_uri, mode="keyword", top_k=5)
         kw_sources = {e["source"] for e in kw}
-        check(f"[{label}] keyword 'redis' hits redis-containing files",
-              any("auth.md" in (s or "") or "store.py" in (s or "") for s in kw_sources))
-        check(f"[{label}] keyword excludes unrelated README",
-              not any("README" in (s or "") for s in kw_sources))
+        check(
+            f"[{label}] keyword 'redis' hits redis-containing files",
+            any("auth.md" in (s or "") or "store.py" in (s or "") for s in kw_sources),
+        )
+        check(
+            f"[{label}] keyword excludes unrelated README",
+            not any("README" in (s or "") for s in kw_sources),
+        )
 
-        col = await eng.search("session", connector_uri=conn_uri, mode="hybrid", top_k=10, collapse=True)
+        col = await eng.search(
+            "session", connector_uri=conn_uri, mode="hybrid", top_k=10, collapse=True
+        )
         srcs = [e["source"] for e in col]
         check(f"[{label}] collapse: sources unique", len(srcs) == len(set(srcs)))
 
         # envelope shape
         if hy:
             e = hy[0]
-            check(f"[{label}] envelope has source/content/score/metadata",
-                  all(k in e for k in ("source", "content", "score", "metadata")) and "chunk_kind" in e["metadata"])
+            check(
+                f"[{label}] envelope has source/content/score/metadata",
+                all(k in e for k in ("source", "content", "score", "metadata"))
+                and "chunk_kind" in e["metadata"],
+            )
     finally:
         try:
             eng.milvus.drop_collection(cfg.namespace)
@@ -107,7 +124,7 @@ async def main():
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
-    print(f"\n{'='*40}\nPhase 4 search modes: {passed}/{total} checks passed")
+    print(f"\n{'=' * 40}\nPhase 4 search modes: {passed}/{total} checks passed")
     if passed != total:
         print("FAILED:", [n for n, c in results if not c])
         raise SystemExit(1)

@@ -5,6 +5,7 @@ Method `path` args are root-relative (leading '/'); framework joins with the con
 root to form the full URI. sync() does stat-first lazy hashing against file_state +
 inode/sha1 rename pairing, and declares full enumeration each run.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -30,21 +31,88 @@ from ..base import (
 )
 
 DEFAULT_IGNORE = [
-    ".git/", ".hg/", ".svn/", "node_modules/", "__pycache__/", ".venv/", "venv/",
-    ".mypy_cache/", ".pytest_cache/", ".ruff_cache/", "dist/", "build/", ".idea/", ".vscode/",
-    "*.pyc", "*.pyo", "*.so", "*.o", "*.a", "*.dll", "*.dylib", "*.exe", "*.class", "*.jar",
-    "*.zip", "*.tar", "*.gz", "*.tgz", "*.bz2", "*.7z", "*.rar",
-    "*.mp4", "*.mov", "*.avi", "*.mkv", "*.mp3", "*.wav", "*.flac",
-    ".DS_Store", "*.swp", "*.lock",
+    ".git/",
+    ".hg/",
+    ".svn/",
+    "node_modules/",
+    "__pycache__/",
+    ".venv/",
+    "venv/",
+    ".mypy_cache/",
+    ".pytest_cache/",
+    ".ruff_cache/",
+    "dist/",
+    "build/",
+    ".idea/",
+    ".vscode/",
+    "*.pyc",
+    "*.pyo",
+    "*.so",
+    "*.o",
+    "*.a",
+    "*.dll",
+    "*.dylib",
+    "*.exe",
+    "*.class",
+    "*.jar",
+    "*.zip",
+    "*.tar",
+    "*.gz",
+    "*.tgz",
+    "*.bz2",
+    "*.7z",
+    "*.rar",
+    "*.mp4",
+    "*.mov",
+    "*.avi",
+    "*.mkv",
+    "*.mp3",
+    "*.wav",
+    "*.flac",
+    ".DS_Store",
+    "*.swp",
+    "*.lock",
 ]
 
 CODE_EXT = {
-    ".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".c", ".h", ".cpp", ".hpp",
-    ".cc", ".rb", ".php", ".swift", ".kt", ".scala", ".sh", ".bash", ".sql", ".lua", ".r",
+    ".py",
+    ".js",
+    ".ts",
+    ".tsx",
+    ".jsx",
+    ".go",
+    ".rs",
+    ".java",
+    ".c",
+    ".h",
+    ".cpp",
+    ".hpp",
+    ".cc",
+    ".rb",
+    ".php",
+    ".swift",
+    ".kt",
+    ".scala",
+    ".sh",
+    ".bash",
+    ".sql",
+    ".lua",
+    ".r",
 }
 DOC_EXT = {".md", ".markdown", ".rst", ".txt", ".pdf", ".docx", ".doc", ".pptx", ".html", ".htm"}
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".tiff"}
-TEXTBLOB_EXT = {".json", ".csv", ".tsv", ".log", ".jsonl", ".ndjson", ".yaml", ".yml", ".toml", ".ini"}
+TEXTBLOB_EXT = {
+    ".json",
+    ".csv",
+    ".tsv",
+    ".log",
+    ".jsonl",
+    ".ndjson",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".ini",
+}
 
 # --- Progressive-availability priority table (design 02-architecture.md §6.3) ---
 # Smaller priority = runs earlier. The buckets are matched in this order; first
@@ -53,10 +121,22 @@ TEXTBLOB_EXT = {".json", ".csv", ".tsv", ".log", ".jsonl", ".ndjson", ".yaml", "
 # ordering, never correctness. All basename/top-dir matches are case-insensitive.
 _ENTRYPOINT_BASENAMES = {"readme.md", "claude.md", "skill.md", "index.md"}
 _CONFIG_MANIFEST_BASENAMES = {
-    "pyproject.toml", "package.json", "cargo.toml", "go.mod",
-    "requirements.txt", "setup.py", "setup.cfg", "gemfile", "pom.xml",
-    "build.gradle", "build.gradle.kts", "makefile", "cmakelists.txt",
-    "tsconfig.json", "deno.json", "composer.json",
+    "pyproject.toml",
+    "package.json",
+    "cargo.toml",
+    "go.mod",
+    "requirements.txt",
+    "setup.py",
+    "setup.cfg",
+    "gemfile",
+    "pom.xml",
+    "build.gradle",
+    "build.gradle.kts",
+    "makefile",
+    "cmakelists.txt",
+    "tsconfig.json",
+    "deno.json",
+    "composer.json",
 }
 _CORE_SRC_TOPDIRS = {"src", "lib", "app"}
 _DOCS_TOPDIRS = {"docs", "guides"}
@@ -66,19 +146,27 @@ _GENERATED_TOPDIRS = {"dist", "build", "vendor", "node_modules", "target", "out"
 
 @dataclass
 class FileConfig:
-    root: str                # real absolute directory (server-side scope / upload staging)
+    root: str  # real absolute directory (server-side scope / upload staging)
     client_id: str = "local"
-    upload_mode: bool = False    # CS upload: index file_state 'staged' rows, no physical re-scan
+    upload_mode: bool = False  # CS upload: index file_state 'staged' rows, no physical re-scan
 
 
 class FilePlugin(ConnectorPlugin):
     NAME = "file"
     URI_SCHEME = "file"
     DISPLAY_NAME = "Local Files"
-    PROMPT = "Local filesystem tree under the connector root. Real files with original names/extensions."
+    PROMPT = (
+        "Local filesystem tree under the connector root. Real files with original names/extensions."
+    )
     CAPABILITIES = Capabilities(
-        manual_sync=True, watch=True, cursor_kind=None, full_scan=True,
-        delete_detection="full_scan", grep_pushdown=False, search_pushdown=False, paged_cat=True,
+        manual_sync=True,
+        watch=True,
+        cursor_kind=None,
+        full_scan=True,
+        delete_detection="full_scan",
+        grep_pushdown=False,
+        search_pushdown=False,
+        paged_cat=True,
     )
     CONFIG_SCHEMA = FileConfig
 
@@ -166,8 +254,13 @@ class FilePlugin(ConnectorPlugin):
 
     def _media_type(self, real: Path) -> Optional[str]:
         ext = real.suffix.lower()
-        special = {".md": "text/markdown", ".jsonl": "application/x-ndjson",
-                   ".ndjson": "application/x-ndjson", ".py": "text/x-python", ".toml": "application/toml"}
+        special = {
+            ".md": "text/markdown",
+            ".jsonl": "application/x-ndjson",
+            ".ndjson": "application/x-ndjson",
+            ".py": "text/x-python",
+            ".toml": "application/toml",
+        }
         if ext in special:
             return special[ext]
         mt, _ = mimetypes.guess_type(str(real))
@@ -181,9 +274,14 @@ class FilePlugin(ConnectorPlugin):
         if real.is_dir():
             return PathStat(path=path, type="dir")
         st = real.stat()
-        return PathStat(path=path, type="file", media_type=self._media_type(real),
-                        size_hint=st.st_size, fingerprint=f"{st.st_size}:{st.st_mtime_ns}",
-                        extra={"inode": st.st_ino})
+        return PathStat(
+            path=path,
+            type="file",
+            media_type=self._media_type(real),
+            size_hint=st.st_size,
+            fingerprint=f"{st.st_size}:{st.st_mtime_ns}",
+            extra={"inode": st.st_ino},
+        )
 
     async def list(self, path: str) -> list[Entry]:
         real = self._real(path)
@@ -200,8 +298,14 @@ class FilePlugin(ConnectorPlugin):
                 entries.append(Entry(name=child.name, type="dir"))
             else:
                 stt = child.stat()
-                entries.append(Entry(name=child.name, type="file",
-                                     media_type=self._media_type(child), size_hint=stt.st_size))
+                entries.append(
+                    Entry(
+                        name=child.name,
+                        type="file",
+                        media_type=self._media_type(child),
+                        size_hint=stt.st_size,
+                    )
+                )
         return entries
 
     # --- read ---
@@ -221,13 +325,13 @@ class FilePlugin(ConnectorPlugin):
                 while chunk := f.read(65536):
                     buf += chunk
                     while (nl := buf.find(b"\n")) >= 0:
-                        line, buf = buf[:nl + 1], buf[nl + 1:]
+                        line, buf = buf[: nl + 1], buf[nl + 1 :]
                         if start <= i < end:
                             yield line
                         i += 1
                         if i >= end:
                             return
-                if buf and start <= i < end:        # trailing line without a newline
+                if buf and start <= i < end:  # trailing line without a newline
                     yield buf
 
     # --- fingerprint: content sha1 (accurate; stat uses size:mtime for fast check) ---
@@ -250,8 +354,13 @@ class FilePlugin(ConnectorPlugin):
         inode)} via the native accelerator (mfs_server_rs) or its pure-Python (os.walk +
         pathspec) fallback. Raises on IO/permission error (enumerate completely or raise)."""
         from ...common import accel
-        return {rel: (size, mtime_ns, inode)
-                for rel, size, mtime_ns, inode in accel.walk_tree(str(self.root), self._ignore_patterns())}
+
+        return {
+            rel: (size, mtime_ns, inode)
+            for rel, size, mtime_ns, inode in accel.walk_tree(
+                str(self.root), self._ignore_patterns()
+            )
+        }
 
     # --- sync (core: stat-first + rename pairing) ---
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
@@ -268,7 +377,9 @@ class FilePlugin(ConnectorPlugin):
                     yield ObjectChange(uri=row["path"], kind="deleted")
                 elif row["status"] == "staged":
                     if row["renamed_from"]:
-                        yield ObjectChange(uri=row["path"], kind="renamed", old_uri=row["renamed_from"])
+                        yield ObjectChange(
+                            uri=row["path"], kind="renamed", old_uri=row["renamed_from"]
+                        )
                     else:
                         yield ObjectChange(uri=row["path"], kind="added")
                 elif opts.full and row["status"] == "indexed":
@@ -278,9 +389,10 @@ class FilePlugin(ConnectorPlugin):
                     yield ObjectChange(uri=row["path"], kind="modified")
             return
 
-        self.ctx.declare_enumeration("full")        # file scans whole tree every time
+        self.ctx.declare_enumeration("full")  # file scans whole tree every time
 
         from ...common import accel
+
         current = self._scan()
 
         # dry_run (estimate pre-flight): enumerate object URIs only — never
@@ -295,7 +407,7 @@ class FilePlugin(ConnectorPlugin):
 
         prev_paths = await self.file_state.all_paths()
 
-        added: dict[str, tuple] = {}     # path -> (size, mtime_ns, inode, sha1)
+        added: dict[str, tuple] = {}  # path -> (size, mtime_ns, inode, sha1)
         modified: dict[str, tuple] = {}
         # pass 1: stat-first — only files whose (size, mtime) changed need a content hash
         fsmap: dict[str, dict | None] = {}
@@ -303,8 +415,14 @@ class FilePlugin(ConnectorPlugin):
         for path, (size, mtime_ns, inode) in current.items():
             fs = await self.file_state.get(path)
             fsmap[path] = fs
-            if fs and not opts.full and fs["size"] == size and fs["mtime_ns"] == mtime_ns and fs["status"] == "indexed":
-                continue                                  # unchanged, skip hashing
+            if (
+                fs
+                and not opts.full
+                and fs["size"] == size
+                and fs["mtime_ns"] == mtime_ns
+                and fs["status"] == "indexed"
+            ):
+                continue  # unchanged, skip hashing
             need_hash.append(path)
         # batch the (parallel, GIL-released) content hashing of just the changed files
         hashes = await asyncio.to_thread(accel.sha1_files, [str(self._real(p)) for p in need_hash])
@@ -313,7 +431,7 @@ class FilePlugin(ConnectorPlugin):
             fs = fsmap[path]
             sha1 = hashes.get(str(self._real(path)))
             if fs and not opts.full and sha1 == fs["sha1"] and fs["status"] == "indexed":
-                await self.file_state.update_mtime(path, mtime_ns)         # mtime-touch only
+                await self.file_state.update_mtime(path, mtime_ns)  # mtime-touch only
                 continue
             rec = (size, mtime_ns, inode, sha1)
             if fs:
@@ -325,7 +443,9 @@ class FilePlugin(ConnectorPlugin):
 
         # rename pairing: added x deleted (inode then sha1)
         deleted_rows = {p: await self.file_state.get(p) for p in deleted}
-        del_by_inode = {r["inode"]: p for p, r in deleted_rows.items() if r and r["inode"] is not None}
+        del_by_inode = {
+            r["inode"]: p for p, r in deleted_rows.items() if r and r["inode"] is not None
+        }
         del_by_sha1 = {r["sha1"]: p for p, r in deleted_rows.items() if r}
         consumed_deleted: set[str] = set()
 
@@ -340,7 +460,7 @@ class FilePlugin(ConnectorPlugin):
                 old = del_by_sha1[sha1]
             if old is not None and old not in consumed_deleted:
                 consumed_deleted.add(old)
-                await self.file_state.rename(old, new_path)   # staged, renamed_from=old
+                await self.file_state.rename(old, new_path)  # staged, renamed_from=old
                 await self.file_state.update_mtime(new_path, mtime)
                 yield ObjectChange(uri=new_path, kind="renamed", old_uri=old)
             else:
@@ -358,6 +478,7 @@ class FilePlugin(ConnectorPlugin):
     async def on_object_indexed(self, uri: str) -> None:
         if self.file_state is not None:
             from datetime import datetime, timezone
+
             await self.file_state.mark_indexed(uri, datetime.now(timezone.utc).isoformat())
 
     async def on_object_deleted(self, uri: str) -> None:

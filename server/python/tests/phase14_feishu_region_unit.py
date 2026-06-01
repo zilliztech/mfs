@@ -5,6 +5,7 @@ Offline unit. Verifies the host-string substitution for Feishu (国内) vs Lark
 make any real HTTP call — Lark is unverified live (we have no Lark tenant),
 this just proves the wiring is symmetric.
 """
+
 import lark_oapi as lark
 
 from mfs_server.connectors.feishu.oauth import endpoints
@@ -15,7 +16,9 @@ results = []
 
 
 def check(name, cond):
-    results.append(bool(cond)); print(f"  [{OK if cond else FAIL}] {name}"); return cond
+    results.append(bool(cond))
+    print(f"  [{OK if cond else FAIL}] {name}")
+    return cond
 
 
 def main():
@@ -39,21 +42,22 @@ def main():
         check(f"unknown region raises: {str(e)[:50]}...", True)
 
     # 4. SDK domain mapping matches what lark_oapi exposes
-    check("_sdk_domain('feishu') = FEISHU_DOMAIN",
-          FeishuPlugin._sdk_domain("feishu") == lark.FEISHU_DOMAIN)
-    check("_sdk_domain('lark') = LARK_DOMAIN",
-          FeishuPlugin._sdk_domain("lark") == lark.LARK_DOMAIN)
-    check("unknown region falls back to feishu (not strict here)",
-          FeishuPlugin._sdk_domain("xyz") == lark.FEISHU_DOMAIN)
+    check(
+        "_sdk_domain('feishu') = FEISHU_DOMAIN",
+        FeishuPlugin._sdk_domain("feishu") == lark.FEISHU_DOMAIN,
+    )
+    check("_sdk_domain('lark') = LARK_DOMAIN", FeishuPlugin._sdk_domain("lark") == lark.LARK_DOMAIN)
+    check(
+        "unknown region falls back to feishu (not strict here)",
+        FeishuPlugin._sdk_domain("xyz") == lark.FEISHU_DOMAIN,
+    )
 
     # 5. consistency: the SDK constant matches our endpoints() open host
-    check("lark.FEISHU_DOMAIN == endpoints('feishu')['open']",
-          lark.FEISHU_DOMAIN == f["open"])
-    check("lark.LARK_DOMAIN == endpoints('lark')['open']",
-          lark.LARK_DOMAIN == l["open"])
+    check("lark.FEISHU_DOMAIN == endpoints('feishu')['open']", lark.FEISHU_DOMAIN == f["open"])
+    check("lark.LARK_DOMAIN == endpoints('lark')['open']", lark.LARK_DOMAIN == l["open"])
 
     passed = sum(results)
-    print(f"\n{'='*46}\n  feishu region unit: {passed}/{len(results)} checks passed")
+    print(f"\n{'=' * 46}\n  feishu region unit: {passed}/{len(results)} checks passed")
     raise SystemExit(0 if passed == len(results) else 1)
 
 

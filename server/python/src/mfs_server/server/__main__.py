@@ -3,6 +3,7 @@
 Phase 4: run/api start the FastAPI app (add is processed synchronously within the
 request). Standalone worker daemon (polling the DB queue) + reload are Phase 5/7.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -18,7 +19,7 @@ def _ensure_auth_token(cfg) -> None:
     from pathlib import Path
 
     if cfg.auth_token:
-        if cfg.auth_token == "-":      # explicit opt-out for trusted/isolated networks
+        if cfg.auth_token == "-":  # explicit opt-out for trusted/isolated networks
             cfg.auth_token = ""
         return
     token_file = Path(cfg.home or ".") / "server.token"
@@ -33,9 +34,11 @@ def _ensure_auth_token(cfg) -> None:
     except OSError:
         pass
     cfg.auth_token = tok
-    print(f"mfs-server: generated API token at {token_file} "
-          f"(local CLIs read it automatically; pass it as Authorization: Bearer for remote)",
-          flush=True)
+    print(
+        f"mfs-server: generated API token at {token_file} "
+        f"(local CLIs read it automatically; pass it as Authorization: Bearer for remote)",
+        flush=True,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -79,8 +82,11 @@ def main(argv: list[str] | None = None) -> int:
 
         async def run() -> None:
             await eng.startup()
-            print(f"mfs-server worker: polling queue (metadata={cfg.metadata.backend}, "
-                  f"concurrency={args.concurrency})", flush=True)
+            print(
+                f"mfs-server worker: polling queue (metadata={cfg.metadata.backend}, "
+                f"concurrency={args.concurrency})",
+                flush=True,
+            )
             try:
                 await eng.run_worker_forever(concurrency=args.concurrency)
             finally:
@@ -102,9 +108,11 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as e:  # noqa: BLE001
             print(f"config invalid: {e}")
             return 1
-        print(f"config OK — milvus={'lite' if not cfg.milvus.uri.startswith('http') else 'remote'}, "
-              f"metadata={cfg.metadata.backend}, object_store={cfg.object_store.backend}. "
-              "Restart the server process to apply changes.")
+        print(
+            f"config OK — milvus={'lite' if not cfg.milvus.uri.startswith('http') else 'remote'}, "
+            f"metadata={cfg.metadata.backend}, object_store={cfg.object_store.backend}. "
+            "Restart the server process to apply changes."
+        )
         return 0
 
     return 1

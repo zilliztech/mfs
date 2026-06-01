@@ -1,6 +1,7 @@
 """Phase 6 VLM smoke — image -> description -> chunk -> search + cat. Needs
 OPENAI_API_KEY (bash -ic). Lite + Zilliz.
 """
+
 import asyncio
 import os
 import shutil
@@ -54,18 +55,35 @@ async def run(label: str, uri: str, token: str, repo: str):
         conn = await eng.meta.fetchone("SELECT id FROM connectors WHERE type='file'")
         o = await eng.meta.fetchone(
             "SELECT chunk_count, search_status FROM objects WHERE connector_id=? AND object_uri=?",
-            (conn["id"], "/invoice.png"))
-        check(f"[{label}] invoice.png VLM-indexed", o and o["chunk_count"] == 1 and o["search_status"] == "indexed")
+            (conn["id"], "/invoice.png"),
+        )
+        check(
+            f"[{label}] invoice.png VLM-indexed",
+            o and o["chunk_count"] == 1 and o["search_status"] == "indexed",
+        )
 
-        res = await eng.search("invoice total amount due vendor", connector_uri=conn_uri, mode="hybrid", top_k=3)
-        check(f"[{label}] search invoice -> invoice.png", any("invoice.png" in (e["source"] or "") for e in res[:2]))
+        res = await eng.search(
+            "invoice total amount due vendor", connector_uri=conn_uri, mode="hybrid", top_k=3
+        )
+        check(
+            f"[{label}] search invoice -> invoice.png",
+            any("invoice.png" in (e["source"] or "") for e in res[:2]),
+        )
         if res:
-            check(f"[{label}] hit chunk_kind=vlm_description",
-                  any(e["metadata"]["chunk_kind"] == "vlm_description" for e in res if "invoice.png" in (e["source"] or "")))
+            check(
+                f"[{label}] hit chunk_kind=vlm_description",
+                any(
+                    e["metadata"]["chunk_kind"] == "vlm_description"
+                    for e in res
+                    if "invoice.png" in (e["source"] or "")
+                ),
+            )
 
         desc = await eng.cat(f"{repo}/invoice.png")
-        check(f"[{label}] cat invoice.png returns VLM description",
-              "invoice" in desc.lower() or "5000" in desc or "acme" in desc.lower())
+        check(
+            f"[{label}] cat invoice.png returns VLM description",
+            "invoice" in desc.lower() or "5000" in desc or "acme" in desc.lower(),
+        )
     finally:
         try:
             eng.milvus.drop_collection(cfg.namespace)
@@ -92,7 +110,7 @@ async def main():
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
-    print(f"\n{'='*40}\nPhase 6 VLM: {passed}/{total} checks passed")
+    print(f"\n{'=' * 40}\nPhase 6 VLM: {passed}/{total} checks passed")
     if passed != total:
         print("FAILED:", [n for n, c in results if not c])
         raise SystemExit(1)

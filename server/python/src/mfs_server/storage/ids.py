@@ -9,6 +9,7 @@ The locator disambiguates multiple chunks within one object:
 The framework reserves "lines" as a key in the locator dict — connector
 [[objects]].locator_fields is rejected at startup if it tries to claim it.
 """
+
 from __future__ import annotations
 
 import hashlib

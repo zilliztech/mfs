@@ -3,6 +3,7 @@ object_kind. pymongo 4.13+ native async (AsyncMongoClient; find()/list_collectio
 are awaitable). Layout /<collection>/{schema.json,documents.jsonl} within one database.
 NOT end-to-end tested here (no local mongo); interface follows current pymongo async docs.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -11,8 +12,15 @@ from typing import Optional
 from pymongo import AsyncMongoClient
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 
 
@@ -21,15 +29,23 @@ class MongoPlugin(ConnectorPlugin):
     URI_SCHEME = "mongo"
     DISPLAY_NAME = "MongoDB"
     PROMPT = "MongoDB collections as /<collection>/documents.jsonl + schema.json (one database)."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="updatedAt",
-                                full_scan=True, delete_detection="full_scan", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="updatedAt",
+        full_scan=True,
+        delete_detection="full_scan",
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._client: Optional[AsyncMongoClient] = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     def _db(self):
         return self._client[self._cfg("database")]
@@ -64,8 +80,13 @@ class MongoPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith("documents.jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson",
-                            fingerprint=await self.fingerprint(path), extra={"lazy": True})
+            return PathStat(
+                path=path,
+                type="file",
+                media_type="application/x-ndjson",
+                fingerprint=await self.fingerprint(path),
+                extra={"lazy": True},
+            )
         if path.endswith("schema.json"):
             return PathStat(path=path, type="file", media_type="application/json")
         return PathStat(path=path, type="dir")
@@ -75,8 +96,10 @@ class MongoPlugin(ConnectorPlugin):
         if len(parts) == 0:
             return [Entry(c, "dir") for c in await self._collections()]
         if len(parts) == 1:
-            return [Entry("schema.json", "file", "application/json"),
-                    Entry("documents.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
+            return [
+                Entry("schema.json", "file", "application/json"),
+                Entry("documents.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+            ]
         return []
 
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
@@ -90,7 +113,7 @@ class MongoPlugin(ConnectorPlugin):
                 cursor = self._db()[parts[0]].find().skip(off).limit(cnt)
             else:
                 if await self._db()[parts[0]].estimated_document_count() > lim:
-                    self.ctx.declare_partial(path)    # capped -> search_status=partial
+                    self.ctx.declare_partial(path)  # capped -> search_status=partial
                 cursor = self._db()[parts[0]].find(limit=lim)
             async for doc in cursor:
                 if "_id" in doc:
@@ -101,7 +124,14 @@ class MongoPlugin(ConnectorPlugin):
             doc = await self._db()[parts[0]].find_one()
             yield {"collection": parts[0], "fields": sorted((doc or {}).keys())}
 
-    _CURSOR_CANDIDATES = ("updatedAt", "updated_at", "modifiedAt", "modified_at", "lastModified", "mtime")
+    _CURSOR_CANDIDATES = (
+        "updatedAt",
+        "updated_at",
+        "modifiedAt",
+        "modified_at",
+        "lastModified",
+        "mtime",
+    )
 
     async def fingerprint(self, path: str) -> Optional[str]:
         parts = self._parts(path)
@@ -117,7 +147,8 @@ class MongoPlugin(ConnectorPlugin):
             mx = None
             if field:
                 async for r in await coll.aggregate(
-                        [{"$group": {"_id": None, "m": {"$max": f"${field}"}}}]):
+                    [{"$group": {"_id": None, "m": {"$max": f"${field}"}}}]
+                ):
                     mx = str(r.get("m"))
                     break
             return f"count:{cnt}|{field}:{mx}" if field else f"count:{cnt}"

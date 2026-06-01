@@ -2,6 +2,7 @@
 table_rows pipeline isn't postgres-specific). Needs local MariaDB (db mfstest) +
 OPENAI_API_KEY (bash -ic). Lite.
 """
+
 import asyncio
 import os
 
@@ -25,16 +26,30 @@ async def main():
     base = f"/tmp/mfs_p10my_{os.getpid()}"
     os.system(f"rm -rf '{base}'*")
     cfg = load_server_config(apply_env=False)
-    cfg.metadata.path = base + "_meta.db"; cfg.milvus.uri = base + "_milvus.db"; cfg.milvus.token = ""
-    cfg.object_store.root = base + "_cache"; cfg.transformation_cache.db_path = base + "_tx.db"
+    cfg.metadata.path = base + "_meta.db"
+    cfg.milvus.uri = base + "_milvus.db"
+    cfg.milvus.token = ""
+    cfg.object_store.root = base + "_cache"
+    cfg.transformation_cache.db_path = base + "_tx.db"
     eng = Engine(cfg)
     await eng.startup()
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
         my_config = {
-            "host": "127.0.0.1", "port": 3306, "user": "mfs", "password": "mfs", "database": "mfstest",
-            "objects": [{"match": "*rows.jsonl", "text_fields": ["subject", "description"],
-                         "locator_fields": ["id"], "chunk_strategy": "per_row"}],
+            "host": "127.0.0.1",
+            "port": 3306,
+            "user": "mfs",
+            "password": "mfs",
+            "database": "mfstest",
+            "objects": [
+                {
+                    "match": "*rows.jsonl",
+                    "text_fields": ["subject", "description"],
+                    "locator_fields": ["id"],
+                    "chunk_strategy": "per_row",
+                }
+            ],
         }
         await eng.add("mysql://test", config=my_config)
 
@@ -42,25 +57,43 @@ async def main():
         check("mysql connector registered", conn is not None)
         o = await eng.meta.fetchone(
             "SELECT chunk_count, search_status FROM objects WHERE connector_id=? AND object_uri='/tickets/rows.jsonl'",
-            (conn["id"],))
-        check("tickets rows.jsonl per_row indexed (3 chunks)", o and o["chunk_count"] == 3 and o["search_status"] == "indexed")
+            (conn["id"],),
+        )
+        check(
+            "tickets rows.jsonl per_row indexed (3 chunks)",
+            o and o["chunk_count"] == 3 and o["search_status"] == "indexed",
+        )
 
-        res = await eng.search("SSO login redirect fails", connector_uri="mysql://test", mode="hybrid", top_k=3)
+        res = await eng.search(
+            "SSO login redirect fails", connector_uri="mysql://test", mode="hybrid", top_k=3
+        )
         top = res[0] if res else {}
-        check("search returns row_text with pk locator", top.get("metadata", {}).get("chunk_kind") == "row_text"
-              and (top.get("locator") or {}).get("id") == 1)
-        res2 = await eng.search("dark theme toggle setting", connector_uri="mysql://test", mode="hybrid", top_k=3)
-        check("search 'dark mode' finds id=2", any((e.get("locator") or {}).get("id") == 2 for e in res2[:2]))
+        check(
+            "search returns row_text with pk locator",
+            top.get("metadata", {}).get("chunk_kind") == "row_text"
+            and (top.get("locator") or {}).get("id") == 1,
+        )
+        res2 = await eng.search(
+            "dark theme toggle setting", connector_uri="mysql://test", mode="hybrid", top_k=3
+        )
+        check(
+            "search 'dark mode' finds id=2",
+            any((e.get("locator") or {}).get("id") == 2 for e in res2[:2]),
+        )
     finally:
-        try: eng.milvus.drop_collection("default")
-        except Exception: pass
-        await eng.shutdown(); os.system(f"rm -rf '{base}'*")
+        try:
+            eng.milvus.drop_collection("default")
+        except Exception:
+            pass
+        await eng.shutdown()
+        os.system(f"rm -rf '{base}'*")
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
-    print(f"\n{'='*40}\nPhase 10 mysql: {passed}/{total} checks passed")
+    print(f"\n{'=' * 40}\nPhase 10 mysql: {passed}/{total} checks passed")
     if passed != total:
-        print("FAILED:", [n for n, c in results if not c]); raise SystemExit(1)
+        print("FAILED:", [n for n, c in results if not c])
+        raise SystemExit(1)
     print("ALL PASS")
 
 

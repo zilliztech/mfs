@@ -6,6 +6,7 @@ Cursor pagination: `?page[size]=100&page[after]=<cursor>`, response carries
 
 API shape verified against Zendesk Ticketing API docs. NOT end-to-end tested.
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -14,8 +15,15 @@ from typing import Optional
 import httpx
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 
 # path -> (endpoint, response array key). comments.jsonl is special (per-ticket).
@@ -31,11 +39,19 @@ class ZendeskPlugin(ConnectorPlugin):
     URI_SCHEME = "zendesk"
     DISPLAY_NAME = "Zendesk"
     PROMPT = "Zendesk tickets/users/organizations as <resource>/records.jsonl."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="updated_at",
-                                full_scan=True, delete_detection="full_scan", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="updated_at",
+        full_scan=True,
+        delete_detection="full_scan",
+        paged_cat=True,
+    )
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     def _base(self) -> str:
         sub = self._cfg("subdomain")
@@ -68,7 +84,9 @@ class ZendeskPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith(".jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True})
+            return PathStat(
+                path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True}
+            )
         if path.endswith("schema.json"):
             return PathStat(path=path, type="file", media_type="application/json")
         return PathStat(path=path, type="dir")
@@ -78,8 +96,10 @@ class ZendeskPlugin(ConnectorPlugin):
         if len(parts) == 0:
             return [Entry("tickets", "dir"), Entry("users", "dir"), Entry("organizations", "dir")]
         if len(parts) == 1 and parts[0] == "tickets":
-            return [Entry("records.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
-                    Entry("comments.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
+            return [
+                Entry("records.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+                Entry("comments.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+            ]
         if len(parts) == 1 and parts[0] in ("users", "organizations"):
             return [Entry("records.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
         return []
@@ -111,9 +131,9 @@ class ZendeskPlugin(ConnectorPlugin):
                 after = meta.get("after_cursor")
                 url = (body.get("links") or {}).get("next") or url
                 if (body.get("links") or {}).get("next"):
-                    after = None    # links.next already encodes the cursor
+                    after = None  # links.next already encodes the cursor
             if n >= limit:
-                self.ctx.declare_partial(path)        # hit max_read_rows -> partial recall
+                self.ctx.declare_partial(path)  # hit max_read_rows -> partial recall
 
     async def _read_comments(self) -> AsyncIterator[dict]:
         """All comments, tagged with ticket_id (Zendesk exposes comments per-ticket
@@ -143,7 +163,7 @@ class ZendeskPlugin(ConnectorPlugin):
         ep = _COLLECTIONS.get(path)
         if not ep:
             return None
-        resource = ep[1]                       # tickets / users / organizations
+        resource = ep[1]  # tickets / users / organizations
         try:
             async with httpx.AsyncClient(auth=self._auth(), timeout=30) as c:
                 r = await c.get(f"{self._base()}/api/v2/{resource}/count.json")

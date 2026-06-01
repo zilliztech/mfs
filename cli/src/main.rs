@@ -245,10 +245,14 @@ struct ClientConfig {
 fn client_id() -> String {
     let mut cfg = load_client_cfg();
     if let Some(id) = &cfg.client_id {
-        if !id.is_empty() { return id.clone(); }
+        if !id.is_empty() {
+            return id.clone();
+        }
     }
-    let id = std::fs::read_to_string("/proc/sys/kernel/random/uuid").ok()
-        .map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    let id = std::fs::read_to_string("/proc/sys/kernel/random/uuid")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
         .unwrap_or_else(|| format!("cid-{}", std::process::id()));
     cfg.client_id = Some(id.clone());
     let _ = save_client_cfg(&cfg);
@@ -266,10 +270,17 @@ struct Profile {
 /// Active Bearer token: $MFS_API_TOKEN, else the active profile's token (env: resolved).
 fn auth_token() -> Option<String> {
     if let Ok(t) = std::env::var("MFS_API_TOKEN") {
-        if !t.is_empty() { return Some(t); }
+        if !t.is_empty() {
+            return Some(t);
+        }
     }
     let cfg = load_client_cfg();
-    if let Some(raw) = cfg.active.as_ref().and_then(|a| cfg.profiles.get(a)).and_then(|p| p.token.clone()) {
+    if let Some(raw) = cfg
+        .active
+        .as_ref()
+        .and_then(|a| cfg.profiles.get(a))
+        .and_then(|p| p.token.clone())
+    {
         return Some(match raw.strip_prefix("env:") {
             Some(var) => std::env::var(var).unwrap_or_default(),
             None => raw,
@@ -278,8 +289,10 @@ fn auth_token() -> Option<String> {
     // Fall back to the local server's auto-generated token: `mfs-server
     // run` writes ~/.mfs/server.token, so a CLI on the same host authenticates to its
     // loopback server with zero configuration.
-    std::fs::read_to_string(mfs_home().join("server.token")).ok()
-        .map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    std::fs::read_to_string(mfs_home().join("server.token"))
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 /// A remote endpoint (non-loopback) means the server can't see local paths. Rewrite an
@@ -318,7 +331,10 @@ fn client_cfg_path() -> PathBuf {
 
 fn load_client_cfg() -> ClientConfig {
     let p = client_cfg_path();
-    std::fs::read_to_string(p).ok().and_then(|s| toml::from_str(&s).ok()).unwrap_or_default()
+    std::fs::read_to_string(p)
+        .ok()
+        .and_then(|s| toml::from_str(&s).ok())
+        .unwrap_or_default()
 }
 
 fn save_client_cfg(cfg: &ClientConfig) -> Result<(), String> {
@@ -353,20 +369,34 @@ fn main() {
 
 fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), String> {
     match &cli.cmd {
-        Cmd::Add { target, config, since, force_index, wait, upload, force_upload, no_upload, yes } => {
+        Cmd::Add {
+            target,
+            config,
+            since,
+            force_index,
+            wait,
+            upload,
+            force_upload,
+            no_upload,
+            yes,
+        } => {
             let is_local = std::path::Path::new(target).exists();
             // zero-billing estimate + confirm before indexing an external connector
             //: the user sees physical work before any embedding spend.
             if !is_local && !yes {
                 let mut eb = serde_json::json!({"target": target});
-                if let Some(c) = config { eb["config"] = load_config_file(c)?; }
+                if let Some(c) = config {
+                    eb["config"] = load_config_file(c)?;
+                }
                 let est = post(client, &format!("{base}/v1/connectors/estimate"), &eb)?;
                 println!("Connector: {target}");
                 println!("Discovered: {} objects", est["objects"]);
                 println!("Estimated (local chunker + tokenizer only — no embedding API calls):");
                 println!("  chunks: ~{}", est["est_chunks"]);
-                println!("  tokens: ~{}  (apply your provider's per-token rate to estimate $)",
-                         est["est_tokens"]);
+                println!(
+                    "  tokens: ~{}  (apply your provider's per-token rate to estimate $)",
+                    est["est_tokens"]
+                );
                 if !confirm("Continue? [y/N] ")? {
                     println!("aborted.");
                     return Ok(());
@@ -382,7 +412,9 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 is_local
             } else if is_local {
                 let server_mid = get(client, &format!("{base}/v1/server/info"), &[])
-                    .ok().and_then(|v| v["machine_id"].as_str().map(String::from)).unwrap_or_default();
+                    .ok()
+                    .and_then(|v| v["machine_id"].as_str().map(String::from))
+                    .unwrap_or_default();
                 let client_host = client_hostname();
                 !server_mid.is_empty() && !client_host.is_empty() && server_mid != client_host
             } else {
@@ -394,12 +426,23 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             let job_id = if do_upload {
                 // --force-upload re-sends every file AND forces a re-index; --force-index
                 // alone re-indexes the already-staged tree without re-sending bytes.
-                upload_path(client, base, target,
-                            *force_index || *force_upload, *force_upload, cli.json)?
+                upload_path(
+                    client,
+                    base,
+                    target,
+                    *force_index || *force_upload,
+                    *force_upload,
+                    cli.json,
+                )?
             } else {
-                let mut body = serde_json::json!({"target": target, "full": force_index, "process": false});
-                if let Some(c) = config { body["config"] = load_config_file(c)?; }
-                if let Some(s) = since { body["since"] = Value::String(s.clone()); }
+                let mut body =
+                    serde_json::json!({"target": target, "full": force_index, "process": false});
+                if let Some(c) = config {
+                    body["config"] = load_config_file(c)?;
+                }
+                if let Some(s) = since {
+                    body["since"] = Value::String(s.clone());
+                }
                 let v = post(client, &format!("{base}/v1/add"), &body)?;
                 v["job_id"].as_str().unwrap_or("").to_string()
             };
@@ -411,68 +454,172 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 println!("queued (job {job_id}). Worker running in background — run `mfs status` to check progress.");
             }
         }
-        Cmd::Search { query, path, all, mode, top_k, kind, collapse } => {
+        Cmd::Search {
+            query,
+            path,
+            all,
+            mode,
+            top_k,
+            kind,
+            collapse,
+        } => {
             if path.is_none() && !all {
-                return Err("specify a path to scope the search, or --all for the whole namespace".into());
+                return Err(
+                    "specify a path to scope the search, or --all for the whole namespace".into(),
+                );
             }
-            let mut q = vec![("q", query.clone()), ("mode", mode.clone()), ("top_k", top_k.to_string())];
-            if let Some(p) = path { q.push(("path", remote_path(base, p))); }
-            if let Some(k) = kind { q.push(("kind", k.clone())); }
-            if *collapse { q.push(("collapse", "true".to_string())); }
+            let mut q = vec![
+                ("q", query.clone()),
+                ("mode", mode.clone()),
+                ("top_k", top_k.to_string()),
+            ];
+            if let Some(p) = path {
+                q.push(("path", remote_path(base, p)));
+            }
+            if let Some(k) = kind {
+                q.push(("kind", k.clone()));
+            }
+            if *collapse {
+                q.push(("collapse", "true".to_string()));
+            }
             let v = get(client, &format!("{base}/v1/search"), &q)?;
-            if cli.json { println!("{v}"); return Ok(()); }
+            if cli.json {
+                println!("{v}");
+                return Ok(());
+            }
             for hit in v["results"].as_array().unwrap_or(&vec![]) {
-                println!("{}  score={}", hit["source"].as_str().unwrap_or("?"),
-                         hit["score"].as_f64().unwrap_or(0.0));
+                println!(
+                    "{}  score={}",
+                    hit["source"].as_str().unwrap_or("?"),
+                    hit["score"].as_f64().unwrap_or(0.0)
+                );
                 if let Some(c) = hit["content"].as_str() {
-                    println!("   {}", c.lines().next().unwrap_or("").chars().take(100).collect::<String>());
+                    println!(
+                        "   {}",
+                        c.lines()
+                            .next()
+                            .unwrap_or("")
+                            .chars()
+                            .take(100)
+                            .collect::<String>()
+                    );
                 }
             }
         }
         Cmd::Grep { pattern, path } => {
-            let v = get(client, &format!("{base}/v1/grep"), &[("pattern", pattern.clone()), ("path", remote_path(base, path))])?;
-            if cli.json { println!("{v}"); return Ok(()); }
+            let v = get(
+                client,
+                &format!("{base}/v1/grep"),
+                &[
+                    ("pattern", pattern.clone()),
+                    ("path", remote_path(base, path)),
+                ],
+            )?;
+            if cli.json {
+                println!("{v}");
+                return Ok(());
+            }
             for hit in v["results"].as_array().unwrap_or(&vec![]) {
-                println!("{}: {}", hit["source"].as_str().unwrap_or("?"),
-                         hit["content"].as_str().unwrap_or("").chars().take(120).collect::<String>());
+                println!(
+                    "{}: {}",
+                    hit["source"].as_str().unwrap_or("?"),
+                    hit["content"]
+                        .as_str()
+                        .unwrap_or("")
+                        .chars()
+                        .take(120)
+                        .collect::<String>()
+                );
             }
         }
         Cmd::Ls { path } => {
-            let v = get(client, &format!("{base}/v1/ls"), &[("path", remote_path(base, path))])?;
-            if cli.json { println!("{v}"); return Ok(()); }
+            let v = get(
+                client,
+                &format!("{base}/v1/ls"),
+                &[("path", remote_path(base, path))],
+            )?;
+            if cli.json {
+                println!("{v}");
+                return Ok(());
+            }
             print_entries(&v);
         }
         Cmd::Tree { path, depth } => {
             let rp = remote_path(base, path);
             let v = get(client, &format!("{base}/v1/ls"), &[("path", rp.clone())])?;
-            if cli.json { println!("{v}"); return Ok(()); }
+            if cli.json {
+                println!("{v}");
+                return Ok(());
+            }
             println!("{path}");
             tree(client, base, &rp, *depth, "")?;
         }
-        Cmd::Cat { path, range, meta, locator, peek, skim } => {
+        Cmd::Cat {
+            path,
+            range,
+            meta,
+            locator,
+            peek,
+            skim,
+        } => {
             let mut q = vec![("path", remote_path(base, path))];
-            if let Some(r) = range { q.push(("range", r.clone())); }
-            if *meta { q.push(("meta", "true".to_string())); }
-            if let Some(l) = locator { q.push(("locator", l.clone())); }
-            if *peek { q.push(("density", "peek".to_string())); }
-            if *skim { q.push(("density", "skim".to_string())); }
+            if let Some(r) = range {
+                q.push(("range", r.clone()));
+            }
+            if *meta {
+                q.push(("meta", "true".to_string()));
+            }
+            if let Some(l) = locator {
+                q.push(("locator", l.clone()));
+            }
+            if *peek {
+                q.push(("density", "peek".to_string()));
+            }
+            if *skim {
+                q.push(("density", "skim".to_string()));
+            }
             let v = get(client, &format!("{base}/v1/cat"), &q)?;
-            if cli.json { println!("{v}"); return Ok(()); }
-            if *meta { println!("{v}"); } else { println!("{}", v["content"].as_str().unwrap_or("")); }
+            if cli.json {
+                println!("{v}");
+                return Ok(());
+            }
+            if *meta {
+                println!("{v}");
+            } else {
+                println!("{}", v["content"].as_str().unwrap_or(""));
+            }
         }
         Cmd::Head { path, lines } => {
-            let v = get(client, &format!("{base}/v1/head"),
-                        &[("path", remote_path(base, path)), ("n", lines.to_string())])?;
-            if cli.json { println!("{v}"); } else { println!("{}", v["content"].as_str().unwrap_or("")); }
+            let v = get(
+                client,
+                &format!("{base}/v1/head"),
+                &[("path", remote_path(base, path)), ("n", lines.to_string())],
+            )?;
+            if cli.json {
+                println!("{v}");
+            } else {
+                println!("{}", v["content"].as_str().unwrap_or(""));
+            }
         }
         Cmd::Tail { path, lines } => {
-            let v = get(client, &format!("{base}/v1/tail"),
-                        &[("path", remote_path(base, path)), ("n", lines.to_string())])?;
-            if cli.json { println!("{v}"); } else { println!("{}", v["content"].as_str().unwrap_or("")); }
+            let v = get(
+                client,
+                &format!("{base}/v1/tail"),
+                &[("path", remote_path(base, path)), ("n", lines.to_string())],
+            )?;
+            if cli.json {
+                println!("{v}");
+            } else {
+                println!("{}", v["content"].as_str().unwrap_or(""));
+            }
         }
         Cmd::Export { path, out } => {
             // export returns the FULL object (no row cap / size guard), unlike cat
-            let v = get(client, &format!("{base}/v1/export"), &[("path", remote_path(base, path))])?;
+            let v = get(
+                client,
+                &format!("{base}/v1/export"),
+                &[("path", remote_path(base, path))],
+            )?;
             let text = v["content"].as_str().unwrap_or("");
             std::fs::write(out, text).map_err(|e| e.to_string())?;
             println!("exported {} bytes -> {}", text.len(), out);
@@ -484,10 +631,17 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
         Cmd::Job { action } => match action {
             JobAction::List => {
                 let v = get(client, &format!("{base}/v1/jobs"), &[])?;
-                if cli.json { println!("{v}"); return Ok(()); }
+                if cli.json {
+                    println!("{v}");
+                    return Ok(());
+                }
                 for j in v.as_array().unwrap_or(&vec![]) {
-                    println!("{:8}  {:10}  {}", j["status"].as_str().unwrap_or("?"),
-                             j["op_kind"].as_str().unwrap_or("?"), j["id"].as_str().unwrap_or("?"));
+                    println!(
+                        "{:8}  {:10}  {}",
+                        j["status"].as_str().unwrap_or("?"),
+                        j["op_kind"].as_str().unwrap_or("?"),
+                        j["id"].as_str().unwrap_or("?")
+                    );
                 }
             }
             JobAction::Show { job_id } => {
@@ -495,44 +649,71 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
             }
             JobAction::Cancel { job_id } => {
-                let v = post(client, &format!("{base}/v1/jobs/{job_id}/cancel"), &serde_json::json!({}))?;
+                let v = post(
+                    client,
+                    &format!("{base}/v1/jobs/{job_id}/cancel"),
+                    &serde_json::json!({}),
+                )?;
                 println!("cancelled: {}", v["cancelled"].as_bool().unwrap_or(false));
             }
         },
         Cmd::Connector { action } => match action {
             ConnectorAction::Add { target, config } => {
                 let mut body = serde_json::json!({"target": target});
-                if let Some(c) = config { body["config"] = load_config_file(c)?; }
+                if let Some(c) = config {
+                    body["config"] = load_config_file(c)?;
+                }
                 let v = post(client, &format!("{base}/v1/add"), &body)?;
                 println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
             }
             ConnectorAction::Update { target, config } => {
                 // update applies the new config to the existing connector (add ignores --config)
                 let mut body = serde_json::json!({"target": target, "update": true});
-                if let Some(c) = config { body["config"] = load_config_file(c)?; }
+                if let Some(c) = config {
+                    body["config"] = load_config_file(c)?;
+                }
                 let v = post(client, &format!("{base}/v1/add"), &body)?;
                 println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
             }
             ConnectorAction::Probe { target, config } => {
                 let mut body = serde_json::json!({"target": target});
-                if let Some(c) = config { body["config"] = load_config_file(c)?; }
+                if let Some(c) = config {
+                    body["config"] = load_config_file(c)?;
+                }
                 let v = post(client, &format!("{base}/v1/connectors/probe"), &body)?;
-                println!("{}  ok={}  {}", v["type"].as_str().unwrap_or("?"),
-                         v["ok"].as_bool().unwrap_or(false), v["detail"].as_str().unwrap_or(""));
+                println!(
+                    "{}  ok={}  {}",
+                    v["type"].as_str().unwrap_or("?"),
+                    v["ok"].as_bool().unwrap_or(false),
+                    v["detail"].as_str().unwrap_or("")
+                );
             }
             ConnectorAction::List => {
                 let v = get(client, &format!("{base}/v1/status"), &[])?;
-                if cli.json { println!("{}", v["connectors"]); return Ok(()); }
+                if cli.json {
+                    println!("{}", v["connectors"]);
+                    return Ok(());
+                }
                 for c in v["connectors"].as_array().unwrap_or(&vec![]) {
-                    println!("{:10}  {:8}  {}", c["type"].as_str().unwrap_or("?"),
-                             c["status"].as_str().unwrap_or("?"), c["root_uri"].as_str().unwrap_or("?"));
+                    println!(
+                        "{:10}  {:8}  {}",
+                        c["type"].as_str().unwrap_or("?"),
+                        c["status"].as_str().unwrap_or("?"),
+                        c["root_uri"].as_str().unwrap_or("?")
+                    );
                 }
             }
             ConnectorAction::Inspect { target } => {
-                let v = get(client, &format!("{base}/v1/connectors/inspect"), &[("target", target.clone())])?;
+                let v = get(
+                    client,
+                    &format!("{base}/v1/connectors/inspect"),
+                    &[("target", target.clone())],
+                )?;
                 println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
             }
-            ConnectorAction::Remove { target, yes } => return remove_connector(client, base, target, *yes),
+            ConnectorAction::Remove { target, yes } => {
+                return remove_connector(client, base, target, *yes)
+            }
         },
         Cmd::Remove { target, yes } => return remove_connector(client, base, target, *yes),
         Cmd::Profile { action } => return profile_cmd(action),
@@ -540,7 +721,10 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             ConfigAction::Show => {
                 println!("endpoint: {base}");
                 let cfg = load_client_cfg();
-                println!("active profile: {}", cfg.active.as_deref().unwrap_or("(none)"));
+                println!(
+                    "active profile: {}",
+                    cfg.active.as_deref().unwrap_or("(none)")
+                );
                 println!("client_id: {}", client_id());
                 match get(client, &format!("{base}/v1/server/info"), &[]) {
                     Ok(v) => println!("server: {}", serde_json::to_string(&v).unwrap_or_default()),
@@ -559,13 +743,17 @@ fn confirm(prompt: &str) -> Result<bool, String> {
     print!("{prompt}");
     std::io::stdout().flush().ok();
     let mut s = String::new();
-    std::io::stdin().read_line(&mut s).map_err(|e| e.to_string())?;
+    std::io::stdin()
+        .read_line(&mut s)
+        .map_err(|e| e.to_string())?;
     Ok(matches!(s.trim().to_lowercase().as_str(), "y" | "yes"))
 }
 
 /// Best-effort client machine id (matches the server's socket.gethostname()).
 fn client_hostname() -> String {
-    std::process::Command::new("hostname").output().ok()
+    std::process::Command::new("hostname")
+        .output()
+        .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
@@ -574,14 +762,29 @@ fn client_hostname() -> String {
 }
 
 /// One file's stat from the client scan.
-struct ScanEntry { rel: String, size: u64, mtime_ns: i64, inode: u64 }
+struct ScanEntry {
+    rel: String,
+    size: u64,
+    mtime_ns: i64,
+    inode: u64,
+}
 
 /// Walk a directory (skipping noisy dirs) collecting per-file stat (rel path, size,
 /// mtime_ns, inode). Mirrors the server file connector's default ignores roughly.
 fn scan_tree(root: &std::path::Path) -> Result<Vec<ScanEntry>, String> {
     use std::os::unix::fs::MetadataExt;
-    const SKIP: &[&str] = &[".git", "node_modules", "__pycache__", ".venv", "venv",
-                            ".mypy_cache", ".pytest_cache", ".ruff_cache", ".idea", ".vscode"];
+    const SKIP: &[&str] = &[
+        ".git",
+        "node_modules",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".idea",
+        ".vscode",
+    ];
     let mut out = Vec::new();
     let mut stack = vec![root.to_path_buf()];
     while let Some(dir) = stack.pop() {
@@ -592,12 +795,18 @@ fn scan_tree(root: &std::path::Path) -> Result<Vec<ScanEntry>, String> {
             let md = ent.metadata().map_err(|e| e.to_string())?;
             let name = ent.file_name().to_string_lossy().to_string();
             if md.is_dir() {
-                if !SKIP.contains(&name.as_str()) { stack.push(path); }
+                if !SKIP.contains(&name.as_str()) {
+                    stack.push(path);
+                }
             } else if md.is_file() {
-                let rel = path.strip_prefix(root).map_err(|e| e.to_string())?
-                    .to_string_lossy().replace('\\', "/");
+                let rel = path
+                    .strip_prefix(root)
+                    .map_err(|e| e.to_string())?
+                    .to_string_lossy()
+                    .replace('\\', "/");
                 out.push(ScanEntry {
-                    rel, size: md.size(),
+                    rel,
+                    size: md.size(),
                     // ns since epoch fits i64 until year ~2262; send as a JSON number so it
                     // round-trips to the server's int field and stat-compares cleanly next sync
                     mtime_ns: md.mtime() * 1_000_000_000 + md.mtime_nsec(),
@@ -620,31 +829,54 @@ fn sha1_file(path: &std::path::Path) -> Result<String, String> {
 /// Manifest-diff upload: scan -> POST /v1/files/manifest -> sha1 the
 /// needed files + pair renames by (inode,size,sha1) -> PUT /v1/files/upload a tar.gz
 /// carrying `.mfs-meta.json` + only the changed bytes. The client keeps no state.
-fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
-               full: bool, resend_all: bool, json: bool) -> Result<String, String> {
+fn upload_path(
+    client: &reqwest::blocking::Client,
+    base: &str,
+    target: &str,
+    full: bool,
+    resend_all: bool,
+    json: bool,
+) -> Result<String, String> {
     use std::io::Write;
     let root = std::path::Path::new(target);
-    let client_id = client_id();        // stable UUID identity, not the hostname
-    // absolute path is the connector's stable identity file://<client_id><abs>
-    let abs_root = std::fs::canonicalize(root).map_err(|e| e.to_string())?
-        .to_string_lossy().to_string();
+    let client_id = client_id(); // stable UUID identity, not the hostname
+                                 // absolute path is the connector's stable identity file://<client_id><abs>
+    let abs_root = std::fs::canonicalize(root)
+        .map_err(|e| e.to_string())?
+        .to_string_lossy()
+        .to_string();
 
     // ① scan (stat only)
     let entries = scan_tree(root)?;
-    let files: Vec<Value> = entries.iter().map(|e| serde_json::json!(
-        {"path": e.rel, "size": e.size, "mtime_ns": e.mtime_ns, "inode": e.inode})).collect();
+    let files: Vec<Value> = entries
+        .iter()
+        .map(|e| {
+            serde_json::json!(
+        {"path": e.rel, "size": e.size, "mtime_ns": e.mtime_ns, "inode": e.inode})
+        })
+        .collect();
 
     // ② manifest diff
-    let mf = post(client, &format!("{base}/v1/files/manifest"),
-                  &serde_json::json!({"client_id": client_id, "root": abs_root, "files": files}))?;
+    let mf = post(
+        client,
+        &format!("{base}/v1/files/manifest"),
+        &serde_json::json!({"client_id": client_id, "root": abs_root, "files": files}),
+    )?;
     // --force-upload (resend_all): ignore the server's diff and re-send every file's bytes.
     let need: std::collections::HashSet<String> = if resend_all {
         entries.iter().map(|e| e.rel.clone()).collect()
     } else {
-        mf["need_sha1"].as_array().unwrap_or(&vec![])
-            .iter().filter_map(|v| v.as_str().map(String::from)).collect()
+        mf["need_sha1"]
+            .as_array()
+            .unwrap_or(&vec![])
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect()
     };
-    let del_cands = mf["deletion_candidates"].as_array().cloned().unwrap_or_default();
+    let del_cands = mf["deletion_candidates"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
 
     // ③ sha1 the needed files; pair renames against deletion candidates (inode+size+sha1)
     let by_rel: std::collections::HashMap<&str, &ScanEntry> =
@@ -666,7 +898,9 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
         let sha = &sha_of[rel];
         for dc in &del_cands {
             let old = dc["path"].as_str().unwrap_or("");
-            if old.is_empty() || consumed_old.contains(old) { continue; }
+            if old.is_empty() || consumed_old.contains(old) {
+                continue;
+            }
             // inode+size first; fall back to sha1+size so a cross-filesystem rename (inode
             // changes) is still recognized as a rename instead of delete+add — which would
             // re-upload and re-embed identical bytes.
@@ -682,9 +916,11 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
             }
         }
     }
-    let deletions: Vec<String> = del_cands.iter()
+    let deletions: Vec<String> = del_cands
+        .iter()
         .filter_map(|dc| dc["path"].as_str().map(String::from))
-        .filter(|p| !consumed_old.contains(p)).collect();
+        .filter(|p| !consumed_old.contains(p))
+        .collect();
 
     // ④ build tar.gz: .mfs-meta.json + changed bytes (renamed files send no bytes)
     let meta = serde_json::json!({"hashes": hashes, "renames": renames, "deletions": deletions});
@@ -693,45 +929,77 @@ fn upload_path(client: &reqwest::blocking::Client, base: &str, target: &str,
     let mut tar = tar::Builder::new(enc);
     let meta_bytes = serde_json::to_vec(&meta).map_err(|e| e.to_string())?;
     let mut hdr = tar::Header::new_gnu();
-    hdr.set_size(meta_bytes.len() as u64); hdr.set_mode(0o644); hdr.set_cksum();
-    tar.append_data(&mut hdr, ".mfs-meta.json", &meta_bytes[..]).map_err(|e| e.to_string())?;
+    hdr.set_size(meta_bytes.len() as u64);
+    hdr.set_mode(0o644);
+    hdr.set_cksum();
+    tar.append_data(&mut hdr, ".mfs-meta.json", &meta_bytes[..])
+        .map_err(|e| e.to_string())?;
     for rel in &need {
-        if !resend_all && renamed_new.contains(rel) { continue; }   // moved on server, no bytes
-        tar.append_path_with_name(root.join(rel), rel).map_err(|e| e.to_string())?;
+        if !resend_all && renamed_new.contains(rel) {
+            continue;
+        } // moved on server, no bytes
+        tar.append_path_with_name(root.join(rel), rel)
+            .map_err(|e| e.to_string())?;
     }
     let gz = tar.into_inner().map_err(|e| e.to_string())?;
     let data = gz.finish().map_err(|e| e.to_string())?;
     let _ = std::io::stdout().flush();
 
-    let resp = with_auth(client.put(format!("{base}/v1/files/upload"))
-        .query(&[("client_id", client_id.as_str()), ("root", abs_root.as_str()),
-                 ("process", "false"), ("full", &full.to_string())])
-        .body(data)).send().map_err(|e| e.to_string())?;
+    let resp = with_auth(
+        client
+            .put(format!("{base}/v1/files/upload"))
+            .query(&[
+                ("client_id", client_id.as_str()),
+                ("root", abs_root.as_str()),
+                ("process", "false"),
+                ("full", &full.to_string()),
+            ])
+            .body(data),
+    )
+    .send()
+    .map_err(|e| e.to_string())?;
     let v = parse(resp)?;
     if !json {
-        println!("uploaded {} changed, {} renamed, {} deleted",
-                 need.len() - renamed_new.len(), renames.len(), deletions.len());
+        println!(
+            "uploaded {} changed, {} renamed, {} deleted",
+            need.len() - renamed_new.len(),
+            renames.len(),
+            deletions.len()
+        );
     }
     Ok(v["job_id"].as_str().unwrap_or("").to_string())
 }
 
 /// Poll a sync job to a terminal state (for `mfs add --wait`). The HTTP request itself is
 /// short — we never hold a long connection open, so a slow index can't time the client out.
-fn wait_for_job(client: &reqwest::blocking::Client, base: &str, job_id: &str, json: bool) -> Result<(), String> {
+fn wait_for_job(
+    client: &reqwest::blocking::Client,
+    base: &str,
+    job_id: &str,
+    json: bool,
+) -> Result<(), String> {
     loop {
         let v = get(client, &format!("{base}/v1/jobs/{job_id}"), &[])?;
         match v["status"].as_str().unwrap_or("") {
             "succeeded" => {
-                if json { println!("{v}"); }
-                else { println!("done: {} of {} objects indexed, {} failed",
-                                v["succeeded_objects"].as_i64().unwrap_or(0),
-                                v["total_objects"].as_i64().unwrap_or(0),
-                                v["failed_objects"].as_i64().unwrap_or(0)); }
+                if json {
+                    println!("{v}");
+                } else {
+                    println!(
+                        "done: {} of {} objects indexed, {} failed",
+                        v["succeeded_objects"].as_i64().unwrap_or(0),
+                        v["total_objects"].as_i64().unwrap_or(0),
+                        v["failed_objects"].as_i64().unwrap_or(0)
+                    );
+                }
                 return Ok(());
             }
             "failed" | "cancelled" => {
-                return Err(format!("job {}: {}", v["status"].as_str().unwrap_or("?"),
-                                   v["error"].as_str().unwrap_or("")));
+                return Err(format!(
+                    "job {}: {}",
+                    v["status"].as_str().unwrap_or("?"),
+                    v["error"].as_str().unwrap_or("")
+                ));
             }
             _ => std::thread::sleep(std::time::Duration::from_millis(1000)),
         }
@@ -745,16 +1013,29 @@ fn load_config_file(path: &str) -> Result<Value, String> {
     serde_json::to_value(toml_val).map_err(|e| e.to_string())
 }
 
-fn remove_connector(client: &reqwest::blocking::Client, base: &str, target: &str, yes: bool)
-    -> Result<(), String> {
+fn remove_connector(
+    client: &reqwest::blocking::Client,
+    base: &str,
+    target: &str,
+    yes: bool,
+) -> Result<(), String> {
     // remove is destructive (drops the index, artifacts, and all metadata); confirm unless -y.
-    if !yes && !confirm(&format!("Remove connector '{target}' and everything it owns? [y/N] "))? {
+    if !yes
+        && !confirm(&format!(
+            "Remove connector '{target}' and everything it owns? [y/N] "
+        ))?
+    {
         println!("aborted.");
         return Ok(());
     }
-    let target = remote_path(base, target);     // local path -> upload identity when remote
-    let resp = with_auth(client.delete(format!("{base}/v1/connectors"))
-        .query(&[("target", target.as_str())])).send().map_err(|e| e.to_string())?;
+    let target = remote_path(base, target); // local path -> upload identity when remote
+    let resp = with_auth(
+        client
+            .delete(format!("{base}/v1/connectors"))
+            .query(&[("target", target.as_str())]),
+    )
+    .send()
+    .map_err(|e| e.to_string())?;
     let v = parse(resp)?;
     println!("removed: {}", v["removed"].as_bool().unwrap_or(false));
     Ok(())
@@ -762,13 +1043,29 @@ fn remove_connector(client: &reqwest::blocking::Client, base: &str, target: &str
 
 fn print_entries(v: &Value) {
     for e in v["entries"].as_array().unwrap_or(&vec![]) {
-        println!("{:4}  {}", e["type"].as_str().unwrap_or(""), e["name"].as_str().unwrap_or(""));
+        println!(
+            "{:4}  {}",
+            e["type"].as_str().unwrap_or(""),
+            e["name"].as_str().unwrap_or("")
+        );
     }
 }
 
-fn tree(client: &reqwest::blocking::Client, base: &str, path: &str, depth: u32, prefix: &str) -> Result<(), String> {
-    if depth == 0 { return Ok(()); }
-    let v = get(client, &format!("{base}/v1/ls"), &[("path", path.to_string())])?;
+fn tree(
+    client: &reqwest::blocking::Client,
+    base: &str,
+    path: &str,
+    depth: u32,
+    prefix: &str,
+) -> Result<(), String> {
+    if depth == 0 {
+        return Ok(());
+    }
+    let v = get(
+        client,
+        &format!("{base}/v1/ls"),
+        &[("path", path.to_string())],
+    )?;
     let entries = v["entries"].as_array().cloned().unwrap_or_default();
     let n = entries.len();
     for (i, e) in entries.iter().enumerate() {
@@ -791,16 +1088,33 @@ fn profile_cmd(action: &ProfileAction) -> Result<(), String> {
     match action {
         ProfileAction::List => {
             for (name, p) in &cfg.profiles {
-                let marker = if cfg.active.as_deref() == Some(name) { "*" } else { " " };
+                let marker = if cfg.active.as_deref() == Some(name) {
+                    "*"
+                } else {
+                    " "
+                };
                 println!("{marker} {name:12} {}", p.url);
             }
-            if cfg.profiles.is_empty() { println!("(no profiles; using {})", base_url()); }
+            if cfg.profiles.is_empty() {
+                println!("(no profiles; using {})", base_url());
+            }
         }
         ProfileAction::Add { name, url, token } => {
-            cfg.profiles.insert(name.clone(), Profile { url: url.clone(), token: token.clone() });
-            if cfg.active.is_none() { cfg.active = Some(name.clone()); }
+            cfg.profiles.insert(
+                name.clone(),
+                Profile {
+                    url: url.clone(),
+                    token: token.clone(),
+                },
+            );
+            if cfg.active.is_none() {
+                cfg.active = Some(name.clone());
+            }
             save_client_cfg(&cfg)?;
-            println!("profile '{name}' -> {url}{}", if token.is_some() { " (token set)" } else { "" });
+            println!(
+                "profile '{name}' -> {url}{}",
+                if token.is_some() { " (token set)" } else { "" }
+            );
         }
         ProfileAction::Use { name } => {
             if !cfg.profiles.contains_key(name) {
@@ -835,11 +1149,17 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
                 .spawn()
                 .map_err(|e| format!("failed to spawn mfs-server: {e}"))?;
             std::fs::write(&pid_file, child.id().to_string()).map_err(|e| e.to_string())?;
-            println!("started mfs-server (pid {}) on {bind}; logs: {}", child.id(), log_file.display());
+            println!(
+                "started mfs-server (pid {}) on {bind}; logs: {}",
+                child.id(),
+                log_file.display()
+            );
         }
         ServeAction::Stop => match read_pid(&pid_file) {
             Some(pid) => {
-                let _ = std::process::Command::new("kill").arg(pid.to_string()).status();
+                let _ = std::process::Command::new("kill")
+                    .arg(pid.to_string())
+                    .status();
                 let _ = std::fs::remove_file(&pid_file);
                 println!("stopped (pid {pid})");
             }
@@ -847,7 +1167,9 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
         },
         ServeAction::Restart { bind } => {
             if let Some(pid) = read_pid(&pid_file) {
-                let _ = std::process::Command::new("kill").arg(pid.to_string()).status();
+                let _ = std::process::Command::new("kill")
+                    .arg(pid.to_string())
+                    .status();
                 let _ = std::fs::remove_file(&pid_file);
             }
             return serve_cmd(&ServeAction::Start { bind: bind.clone() });
@@ -858,7 +1180,14 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
         },
         ServeAction::Logs => {
             let s = std::fs::read_to_string(&log_file).unwrap_or_default();
-            for l in s.lines().rev().take(40).collect::<Vec<_>>().into_iter().rev() {
+            for l in s
+                .lines()
+                .rev()
+                .take(40)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+            {
                 println!("{l}");
             }
         }
@@ -867,7 +1196,9 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
 }
 
 fn read_pid(p: &PathBuf) -> Option<u32> {
-    std::fs::read_to_string(p).ok().and_then(|s| s.trim().parse().ok())
+    std::fs::read_to_string(p)
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
 }
 
 fn pid_alive(pid: u32) -> bool {
@@ -878,13 +1209,21 @@ fn pid_alive(pid: u32) -> bool {
         .unwrap_or(false)
 }
 
-fn get(client: &reqwest::blocking::Client, url: &str, q: &[(&str, String)]) -> Result<Value, String> {
-    let resp = with_auth(client.get(url).query(q)).send().map_err(|e| e.to_string())?;
+fn get(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    q: &[(&str, String)],
+) -> Result<Value, String> {
+    let resp = with_auth(client.get(url).query(q))
+        .send()
+        .map_err(|e| e.to_string())?;
     parse(resp)
 }
 
 fn post(client: &reqwest::blocking::Client, url: &str, body: &Value) -> Result<Value, String> {
-    let resp = with_auth(client.post(url).json(body)).send().map_err(|e| e.to_string())?;
+    let resp = with_auth(client.post(url).json(body))
+        .send()
+        .map_err(|e| e.to_string())?;
     parse(resp)
 }
 
@@ -894,9 +1233,15 @@ fn parse(resp: reqwest::blocking::Response) -> Result<Value, String> {
     if !status.is_success() {
         // surface the stable error `code` alongside the human detail
         let code = v.get("code").and_then(|c| c.as_str()).unwrap_or("");
-        let detail = v.get("detail").and_then(|d| d.as_str()).unwrap_or("request failed");
-        return Err(if code.is_empty() { format!("{status}: {detail}") }
-                   else { format!("{status} [{code}]: {detail}") });
+        let detail = v
+            .get("detail")
+            .and_then(|d| d.as_str())
+            .unwrap_or("request failed");
+        return Err(if code.is_empty() {
+            format!("{status}: {detail}")
+        } else {
+            format!("{status} [{code}]: {detail}")
+        });
     }
     Ok(v)
 }

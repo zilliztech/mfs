@@ -3,6 +3,7 @@ convert / embedding / vlm / summary results. Logically isolated from metadata DB
 (separate SQLite file locally; Postgres in CS). Best-effort: losing it only costs
 recompute, never correctness.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -31,8 +32,16 @@ SCHEMA = [
 ]
 
 
-_PUT_COLS = ["cache_key", "kind", "input_hash", "provider", "model",
-             "model_version", "output_bytes", "output_size"]
+_PUT_COLS = [
+    "cache_key",
+    "kind",
+    "input_hash",
+    "provider",
+    "model",
+    "model_version",
+    "output_bytes",
+    "output_size",
+]
 
 
 class TransformationCache:
@@ -43,7 +52,7 @@ class TransformationCache:
         self.dsn = cfg.transformation_cache.dsn
         self.lookup_batch_size = cfg.transformation_cache.lookup_batch_size
         self._db: Optional[aiosqlite.Connection] = None
-        self._pool = None      # asyncpg pool (postgres)
+        self._pool = None  # asyncpg pool (postgres)
 
     @property
     def is_pg(self) -> bool:
@@ -54,11 +63,15 @@ class TransformationCache:
             return
         if self.is_pg:
             import asyncpg
+
             self._pool = await asyncpg.create_pool(self.dsn, min_size=1, max_size=4)
             async with self._pool.acquire() as c:
                 for ddl in SCHEMA:
-                    await c.execute(ddl.replace("BLOB", "BYTEA")
-                                    .replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT now()::text"))
+                    await c.execute(
+                        ddl.replace("BLOB", "BYTEA").replace(
+                            "DEFAULT CURRENT_TIMESTAMP", "DEFAULT now()::text"
+                        )
+                    )
             return
         if self.backend != "sqlite":
             raise NotImplementedError(f"transformation_cache backend {self.backend} not supported")
@@ -83,9 +96,13 @@ class TransformationCache:
             async with self._pool.acquire() as c:
                 rows = await c.fetch(
                     "SELECT cache_key, output_bytes FROM transformation_cache "
-                    "WHERE cache_key = ANY($1)", keys)
+                    "WHERE cache_key = ANY($1)",
+                    keys,
+                )
             for r in rows:
-                result[r["cache_key"]] = bytes(r["output_bytes"]) if r["output_bytes"] is not None else None
+                result[r["cache_key"]] = (
+                    bytes(r["output_bytes"]) if r["output_bytes"] is not None else None
+                )
             return result
         for i in range(0, len(keys), self.lookup_batch_size):
             batch = keys[i : i + self.lookup_batch_size]
@@ -113,7 +130,8 @@ class TransformationCache:
                 " kind=excluded.kind, input_hash=excluded.input_hash, provider=excluded.provider, "
                 " model=excluded.model, model_version=excluded.model_version, "
                 " output_bytes=excluded.output_bytes, output_size=excluded.output_size, "
-                " last_hit_at=now()::text")
+                " last_hit_at=now()::text"
+            )
             args = [tuple(e.get(c) for c in _PUT_COLS) for e in entries]
             async with self._pool.acquire() as c:
                 await c.executemany(sql, args)
@@ -134,9 +152,12 @@ class TransformationCache:
         if self.is_pg:
             async with self._pool.acquire() as c:
                 row = await c.fetchrow(
-                    "SELECT count(*) AS n, sum(output_size) AS sz FROM transformation_cache")
+                    "SELECT count(*) AS n, sum(output_size) AS sz FROM transformation_cache"
+                )
             return {"enabled": True, "entry_count": row["n"] or 0, "size_bytes": row["sz"] or 0}
-        cur = await self._db.execute("SELECT count(*) AS n, sum(output_size) AS sz FROM transformation_cache")
+        cur = await self._db.execute(
+            "SELECT count(*) AS n, sum(output_size) AS sz FROM transformation_cache"
+        )
         row = await cur.fetchone()
         return {"enabled": True, "entry_count": row["n"] or 0, "size_bytes": row["sz"] or 0}
 

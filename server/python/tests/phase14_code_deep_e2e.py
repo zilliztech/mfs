@@ -20,6 +20,7 @@ Covers the long tail of code-indexing scenarios that the file/text pipeline can 
     its chunks are recorded against the right object_uri in Milvus.
 
 Self-contained; needs OPENAI_API_KEY (bash -ic)."""
+
 import asyncio
 import os
 import pathlib
@@ -33,7 +34,9 @@ results = []
 
 
 def check(name, cond):
-    results.append(bool(cond)); print(f"  [{OK if cond else FAIL}] {name}"); return cond
+    results.append(bool(cond))
+    print(f"  [{OK if cond else FAIL}] {name}")
+    return cond
 
 
 # small but real code samples for 8 languages — each carries an unmistakable symbol
@@ -72,7 +75,7 @@ class TokenBucketRateLimiter:
             return True
         return False
 ''',
-    "throttle.go": '''\
+    "throttle.go": """\
 // Package throttle implements a leaky-bucket rate limiter for the edge proxy.
 package throttle
 
@@ -108,8 +111,8 @@ func (b *LeakyBucket) Allow() bool {
 func reset_bucket_zero(b *LeakyBucket) {
 \tb.current = 0
 }
-''',
-    "session.ts": '''\
+""",
+    "session.ts": """\
 // User session manager with sliding expiration.
 import { createHash } from "node:crypto";
 
@@ -147,8 +150,8 @@ export class SessionStore {
     return cleared;
   }
 }
-''',
-    "queue.rs": '''\
+""",
+    "queue.rs": """\
 //! A simple thread-safe MPSC bounded queue for the worker pool.
 use std::sync::{Arc, Mutex, Condvar};
 
@@ -189,8 +192,8 @@ impl<T> BoundedQueue<T> {
 fn private_helper_log_failure() {
     eprintln!("queue full");
 }
-''',
-    "Worker.java": '''\
+""",
+    "Worker.java": """\
 package com.example.workerpool;
 
 import java.util.concurrent.BlockingQueue;
@@ -226,8 +229,8 @@ public class Worker implements Runnable {
         System.err.println("unexpected_state");
     }
 }
-''',
-    "deploy.sh": '''\
+""",
+    "deploy.sh": """\
 #!/bin/bash
 # Deploy script for the staging environment.
 set -euo pipefail
@@ -257,8 +260,8 @@ function rollout_blue_green_strategy() {
 check_prereqs_for_deployment
 fetch_artifact_from_bucket "1.4.7"
 rollout_blue_green_strategy
-''',
-    "queue_ext.cpp": '''\
+""",
+    "queue_ext.cpp": """\
 #include <vector>
 #include <mutex>
 #include <condition_variable>
@@ -299,8 +302,8 @@ private:
 };
 
 }  // namespace mfs
-''',
-    "validator.rb": '''\
+""",
+    "validator.rb": """\
 # Simple input validator for the API surface.
 
 module ApiInputs
@@ -330,7 +333,7 @@ module ApiInputs
     end
   end
 end
-''',
+""",
     "broken_syntax.py": '''\
 """This file is intentionally broken — tests the chunker fallback path."""
 
@@ -364,15 +367,20 @@ EXPECTED_ANCHORS = {
 
 async def main():
     if not os.environ.get("OPENAI_API_KEY"):
-        print("OPENAI_API_KEY not set — run via bash -ic"); raise SystemExit(2)
+        print("OPENAI_API_KEY not set — run via bash -ic")
+        raise SystemExit(2)
 
-    base = f"/tmp/mfs_code_{os.getpid()}"; os.system(f"rm -rf '{base}'*")
+    base = f"/tmp/mfs_code_{os.getpid()}"
+    os.system(f"rm -rf '{base}'*")
     repo = pathlib.Path(f"{base}_repo")
     cfg = load_server_config(apply_env=False)
-    cfg.metadata.path = base + "_m.db"; cfg.milvus.uri = base + "_v.db"; cfg.milvus.token = ""
-    cfg.object_store.root = base + "_c"; cfg.transformation_cache.db_path = base + "_t.db"
+    cfg.metadata.path = base + "_m.db"
+    cfg.milvus.uri = base + "_v.db"
+    cfg.milvus.token = ""
+    cfg.object_store.root = base + "_c"
+    cfg.transformation_cache.db_path = base + "_t.db"
     cfg.summary.enabled = False
-    cfg.chunk.chunk_size = 200      # force tiny budget so non-trivial files split
+    cfg.chunk.chunk_size = 200  # force tiny budget so non-trivial files split
     eng = Engine(cfg)
     await eng.startup()
 
@@ -381,16 +389,19 @@ async def main():
         (repo / name).write_text(body)
 
     try:
-        eng.milvus.drop_collection("default"); eng.milvus.ensure_collection("default")
+        eng.milvus.drop_collection("default")
+        eng.milvus.ensure_collection("default")
         await eng.add(str(repo))
 
         crow = await eng.meta.fetchone("SELECT id, root_uri FROM connectors WHERE type='file'")
-        cid = crow["id"]; uri = crow["root_uri"]
+        cid = crow["id"]
+        uri = crow["root_uri"]
 
         # ----- objects table consistency -----
         objs = await eng.meta.fetchall(
             "SELECT object_uri, chunk_count, search_status FROM objects WHERE connector_id=?",
-            (cid,))
+            (cid,),
+        )
         paths = {r["object_uri"]: r for r in objs}
         for f in SAMPLES:
             check(f"objects row exists for /{f}", f"/{f}" in paths)
@@ -403,33 +414,54 @@ async def main():
             # Milvus row inspection
             full_uri = uri + f"/{f}"
             chunks = await asyncio.to_thread(
-                eng.milvus.get_chunks_by_object, "default", uri, full_uri)
-            check(f"{f}: Milvus chunk count == objects.chunk_count ({len(chunks)} vs {cc})",
-                  len(chunks) == cc)
-            check(f"{f}: all chunks have chunk_kind='body'",
-                  all(c.get("chunk_kind") == "body" for c in chunks))
+                eng.milvus.get_chunks_by_object, "default", uri, full_uri
+            )
+            check(
+                f"{f}: Milvus chunk count == objects.chunk_count ({len(chunks)} vs {cc})",
+                len(chunks) == cc,
+            )
+            check(
+                f"{f}: all chunks have chunk_kind='body'",
+                all(c.get("chunk_kind") == "body" for c in chunks),
+            )
+
             def _ln(c):
                 return ((c.get("locator") or {}).get("lines")) or None
-            check(f"{f}: every chunk has locator={{'lines':[start,end]}} range",
-                  all(isinstance(_ln(c), list) and len(_ln(c)) == 2
-                      and _ln(c)[0] >= 1 and _ln(c)[1] >= _ln(c)[0]
-                      for c in chunks))
-            check(f"{f}: anchor symbol {anchor!r} appears in at least one chunk's content",
-                  any(anchor in (c.get("content") or "") for c in chunks))
+
+            check(
+                f"{f}: every chunk has locator={{'lines':[start,end]}} range",
+                all(
+                    isinstance(_ln(c), list)
+                    and len(_ln(c)) == 2
+                    and _ln(c)[0] >= 1
+                    and _ln(c)[1] >= _ln(c)[0]
+                    for c in chunks
+                ),
+            )
+            check(
+                f"{f}: anchor symbol {anchor!r} appears in at least one chunk's content",
+                any(anchor in (c.get("content") or "") for c in chunks),
+            )
 
         # ----- robustness: broken syntax falls back gracefully (must produce >=1 chunk) -----
         broken_row = paths.get("/broken_syntax.py", {})
-        check(f"broken_syntax.py: indexed despite syntax error "
-              f"(chunk_count={broken_row.get('chunk_count')})",
-              (broken_row.get("chunk_count") or 0) >= 1)
+        check(
+            f"broken_syntax.py: indexed despite syntax error "
+            f"(chunk_count={broken_row.get('chunk_count')})",
+            (broken_row.get("chunk_count") or 0) >= 1,
+        )
 
         # ----- empty / tiny code files -----
         empty_row = paths.get("/empty.py", {})
-        check(f"empty.py: 0 chunks, no crash (chunk_count={empty_row.get('chunk_count')})",
-              (empty_row.get("chunk_count") or 0) == 0)
+        check(
+            f"empty.py: 0 chunks, no crash (chunk_count={empty_row.get('chunk_count')})",
+            (empty_row.get("chunk_count") or 0) == 0,
+        )
         oneliner_row = paths.get("/oneliner.py", {})
-        check(f"oneliner.py: indexed (chunk_count={oneliner_row.get('chunk_count')})",
-              (oneliner_row.get("chunk_count") or 0) >= 1)
+        check(
+            f"oneliner.py: indexed (chunk_count={oneliner_row.get('chunk_count')})",
+            (oneliner_row.get("chunk_count") or 0) >= 1,
+        )
 
         # ----- cat density: --peek on code returns only _CODE_SYMBOL lines -----
         peek_text = await eng.cat(uri + "/auth.py", density="peek")
@@ -437,17 +469,26 @@ async def main():
         # every non-empty peek line starts with def/class/func/fn/public/private/type
         prefixes = ("def ", "class ", "func ", "fn ", "public ", "private ", "type ")
         all_symbol = all(any(l.lstrip().startswith(p) for p in prefixes) for l in peek_lines)
-        check(f"cat --peek on auth.py: every non-empty line is a code symbol "
-              f"({len(peek_lines)} lines)", all_symbol and len(peek_lines) >= 3)
-        check("cat --peek on auth.py: includes authenticate_via_saml_sso",
-              any("authenticate_via_saml_sso" in l for l in peek_lines))
-        check("cat --peek on auth.py: excludes full function bodies",
-              not any("if not assertion" in l for l in peek_lines))
+        check(
+            f"cat --peek on auth.py: every non-empty line is a code symbol "
+            f"({len(peek_lines)} lines)",
+            all_symbol and len(peek_lines) >= 3,
+        )
+        check(
+            "cat --peek on auth.py: includes authenticate_via_saml_sso",
+            any("authenticate_via_saml_sso" in l for l in peek_lines),
+        )
+        check(
+            "cat --peek on auth.py: excludes full function bodies",
+            not any("if not assertion" in l for l in peek_lines),
+        )
 
         # ----- cat --skim on code: at least as much info as peek (skim is peek+) -----
         skim_text = await eng.cat(uri + "/auth.py", density="skim")
-        check("cat --skim returns >= peek length (skim is peek + more)",
-              len(skim_text) >= len(peek_text))
+        check(
+            "cat --skim returns >= peek length (skim is peek + more)",
+            len(skim_text) >= len(peek_text),
+        )
 
         # ----- cat --range A:B: returns a contiguous slice of the source -----
         full_text = await eng.cat(uri + "/auth.py")
@@ -458,30 +499,39 @@ async def main():
         # hardwire 0-vs-1-indexing here — just confirm those 3 lines appear together,
         # in order, somewhere in the full file.
         joined = "\n".join(ranged_lines)
-        check("cat --range slice is a contiguous substring of full cat content",
-              joined and joined in full_text)
+        check(
+            "cat --range slice is a contiguous substring of full cat content",
+            joined and joined in full_text,
+        )
 
         # ----- mfs grep literal token precision -----
         grep_hits = await eng.grep("authenticate_via_saml_sso", str(repo))
         on_auth = [h for h in grep_hits if (h.get("source") or "").endswith("/auth.py")]
-        check(f"grep 'authenticate_via_saml_sso' matches in auth.py "
-              f"({len(on_auth)} hits / {len(grep_hits)} total)",
-              len(on_auth) >= 1)
+        check(
+            f"grep 'authenticate_via_saml_sso' matches in auth.py "
+            f"({len(on_auth)} hits / {len(grep_hits)} total)",
+            len(on_auth) >= 1,
+        )
         # AND it should NOT show up in other code files where the symbol isn't present
-        other_files_with_hit = {h.get("source") for h in grep_hits
-                                if not (h.get("source") or "").endswith("/auth.py")}
-        check(f"grep precision: token doesn't show up in other files "
-              f"({len(other_files_with_hit)} other files)",
-              len(other_files_with_hit) == 0)
+        other_files_with_hit = {
+            h.get("source") for h in grep_hits if not (h.get("source") or "").endswith("/auth.py")
+        }
+        check(
+            f"grep precision: token doesn't show up in other files "
+            f"({len(other_files_with_hit)} other files)",
+            len(other_files_with_hit) == 0,
+        )
     finally:
-        try: eng.milvus.drop_collection("default")
-        except Exception: pass
+        try:
+            eng.milvus.drop_collection("default")
+        except Exception:
+            pass
         await eng.shutdown()
         shutil.rmtree(repo, ignore_errors=True)
         os.system(f"rm -rf '{base}'*")
 
     passed = sum(results)
-    print(f"\n{'='*46}\n  code deep e2e: {passed}/{len(results)} checks passed")
+    print(f"\n{'=' * 46}\n  code deep e2e: {passed}/{len(results)} checks passed")
     raise SystemExit(0 if passed == len(results) else 1)
 
 

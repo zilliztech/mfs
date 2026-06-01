@@ -14,6 +14,7 @@ credential_ref because Feishu refresh_tokens rotate every refresh):
     { "app_id": "...", "app_secret": "...", "refresh_token": "...",
       "scope": "...", "obtained_at": <unix-ts>, "refresh_expires_at": <unix-ts> }
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,8 +25,10 @@ import time
 from pathlib import Path
 
 from .oauth import (
-    DEFAULT_SCOPES, OAuthError,
-    poll_for_device_token, request_device_authorization,
+    DEFAULT_SCOPES,
+    OAuthError,
+    poll_for_device_token,
+    request_device_authorization,
 )
 
 
@@ -44,14 +47,25 @@ def _fail(msg: str) -> None:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--app-id", required=True, help="Feishu app_id (cli_xxxxx)")
-    p.add_argument("--app-secret-env", default="FEISHU_APP_SECRET",
-                   help="Env var holding app_secret (default: FEISHU_APP_SECRET)")
+    p.add_argument(
+        "--app-secret-env",
+        default="FEISHU_APP_SECRET",
+        help="Env var holding app_secret (default: FEISHU_APP_SECRET)",
+    )
     p.add_argument("--app-secret", help="Inline app_secret (insecure; prefer --app-secret-env)")
-    p.add_argument("--output", "-o", required=True,
-                   help="Path to write oauth.json (referenced by oauth_state_file in config)")
+    p.add_argument(
+        "--output",
+        "-o",
+        required=True,
+        help="Path to write oauth.json (referenced by oauth_state_file in config)",
+    )
     p.add_argument("--scope", help="Space-separated scope list (overrides defaults)")
-    p.add_argument("--region", default="feishu", choices=["feishu", "lark"],
-                   help="Cloud region (default: feishu / China; use 'lark' for overseas)")
+    p.add_argument(
+        "--region",
+        default="feishu",
+        choices=["feishu", "lark"],
+        help="Cloud region (default: feishu / China; use 'lark' for overseas)",
+    )
     args = p.parse_args(argv)
 
     secret = args.app_secret or os.environ.get(args.app_secret_env)
@@ -79,9 +93,14 @@ def main(argv: list[str] | None = None) -> int:
 
     _info("Polling for approval ... (Ctrl-C to abort)")
     try:
-        tok = poll_for_device_token(args.app_id, secret, dev["device_code"],
-                                     interval=dev["interval"], expires_in=dev["expires_in"],
-                                     region=args.region)
+        tok = poll_for_device_token(
+            args.app_id,
+            secret,
+            dev["device_code"],
+            interval=dev["interval"],
+            expires_in=dev["expires_in"],
+            region=args.region,
+        )
     except OAuthError as e:
         _fail(f"device flow failed: {e}")
         return 1
@@ -109,14 +128,16 @@ def main(argv: list[str] | None = None) -> int:
     print()
     print("Next steps:")
     print(f"  1) In your feishu connector TOML, set:")
-    print(f"       auth = \"user\"")
-    print(f"       oauth_state_file = \"{out}\"")
+    print(f'       auth = "user"')
+    print(f'       oauth_state_file = "{out}"')
     print(f"     (NOT credential_ref — Feishu refresh_tokens rotate on every use, so the")
     print(f"      plugin needs to WRITE this file each connect to persist the new token.")
     print(f"      app_id / app_secret are inside the file too; no other config needed.)")
-    refresh_days = blob['refresh_expires_at'] - now
-    print(f"  2) Refresh token expires in ~{refresh_days // 86400} days "
-          f"(Feishu's TTL, not configurable); re-run this script before then.")
+    refresh_days = blob["refresh_expires_at"] - now
+    print(
+        f"  2) Refresh token expires in ~{refresh_days // 86400} days "
+        f"(Feishu's TTL, not configurable); re-run this script before then."
+    )
     return 0
 
 

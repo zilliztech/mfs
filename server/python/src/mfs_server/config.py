@@ -3,6 +3,7 @@
 Lookup order: --config arg -> $MFS_SERVER_CONFIG -> ./server.toml
 -> ~/.mfs/server.toml -> /etc/mfs/server.toml -> built-in defaults.
 """
+
 from __future__ import annotations
 
 import os
@@ -24,27 +25,27 @@ def mfs_home() -> Path:
 
 
 class MetadataConfig(BaseModel):
-    backend: str = "sqlite"          # sqlite | postgres
-    path: str = ""                   # sqlite file (default ~/.mfs/metadata.db)
-    dsn: str = ""                    # postgres DSN (env-resolvable)
+    backend: str = "sqlite"  # sqlite | postgres
+    path: str = ""  # sqlite file (default ~/.mfs/metadata.db)
+    dsn: str = ""  # postgres DSN (env-resolvable)
 
 
 class ObjectStoreConfig(BaseModel):
-    backend: str = "local"           # local | s3 (covers R2/GCS/MinIO via endpoint_url)
-    root: str = ""                   # local root (default ~/.mfs/cache)
+    backend: str = "local"  # local | s3 (covers R2/GCS/MinIO via endpoint_url)
+    root: str = ""  # local root (default ~/.mfs/cache)
     # s3 backend (also R2/GCS/MinIO via endpoint_url)
     bucket: str = ""
     prefix: str = "mfs"
-    endpoint_url: str = ""           # set for R2/GCS/MinIO; empty = AWS
+    endpoint_url: str = ""  # set for R2/GCS/MinIO; empty = AWS
     region: str = "us-east-1"
     access_key_id: str = ""
     secret_access_key: str = ""
 
 
 class MilvusConfig(BaseModel):
-    uri: str = ""                    # ~/.mfs/milvus.db (Lite) | https://*.zillizcloud.com
+    uri: str = ""  # ~/.mfs/milvus.db (Lite) | https://*.zillizcloud.com
     token: str = ""
-    collection_strategy: str = "shared"   # shared | per_namespace
+    collection_strategy: str = "shared"  # shared | per_namespace
     num_partitions: int = 64
 
 
@@ -57,14 +58,14 @@ class EmbeddingConfig(BaseModel):
 
 
 class SummaryConfig(BaseModel):
-    enabled: bool = False            # master switch for directory summaries; off by default (opt-in)
+    enabled: bool = False  # master switch for directory summaries; off by default (opt-in)
     provider: str = "openai"
     model: str = "gpt-4o-mini"
     max_tokens: int = 800
-    dir_recursive: bool = True       # bottom-up recursive directory summary (child summaries roll up)
-    max_input_kb: int = 64           # total input budget fed to one directory summary (truncated)
-    per_file_max_kb: int = 16        # per-file truncation cap so one big file can't eat the budget
-    include_image_desc: bool = False # feed image VLM descriptions into the directory summary
+    dir_recursive: bool = True  # bottom-up recursive directory summary (child summaries roll up)
+    max_input_kb: int = 64  # total input budget fed to one directory summary (truncated)
+    per_file_max_kb: int = 16  # per-file truncation cap so one big file can't eat the budget
+    include_image_desc: bool = False  # feed image VLM descriptions into the directory summary
     batch_size: int = 20
 
 
@@ -81,8 +82,8 @@ class ConverterConfig(BaseModel):
 
 class TransformationCacheConfig(BaseModel):
     enabled: bool = True
-    backend: str = "sqlite"          # sqlite | postgres
-    db_path: str = ""                # default ~/.mfs/transformation_cache.db
+    backend: str = "sqlite"  # sqlite | postgres
+    db_path: str = ""  # default ~/.mfs/transformation_cache.db
     dsn: str = ""
     max_size_gb: float = 5.0
     eviction_interval_s: int = 600
@@ -97,7 +98,7 @@ class ArtifactCacheConfig(BaseModel):
 
 
 class WorkerConfig(BaseModel):
-    concurrency: str | int = "auto"     # auto | <int>; sqlite forced to 1
+    concurrency: str | int = "auto"  # auto | <int>; sqlite forced to 1
     max_retries: int = 3
     backoff_initial_ms: int = 1000
     backoff_max_ms: int = 30000
@@ -110,7 +111,7 @@ class WorkerConfig(BaseModel):
 
 class ChunkConfig(BaseModel):
     default_chunk_max: int = 1_000_000
-    chunk_size: int = 2048              # chonkie token budget
+    chunk_size: int = 2048  # chonkie token budget
 
 
 class SearchConfig(BaseModel):
@@ -121,7 +122,7 @@ class SearchConfig(BaseModel):
 class ServerConfig(BaseModel):
     home: str = ""
     namespace: str = "default"
-    auth_token: str = ""             # when set, /v1 requires Authorization: Bearer <token>
+    auth_token: str = ""  # when set, /v1 requires Authorization: Bearer <token>
     metadata: MetadataConfig = MetadataConfig()
     object_store: ObjectStoreConfig = ObjectStoreConfig()
     milvus: MilvusConfig = MilvusConfig()
@@ -144,7 +145,7 @@ class ServerConfig(BaseModel):
         if not self.object_store.root:
             self.object_store.root = str(home / "cache")
         if not self.milvus.uri:
-            self.milvus.uri = str(home / "milvus.db")     # Lite default
+            self.milvus.uri = str(home / "milvus.db")  # Lite default
         if not self.transformation_cache.db_path:
             self.transformation_cache.db_path = str(home / "transformation_cache.db")
         return self
@@ -192,7 +193,7 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
         cfg.metadata.backend = "postgres"
         cfg.metadata.dsn = meta_dsn
     tx_dsn = os.environ.get("MFS_TX_CACHE_DSN") or meta_dsn
-    if tx_dsn and os.environ.get("MFS_TX_CACHE_PG"):     # opt-in: share PG for tx cache
+    if tx_dsn and os.environ.get("MFS_TX_CACHE_PG"):  # opt-in: share PG for tx cache
         cfg.transformation_cache.backend = "postgres"
         cfg.transformation_cache.dsn = tx_dsn
 
@@ -201,11 +202,13 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
     if bucket:
         cfg.object_store.backend = "s3"
         cfg.object_store.bucket = bucket
-        for env_k, attr in (("MFS_OBJECT_STORE_ENDPOINT", "endpoint_url"),
-                            ("MFS_OBJECT_STORE_REGION", "region"),
-                            ("MFS_OBJECT_STORE_ACCESS_KEY", "access_key_id"),
-                            ("MFS_OBJECT_STORE_SECRET_KEY", "secret_access_key"),
-                            ("MFS_OBJECT_STORE_PREFIX", "prefix")):
+        for env_k, attr in (
+            ("MFS_OBJECT_STORE_ENDPOINT", "endpoint_url"),
+            ("MFS_OBJECT_STORE_REGION", "region"),
+            ("MFS_OBJECT_STORE_ACCESS_KEY", "access_key_id"),
+            ("MFS_OBJECT_STORE_SECRET_KEY", "secret_access_key"),
+            ("MFS_OBJECT_STORE_PREFIX", "prefix"),
+        ):
             v = os.environ.get(env_k)
             if v:
                 setattr(cfg.object_store, attr, v)

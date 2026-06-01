@@ -8,6 +8,7 @@ credentials); files().list(q, fields='nextPageToken, files(id,name,mimeType,pare
 modifiedTime,md5Checksum)', pageToken); files().get_media(fileId); files().export_media(
 fileId, mimeType). NOT end-to-end tested (needs OAuth creds).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -22,7 +23,14 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, ObjectChange, ObjectKind, PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 from ..file.plugin import CODE_EXT, DOC_EXT, IMAGE_EXT, TEXTBLOB_EXT
 
@@ -40,22 +48,34 @@ class GDrivePlugin(ConnectorPlugin):
     URI_SCHEME = "gdrive"
     DISPLAY_NAME = "Google Drive"
     PROMPT = "A Google Drive file tree (Docs exported to text, files at their paths)."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="modifiedTime",
-                                full_scan=True, delete_detection="full_scan", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="modifiedTime",
+        full_scan=True,
+        delete_detection="full_scan",
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._svc = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     async def connect(self) -> None:
         def build_svc():
             tok = self._cfg("token") or {}
-            creds = Credentials.from_authorized_user_info(tok) if isinstance(tok, dict) else \
-                Credentials(token=tok)
+            creds = (
+                Credentials.from_authorized_user_info(tok)
+                if isinstance(tok, dict)
+                else Credentials(token=tok)
+            )
             return build("drive", "v3", credentials=creds, cache_discovery=False)
+
         self._svc = await asyncio.to_thread(build_svc)
 
     def _parts(self, path: str) -> list[str]:
@@ -88,8 +108,12 @@ class GDrivePlugin(ConnectorPlugin):
             return PathStat(path=path, type="dir")
         meta = await self._meta()
         info = meta.get(path)
-        return PathStat(path=path, type="file", media_type=self._media_type(path),
-                        fingerprint=(info or {}).get("fingerprint"))
+        return PathStat(
+            path=path,
+            type="file",
+            media_type=self._media_type(path),
+            fingerprint=(info or {}).get("fingerprint"),
+        )
 
     async def list(self, path: str) -> list[Entry]:
         meta = await self._meta()
@@ -97,11 +121,13 @@ class GDrivePlugin(ConnectorPlugin):
         seen: dict[str, str] = {}
         for p in meta:
             if p.startswith(prefix):
-                rest = p[len(prefix):]
+                rest = p[len(prefix) :]
                 seg = rest.split("/", 1)
                 seen[seg[0]] = "file" if len(seg) == 1 else "dir"
-        return [Entry(name=n, type=t, media_type=self._media_type(n) if t == "file" else None)
-                for n, t in sorted(seen.items())]
+        return [
+            Entry(name=n, type=t, media_type=self._media_type(n) if t == "file" else None)
+            for n, t in sorted(seen.items())
+        ]
 
     async def read(self, path: str, range: Optional[Range] = None) -> AsyncIterator[bytes]:
         meta = await self._meta()
@@ -121,6 +147,7 @@ class GDrivePlugin(ConnectorPlugin):
             while not done:
                 _, done = dl.next_chunk()
             return buf.getvalue()
+
         yield await asyncio.to_thread(download)
 
     async def fingerprint(self, path: str) -> Optional[str]:
@@ -130,19 +157,28 @@ class GDrivePlugin(ConnectorPlugin):
     async def _walk(self) -> dict[str, dict]:
         """List all files, resolve parent chain to a path. Native docs get a synthetic
         extension so object_kind_of routes them correctly."""
+
         def fetch_all():
             files, token = [], None
             q = "trashed = false"
             while True:
-                resp = self._svc.files().list(
-                    q=q, pageToken=token, pageSize=1000, corpora="user",
-                    fields="nextPageToken, files(id,name,mimeType,parents,modifiedTime,md5Checksum)"
-                ).execute()
+                resp = (
+                    self._svc.files()
+                    .list(
+                        q=q,
+                        pageToken=token,
+                        pageSize=1000,
+                        corpora="user",
+                        fields="nextPageToken, files(id,name,mimeType,parents,modifiedTime,md5Checksum)",
+                    )
+                    .execute()
+                )
                 files.extend(resp.get("files", []))
                 token = resp.get("nextPageToken")
                 if not token:
                     break
             return files
+
         files = await asyncio.to_thread(fetch_all)
         by_id = {f["id"]: f for f in files}
 
@@ -166,8 +202,11 @@ class GDrivePlugin(ConnectorPlugin):
             p = path_of(f)
             if f["mimeType"] in _NATIVE and not p.endswith(_NATIVE[f["mimeType"]][1]):
                 p += _NATIVE[f["mimeType"]][1]
-            meta[p] = {"id": f["id"], "mimeType": f["mimeType"],
-                       "fingerprint": f.get("md5Checksum") or f.get("modifiedTime")}
+            meta[p] = {
+                "id": f["id"],
+                "mimeType": f["mimeType"],
+                "fingerprint": f.get("md5Checksum") or f.get("modifiedTime"),
+            }
         return meta
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:

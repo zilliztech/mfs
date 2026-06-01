@@ -4,6 +4,7 @@ Drives FilePlugin.sync directly (no engine) through the full change lifecycle:
 added / ignore / indexed->skip / modified / renamed(inode) / deleted, and checks
 file_state transitions + declare_enumeration. Uses a temp dir + temp metadata DB.
 """
+
 import asyncio
 import os
 import shutil
@@ -28,12 +29,16 @@ def check(name, cond):
 class MemState:
     def __init__(self):
         self.d = {}
+
     async def get(self, k):
         return self.d.get(k)
+
     async def set(self, k, v):
         self.d[k] = v
+
     async def delete(self, k):
         self.d.pop(k, None)
+
     async def checkpoint(self):
         pass
 
@@ -61,7 +66,8 @@ async def main():
     await meta.init_schema()
     await meta.execute(
         "INSERT INTO connectors (id, namespace_id, root_uri, type, status) VALUES (?,?,?,?,?)",
-        ("c1", "default", f"file://local{root}", "file", "active"))
+        ("c1", "default", f"file://local{root}", "file", "active"),
+    )
 
     # seed files
     os.makedirs(f"{root}/src")
@@ -103,9 +109,14 @@ async def main():
     os.rename(f"{root}/src/b.py", f"{root}/src/c.py")
     c4 = await collect(plugin)
     ren = [c for c in c4 if c.kind == "renamed"]
-    check("rename detected as renamed", len(ren) == 1 and ren[0].uri == "/src/c.py" and ren[0].old_uri == "/src/b.py")
-    check("rename: no added/deleted for b.py/c.py",
-          not any(c.uri in ("/src/b.py", "/src/c.py") and c.kind in ("added", "deleted") for c in c4))
+    check(
+        "rename detected as renamed",
+        len(ren) == 1 and ren[0].uri == "/src/c.py" and ren[0].old_uri == "/src/b.py",
+    )
+    check(
+        "rename: no added/deleted for b.py/c.py",
+        not any(c.uri in ("/src/b.py", "/src/c.py") and c.kind in ("added", "deleted") for c in c4),
+    )
     await mark_all_indexed(plugin, c4)
     check("old path b.py gone from file_state", await fstate.get("/src/b.py") is None)
     check("new path c.py in file_state", await fstate.get("/src/c.py") is not None)
@@ -122,7 +133,7 @@ async def main():
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
-    print(f"\n{'='*40}\nPhase 2 file connector: {passed}/{total} checks passed")
+    print(f"\n{'=' * 40}\nPhase 2 file connector: {passed}/{total} checks passed")
     if passed != total:
         print("FAILED:", [n for n, c in results if not c])
         raise SystemExit(1)

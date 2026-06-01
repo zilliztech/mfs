@@ -4,6 +4,7 @@ Verifies: config load, metadata DDL (all tables), object_store, transformation_c
 chunk_id determinism, and Milvus ensure/upsert/search/count/drop on BOTH Milvus Lite
 and Zilliz Cloud. Uses /tmp paths and random vectors (no embedding API needed here).
 """
+
 import asyncio
 import os
 import random
@@ -36,18 +37,30 @@ async def test_metadata(cfg):
     await m.init_schema()
     tables = await m.fetchall("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
     names = {t["name"] for t in tables}
-    expected = {"connectors", "objects", "artifact_cache", "connector_jobs", "object_tasks",
-                "connector_state", "watch_grants", "file_state", "schema_version"}
+    expected = {
+        "connectors",
+        "objects",
+        "artifact_cache",
+        "connector_jobs",
+        "object_tasks",
+        "connector_state",
+        "watch_grants",
+        "file_state",
+        "schema_version",
+    }
     check("all tables created", expected <= names)
     # objects has new index-status columns
     cols = await m.fetchall("PRAGMA table_info(objects)")
     colnames = {c["name"] for c in cols}
-    check("objects has search_status/chunk_count/index_error/indexed_at",
-          {"search_status", "chunk_count", "index_error", "indexed_at"} <= colnames)
+    check(
+        "objects has search_status/chunk_count/index_error/indexed_at",
+        {"search_status", "chunk_count", "index_error", "indexed_at"} <= colnames,
+    )
     # insert + read back a connector
     await m.execute(
         "INSERT INTO connectors (id, root_uri, type, status) VALUES (?,?,?,?)",
-        ("c1", "file://client/repo", "file", "active"))
+        ("c1", "file://client/repo", "file", "active"),
+    )
     row = await m.fetchone("SELECT * FROM connectors WHERE id='c1'")
     check("connector insert/read", row is not None and row["type"] == "file")
     await m.close()
@@ -64,7 +77,10 @@ async def test_object_store(cfg):
     check("get_artifact roundtrip", data == b"# Title\nbody")
     # move (rename support)
     s.move_artifacts("default", "file://c/manual.pdf", "file://c/renamed.pdf")
-    check("move_artifacts", s.get_artifact("default", "file://c/renamed.pdf", "converted_md") == b"# Title\nbody")
+    check(
+        "move_artifacts",
+        s.get_artifact("default", "file://c/renamed.pdf", "converted_md") == b"# Title\nbody",
+    )
 
 
 async def test_tx_cache(cfg):
@@ -75,9 +91,20 @@ async def test_tx_cache(cfg):
     c = TransformationCache(cfg)
     await c.connect()
     k = cache_key(sha1_hex(b"hello"), "embedding", "openai", "text-embedding-3-small", "v1")
-    await c.batch_put([{"cache_key": k, "kind": "embedding", "input_hash": sha1_hex(b"hello"),
-                        "provider": "openai", "model": "text-embedding-3-small",
-                        "model_version": "v1", "output_bytes": b"\x01\x02\x03", "output_size": 3}])
+    await c.batch_put(
+        [
+            {
+                "cache_key": k,
+                "kind": "embedding",
+                "input_hash": sha1_hex(b"hello"),
+                "provider": "openai",
+                "model": "text-embedding-3-small",
+                "model_version": "v1",
+                "output_bytes": b"\x01\x02\x03",
+                "output_size": 3,
+            }
+        ]
+    )
     got = await c.batch_get([k, "nonexistent"])
     check("tx cache hit", got[k] == b"\x01\x02\x03")
     check("tx cache miss is None", got["nonexistent"] is None)
@@ -116,19 +143,28 @@ def test_milvus(cfg, label):
         rows = []
         for i in range(5):
             vec = [random.random() for _ in range(cfg.embedding.dim)]
-            rows.append({
-                "chunk_id": chunk_id(cfg.namespace, "file://c/repo", f"file://c/repo/f{i}.md", "body", None, [1, 10]),
-                "namespace_id": cfg.namespace,
-                "connector_uri": "file://c/repo",
-                "object_uri": f"file://c/repo/f{i}.md",
-                "locator": None,
-                "lines": [1, 10],
-                "content": f"document number {i} about milvus vector search and bm25",
-                "dense_vec": vec,
-                "chunk_kind": "body",
-                "metadata": {"i": i},
-                "indexed_at": int(time.time() * 1000),
-            })
+            rows.append(
+                {
+                    "chunk_id": chunk_id(
+                        cfg.namespace,
+                        "file://c/repo",
+                        f"file://c/repo/f{i}.md",
+                        "body",
+                        None,
+                        [1, 10],
+                    ),
+                    "namespace_id": cfg.namespace,
+                    "connector_uri": "file://c/repo",
+                    "object_uri": f"file://c/repo/f{i}.md",
+                    "locator": None,
+                    "lines": [1, 10],
+                    "content": f"document number {i} about milvus vector search and bm25",
+                    "dense_vec": vec,
+                    "chunk_kind": "body",
+                    "metadata": {"i": i},
+                    "indexed_at": int(time.time() * 1000),
+                }
+            )
         store.upsert(cfg.namespace, rows)
         time.sleep(2)
         cnt = store.count(cfg.namespace)
@@ -141,7 +177,10 @@ def test_milvus(cfg, label):
     finally:
         try:
             store.drop_collection(cfg.namespace)
-            check(f"[{label}] drop_collection (cleanup)", not store.client.has_collection(store.resolve_collection(cfg.namespace)))
+            check(
+                f"[{label}] drop_collection (cleanup)",
+                not store.client.has_collection(store.resolve_collection(cfg.namespace)),
+            )
         except Exception as e:
             print(f"  cleanup error: {e}")
 
@@ -169,7 +208,7 @@ async def main():
 
     passed = sum(1 for _, c in results if c)
     total = len(results)
-    print(f"\n{'='*40}\nPhase 1 storage: {passed}/{total} checks passed")
+    print(f"\n{'=' * 40}\nPhase 1 storage: {passed}/{total} checks passed")
     if passed != total:
         print("FAILED:", [n for n, c in results if not c])
         raise SystemExit(1)

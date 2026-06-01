@@ -4,6 +4,7 @@ Verifies the native extension is loaded AND native grep output matches the pure-
 fallback. (walk_tree / sha1_files / tail_lines parity live in phase13_walk_sha1_accel and
 phase13_tail_accel.) Run: cd server/python && .venv/bin/python tests/phase9_accel_unit.py
 """
+
 import os
 import tempfile
 
@@ -39,9 +40,11 @@ def main():
     g_max = accel.linear_grep_file(af, "hello", True, False, 1)
     check("grep max_matches respected", len(g_max) == 1)
 
-    import shutil; shutil.rmtree(d, ignore_errors=True)
+    import shutil
+
+    shutil.rmtree(d, ignore_errors=True)
     passed = sum(1 for _, c in results if c)
-    print(f"\n{'='*44}\n  {passed}/{len(results)} checks passed (native={accel.HAVE_NATIVE})")
+    print(f"\n{'=' * 44}\n  {passed}/{len(results)} checks passed (native={accel.HAVE_NATIVE})")
     raise SystemExit(0 if passed == len(results) else 1)
 
 

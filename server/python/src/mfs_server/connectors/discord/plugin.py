@@ -6,6 +6,7 @@ API verified against Discord developer docs: GET /guilds/{guild_id}/channels ->
 channel list; GET /channels/{id}/messages?limit=100&before=<id> -> messages
 (descending, max 100/page, paginate with `before`=oldest id). NOT end-to-end tested.
 """
+
 from __future__ import annotations
 
 import re
@@ -15,8 +16,15 @@ from typing import Optional
 import httpx
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 
 API = "https://discord.com/api/v10"
@@ -34,15 +42,25 @@ class DiscordPlugin(ConnectorPlugin):
     URI_SCHEME = "discord"
     DISPLAY_NAME = "Discord"
     PROMPT = "Discord text channels as /channels/<name>__<id>/messages.jsonl."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="message_id",
-                                full_scan=True, delete_detection="never", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="message_id",
+        full_scan=True,
+        delete_detection="never",
+        paged_cat=True,
+    )
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     def _headers(self) -> dict:
-        return {"Authorization": f"Bot {self._cfg('token') or self.credential}",
-                "User-Agent": "mfs-discord/0.4"}
+        return {
+            "Authorization": f"Bot {self._cfg('token') or self.credential}",
+            "User-Agent": "mfs-discord/0.4",
+        }
 
     async def healthcheck(self) -> HealthStatus:
         try:
@@ -81,7 +99,9 @@ class DiscordPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith(".jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True})
+            return PathStat(
+                path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True}
+            )
         return PathStat(path=path, type="dir")
 
     async def list(self, path: str) -> list[Entry]:
@@ -113,11 +133,11 @@ class DiscordPlugin(ConnectorPlugin):
                     for m in msgs:
                         yield m
                         n += 1
-                    before = msgs[-1]["id"]      # oldest id of this (descending) page
+                    before = msgs[-1]["id"]  # oldest id of this (descending) page
                     if len(msgs) < 100:
                         break
             if n >= limit:
-                self.ctx.declare_partial(path)        # hit max_read_rows -> partial recall
+                self.ctx.declare_partial(path)  # hit max_read_rows -> partial recall
 
     async def fingerprint(self, path: str) -> Optional[str]:
         return None

@@ -6,6 +6,7 @@ API verified against hubspot-api-python docs: hubspot.Client.create(access_token
 client.crm.<object>.basic_api.get_page(limit=100, after=...) -> result with
 .results (each .to_dict()) and .paging.next.after. Sync only. NOT end-to-end tested.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -15,8 +16,15 @@ from typing import Optional
 import hubspot
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 
 _DEFAULT_OBJECTS = ["contacts", "companies", "deals", "tickets"]
@@ -27,8 +35,14 @@ class HubSpotPlugin(ConnectorPlugin):
     URI_SCHEME = "hubspot"
     DISPLAY_NAME = "HubSpot"
     PROMPT = "HubSpot CRM objects as /<object>/records.jsonl (contacts/companies/deals/tickets)."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="hs_lastmodifieddate",
-                                full_scan=True, delete_detection="full_scan", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="hs_lastmodifieddate",
+        full_scan=True,
+        delete_detection="full_scan",
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
@@ -39,7 +53,9 @@ class HubSpotPlugin(ConnectorPlugin):
         self._probed_defaults: Optional[list[str]] = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     async def connect(self) -> None:
         token = self._cfg("access_token") or self.credential
@@ -55,8 +71,7 @@ class HubSpotPlugin(ConnectorPlugin):
         available: list[str] = []
         for obj in _DEFAULT_OBJECTS:
             try:
-                await asyncio.to_thread(
-                    lambda o=obj: self._basic_api(o).get_page(limit=1))
+                await asyncio.to_thread(lambda o=obj: self._basic_api(o).get_page(limit=1))
                 available.append(obj)
             except Exception:  # noqa: BLE001 — 403/404/etc all skip
                 pass
@@ -74,8 +89,7 @@ class HubSpotPlugin(ConnectorPlugin):
         if types:
             return list(types)
         legacy = self._cfg("objects")
-        if (isinstance(legacy, list) and legacy
-                and all(isinstance(o, str) for o in legacy)):
+        if isinstance(legacy, list) and legacy and all(isinstance(o, str) for o in legacy):
             return list(legacy)
         if self._probed_defaults is not None:
             return list(self._probed_defaults)
@@ -102,7 +116,9 @@ class HubSpotPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith("records.jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True})
+            return PathStat(
+                path=path, type="file", media_type="application/x-ndjson", extra={"lazy": True}
+            )
         return PathStat(path=path, type="dir")
 
     async def list(self, path: str) -> list[Entry]:

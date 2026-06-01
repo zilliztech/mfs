@@ -8,6 +8,7 @@ API verified against atlassian-python-api docs (Jira(url, username, password|tok
 jira.projects(), jira.jql(jql, start, limit) -> {'issues': [...], 'total': N}).
 NOT end-to-end tested (needs a Jira site + token).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -17,8 +18,15 @@ from typing import Optional
 from atlassian import Jira
 
 from ..base import (
-    Capabilities, ConnectorPlugin, Entry, HealthStatus, ObjectChange, ObjectKind,
-    PathStat, Range, SyncOptions,
+    Capabilities,
+    ConnectorPlugin,
+    Entry,
+    HealthStatus,
+    ObjectChange,
+    ObjectKind,
+    PathStat,
+    Range,
+    SyncOptions,
 )
 
 
@@ -27,15 +35,23 @@ class JiraPlugin(ConnectorPlugin):
     URI_SCHEME = "jira"
     DISPLAY_NAME = "Jira"
     PROMPT = "Jira issues as /projects/<proj>/issues.jsonl + users.jsonl."
-    CAPABILITIES = Capabilities(manual_sync=True, watch=False, cursor_kind="updated",
-                                full_scan=True, delete_detection="full_scan", paged_cat=True)
+    CAPABILITIES = Capabilities(
+        manual_sync=True,
+        watch=False,
+        cursor_kind="updated",
+        full_scan=True,
+        delete_detection="full_scan",
+        paged_cat=True,
+    )
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
         self._jira: Optional[Jira] = None
 
     def _cfg(self, k, d=None):
-        return self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        return (
+            self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
+        )
 
     async def connect(self) -> None:
         # cloud: username=email + password=API token; server: token=PAT
@@ -43,8 +59,13 @@ class JiraPlugin(ConnectorPlugin):
             tok = self._cfg("token")
             if tok:
                 return Jira(url=self._cfg("url"), token=tok, cloud=self._cfg("cloud", True))
-            return Jira(url=self._cfg("url"), username=self._cfg("username"),
-                        password=self._cfg("api_token") or self.credential, cloud=self._cfg("cloud", True))
+            return Jira(
+                url=self._cfg("url"),
+                username=self._cfg("username"),
+                password=self._cfg("api_token") or self.credential,
+                cloud=self._cfg("cloud", True),
+            )
+
         self._jira = await asyncio.to_thread(build)
 
     async def healthcheck(self) -> HealthStatus:
@@ -71,15 +92,22 @@ class JiraPlugin(ConnectorPlugin):
 
     async def stat(self, path: str) -> PathStat:
         if path.endswith(".jsonl"):
-            return PathStat(path=path, type="file", media_type="application/x-ndjson",
-                            fingerprint=await self.fingerprint(path), extra={"lazy": True})
+            return PathStat(
+                path=path,
+                type="file",
+                media_type="application/x-ndjson",
+                fingerprint=await self.fingerprint(path),
+                extra={"lazy": True},
+            )
         return PathStat(path=path, type="dir")
 
     async def list(self, path: str) -> list[Entry]:
         parts = self._parts(path)
         if len(parts) == 0:
-            return [Entry("projects", "dir"),
-                    Entry("users.jsonl", "file", "application/x-ndjson", extra={"lazy": True})]
+            return [
+                Entry("projects", "dir"),
+                Entry("users.jsonl", "file", "application/x-ndjson", extra={"lazy": True}),
+            ]
         if len(parts) == 1 and parts[0] == "projects":
             return [Entry(p, "dir") for p in await self._projects()]
         if len(parts) == 2 and parts[0] == "projects":
@@ -89,13 +117,17 @@ class JiraPlugin(ConnectorPlugin):
     def _flatten_issue(self, issue: dict) -> dict:
         f = issue.get("fields", {}) or {}
         return {
-            "key": issue.get("key"), "id": issue.get("id"),
-            "summary": f.get("summary"), "description": f.get("description"),
+            "key": issue.get("key"),
+            "id": issue.get("id"),
+            "summary": f.get("summary"),
+            "description": f.get("description"),
             "status": (f.get("status") or {}).get("name"),
             "priority": (f.get("priority") or {}).get("name"),
             "assignee": (f.get("assignee") or {}).get("displayName"),
             "reporter": (f.get("reporter") or {}).get("displayName"),
-            "labels": f.get("labels"), "created": f.get("created"), "updated": f.get("updated"),
+            "labels": f.get("labels"),
+            "created": f.get("created"),
+            "updated": f.get("updated"),
         }
 
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
@@ -112,8 +144,8 @@ class JiraPlugin(ConnectorPlugin):
             n, token = 0, None
             while n < limit:
                 res = await asyncio.to_thread(
-                    self._jira.enhanced_jql, jql,
-                    fields="*all", nextPageToken=token, limit=page)
+                    self._jira.enhanced_jql, jql, fields="*all", nextPageToken=token, limit=page
+                )
                 issues = (res or {}).get("issues", [])
                 for it in issues:
                     yield self._flatten_issue(it)
@@ -126,8 +158,12 @@ class JiraPlugin(ConnectorPlugin):
             if n >= limit:
                 self.ctx.declare_partial(path)
         elif len(parts) == 1 and parts[0] == "users.jsonl":
-            users = await asyncio.to_thread(self._jira.get_all_users, limit=1000) if hasattr(self._jira, "get_all_users") else []
-            for u in (users or []):
+            users = (
+                await asyncio.to_thread(self._jira.get_all_users, limit=1000)
+                if hasattr(self._jira, "get_all_users")
+                else []
+            )
+            for u in users or []:
                 yield dict(u)
 
     async def fingerprint(self, path: str) -> Optional[str]:
@@ -136,7 +172,8 @@ class JiraPlugin(ConnectorPlugin):
             # approximate_issue_count is the v3 replacement for the legacy
             # search endpoint's `total`. Returns {"count": N}.
             res = await asyncio.to_thread(
-                self._jira.approximate_issue_count, f'project = "{parts[1]}"')
+                self._jira.approximate_issue_count, f'project = "{parts[1]}"'
+            )
             cnt = res.get("count") if isinstance(res, dict) else res
             return f"count:{cnt or 0}"
         return None
