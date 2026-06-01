@@ -145,6 +145,13 @@ class MilvusStore:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         if self.client.has_collection(name):
+            # Always (re-)load: Milvus Lite leaves collections in 'released'
+            # state when a new client attaches to an existing .db file (e.g.
+            # after a server restart), and search/get/query fail with
+            # MilvusException code=101 until load_collection() is called.
+            # For remote Milvus the call is effectively idempotent — already-
+            # loaded collections stay in memory across client connections.
+            self.client.load_collection(name)
             return name
         kwargs: dict[str, Any] = {
             "collection_name": name,
