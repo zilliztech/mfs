@@ -83,37 +83,52 @@ def _section(title: str, body: str = "") -> None:
 
 
 def _wizard_embedding(current: EmbeddingConfig) -> dict[str, Any]:
+    from ..common.embeddings import DEFAULT_MODELS as EMBED_DEFAULTS
+    from ..common.embeddings import supported_providers as embed_supported
+
     _section(
         "Embedding",
-        "Default is a local ONNX model — no API key. Multilingual BGE-M3 int8\n"
-        "(~600 MB) downloads on first use. Provide an OpenAI key to switch\n"
-        "to the hosted API.",
+        "Default is local ONNX (no API key, multilingual BGE-M3 int8 ~600 MB on\n"
+        "first use). Alternates: openai / gemini / voyage / ollama / local —\n"
+        "each lives behind its own optional extra (uv sync --extra <name>).",
     )
-    provider = _prompt_choice("Provider", ["onnx", "openai"], current.provider)
-    if provider == "onnx":
-        # bge-m3-onnx-int8 is the recommended default (multilingual, 1024-dim,
-        # int8-quantized for CPU). Alternatives are shown as suggestions only —
-        # the user must also adjust `dim` to match.
-        model = _prompt(
-            "ONNX model (e.g. gpahal/bge-m3-onnx-int8 multilingual 1024d, "
-            "Xenova/bge-small-en-v1.5 English 384d)",
-            current.model if current.provider == "onnx" else "gpahal/bge-m3-onnx-int8",
-        )
-        dim_default = str(current.dim) if current.provider == "onnx" else "1024"
-        dim = int(_prompt("Dimension", dim_default))
-        return {"provider": "onnx", "model": model, "dim": dim}
-    # openai
-    model = _prompt("OpenAI model", "text-embedding-3-small")
-    dim_default = {"text-embedding-3-small": 1536, "text-embedding-3-large": 3072}.get(model, 1536)
-    dim = int(_prompt("Dimension", str(dim_default)))
-    print(
-        "  (OpenAI API key is read from $OPENAI_API_KEY at request time — "
-        "set it in the server env, not here.)"
+    provider = _prompt_choice("Provider", embed_supported(), current.provider)
+    default_model = (
+        current.model
+        if current.provider == provider and current.model
+        else EMBED_DEFAULTS.get(provider, "")
     )
-    return {"provider": "openai", "model": model, "dim": dim}
+    model = _prompt("Model", default_model)
+    # Provider-specific dim hints; the user can override.
+    dim_hints = {
+        "openai": {
+            "text-embedding-3-small": 1536,
+            "text-embedding-3-large": 3072,
+            "text-embedding-ada-002": 1536,
+        },
+        "onnx": {"gpahal/bge-m3-onnx-int8": 1024, "Xenova/bge-small-en-v1.5": 384},
+        "gemini": {"gemini-embedding-001": 768},
+        "voyage": {"voyage-3-lite": 512, "voyage-3": 1024, "voyage-3-large": 2048},
+        "ollama": {"nomic-embed-text": 768, "mxbai-embed-large": 1024},
+        "local": {"all-MiniLM-L6-v2": 384, "all-mpnet-base-v2": 768},
+    }
+    dim_default = str(
+        dim_hints.get(provider, {}).get(model)
+        or (current.dim if current.provider == provider else 0)
+        or 1024
+    )
+    dim = int(_prompt("Dimension", dim_default))
+    if provider not in ("onnx", "openai"):
+        print(f"  (provider '{provider}' requires: uv sync --extra {provider})")
+    elif provider == "openai":
+        print("  (OPENAI_API_KEY read at request time from env, not stored here.)")
+    return {"provider": provider, "model": model, "dim": dim}
 
 
 def _wizard_vlm(current_summary: SummaryConfig, current_vlm: VlmConfig) -> dict[str, Any]:
+    from ..common.llm import DEFAULT_VISION_MODELS as VISION_DEFAULTS
+    from ..common.llm import supported_providers as llm_supported
+
     _section(
         "Image summary / VLM",
         "When ON, the server generates a textual description for each image\n"
@@ -123,8 +138,15 @@ def _wizard_vlm(current_summary: SummaryConfig, current_vlm: VlmConfig) -> dict[
     enabled = _prompt_bool("Enable image summary?", current_summary.enabled)
     if not enabled:
         return {"summary_enabled": False}
-    provider = _prompt_choice("VLM provider", ["openai"], current_vlm.provider or "openai")
-    model = _prompt("VLM model", current_vlm.model or "gpt-4o-mini")
+    provider = _prompt_choice("VLM provider", llm_supported(), current_vlm.provider or "openai")
+    model_default = (
+        current_vlm.model
+        if current_vlm.provider == provider and current_vlm.model
+        else VISION_DEFAULTS.get(provider, "")
+    )
+    model = _prompt("VLM model", model_default)
+    if provider != "openai":
+        print(f"  (provider '{provider}' requires: uv sync --extra {provider})")
     return {
         "summary_enabled": True,
         "summary_include_image_desc": True,
@@ -233,12 +255,19 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
             "dim": answers["dim"],
         }
     elif section == "vlm":
-        # `vlm` section toggles two top-level config sections: summary.enabled
-        # (the master switch) and the vlm.* block (the model to use).
+        # `vlm` section toggles two top-level config blocks: summary.enabled
+        # (the master switch + the LLM used for directory/schema summary text)
+        # and the vlm.* block (the LLM used for image descriptions). They
+        # share the same provider/model by default — most providers' multimodal
+        # model handles both text and vision (gpt-4o-mini, claude-sonnet-4-5,
+        # gemini-2.0-flash). Users who want different LLMs for the two can
+        # hand-edit summary.provider / summary.model separately.
         summ = current.setdefault("summary", {})
         summ["enabled"] = answers["summary_enabled"]
         if answers["summary_enabled"]:
             summ["include_image_desc"] = answers.get("summary_include_image_desc", True)
+            summ["provider"] = answers["vlm_provider"]
+            summ["model"] = answers["vlm_model"]
             current["vlm"] = {"provider": answers["vlm_provider"], "model": answers["vlm_model"]}
     elif section == "milvus":
         current["milvus"] = {k: v for k, v in answers.items() if v}

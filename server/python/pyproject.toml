@@ -77,6 +77,25 @@ dev = [
 # `pip install mfs-server[embedding-onnx]` commands still work.
 embedding-onnx = []
 
+# Alternate embedding providers (each lazily imported by
+# mfs_server.common.embeddings).
+gemini = ["google-genai>=0.3"]          # gemini embedding + LLM (vision-capable)
+voyage = ["voyageai>=0.3"]              # voyage-3-lite etc.
+ollama = ["ollama>=0.4"]                # local LLM/embedding via Ollama server
+local = ["sentence-transformers>=3.0", "einops>=0.8"]   # CPU/GPU sentence-transformers
+
+# Alternate LLM providers for summary / VLM (mfs_server.common.llm).
+anthropic = ["anthropic>=0.40"]         # claude-sonnet-* (text + vision)
+
+# Convenience bundle: every provider (text + vision LLMs and remote embeddings).
+# Excludes 'local' (sentence-transformers pulls torch ~2 GB).
+all-providers = [
+    "google-genai>=0.3",
+    "voyageai>=0.3",
+    "ollama>=0.4",
+    "anthropic>=0.40",
+]
+
 [project.scripts]
 mfs-server = "mfs_server.server.__main__:main"
 
