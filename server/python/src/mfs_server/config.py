@@ -1,7 +1,8 @@
 """Server configuration: load from server.toml (lookup chain) + env overrides.
 
 Lookup order: --config arg -> $MFS_SERVER_CONFIG -> ./server.toml
--> ~/.mfs/server.toml -> /etc/mfs/server.toml -> built-in defaults.
+-> $MFS_HOME/server.toml (if MFS_HOME is set) -> ~/.mfs/server.toml
+-> /etc/mfs/server.toml -> built-in defaults.
 """
 
 from __future__ import annotations
@@ -168,10 +169,16 @@ class ServerConfig(BaseModel):
 
 
 def _find_config_path(explicit: str | None) -> Path | None:
+    # $MFS_HOME / server.toml is the wizard's default write target (see
+    # mfs_home() above and setup_wizard.run_wizard). It must be in the
+    # lookup chain or `mfs-server setup` followed by `mfs-server run` with
+    # a non-default MFS_HOME silently falls back to built-in defaults.
+    mfs_home_env = os.environ.get("MFS_HOME")
     candidates = [
         explicit,
         os.environ.get("MFS_SERVER_CONFIG"),
         "./server.toml",
+        f"{mfs_home_env}/server.toml" if mfs_home_env else None,
         str(Path.home() / ".mfs" / "server.toml"),
         "/etc/mfs/server.toml",
     ]
