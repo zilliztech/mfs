@@ -1,15 +1,15 @@
 # MFS Docker Compose.
 #
-# v0.4 ships the all-in-one server (design/10 §4.2): API + inline task processing in
-# one container, SQLite metadata + cache on a mounted volume, Milvus via Zilliz Cloud
-# (managed). This is the runnable, supported topology today.
+# v0.4 ships the all-in-one server: API + inline task processing in one container,
+# SQLite metadata + cache on a mounted volume, Milvus via Lite (default) or Zilliz
+# Cloud (set ZILLIZ_URI / ZILLIZ_TOKEN). Single runnable topology today.
 #
 #   ZILLIZ_URI=https://xxx.zillizcloud.com ZILLIZ_TOKEN=... OPENAI_API_KEY=... \
 #     docker compose up --build
 #
-# The api/worker split + Postgres metadata + MinIO object store (design/10 §4.3) is the
-# team / client-server target; it needs the Postgres metadata backend and the standalone
-# worker daemon, which land after v0.4. That topology is sketched at the bottom (disabled).
+# The api/worker split + Postgres metadata + MinIO object store is the team /
+# client-server target; the Postgres metadata backend is wired (MFS_METADATA_DSN),
+# the standalone worker daemon lands post-v0.4. Sketch at the bottom (disabled).
 services:
   mfs-server:
     build:
@@ -23,7 +23,7 @@ services:
       MFS_MILVUS_TOKEN: ${ZILLIZ_TOKEN:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       MFS_HOME: /data
-      # The API requires a Bearer token (design/02 §11.2). Set MFS_API_TOKEN to a known value
+      # The API requires a Bearer token. Set MFS_API_TOKEN to a known value
       # so host CLIs can authenticate; if empty the server auto-generates one at
       # /data/server.token (read via: docker compose exec mfs-server cat /data/server.token).
       MFS_API_TOKEN: ${MFS_API_TOKEN:-}
@@ -41,7 +41,7 @@ volumes:
   mfs-data:
 
 # ---------------------------------------------------------------------------
-# Team / CS topology (design/10 §4.3) — enable once the Postgres metadata backend
+# Team / CS topology — enable once the Postgres metadata backend
 # and standalone worker daemon ship (post-0.4):
 #
 #   postgres:    image: postgres:16          # metadata  (MFS_METADATA_DSN=postgresql://...)
