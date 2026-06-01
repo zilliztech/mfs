@@ -34,6 +34,13 @@ dependencies = [
     "pathspec>=1.1.1",
     "aiomysql>=0.3.2",
     "pymongo>=4.13",
+    # Default embedding backend is local ONNX (BGE) — no API key required.
+    # See config.py EmbeddingConfig defaults. Provider can be switched to
+    # "openai" / etc via the setup wizard.
+    "onnxruntime>=1.17",
+    "huggingface-hub>=0.20",
+    "tokenizers>=0.15",
+    "numpy>=1.24",
 ]
 
 [project.optional-dependencies]
@@ -65,9 +72,10 @@ dev = [
     "pytest-asyncio>=0.23",
     "ruff>=0.6",
 ]
-embedding-onnx = [
-    "fastembed>=0.8.0",
-]
+# Kept as an alias for back-compat; the ONNX embedding stack is now a core
+# dep so this extra is effectively a no-op. Existing
+# `pip install mfs-server[embedding-onnx]` commands still work.
+embedding-onnx = []
 
 [project.scripts]
 mfs-server = "mfs_server.server.__main__:main"

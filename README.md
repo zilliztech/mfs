@@ -70,9 +70,32 @@ cd mfs/server/python
 # uv installs all required deps into a local venv
 uv sync
 
-# starts on 127.0.0.1:13619 by default (matches the CLI's default endpoint)
+# Optional: walk a 6-section wizard that writes ~/.mfs/server.toml. Every
+# section defaults to a self-contained local backend (ONNX embeddings,
+# Milvus Lite, SQLite, local fs). Plug in OpenAI / Zilliz Cloud / Postgres
+# only when you have credentials.
+uv run mfs-server setup            # all sections, press Enter to accept defaults
+uv run mfs-server setup --section embedding   # change a single section later
+
+# starts on 127.0.0.1:13619 by default (matches the CLI's default endpoint).
+# First `mfs add` downloads the multilingual BGE-M3 int8 ONNX model into
+# $MFS_HOME/onnx-cache/ (one-time, ~600 MB).
 uv run mfs-server run
 ```
+
+**Default backends are zero-key** — out of the box:
+
+| What | Default |
+|---|---|
+| Embedding | local ONNX, `gpahal/bge-m3-onnx-int8` — multilingual, 1024-dim (no API key) |
+| VLM / image summary | OFF (opt-in via `mfs-server setup --section vlm`) |
+| Vector DB | Milvus Lite (file under `$MFS_HOME`) |
+| Metadata DB | SQLite (file under `$MFS_HOME`) |
+| Object store | Local filesystem (under `$MFS_HOME`) |
+| API auth | Auto-generated Bearer token at `$MFS_HOME/server.token` |
+
+Want to switch to OpenAI embeddings / Zilliz Cloud / Postgres / S3? Re-run
+`mfs-server setup --section <name>` and pick a different backend.
 
 **Connector extras** (optional — install only what you need):
 

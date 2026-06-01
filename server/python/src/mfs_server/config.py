@@ -50,9 +50,14 @@ class MilvusConfig(BaseModel):
 
 
 class EmbeddingConfig(BaseModel):
-    provider: str = "openai"
-    model: str = "text-embedding-3-small"
-    dim: int = 1536
+    # Default = local ONNX (no API key required). Model downloads from the
+    # Hugging Face Hub on first use and is cached under $MFS_HOME/onnx-cache/.
+    # bge-m3 is multilingual (100+ langs) and int8-quantized for CPU. Switch
+    # to "openai" for the hosted embedding API; the setup wizard walks the
+    # user through both paths.
+    provider: str = "onnx"
+    model: str = "gpahal/bge-m3-onnx-int8"
+    dim: int = 1024
     batch_size: int = 100
     batch_max_wait_ms: int = 100
 

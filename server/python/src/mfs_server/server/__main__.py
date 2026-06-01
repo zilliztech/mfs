@@ -42,6 +42,14 @@ def _ensure_auth_token(cfg) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # `setup` is special — it has its own argparse with --section and --config,
+    # so we route on the first positional and forward the rest verbatim.
+    raw = list(argv if argv is not None else sys.argv[1:])
+    if raw and raw[0] == "setup":
+        from .setup_wizard import main_entry
+
+        return main_entry(raw[1:])
+
     p = argparse.ArgumentParser(prog="mfs-server")
     sub = p.add_subparsers(dest="cmd", required=True)
     for name in ("run", "api"):
@@ -53,8 +61,11 @@ def main(argv: list[str] | None = None) -> int:
     wk.add_argument("--concurrency", default="auto")
     rl = sub.add_parser("reload")
     rl.add_argument("--config", default=None)
+    # Stub so `mfs-server setup --help` shows up in the top-level help even
+    # though dispatch happens before argparse sees it.
+    sub.add_parser("setup", help="Interactive base config wizard (writes server.toml).")
 
-    args = p.parse_args(argv)
+    args = p.parse_args(raw)
 
     if args.cmd in ("run", "api"):
         import uvicorn
