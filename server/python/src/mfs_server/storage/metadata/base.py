@@ -1,23 +1,21 @@
-"""Metadata DB. Dual backend: SQLite (aiosqlite, single host) and
-Postgres (asyncpg, CS / multi-replica). Holds connector/object/job state, path index,
-fingerprints, file_state, and doubles as the task queue.
+"""Metadata store contract + shared DDL + dialect helpers.
 
 The whole codebase writes SQLite-style `?` placeholders + portable
-`ON CONFLICT(...) DO UPDATE SET col=excluded.col`. For Postgres we translate `?`→`$n`
-and adapt the DDL (BLOB→BYTEA, text CURRENT_TIMESTAMP defaults), so call sites are
-backend-agnostic.
+`ON CONFLICT(...) DO UPDATE SET col=excluded.col`. Backend subclasses translate
+to their dialect (Postgres `$n`, BLOB→BYTEA, text default CURRENT_TIMESTAMP), so
+call sites stay backend-agnostic.
+
+Bumping CURRENT_SCHEMA_VERSION lets `init_schema()` fail fast (instead of silently
+no-op'ing CREATE IF NOT EXISTS) when an existing DB records a different version.
 """
 
 from __future__ import annotations
 
 import re
+from abc import ABC, abstractmethod
 from typing import Any, Optional, Sequence
 
-import aiosqlite
-
-from ..config import ServerConfig
-
-# --- SQLite DDL ---
+# --- shared DDL (SQLite-flavoured; subclasses translate as needed) ----------
 SQLITE_DDL = [
     """
     CREATE TABLE IF NOT EXISTS schema_version (
@@ -148,24 +146,24 @@ SQLITE_DDL = [
     "CREATE INDEX IF NOT EXISTS ix_file_state_staged ON file_state (namespace_id, connector_id, status) WHERE status = 'staged'",
 ]
 
-# Bump on any incompatible metadata DDL change. init_schema fails fast (rather than
-# silently no-op'ing CREATE IF NOT EXISTS) when an existing DB records a different version.
+# Bump on any incompatible metadata DDL change.
 CURRENT_SCHEMA_VERSION = 2
 
 
-def _to_pg_ddl(ddl: str) -> str:
-    """Adapt the SQLite DDL to Postgres: BLOB->BYTEA, text CURRENT_TIMESTAMP default
-    (timestamptz can't default a TEXT column) -> now()::text. Everything else
-    (TEXT/INTEGER/PRIMARY KEY/UNIQUE/partial indexes/IF NOT EXISTS) is portable."""
+# --- dialect helpers (used by Postgres subclass) ----------------------------
+
+
+def to_pg_ddl(ddl: str) -> str:
+    """Adapt the SQLite DDL to Postgres: BLOB->BYTEA; INTEGER (64-bit in SQLite) -> BIGINT
+    (PG INTEGER is 32-bit and mtime_ns overflows); text CURRENT_TIMESTAMP default
+    (timestamptz can't default a TEXT column) -> now()::text."""
     ddl = re.sub(r"\bBLOB\b", "BYTEA", ddl)
-    ddl = re.sub(
-        r"\bINTEGER\b", "BIGINT", ddl
-    )  # SQLite INTEGER is 64-bit; PG INTEGER is 32-bit (mtime_ns overflows)
+    ddl = re.sub(r"\bINTEGER\b", "BIGINT", ddl)
     ddl = ddl.replace("DEFAULT CURRENT_TIMESTAMP", "DEFAULT now()::text")
     return ddl
 
 
-def _qmark_to_dollar(sql: str) -> str:
+def qmark_to_dollar(sql: str) -> str:
     """Translate SQLite `?` placeholders to Postgres `$1, $2, ...` in order. Our SQL
     never contains a literal '?' outside placeholders."""
     n = 0
@@ -178,32 +176,47 @@ def _qmark_to_dollar(sql: str) -> str:
     return re.sub(r"\?", repl, sql)
 
 
-class MetadataStore:
-    def __init__(self, cfg: ServerConfig):
-        self.backend = cfg.metadata.backend
-        self.path = cfg.metadata.path
-        self.dsn = cfg.metadata.dsn
-        self._db: Optional[aiosqlite.Connection] = None
-        self._pool = None  # asyncpg pool (postgres)
+# --- ABC ----------------------------------------------------------------------
+
+
+class MetadataStoreBase(ABC):
+    """Metadata DB contract. Two subclasses today: SqliteMetadataStore,
+    PostgresMetadataStore. Callers write SQLite-style `?` placeholders + portable
+    DDL; the subclass adapts."""
+
+    backend: str = ""
 
     @property
     def is_pg(self) -> bool:
         return self.backend == "postgres"
 
-    async def connect(self) -> None:
-        if self.is_pg:
-            import asyncpg
+    @abstractmethod
+    async def connect(self) -> None: ...
 
-            self._pool = await asyncpg.create_pool(self.dsn, min_size=1, max_size=8)
-            return
-        if self.backend != "sqlite":
-            raise NotImplementedError(f"metadata backend {self.backend} not supported")
-        self._db = await aiosqlite.connect(self.path)
-        self._db.row_factory = aiosqlite.Row
-        await self._db.execute("PRAGMA journal_mode=WAL")
-        await self._db.execute("PRAGMA synchronous=NORMAL")
-        await self._db.execute("PRAGMA foreign_keys=ON")
-        await self._db.commit()
+    @abstractmethod
+    async def init_schema(self) -> None: ...
+
+    @abstractmethod
+    async def execute(self, sql: str, params: Sequence[Any] = ()) -> None: ...
+
+    @abstractmethod
+    async def execute_rowcount(self, sql: str, params: Sequence[Any] = ()) -> int:
+        """Like execute() but returns the number of affected rows. Enables race-free
+        claims across workers: a conditional UPDATE (... WHERE status='queued') wins
+        only when it actually flips the row (rowcount == 1). PG row-locks the UPDATE,
+        SQLite serializes writers — both make the claim atomic without SKIP LOCKED."""
+
+    @abstractmethod
+    async def executemany(self, sql: str, rows: Sequence[Sequence[Any]]) -> None: ...
+
+    @abstractmethod
+    async def fetchone(self, sql: str, params: Sequence[Any] = ()) -> Optional[dict]: ...
+
+    @abstractmethod
+    async def fetchall(self, sql: str, params: Sequence[Any] = ()) -> list[dict]: ...
+
+    @abstractmethod
+    async def close(self) -> None: ...
 
     @staticmethod
     def _guard_schema_version(existing: set) -> None:
@@ -217,91 +230,3 @@ class MetadataStore:
                 f"and migrations are out of scope — point MFS_HOME / the metadata DSN at a "
                 f"fresh database (or drop the existing one)."
             )
-
-    async def init_schema(self) -> None:
-        if self.is_pg:
-            async with self._pool.acquire() as c:
-                for ddl in SQLITE_DDL:
-                    await c.execute(_to_pg_ddl(ddl))
-                rows = await c.fetch("SELECT version FROM schema_version")
-                existing = {r["version"] for r in rows}
-                self._guard_schema_version(existing)
-                if not existing:
-                    await c.execute(
-                        "INSERT INTO schema_version (version) VALUES ($1)", CURRENT_SCHEMA_VERSION
-                    )
-            return
-        assert self._db is not None
-        for ddl in SQLITE_DDL:
-            await self._db.execute(ddl)
-        cur = await self._db.execute("SELECT version FROM schema_version")
-        existing = {r[0] for r in await cur.fetchall()}
-        self._guard_schema_version(existing)
-        if not existing:
-            await self._db.execute(
-                "INSERT INTO schema_version (version) VALUES (?)", (CURRENT_SCHEMA_VERSION,)
-            )
-        await self._db.commit()
-
-    async def execute(self, sql: str, params: Sequence[Any] = ()) -> None:
-        if self.is_pg:
-            async with self._pool.acquire() as c:
-                await c.execute(_qmark_to_dollar(sql), *params)
-            return
-        assert self._db is not None
-        await self._db.execute(sql, params)
-        await self._db.commit()
-
-    async def execute_rowcount(self, sql: str, params: Sequence[Any] = ()) -> int:
-        """Like execute() but returns the number of affected rows. Enables race-free
-        claims across workers: a conditional UPDATE (... WHERE status='queued') wins
-        only when it actually flips the row (rowcount == 1). PG row-locks the UPDATE,
-        SQLite serializes writers — both make the claim atomic without SKIP LOCKED."""
-        if self.is_pg:
-            async with self._pool.acquire() as c:
-                status = await c.execute(_qmark_to_dollar(sql), *params)
-            try:
-                return int(status.split()[-1])  # asyncpg command tag, e.g. "UPDATE 1"
-            except (ValueError, IndexError, AttributeError):
-                return 0
-        assert self._db is not None
-        cur = await self._db.execute(sql, params)
-        await self._db.commit()
-        return cur.rowcount
-
-    async def executemany(self, sql: str, rows: Sequence[Sequence[Any]]) -> None:
-        if self.is_pg:
-            async with self._pool.acquire() as c:
-                await c.executemany(_qmark_to_dollar(sql), [tuple(r) for r in rows])
-            return
-        assert self._db is not None
-        await self._db.executemany(sql, rows)
-        await self._db.commit()
-
-    async def fetchone(self, sql: str, params: Sequence[Any] = ()) -> Optional[dict]:
-        if self.is_pg:
-            async with self._pool.acquire() as c:
-                row = await c.fetchrow(_qmark_to_dollar(sql), *params)
-            return dict(row) if row else None
-        assert self._db is not None
-        cur = await self._db.execute(sql, params)
-        row = await cur.fetchone()
-        return dict(row) if row else None
-
-    async def fetchall(self, sql: str, params: Sequence[Any] = ()) -> list[dict]:
-        if self.is_pg:
-            async with self._pool.acquire() as c:
-                rows = await c.fetch(_qmark_to_dollar(sql), *params)
-            return [dict(r) for r in rows]
-        assert self._db is not None
-        cur = await self._db.execute(sql, params)
-        rows = await cur.fetchall()
-        return [dict(r) for r in rows]
-
-    async def close(self) -> None:
-        if self._pool is not None:
-            await self._pool.close()
-            self._pool = None
-        if self._db is not None:
-            await self._db.close()
-            self._db = None

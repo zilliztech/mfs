@@ -27,10 +27,10 @@ from ..connectors.registry import get_plugin_cls, load_builtin
 from ..processors.text import chunk_body
 from ..storage.file_state import FileStateStore
 from ..storage.ids import chunk_id
-from ..storage.metadata import MetadataStore
+from ..storage.metadata import make_metadata_store
 from ..storage.milvus import MilvusStore
 from ..storage.object_store import make_object_store
-from ..storage.transformation_cache import TransformationCache
+from ..storage.transformation_cache import make_transformation_cache
 from .state import ConnectorStateStore
 
 _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
@@ -215,10 +215,10 @@ class Engine:
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
         self.ns = cfg.namespace
-        self.meta = MetadataStore(cfg)
+        self.meta = make_metadata_store(cfg)
         self.milvus = MilvusStore(cfg)
         self.object_store = make_object_store(cfg)
-        self.tx_cache = TransformationCache(cfg)
+        self.tx_cache = make_transformation_cache(cfg)
         self.embed = CachingEmbeddingClient(cfg, self.tx_cache)
         self.converter = CachingConverterClient(cfg, self.tx_cache)
         self.vlm = CachingVlmClient(cfg, self.tx_cache)
