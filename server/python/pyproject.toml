@@ -41,6 +41,11 @@ dependencies = [
     "huggingface-hub>=0.20",
     "tokenizers>=0.15",
     "numpy>=1.24",
+    # Wizard UI (mfs-server setup / connector add): colored panels, hints
+    # via rich; arrow-key selects + validators via questionary. Both have
+    # auto-detect for TTY/non-TTY and fall back gracefully.
+    "rich>=13",
+    "questionary>=2",
 ]
 
 [project.optional-dependencies]

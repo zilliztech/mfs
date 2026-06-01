@@ -9,8 +9,11 @@ Postgres / S3 is purely opt-in — provide credentials when prompted and the
 section flips to the hosted backend.
 
 Connector setup is intentionally NOT here. Connectors are added one at a time
-through their own per-scheme flow (mfs-server connector add <uri>
---interactive), not by walking through every scheme during base setup.
+through their own per-scheme flow (mfs-server connector add <uri>), not by
+walking through every connector type during base setup.
+
+UI is built on `wizard_ui` (rich panels + questionary prompts). The
+underlying TOML schema is unchanged from the pre-styling version.
 """
 
 from __future__ import annotations
@@ -39,67 +42,54 @@ from ..config import (
     load_server_config,
     mfs_home,
 )
+from . import wizard_ui as ui
 
 SECTIONS = ("embedding", "vlm", "milvus", "metadata", "object_store", "auth")
-
-
-# ─── prompt helpers ─────────────────────────────────────────────────────────
-
-
-def _prompt(label: str, default: str = "", *, secret: bool = False) -> str:
-    """Single-line prompt with a printed default. Returns the user's input
-    (stripped); empty input keeps the default."""
-    suffix = f" [{default}]" if default else ""
-    if secret:
-        suffix += " (input hidden)"
-    raw = input(f"  {label}{suffix}: ")
-    val = raw.strip()
-    return val if val else default
-
-
-def _prompt_choice(label: str, choices: list[str], default: str) -> str:
-    options = "/".join(c + ("*" if c == default else "") for c in choices)
-    while True:
-        val = _prompt(f"{label} ({options})", default).lower()
-        if val in choices:
-            return val
-        print(f"    ! please choose one of: {', '.join(choices)}")
-
-
-def _prompt_bool(label: str, default: bool) -> bool:
-    val = _prompt(label + " (y/n)", "y" if default else "n").lower()
-    return val in ("y", "yes", "true", "1", "on")
-
-
-def _section(title: str, body: str = "") -> None:
-    print()
-    print(f"── {title} ──")
-    if body:
-        for line in body.strip().splitlines():
-            print(f"  {line}")
 
 
 # ─── per-section wizards ────────────────────────────────────────────────────
 
 
-def _wizard_embedding(current: EmbeddingConfig) -> dict[str, Any]:
-    from ..common.embeddings import DEFAULT_MODELS as EMBED_DEFAULTS
-    from ..common.embeddings import supported_providers as embed_supported
+def _embedding_choices() -> list[tuple[str, str]]:
+    return [
+        ("onnx", "local, no API key (default)"),
+        ("openai", "needs OPENAI_API_KEY env"),
+        ("gemini", "needs `uv sync --extra gemini`"),
+        ("voyage", "needs `uv sync --extra voyage`"),
+        ("ollama", "needs `uv sync --extra ollama` + running ollama server"),
+        ("local", "needs `uv sync --extra local` (pulls torch ~2 GB)"),
+    ]
 
-    _section(
+
+def _llm_choices() -> list[tuple[str, str]]:
+    return [
+        ("openai", "needs OPENAI_API_KEY env"),
+        ("anthropic", "needs `uv sync --extra anthropic` + ANTHROPIC_API_KEY"),
+        ("gemini", "needs `uv sync --extra gemini` + GOOGLE_API_KEY"),
+    ]
+
+
+def _wizard_embedding(current: EmbeddingConfig, step: int, total: int) -> dict[str, Any]:
+    from ..common.embeddings import DEFAULT_MODELS as EMBED_DEFAULTS
+
+    ui.section(
         "Embedding",
-        "Default is local ONNX (no API key, multilingual BGE-M3 int8 ~600 MB on\n"
-        "first use). Alternates: openai / gemini / voyage / ollama / local —\n"
-        "each lives behind its own optional extra (uv sync --extra <name>).",
+        "Default is local ONNX (no API key, multilingual BGE-M3 int8, ~600 MB on\n"
+        "first use). Pick another provider to opt out.",
+        step=step,
+        total=total,
     )
-    provider = _prompt_choice("Provider", embed_supported(), current.provider)
+    provider = ui.select(
+        "Provider",
+        _embedding_choices(),
+        default=current.provider if current.provider else "onnx",
+    )
     default_model = (
         current.model
         if current.provider == provider and current.model
         else EMBED_DEFAULTS.get(provider, "")
     )
-    model = _prompt("Model", default_model)
-    # Provider-specific dim hints; the user can override.
+    model = ui.text("Model", default=default_model, required=True)
     dim_hints = {
         "openai": {
             "text-embedding-3-small": 1536,
@@ -112,41 +102,49 @@ def _wizard_embedding(current: EmbeddingConfig) -> dict[str, Any]:
         "ollama": {"nomic-embed-text": 768, "mxbai-embed-large": 1024},
         "local": {"all-MiniLM-L6-v2": 384, "all-mpnet-base-v2": 768},
     }
-    dim_default = str(
+    dim_default = (
         dim_hints.get(provider, {}).get(model)
         or (current.dim if current.provider == provider else 0)
         or 1024
     )
-    dim = int(_prompt("Dimension", dim_default))
-    if provider not in ("onnx", "openai"):
-        print(f"  (provider '{provider}' requires: uv sync --extra {provider})")
-    elif provider == "openai":
-        print("  (OPENAI_API_KEY read at request time from env, not stored here.)")
+    dim = ui.int_text("Dimension", default=int(dim_default), min_v=1, max_v=8192)
+
+    if provider == "openai":
+        ui.info("OPENAI_API_KEY is read from env at request time, not stored here.")
+    elif provider != "onnx":
+        ui.info(f"Provider {provider!r} needs: uv sync --extra {provider}")
     return {"provider": provider, "model": model, "dim": dim}
 
 
-def _wizard_vlm(current_summary: SummaryConfig, current_vlm: VlmConfig) -> dict[str, Any]:
+def _wizard_vlm(
+    current_summary: SummaryConfig, current_vlm: VlmConfig, step: int, total: int
+) -> dict[str, Any]:
     from ..common.llm import DEFAULT_VISION_MODELS as VISION_DEFAULTS
-    from ..common.llm import supported_providers as llm_supported
 
-    _section(
+    ui.section(
         "Image summary / VLM",
-        "When ON, the server generates a textual description for each image\n"
-        "object (uses an LLM, needs an API key, costs $$). OFF by default —\n"
-        "image objects are listed but not embedded.",
+        "When ON, the server generates a text description for each image (uses an\n"
+        "LLM, needs an API key, costs $$). OFF by default — image objects are\n"
+        "listed but not embedded.",
+        step=step,
+        total=total,
     )
-    enabled = _prompt_bool("Enable image summary?", current_summary.enabled)
+    enabled = ui.confirm("Enable image summary?", default=current_summary.enabled)
     if not enabled:
         return {"summary_enabled": False}
-    provider = _prompt_choice("VLM provider", llm_supported(), current_vlm.provider or "openai")
+    provider = ui.select(
+        "VLM provider",
+        _llm_choices(),
+        default=current_vlm.provider if current_vlm.provider else "openai",
+    )
     model_default = (
         current_vlm.model
         if current_vlm.provider == provider and current_vlm.model
         else VISION_DEFAULTS.get(provider, "")
     )
-    model = _prompt("VLM model", model_default)
+    model = ui.text("VLM model", default=model_default, required=True)
     if provider != "openai":
-        print(f"  (provider '{provider}' requires: uv sync --extra {provider})")
+        ui.info(f"Provider {provider!r} needs: uv sync --extra {provider}")
     return {
         "summary_enabled": True,
         "summary_include_image_desc": True,
@@ -155,61 +153,124 @@ def _wizard_vlm(current_summary: SummaryConfig, current_vlm: VlmConfig) -> dict[
     }
 
 
-def _wizard_milvus(current: MilvusConfig, env_resolved: bool) -> dict[str, Any]:
-    _section(
+def _is_lite_path(uri: str) -> bool:
+    """A Lite URI is a local filesystem path (e.g. ~/.mfs/milvus.db) — never a
+    sensible default to surface when the user is configuring a *remote* Milvus."""
+    return bool(uri) and not (uri.startswith("http://") or uri.startswith("https://"))
+
+
+def _wizard_milvus(
+    current: MilvusConfig, *, env_resolved: bool, step: int, total: int
+) -> dict[str, Any]:
+    ui.section(
         "Milvus (vector DB)",
         "Default = Milvus Lite (a file under $MFS_HOME). Switch to a remote\n"
         "Milvus / Zilliz Cloud by supplying the URI.",
+        step=step,
+        total=total,
     )
-    # If current.uri comes from env (MFS_MILVUS_URI / ZILLIZ_URI), don't echo
-    # the value back as a prompt default — the user picked env-as-source-of-truth
-    # and we shouldn't surreptitiously copy it into the on-disk toml. Only
-    # values that were already in server.toml itself become defaults.
+    # Lite is always preselected unless the *prior toml* has an http URI.
+    # Env-resolved values are deliberately NOT surfaced as defaults — see PR
+    # description for why.
     default_backend = "remote" if (current.uri.startswith("http") and not env_resolved) else "lite"
-    backend = _prompt_choice("Backend", ["lite", "remote"], default_backend)
-    cl = _prompt(
-        "Consistency level (empty = Milvus default; Strong/Bounded/Eventually/Session)",
-        current.consistency_level,
+    backend = ui.select(
+        "Backend",
+        [
+            ("lite", "local file under $MFS_HOME (no setup)"),
+            ("remote", "Zilliz Cloud / Milvus standalone"),
+        ],
+        default=default_backend,
+    )
+    cl = ui.select(
+        "Consistency level",
+        [
+            ("", "Milvus default (Bounded ~5s staleness)"),
+            ("Strong", "strict read-your-writes (highest latency)"),
+            ("Bounded", "Milvus default explicitly"),
+            ("Eventually", "lowest latency, may read stale"),
+            ("Session", "per-session consistency"),
+        ],
+        default=current.consistency_level or "",
     )
     if backend == "lite":
         return {"uri": "", "token": "", "consistency_level": cl}
-    uri_default = "" if env_resolved else current.uri
+    # Remote: require a non-empty URI and don't echo a Lite-path default.
+    raw_default_uri = "" if env_resolved else current.uri
+    if _is_lite_path(raw_default_uri):
+        raw_default_uri = ""
+    uri = ui.text(
+        "URI",
+        default=raw_default_uri,
+        required=True,
+        hint="e.g. https://xxx.zillizcloud.com",
+        validate=lambda v: (
+            None
+            if v.startswith(("http://", "https://"))
+            else "URI must start with http:// or https://"
+        ),
+    )
     tok_default = "" if env_resolved else current.token
-    uri = _prompt("URI (e.g. https://xxx.zillizcloud.com)", uri_default)
-    token = _prompt("Token", tok_default, secret=True)
+    token = ui.password("Token", default=tok_default, hint="leave blank if your Milvus has no auth")
     if env_resolved and not uri:
-        print("  (kept empty — server will fall back to $MFS_MILVUS_URI / $ZILLIZ_URI at runtime.)")
+        ui.info("(kept empty — server will fall back to $MFS_MILVUS_URI / $ZILLIZ_URI at runtime.)")
     return {"uri": uri, "token": token, "consistency_level": cl}
 
 
-def _wizard_metadata(current: MetadataConfig) -> dict[str, Any]:
-    _section(
+def _wizard_metadata(current: MetadataConfig, step: int, total: int) -> dict[str, Any]:
+    ui.section(
         "Metadata DB",
         "Default = SQLite (a file under $MFS_HOME). Switch to Postgres for\n"
         "team / multi-replica deployments.",
+        step=step,
+        total=total,
     )
-    backend = _prompt_choice("Backend", ["sqlite", "postgres"], current.backend)
+    backend = ui.select(
+        "Backend",
+        [
+            ("sqlite", "single-host, file-based (no setup)"),
+            ("postgres", "asyncpg-backed (needs Postgres reachable)"),
+        ],
+        default=current.backend,
+    )
     if backend == "sqlite":
         return {"backend": "sqlite", "dsn": ""}
-    dsn = _prompt("DSN (postgresql://user:pass@host/db)", current.dsn, secret=True)
+    dsn = ui.password(
+        "DSN",
+        default=current.dsn,
+        required=True,
+        hint="postgresql://user:pass@host:5432/db",
+    )
     return {"backend": "postgres", "dsn": dsn}
 
 
-def _wizard_object_store(current: ObjectStoreConfig) -> dict[str, Any]:
-    _section(
+def _wizard_object_store(current: ObjectStoreConfig, step: int, total: int) -> dict[str, Any]:
+    ui.section(
         "Object store",
         "Holds transformation-cache artifacts (PDF→markdown, VLM descriptions).\n"
         "Default = local filesystem under $MFS_HOME. Switch to S3 (or MinIO /\n"
         "R2 / GCS via endpoint_url) for shared storage across server replicas.",
+        step=step,
+        total=total,
     )
-    backend = _prompt_choice("Backend", ["local", "s3"], current.backend)
+    backend = ui.select(
+        "Backend",
+        [
+            ("local", "filesystem under $MFS_HOME (no setup)"),
+            ("s3", "S3 / MinIO / R2 / GCS via endpoint_url"),
+        ],
+        default=current.backend,
+    )
     if backend == "local":
         return {"backend": "local"}
-    bucket = _prompt("Bucket", current.bucket)
-    endpoint_url = _prompt("Endpoint URL (empty for AWS)", current.endpoint_url)
-    region = _prompt("Region", current.region or "us-east-1")
-    access_key = _prompt("Access key id", current.access_key_id, secret=True)
-    secret_key = _prompt("Secret access key", current.secret_access_key, secret=True)
+    bucket = ui.text("Bucket", default=current.bucket, required=True)
+    endpoint_url = ui.text(
+        "Endpoint URL",
+        default=current.endpoint_url,
+        hint="leave blank for AWS S3 / set for MinIO / R2 / GCS",
+    )
+    region = ui.text("Region", default=current.region or "us-east-1")
+    access_key = ui.password("Access key id", default=current.access_key_id, required=True)
+    secret_key = ui.password("Secret access key", default=current.secret_access_key, required=True)
     return {
         "backend": "s3",
         "bucket": bucket,
@@ -220,38 +281,57 @@ def _wizard_object_store(current: ObjectStoreConfig) -> dict[str, Any]:
     }
 
 
-def _wizard_auth(current_token: str) -> dict[str, Any]:
-    _section(
+def _wizard_auth(current_token: str, step: int, total: int) -> dict[str, Any]:
+    ui.section(
         "API authentication",
-        "Clients authenticate via Bearer token. Press Enter to keep the\n"
-        "current / auto-generated value; type a token to override; type '-'\n"
-        "to disable auth (loopback-only deployments only).",
+        "Clients authenticate via Bearer token. Pick a mode:",
+        step=step,
+        total=total,
     )
-    default = current_token or "(auto-generate)"
-    val = _prompt("Token", default)
-    if val == default or val == "(auto-generate)":
+    mode = ui.select(
+        "Mode",
+        [
+            ("auto", "auto-generate a random token (recommended)"),
+            ("custom", "use a specific token I provide"),
+            ("disable", "no auth (loopback-only deployments)"),
+        ],
+        default="custom"
+        if current_token and current_token != "-"
+        else ("disable" if current_token == "-" else "auto"),
+    )
+    if mode == "auto":
         return {"auto": True}
-    if val == "-":
-        return {"token": "-"}  # explicit opt-out (see _ensure_auth_token)
-    return {"token": val}
+    if mode == "disable":
+        return {"token": "-"}
+    tok = ui.text("Token", default=current_token if current_token != "-" else "", required=True)
+    return {"token": tok}
 
 
-# ─── runner ─────────────────────────────────────────────────────────────────
+# ─── apply + render ─────────────────────────────────────────────────────────
 
 
-def _build_runners(milvus_from_env: bool) -> dict[str, Callable[[ServerConfig], dict[str, Any]]]:
+def _build_runners(
+    milvus_from_env: bool,
+    *,
+    step_of: dict[str, int],
+    total: int,
+) -> dict[str, Callable[[ServerConfig], dict[str, Any]]]:
     return {
-        "embedding": lambda c: _wizard_embedding(c.embedding),
-        "vlm": lambda c: _wizard_vlm(c.summary, c.vlm),
-        "milvus": lambda c: _wizard_milvus(c.milvus, env_resolved=milvus_from_env),
-        "metadata": lambda c: _wizard_metadata(c.metadata),
-        "object_store": lambda c: _wizard_object_store(c.object_store),
-        "auth": lambda c: _wizard_auth(c.auth_token),
+        "embedding": lambda c: _wizard_embedding(c.embedding, step_of["embedding"], total),
+        "vlm": lambda c: _wizard_vlm(c.summary, c.vlm, step_of["vlm"], total),
+        "milvus": lambda c: _wizard_milvus(
+            c.milvus, env_resolved=milvus_from_env, step=step_of["milvus"], total=total
+        ),
+        "metadata": lambda c: _wizard_metadata(c.metadata, step_of["metadata"], total),
+        "object_store": lambda c: _wizard_object_store(
+            c.object_store, step_of["object_store"], total
+        ),
+        "auth": lambda c: _wizard_auth(c.auth_token, step_of["auth"], total),
     }
 
 
 def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> dict[str, Any]:
-    """Merge wizard answers into the running TOML dict (one section at a time)."""
+    """Merge wizard answers into the running TOML dict."""
     if section == "embedding":
         current["embedding"] = {
             "provider": answers["provider"],
@@ -259,13 +339,10 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
             "dim": answers["dim"],
         }
     elif section == "vlm":
-        # `vlm` section toggles two top-level config blocks: summary.enabled
-        # (the master switch + the LLM used for directory/schema summary text)
-        # and the vlm.* block (the LLM used for image descriptions). They
-        # share the same provider/model by default — most providers' multimodal
-        # model handles both text and vision (gpt-4o-mini, claude-sonnet-4-5,
-        # gemini-2.0-flash). Users who want different LLMs for the two can
-        # hand-edit summary.provider / summary.model separately.
+        # `vlm` toggles summary.enabled (master switch + LLM for text summary)
+        # and the vlm.* block (LLM for image descriptions). They share the same
+        # provider/model by default — multimodal LLMs handle both. Users who
+        # want different LLMs can hand-edit summary.* separately.
         summ = current.setdefault("summary", {})
         summ["enabled"] = answers["summary_enabled"]
         if answers["summary_enabled"]:
@@ -274,11 +351,19 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
             summ["model"] = answers["vlm_model"]
             current["vlm"] = {"provider": answers["vlm_provider"], "model": answers["vlm_model"]}
     elif section == "milvus":
-        current["milvus"] = {k: v for k, v in answers.items() if v}
+        # consistency_level can be empty string (= Milvus SDK default); keep
+        # it explicitly when set; drop when blank.
+        block = {k: v for k, v in answers.items() if v != ""}
+        if block:
+            current["milvus"] = block
+        else:
+            current.pop("milvus", None)
     elif section == "metadata":
-        current["metadata"] = {k: v for k, v in answers.items() if v}
+        block = {k: v for k, v in answers.items() if v != ""}
+        current["metadata"] = block
     elif section == "object_store":
-        current["object_store"] = {k: v for k, v in answers.items() if v != ""}
+        block = {k: v for k, v in answers.items() if v != ""}
+        current["object_store"] = block
     elif section == "auth":
         if answers.get("auto"):
             current.pop("auth_token", None)  # let server auto-generate to server.token
@@ -299,26 +384,23 @@ def _load_existing_toml(path: Path) -> dict[str, Any]:
 
 
 def _write_toml(path: Path, data: dict[str, Any]) -> None:
+    # Drop any subtable that ended up empty so we don't emit `[milvus]\n` with
+    # nothing under it.
+    cleaned = {k: v for k, v in data.items() if not (isinstance(v, dict) and not v)}
     if not _HAVE_TOMLI_W:
-        # Fallback hand-roll: tomli_w is preferred but not in core deps yet.
-        # The hand-rolled output covers the subset we emit (flat string /
-        # int / bool values + a few nested tables) and round-trips through
-        # tomllib without surprises.
-        path.write_text(_render_toml(data))
+        path.write_text(_render_toml(cleaned))
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "wb") as f:
-        tomli_w.dump(data, f)
+        tomli_w.dump(cleaned, f)
 
 
 def _render_toml(data: dict[str, Any], _parent: str = "") -> str:
     lines: list[str] = []
-    # top-level scalars first
     for k, v in data.items():
         if isinstance(v, dict):
             continue
         lines.append(f"{k} = {_format_scalar(v)}")
-    # then tables
     for k, v in data.items():
         if not isinstance(v, dict):
             continue
@@ -335,15 +417,11 @@ def _format_scalar(v: Any) -> str:
         return "true" if v else "false"
     if isinstance(v, (int, float)):
         return str(v)
-    # strings (default) — escape doublequotes
     s = str(v).replace("\\", "\\\\").replace('"', '\\"')
     return f'"{s}"'
 
 
 def _bootstrap_auth_token(token_dir: Path) -> str:
-    """Mint a fresh API token + write to <token_dir>/server.token. Keeps
-    the token next to whichever server.toml the wizard wrote, so the same
-    invocation later picks it up via the resolved config path."""
     token_dir.mkdir(parents=True, exist_ok=True)
     token_file = token_dir / "server.token"
     if token_file.exists():
@@ -355,6 +433,41 @@ def _bootstrap_auth_token(token_dir: Path) -> str:
     except OSError:
         pass
     return tok
+
+
+# ─── final summary ─────────────────────────────────────────────────────────
+
+
+def _summary_pairs(out: dict[str, Any]) -> list[tuple[str, str]]:
+    pairs: list[tuple[str, str]] = []
+    e = out.get("embedding", {})
+    if e:
+        pairs.append(("Embedding", f"{e.get('provider')} / {e.get('model')} (dim={e.get('dim')})"))
+    s = out.get("summary", {})
+    if s.get("enabled"):
+        v = out.get("vlm", {})
+        pairs.append(("VLM", f"{v.get('provider', '?')} / {v.get('model', '?')}"))
+    else:
+        pairs.append(("VLM", "off"))
+    m = out.get("milvus", {})
+    if m.get("uri", "").startswith("http"):
+        pairs.append(("Milvus", f"remote {m.get('uri')}"))
+    else:
+        pairs.append(("Milvus", "Lite (local file)"))
+    if m.get("consistency_level"):
+        pairs.append(("  consistency", m["consistency_level"]))
+    md = out.get("metadata", {})
+    pairs.append(("Metadata", md.get("backend", "sqlite")))
+    obj = out.get("object_store", {})
+    pairs.append(("Object store", obj.get("backend", "local")))
+    if "auth_token" in out:
+        pairs.append(("Auth", "disabled" if out["auth_token"] == "-" else "custom token"))
+    else:
+        pairs.append(("Auth", "auto-generated token"))
+    return pairs
+
+
+# ─── runner ─────────────────────────────────────────────────────────────────
 
 
 def run_wizard(sections: list[str] | None = None, config_path: str | None = None) -> int:
@@ -371,64 +484,61 @@ def run_wizard(sections: list[str] | None = None, config_path: str | None = None
         print(f"valid: {', '.join(SECTIONS)}", file=sys.stderr)
         return 2
 
-    # Resolve where we'll write. Explicit --config wins; else $MFS_HOME/server.toml.
     out_path = Path(config_path) if config_path else (mfs_home() / "server.toml")
     if not config_path:
         os.environ.setdefault("MFS_HOME", str(mfs_home()))
 
-    # Load existing toml (so partial wizard runs preserve untouched sections)
-    # and existing resolved config (for sensible 'current' defaults).
     existing = _load_existing_toml(out_path)
     current_resolved = load_server_config(str(out_path) if out_path.exists() else None)
-    # Detect "Milvus came from env, not from a prior toml" so we don't
-    # silently surface env values as wizard defaults (which would then get
-    # written to disk).
     milvus_from_env = bool(
         (os.environ.get("MFS_MILVUS_URI") or os.environ.get("ZILLIZ_URI"))
         and not existing.get("milvus", {}).get("uri")
     )
-    runners = _build_runners(milvus_from_env)
 
-    print("MFS server setup")
-    print(f"  Writing to: {out_path}")
-    print(f"  Sections:   {', '.join(target_sections)}")
-    print("  Press Enter to accept the [default]. Ctrl-C aborts without saving.")
+    total = len(target_sections)
+    step_of = {sect: i + 1 for i, sect in enumerate(target_sections)}
+    runners = _build_runners(milvus_from_env, step_of=step_of, total=total)
+
+    ui.clear()
+    ui.banner(
+        "MFS server setup",
+        lines=[
+            f"writing to {out_path}",
+            f"{total} section(s): {', '.join(target_sections)}",
+            "Press Ctrl-C to abort without saving",
+        ],
+    )
 
     try:
         for sect in target_sections:
             answers = runners[sect](current_resolved)
             existing = _apply(sect, existing, answers)
     except KeyboardInterrupt:
-        print("\naborted; nothing written.")
+        ui.warn("aborted; nothing written.")
         return 130
 
-    # Backup, then write.
     if out_path.exists():
         bak = out_path.with_suffix(out_path.suffix + ".bak")
         bak.write_bytes(out_path.read_bytes())
-        print(f"\nbacked up previous config to {bak}")
+        ui.note(f"backed up previous config to {bak}")
     _write_toml(out_path, existing)
-    print(f"wrote {out_path}")
+    ui.emphasis(f"wrote {out_path}")
 
-    # Auth: if the user picked auto-generate (or this is a fresh setup with no
-    # explicit auth_token), mint a token so the first `mfs-server run` finds
-    # it. Token lives next to server.toml so a --config /some/path setup and
-    # the subsequent --config /some/path run see the same file.
     if "auth_token" not in existing:
         tok = _bootstrap_auth_token(out_path.parent)
-        print(
-            f"\nAPI token written to {out_path.parent / 'server.token'}\n"
-            f"  Use this with clients on other machines:\n"
-            f"    export MFS_API_TOKEN={tok}"
-        )
+        ui.note(f"\nAPI token written to {out_path.parent / 'server.token'}")
+        ui.note("  Pass to clients on other machines via:")
+        ui.emphasis(f"    export MFS_API_TOKEN={tok}")
 
-    print("\nDone. Start the server with:")
-    print("  mfs-server run")
+    ui.console.print()
+    ui.console.print("[bold #5fafff]Summary[/bold #5fafff]")
+    ui.list_kv(_summary_pairs(existing))
+    ui.note("\nStart the server with:")
+    ui.emphasis("  mfs-server run")
     return 0
 
 
 def main_entry(argv: list[str]) -> int:
-    """argparse-friendly entry. argv is the args AFTER `setup`."""
     import argparse
 
     p = argparse.ArgumentParser(prog="mfs-server setup", description=__doc__.splitlines()[0])
