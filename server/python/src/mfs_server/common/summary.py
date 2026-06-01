@@ -1,17 +1,18 @@
 """Summary client: condense input into a short text used as a
 `directory_summary` / `schema_summary` chunk, improving recall for holistic queries.
-OpenAI chat (gpt-4o-mini), memoized in the transformation cache (kind='summary', keyed
-on input hash + provider/model/version → model change re-summarizes). Lazy client so the
-server boots without OPENAI_API_KEY.
+Multi-provider (openai/anthropic/gemini), memoized in the transformation cache
+(kind='summary', keyed on input hash + provider/model/version → model change
+re-summarizes). Lazy provider so the server boots without any API key.
 """
 
 from __future__ import annotations
 
-from openai import AsyncOpenAI
+from typing import Any
 
 from ..config import ServerConfig
 from ..storage.ids import cache_key, sha1_hex
 from ..storage.transformation_cache import TransformationCache
+from .llm import get_provider
 
 _PROMPTS = {
     "schema_summary": "Describe this table/collection schema for search: what the table "
@@ -32,16 +33,15 @@ class CachingSummaryClient:
         self.version = "1"
         self.max_tokens = cfg.summary.max_tokens
         self.tx_cache = tx_cache
-        self._client = None
+        # Lazy: built on first call so the server boots without provider creds.
+        self._llm: Any = None
         self.api_calls = 0
         self.cache_hits = 0
 
-    def _ensure_client(self):
-        if self._client is None:
-            if self.provider != "openai":
-                raise RuntimeError(f"summary provider {self.provider} not supported")
-            self._client = AsyncOpenAI()
-        return self._client
+    def _ensure_llm(self) -> Any:
+        if self._llm is None:
+            self._llm = get_provider(self.provider)
+        return self._llm
 
     async def summarize(self, text: str, kind: str = "directory_summary") -> str:
         if not text.strip():
@@ -58,14 +58,13 @@ class CachingSummaryClient:
         if cached[key] is not None:
             self.cache_hits += 1
             return cached[key].decode("utf-8", errors="replace")
-        client = self._ensure_client()
-        resp = await client.chat.completions.create(
+        llm = self._ensure_llm()
+        # caller truncates to summary.max_input_kb; this is just a hard safety ceiling
+        out = await llm.chat(
+            f"{prompt}\n\n---\n{text[:200_000]}",
             model=self.model,
             max_tokens=self.max_tokens,
-            # caller truncates to summary.max_input_kb; this is just a hard safety ceiling
-            messages=[{"role": "user", "content": f"{prompt}\n\n---\n{text[:200_000]}"}],
         )
-        out = resp.choices[0].message.content or ""
         self.api_calls += 1
         await self.tx_cache.batch_put(
             [
