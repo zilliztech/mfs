@@ -6,18 +6,20 @@ fields declared in connector_schemas.SCHEMAS, write the resulting TOML to
 $MFS_HOME/connectors/<alias>.toml, and (if a server is running locally) POST
 to /v1/add so indexing kicks off immediately.
 
+UI is built on `wizard_ui` (rich panels + questionary prompts), shared with
+`mfs-server setup`. The TOML schema is unchanged from the pre-styling version.
+
 Design choices:
 
 - One connector per invocation. The user picks the scheme by passing a URI
   (`mfs-server connector add postgres://prod-db`), not by walking a menu of
   20 schemes.
-- Fields are declarative in connector_schemas. Add a new connector → add
-  its row there, the wizard picks it up automatically.
+- Fields are declarative in connector_schemas. Add a new connector → add its
+  row there, the wizard picks it up automatically.
 - Secrets stay on disk in the connector TOML; the wizard never echoes them
-  back. The TOML lives next to the server (server-side, not pushed
-  upstream).
-- HTTP registration is best-effort: if `/v1/server/info` doesn't respond,
-  the TOML is still written and the user is told to start the server.
+  back. The TOML lives next to the server (server-side, not pushed upstream).
+- HTTP registration is best-effort: if `/v1/server/info` doesn't respond, the
+  TOML is still written and the user is told to start the server.
 """
 
 from __future__ import annotations
@@ -30,59 +32,64 @@ from typing import Any
 from urllib.parse import urlparse
 
 from ..config import mfs_home
+from . import wizard_ui as ui
 from .connector_schemas import ConnectorField, ConnectorSchema, lookup_schema, supported_schemes
 
 
-# ─── prompt helpers (mirror setup_wizard so the two flows feel the same) ────
-
-
-def _prompt(label: str, default: str = "", *, secret: bool = False) -> str:
-    suffix = f" [{default}]" if default else ""
-    if secret:
-        suffix += " (input hidden)"
-    try:
-        raw = input(f"  {label}{suffix}: ")
-    except EOFError:
-        # stdin closed (piped input ran out, or Ctrl-D on a real terminal).
-        # Treat as Ctrl-C so the runner aborts cleanly without saving.
-        raise KeyboardInterrupt from None
-    val = raw.strip()
-    return val if val else default
-
-
-def _prompt_choice(label: str, choices: list[str], default: str) -> str:
-    options = "/".join(c + ("*" if c == default else "") for c in choices)
-    while True:
-        val = _prompt(f"{label} ({options})", default).lower()
-        if val in choices:
-            return val
-        print(f"    ! please choose one of: {', '.join(choices)}")
+# ─── per-field prompt ────────────────────────────────────────────────────────
 
 
 def _prompt_field(f: ConnectorField) -> Any:
-    if f.help:
-        print(f"    ({f.help})")
-    while True:
-        raw = _prompt(f.label, f.default, secret=f.secret)
-        if not raw:
-            if f.required:
-                print(f"    ! {f.name} is required")
-                continue
+    """Drive one ConnectorField through wizard_ui, with type coercion +
+    inline validation (required, int parsing) handled by wizard_ui itself."""
+    hint = f.help or None
+
+    def _int_validate(s: str) -> str | None:
+        if f.multi:
+            for piece in s.split(","):
+                p = piece.strip()
+                if not p:
+                    continue
+                try:
+                    int(p)
+                except ValueError:
+                    return f"comma-separated integers expected; got {p!r}"
             return None
-        # Coerce
         try:
-            if f.multi:
-                items = [s.strip() for s in raw.split(",") if s.strip()]
-                if f.type == "int":
-                    return [int(x) for x in items]
-                return items
-            if f.type == "int":
-                return int(raw)
-            if f.type == "bool":
-                return raw.lower() in ("y", "yes", "true", "1", "on")
-            return raw
-        except ValueError as e:
-            print(f"    ! could not parse value: {e}")
+            int(s)
+        except ValueError:
+            return f"please enter a whole number (got {s!r})"
+        return None
+
+    if f.type == "bool":
+        return ui.confirm(f.label, default=(f.default.lower() in ("y", "yes", "true", "1", "on")))
+
+    if f.type == "int" and not f.multi:
+        return ui.int_text(
+            f.label,
+            default=int(f.default) if f.default else 0,
+            required=f.required,
+        )
+
+    validate = _int_validate if f.type == "int" else None
+    raw = ui.text(
+        f.label,
+        default=f.default,
+        required=f.required,
+        secret=f.secret,
+        hint=hint,
+        validate=validate,
+    )
+    if not raw:
+        return None  # optional field, blank → omit from toml
+    if f.multi:
+        items = [s.strip() for s in raw.split(",") if s.strip()]
+        if f.type == "int":
+            return [int(x) for x in items]
+        return items
+    if f.type == "int":
+        return int(raw)
+    return raw
 
 
 # ─── alias derivation ──────────────────────────────────────────────────────
@@ -97,14 +104,13 @@ def _derive_alias(uri: str) -> str:
     try:
         parsed = urlparse(uri)
         candidate = (parsed.netloc or parsed.path or "").strip("/")
-        # github://owner/repo -> 'owner-repo'
         candidate = candidate.replace("/", "-").replace(":", "-")
         return candidate or parsed.scheme
     except Exception:  # noqa: BLE001
         return uri.split("://", 1)[0]
 
 
-# ─── TOML rendering (small subset — shared with setup_wizard) ──────────────
+# ─── TOML rendering (small subset — shared style with setup_wizard) ────────
 
 
 def _format_scalar(v: Any) -> str:
@@ -142,7 +148,6 @@ def _render_toml(
     lines.append("")
     for k, v in fields.items():
         lines.append(f"{k} = {_format_scalar(v)}")
-    # Per-object blocks: text_fields + locator_fields, one [[objects]] per table.
     for obj in objects or []:
         lines.append("")
         lines.append("[[objects]]")
@@ -179,12 +184,12 @@ class _StubStateStore:
 
 
 def _introspect_and_prompt(scheme: str, uri: str, values: dict[str, Any]) -> list[dict[str, Any]]:
-    """Connect to the source with the just-collected creds, walk its tables /
-    collections, and prompt the user to confirm text_fields / locator_fields
-    per object. Returns a list of dicts ready to be rendered as `[[objects]]`
-    blocks. Returns [] if the scheme doesn't implement introspect.
+    """Connect with the just-collected creds, walk tables / collections, prompt
+    per-object for text_fields / locator_fields. Returns ready-to-render
+    [[objects]] dicts. Returns [] if the scheme doesn't implement introspect.
     """
     import asyncio
+    import contextlib
 
     from ..connectors.base import ConnectorContext
     from ..connectors.registry import get_plugin_cls, load_builtin
@@ -194,9 +199,6 @@ def _introspect_and_prompt(scheme: str, uri: str, values: dict[str, Any]) -> lis
     if plugin_cls is None:
         return []
 
-    # Build a plugin instance with the wizard-collected values as config dict.
-    # SQL plugins read via self._cfg() so a plain dict works. credential is
-    # passed as None — secrets sit in the config dict directly.
     state = _StubStateStore()
     ctx = ConnectorContext(state, connector_id="wizard", namespace_id="default")
     try:
@@ -215,11 +217,7 @@ def _introspect_and_prompt(scheme: str, uri: str, values: dict[str, Any]) -> lis
             with contextlib.suppress(Exception):
                 await plugin.close()
 
-    import contextlib
-
-    print()
-    print(f"── live introspection: {uri} ──")
-    print("   Connecting + listing tables / collections …")
+    ui.section("Live introspection", f"Connecting to {uri} and listing tables / collections …")
     try:
         introspect = asyncio.run(go())
     except _IntrospectError:
@@ -228,36 +226,28 @@ def _introspect_and_prompt(scheme: str, uri: str, values: dict[str, Any]) -> lis
         raise _IntrospectError(str(e)) from e
 
     if not introspect:
-        # Non-SQL connectors or empty source — nothing to prompt about.
-        print(
-            "   (no tables / collections to configure — the connector either doesn't\n"
-            "   support introspection or the source is empty.)"
+        ui.info(
+            "no tables / collections to configure — the connector doesn't support "
+            "introspection or the source is empty."
         )
         return []
 
-    print(f"   Found {len(introspect)} object(s). For each one you can index it as-is,")
-    print("   tweak its text_fields / locator_fields, or skip it entirely.")
+    ui.info(
+        f"found {len(introspect)} object(s). For each, you can accept the auto-detected "
+        "text / PK fields, edit them, or skip the object entirely."
+    )
     return _prompt_per_object(introspect)
 
 
 def _prompt_per_object(introspect: dict[str, dict]) -> list[dict[str, Any]]:
-    """Walk the introspect output and ask the user about each table.
-
-    UX:
-    - shows table path + column count + suggested text_fields + suggested PK
-    - "use suggestions" (y, default) → take both defaults
-    - "edit" (e)                     → prompt text_fields + locator_fields lines
-    - "skip" (s)                     → don't emit an [[objects]] block (won't index)
-    """
+    """Walk the introspect output, prompt for use / edit / skip per object."""
     objects: list[dict[str, Any]] = []
     for path, info in introspect.items():
         cols = info.get("columns", [])
         pk = info.get("pk", [])
         text_default = info.get("text_candidates", [])
-        # Some tables have no text columns at all (pure-numeric metric tables);
-        # skip them by default — text_fields = [] would index zero content.
         if not text_default and not cols:
-            print(f"\n  {path}: empty schema → skipping")
+            ui.note(f"\n  {path}: empty schema → skipping")
             continue
         col_summary = ", ".join(
             f"{c['name']}({c['type']})" + ("*" if c.get("pk") else "") for c in cols[:8]
@@ -265,33 +255,42 @@ def _prompt_per_object(introspect: dict[str, dict]) -> list[dict[str, Any]]:
         if len(cols) > 8:
             col_summary += f", …(+{len(cols) - 8} more)"
 
-        print(f"\n  {path}")
-        print(f"    columns:        {col_summary or '(none discovered)'}")
-        print(f"    suggested text: {text_default or '(none — table has no string cols)'}")
-        print(f"    suggested PK:   {pk or '(none — set locator_fields manually)'}")
-        choice = _prompt_choice(
-            "index this table?",
-            ["use", "edit", "skip"],
-            "use" if text_default else "skip",
+        ui.console.print()
+        ui.console.print(f"  [bold]{path}[/bold]")
+        ui.list_kv(
+            [
+                ("columns       ", col_summary or "(none discovered)"),
+                (
+                    "text default  ",
+                    str(text_default) if text_default else "(none — table has no string cols)",
+                ),
+                ("PK default    ", str(pk) if pk else "(none — set locator_fields manually)"),
+            ],
+            indent="    ",
+        )
+        choice = ui.select(
+            "index this object?",
+            [
+                ("use", "use the auto-detected fields above"),
+                ("edit", "type custom text_fields / locator_fields"),
+                ("skip", "don't index this object"),
+            ],
+            default="use" if text_default else "skip",
         )
         if choice == "skip":
             continue
         if choice == "use":
             text_fields = list(text_default)
             locator_fields = list(pk)
-        else:  # edit
-            raw_t = _prompt(
-                "text_fields (comma-separated)",
-                ",".join(text_default),
+        else:
+            raw_t = ui.text(
+                "text_fields (comma-separated)", default=",".join(text_default), required=True
             )
-            raw_l = _prompt(
-                "locator_fields (comma-separated)",
-                ",".join(pk),
-            )
+            raw_l = ui.text("locator_fields (comma-separated)", default=",".join(pk))
             text_fields = [s.strip() for s in raw_t.split(",") if s.strip()]
             locator_fields = [s.strip() for s in raw_l.split(",") if s.strip()]
         if not text_fields:
-            print("    (text_fields empty — this table would index zero content; skipping)")
+            ui.warn(f"{path}: text_fields empty → skipping (would index zero content)")
             continue
         block: dict[str, Any] = {"match": path, "text_fields": text_fields}
         if locator_fields:
@@ -304,16 +303,10 @@ def _prompt_per_object(introspect: dict[str, dict]) -> list[dict[str, Any]]:
 
 
 def _post_add(uri: str, config_toml: str, server_port: int = 13619) -> tuple[bool, str]:
-    """Best-effort POST /v1/add against the local server.
-
-    Returns (ok, message). If the server is unreachable we don't treat that
-    as a wizard failure — the user can start the server later and the TOML
-    is already on disk.
-    """
+    """Best-effort POST /v1/add against the local server."""
     import urllib.error
     import urllib.request
 
-    # API token: env wins, else the file the server writes on first run.
     token = os.environ.get("MFS_API_TOKEN")
     if not token:
         token_file = mfs_home() / "server.token"
@@ -385,15 +378,20 @@ def run_connector_add(
     alias = _derive_alias(uri)
     out_path = out_dir / f"{alias}.toml"
 
-    print()
-    print(f"── mfs-server connector add: {scheme} ──")
-    print(f"   {schema.summary}")
-    print(f"   URI:        {uri}")
-    print(f"   Writing to: {out_path}")
-    if out_path.exists():
-        print("   (existing file will be backed up to .bak before overwriting)")
-    print("   Press Enter to accept defaults. Ctrl-C aborts without saving.")
-    print()
+    ui.clear()
+    ui.banner(
+        f"mfs-server connector add: {scheme}",
+        lines=[
+            schema.summary,
+            f"URI:        {uri}",
+            f"Writing to: {out_path}"
+            + ("  (existing file will be backed up to .bak)" if out_path.exists() else ""),
+            "Press Ctrl-C to abort without saving",
+        ],
+    )
+
+    total = 1 + (1 if scheme in {"postgres", "mysql", "mongo", "snowflake", "bigquery"} else 0)
+    ui.section("Credentials", "", step=1, total=total)
 
     try:
         values: dict[str, Any] = {}
@@ -402,62 +400,61 @@ def run_connector_add(
             if v is not None:
                 values[f.name] = v
     except KeyboardInterrupt:
-        print("\naborted; nothing written.")
+        ui.warn("aborted; nothing written.")
         return 130
 
-    # Per-table introspection (SQL-family connectors only). connect() doubles
-    # as a credential healthcheck: if the credentials are bad we surface it
-    # here, before writing the TOML or hitting /v1/add.
     objects: list[dict[str, Any]] = []
     try:
+        if total > 1:
+            ui.section("Per-object configuration", "", step=2, total=total)
         objects = _introspect_and_prompt(scheme, uri, values)
     except KeyboardInterrupt:
-        print("\naborted; nothing written.")
+        ui.warn("aborted; nothing written.")
         return 130
     except _IntrospectError as e:
-        print(f"\n  ! could not introspect schema: {e}")
-        print("  (writing the connector TOML without [[objects]] blocks; you can")
-        print("   add them by hand later — see the connector reference docs.)")
+        ui.warn(f"could not introspect schema: {e}")
+        ui.note(
+            "writing the connector TOML without [[objects]] blocks; you can\n"
+            "  add them by hand later — see the connector reference docs."
+        )
 
     rendered = _render_toml(scheme, uri, values, schema.extras_hint, objects=objects)
 
     if out_path.exists():
         bak = out_path.with_suffix(out_path.suffix + ".bak")
         bak.write_bytes(out_path.read_bytes())
-        print(f"\nbacked up previous config to {bak}")
+        ui.note(f"backed up previous config to {bak}")
     out_path.write_text(rendered)
     try:
         out_path.chmod(0o600)
     except OSError:
         pass
-    print(f"wrote {out_path}")
+    ui.emphasis(f"wrote {out_path}")
 
     if no_sync:
-        print(
+        ui.note(
             f"\n--no-sync set; skipping server registration.\n"
-            f"To register later: `mfs add {uri} --config {out_path}`."
+            f"  To register later: `mfs add {uri} --config {out_path}`."
         )
         return 0
 
-    print("\nregistering against the local server …")
+    ui.note("\nregistering against the local server …")
     ok, msg = _post_add(uri, rendered, server_port=server_port)
     if ok:
-        print(f"  ok: {msg}")
-        print(f"\nWatch progress: `mfs status {uri}`\nList jobs:      `mfs job ls`")
+        ui.emphasis(f"  ok: {msg}")
+        ui.note(f"\n  Watch progress: `mfs status {uri}`")
+        ui.note("  List jobs:      `mfs job ls`")
         return 0
 
-    # Server unreachable / errored — still successful from the wizard's POV
-    # (TOML is on disk); just tell the user how to finish manually.
-    print(f"  could not register against local server: {msg}")
-    print(
-        f"\nTOML is saved. To register later (after starting the server):\n"
-        f"  mfs add {uri} --config {out_path}"
+    ui.warn(f"could not register against local server: {msg}")
+    ui.note(
+        f"\n  TOML is saved. To register later (after starting the server):\n"
+        f"    mfs add {uri} --config {out_path}"
     )
     return 0
 
 
 def main_entry(argv: list[str]) -> int:
-    """argparse-friendly entry. argv is the args AFTER `connector add`."""
     import argparse
 
     p = argparse.ArgumentParser(
