@@ -213,14 +213,14 @@ enum ProfileAction {
 enum ServeAction {
     /// Start a local mfs-server (detached)
     Start {
-        #[arg(long, default_value = "127.0.0.1:8765")]
+        #[arg(long, default_value = "127.0.0.1:13619")]
         bind: String,
     },
     /// Stop the local mfs-server
     Stop,
     /// Restart the local mfs-server
     Restart {
-        #[arg(long, default_value = "127.0.0.1:8765")]
+        #[arg(long, default_value = "127.0.0.1:13619")]
         bind: String,
     },
     /// Is the local mfs-server running?
@@ -354,7 +354,7 @@ fn base_url() -> String {
             return p.url.clone();
         }
     }
-    "http://127.0.0.1:8765".to_string()
+    "http://127.0.0.1:13619".to_string()
 }
 
 fn main() {

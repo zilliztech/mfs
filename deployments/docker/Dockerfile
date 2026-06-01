@@ -29,8 +29,8 @@ RUN pip install "/app/server/python${EXTRAS}"
 # data volume: SQLite metadata + Milvus Lite + cache live here (mount to persist!)
 RUN mkdir -p /data
 VOLUME ["/data"]
-EXPOSE 8765
+EXPOSE 13619
 
 # default = all-in-one; override CMD for api/worker split (see compose)
 ENTRYPOINT ["mfs-server"]
-CMD ["run", "--bind", "0.0.0.0:8765"]
+CMD ["run", "--bind", "0.0.0.0:13619"]

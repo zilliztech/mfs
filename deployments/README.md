@@ -11,15 +11,15 @@ volume. This is the runnable v0.4 topology.
 # build
 docker build -f deployments/docker/Dockerfile -t mfs-server:0.4.0 .
 # run (Lite; mount a volume to persist)
-docker run -d -p 8765:8765 -v mfs-data:/data \
+docker run -d -p 13619:13619 -v mfs-data:/data \
   -e OPENAI_API_KEY=$OPENAI_API_KEY \
   mfs-server:0.4.0
 # or with Zilliz Cloud
-docker run -d -p 8765:8765 -v mfs-data:/data \
+docker run -d -p 13619:13619 -v mfs-data:/data \
   -e MFS_MILVUS_URI=$ZILLIZ_URI -e MFS_MILVUS_TOKEN=$ZILLIZ_TOKEN \
   -e OPENAI_API_KEY=$OPENAI_API_KEY \
   mfs-server:0.4.0
-curl localhost:8765/v1/server/info
+curl localhost:13619/v1/server/info
 ```
 
 The server boots without `OPENAI_API_KEY` (browse: ls/cat/grep/status work); the
