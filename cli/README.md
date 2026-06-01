@@ -28,7 +28,7 @@ cargo install mfs-cli
 
 ## Quickstart
 
-Assumes the server is running on `127.0.0.1:8765` (the CLI's default
+Assumes the server is running on `127.0.0.1:13619` (the CLI's default
 endpoint). See the main repo for how to start it.
 
 ```bash
@@ -43,7 +43,7 @@ mfs cat file://my-repo/src/throttle.go --range 42:78
 ## Pointing at a non-default server
 
 ```bash
-export MFS_API_URL=http://my-server:8765
+export MFS_API_URL=http://my-server:13619
 mfs status
 ```
 

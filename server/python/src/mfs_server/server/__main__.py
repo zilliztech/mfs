@@ -46,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
     for name in ("run", "api"):
         sp = sub.add_parser(name)
-        sp.add_argument("--bind", default="127.0.0.1:8765")
+        sp.add_argument("--bind", default="127.0.0.1:13619")
         sp.add_argument("--config", default=None)
     wk = sub.add_parser("worker")
     wk.add_argument("--config", default=None)
@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         _ensure_auth_token(cfg)
         host, _, port = args.bind.partition(":")
         app = create_app(cfg)
-        uvicorn.run(app, host=host, port=int(port or "8765"))
+        uvicorn.run(app, host=host, port=int(port or "13619"))
         return 0
 
     if args.cmd == "worker":

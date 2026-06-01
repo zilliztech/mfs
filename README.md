@@ -70,7 +70,7 @@ cd mfs/server/python
 # uv installs all required deps into a local venv
 uv sync
 
-# starts on 127.0.0.1:8765 by default (matches the CLI's default endpoint)
+# starts on 127.0.0.1:13619 by default (matches the CLI's default endpoint)
 uv run mfs-server run
 ```
 
@@ -94,7 +94,7 @@ uv run --project ../server/python maturin develop --release
 
 ## Try it
 
-With the server running on `127.0.0.1:8765`:
+With the server running on `127.0.0.1:13619`:
 
 ```bash
 mfs status                      # server up? connectors registered?

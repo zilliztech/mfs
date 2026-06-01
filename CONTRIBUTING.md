@@ -50,7 +50,7 @@ cargo build --release        # ./target/release/mfs
 cd server/python
 uv sync                          # default deps
 uv sync --extra all-connectors   # include every connector SDK
-uv run mfs-server run            # 127.0.0.1:8765
+uv run mfs-server run            # 127.0.0.1:13619
 ```
 
 Server state (Milvus Lite, sqlite metadata, cache) lives under `$MFS_HOME`
