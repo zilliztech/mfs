@@ -14,7 +14,6 @@ mfs/
 ├── sdks/python/      Python SDK (auto-generated from protocol/openapi.yaml).
 ├── sdks/typescript/  TypeScript SDK (auto-generated).
 ├── protocol/         OpenAPI spec — source of truth for HTTP / SDK shape.
-├── design/           Design docs (numbered 01-10).
 ├── skills/mfs/       Agent skill + per-connector reference.
 ├── deployments/      Helm chart + container manifests.
 └── evaluation/       Embedding / retrieval benchmarks.
@@ -81,9 +80,10 @@ cd cli
 cargo test
 ```
 
-End-to-end suites (Phase 14) live under `server/python/tests/` and require
-a real OpenAI key plus, for each connector, valid credentials for that
-SaaS. Run them only when you have the credentials configured.
+The `server/python/tests/` directory holds public unit + smoke tests.
+Integration / e2e suites that depend on real SaaS credentials live in a
+separate internal harness — add a `live` marker (`@pytest.mark.live`) when
+contributing a test that talks to a real external API so CI can skip it.
 
 ## Lint and format
 

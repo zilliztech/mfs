@@ -108,10 +108,8 @@ mfs cat file://my-repo/src/throttle.go --range 42:78
 
 Beyond `file://`, MFS ships connectors for postgres, mysql, snowflake,
 mongo, github, jira, hubspot, salesforce, notion, zendesk, slack, discord,
-gmail, feishu, s3, web — twenty schemes in total. See
-[`design/09-connector-catalog.md`](design/09-connector-catalog.md) for the
-catalog and [`design/03-cli-commands.md`](design/03-cli-commands.md) for
-the full CLI surface.
+gmail, feishu, s3, web — twenty schemes in total. Run `mfs connector ls`
+for the registered catalog and `mfs --help` for the full CLI surface.
 
 ## For agents
 
@@ -127,25 +125,23 @@ Concretely:
 
 - ✅ CLI: stable surface for the documented commands.
 - ✅ Server: 20-scheme connector matrix, hybrid search, rename detection,
-  incremental sync. Phase-14 e2e suites exercise the major flows.
+  incremental sync.
 - ⚠ Distribution: only the CLI is published. Server / SDK / Rust wheel
   run from source.
-- ⚠ APIs marked "stable" in design docs may still shift before `v0.4.0` —
-  please pin the version in any scripts you write against the beta.
+- ⚠ The HTTP API may still shift before `v0.4.0` stable — pin the version
+  in any scripts you write against the beta.
 
 Found a bug? Surprising behaviour? Open an issue at
 https://github.com/zilliztech/mfs/issues.
 
 ## Docs
 
-- [`design/01-overview.md`](design/01-overview.md) — what MFS is and why
-- [`design/02-architecture.md`](design/02-architecture.md) — server layout, storage backends, deployment modes
-- [`design/03-cli-commands.md`](design/03-cli-commands.md) — every CLI command, every flag
-- [`design/04-connector-and-ingest.md`](design/04-connector-and-ingest.md) — how connectors work, how to write one
-- [`design/06-search-and-retrieval.md`](design/06-search-and-retrieval.md) — embedding, chunking, ranking, modes
-- [`design/09-connector-catalog.md`](design/09-connector-catalog.md) — per-connector URI / auth / config reference
-- [`design/10-packaging-and-deployment.md`](design/10-packaging-and-deployment.md) — packaging, profiles, CS upload flow
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup, testing, lint, commit / PR conventions
+- [`skills/mfs/SKILL.md`](skills/mfs/SKILL.md) — agent skill (also the most
+  concise human reference for the CLI workflow)
+- [`skills/mfs/references/`](skills/mfs/references/) — per-connector "Open
+  WHEN" pages: URI shape, auth, config, gotchas
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup, testing, lint, commit /
+  PR conventions
 
 ## License
 

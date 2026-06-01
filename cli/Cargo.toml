@@ -8,7 +8,6 @@ readme = "README.md"
 license = "Apache-2.0"
 repository = "https://github.com/zilliztech/mfs"
 homepage = "https://github.com/zilliztech/mfs"
-documentation = "https://github.com/zilliztech/mfs/tree/main/design"
 keywords = ["search", "semantic", "milvus", "agent", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 

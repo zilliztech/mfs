@@ -75,7 +75,6 @@ mfs-server = "mfs_server.server.__main__:main"
 [project.urls]
 Homepage = "https://github.com/zilliztech/mfs"
 Repository = "https://github.com/zilliztech/mfs"
-Documentation = "https://github.com/zilliztech/mfs/tree/main/design"
 Issues = "https://github.com/zilliztech/mfs/issues"
 
 [build-system]
@@ -96,7 +95,7 @@ testpaths = ["tests"]
 # Native hot-path acceleration lives in server-rs/ (PyO3, built with maturin:
 # `cd server-rs && maturin develop --release`). It is OPTIONAL at runtime —
 # mfs_server.common.accel falls back to pure Python when the wheel isn't installed.
-# A release ships it as a per-platform wheel bundled with mfs-server (design/10 §6).
+# A release ships it as a per-platform wheel bundled with mfs-server.
 
 [dependency-groups]
 dev = [
