@@ -1,0 +1,25 @@
+# Run locally with `pre-commit install`. Hooks only enforce formatting; lint
+# rules are deliberately loose until the v0.4.0 stable cut.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.4
+    hooks:
+      - id: ruff-format
+        # Skip auto-generated SDK code — regenerated wholesale from openapi.yaml.
+        exclude: ^sdks/
+
+  - repo: local
+    hooks:
+      - id: cargo-fmt-cli
+        name: cargo fmt (cli/)
+        entry: bash -c 'cd cli && cargo fmt --all'
+        language: system
+        files: ^cli/.*\.rs$
+        pass_filenames: false
+      - id: cargo-fmt-server-rs
+        name: cargo fmt (server-rs/)
+        entry: bash -c 'cd server-rs && cargo fmt --all'
+        language: system
+        files: ^server-rs/.*\.rs$
+        pass_filenames: false

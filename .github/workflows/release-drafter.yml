@@ -1,0 +1,28 @@
+# Auto-label PRs from conventional commit titles and maintain a draft release.
+# Config: .github/release-drafter.yml
+#
+# The release-drafter config must exist on the default branch (main); the
+# first run after this lands on main bootstraps the setup.
+
+name: Release Drafter
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Update release draft
+        uses: release-drafter/release-drafter@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

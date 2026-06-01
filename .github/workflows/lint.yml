@@ -1,0 +1,57 @@
+# Format checks on push/PR to main.
+#
+# Two independent jobs so the Rust / Python sides can fail / pass independently
+# and we don't pay Python setup time on a Rust-only PR (or vice-versa). Lint
+# rules beyond formatting are deliberately not enforced for v0.4.0-beta.1 —
+# they'll be tightened before v0.4.0 stable.
+
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ruff:
+    name: ruff format (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install server dev deps
+        working-directory: server/python
+        run: uv sync --extra dev
+
+      - name: ruff format --check (server)
+        working-directory: server/python
+        run: uv run ruff format --check src/ tests/
+
+  rustfmt:
+    name: cargo fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: cargo fmt --check (cli)
+        working-directory: cli
+        run: cargo fmt --all -- --check
+
+      - name: cargo fmt --check (server-rs)
+        working-directory: server-rs
+        run: cargo fmt --all -- --check

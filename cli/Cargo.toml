@@ -1,9 +1,19 @@
 [package]
-name = "mfs"
-version = "0.4.0"
+name = "mfs-cli"
+version = "0.4.0-beta.1"
 edition = "2021"
+authors = ["Cheney Zhang <chen.zhang@zilliz.com>"]
 description = "MFS CLI — shell-native client for Multi-source File-like Search"
+readme = "README.md"
+license = "Apache-2.0"
+repository = "https://github.com/zilliztech/mfs"
+homepage = "https://github.com/zilliztech/mfs"
+documentation = "https://github.com/zilliztech/mfs/tree/main/design"
+keywords = ["search", "semantic", "milvus", "agent", "cli"]
+categories = ["command-line-utilities", "development-tools"]
 
+# The binary is `mfs`, the crate is `mfs-cli`. `cargo install mfs-cli` puts
+# the `mfs` binary on the user's PATH; that's the documented entry point.
 [[bin]]
 name = "mfs"
 path = "src/main.rs"
@@ -20,3 +30,8 @@ flate2 = "1"
 
 [profile.release]
 opt-level = 2
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

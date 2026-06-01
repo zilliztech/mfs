@@ -1,12 +1,13 @@
 [project]
 name = "mfs_sdk"
-version = "0.4.0"
-description = "MFS"
+version = "0.4.0-beta.1"
+description = "Python SDK for MFS (Multi-source File-like Search) — auto-generated from protocol/openapi.yaml"
 authors = [
-  {name = "OpenAPI Generator Community",email = "team@openapitools.org"},
+  {name = "Cheney Zhang", email = "chen.zhang@zilliz.com"},
 ]
 readme = "README.md"
-keywords = ["OpenAPI", "OpenAPI-Generator", "MFS"]
+license = "Apache-2.0"
+keywords = ["mfs", "milvus", "search", "openapi"]
 requires-python = ">=3.9"
 
 dependencies = [
@@ -17,7 +18,9 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/GIT_USER_ID/GIT_REPO_ID"
+Homepage = "https://github.com/zilliztech/mfs"
+Repository = "https://github.com/zilliztech/mfs"
+Issues = "https://github.com/zilliztech/mfs/issues"
 
 [tool.poetry]
 requires-poetry = ">=2.0"

@@ -1,9 +1,12 @@
 [package]
 name = "mfs-server-rs"
-version = "0.4.0"
+version = "0.4.0-beta.1"
 edition = "2021"
+authors = ["Cheney Zhang <chen.zhang@zilliz.com>"]
 description = "MFS server hot-path acceleration (PyO3): gitignore walk, parallel hashing, grep, tail"
 license = "Apache-2.0"
+repository = "https://github.com/zilliztech/mfs"
+homepage = "https://github.com/zilliztech/mfs"
 
 [lib]
 name = "mfs_server_rs"

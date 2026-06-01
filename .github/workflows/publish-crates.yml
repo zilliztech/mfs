@@ -1,0 +1,41 @@
+# Publish mfs-cli to crates.io when a version tag is pushed.
+# Runs in parallel with the main Release workflow (which builds binaries
+# and creates a GitHub Release). Both trigger on the same tag.
+#
+# Requires repo secret CARGO_REGISTRY_TOKEN — generated on crates.io
+# (Account → API Tokens) and added under Settings → Secrets → Actions.
+
+name: Publish crates.io
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: cargo publish mfs-cli
+    runs-on: ubuntu-latest
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify tag matches Cargo.toml version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          CARGO_VERSION=$(grep -m1 '^version' cli/Cargo.toml | sed -E 's/version *= *"([^"]+)"/\1/')
+          if [ "$TAG" != "$CARGO_VERSION" ]; then
+            echo "Tag $TAG does not match cli/Cargo.toml version $CARGO_VERSION"
+            exit 1
+          fi
+
+      - name: cargo publish
+        working-directory: cli
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --locked

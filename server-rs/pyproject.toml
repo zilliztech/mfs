@@ -4,13 +4,24 @@ build-backend = "maturin"
 
 [project]
 name = "mfs-server-rs"
-version = "0.4.0"
+version = "0.4.0-beta.1"
 description = "MFS server hot-path acceleration (PyO3): directory scan, JSONL streaming, linear grep"
+readme = "../README.md"
+license = "Apache-2.0"
+authors = [
+    { name = "Cheney Zhang", email = "chen.zhang@zilliz.com" },
+]
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
 ]
+
+[project.urls]
+Homepage = "https://github.com/zilliztech/mfs"
+Repository = "https://github.com/zilliztech/mfs"
 
 [tool.maturin]
 # abi3 wheel — one wheel per platform works across CPython >= 3.10

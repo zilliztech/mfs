@@ -1,8 +1,21 @@
 [project]
 name = "mfs-server"
-version = "0.4.0"
+version = "0.4.0-beta.1"
 description = "MFS server — Multi-source File-like Search (heavy side: connectors, ingest, retrieval, storage)"
+readme = "../../README.md"
+license = "Apache-2.0"
+authors = [
+    { name = "Cheney Zhang", email = "chen.zhang@zilliz.com" },
+]
 requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "pymilvus>=2.5",
     "openai>=1.40",
@@ -58,6 +71,12 @@ embedding-onnx = [
 
 [project.scripts]
 mfs-server = "mfs_server.server.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/zilliztech/mfs"
+Repository = "https://github.com/zilliztech/mfs"
+Documentation = "https://github.com/zilliztech/mfs/tree/main/design"
+Issues = "https://github.com/zilliztech/mfs/issues"
 
 [build-system]
 requires = ["hatchling"]

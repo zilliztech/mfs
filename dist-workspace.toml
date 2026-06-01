@@ -1,0 +1,29 @@
+[workspace]
+members = ["cargo:./cli"]
+
+# Config for 'dist' (formerly 'cargo-dist').
+# Docs: https://opensource.axo.dev/cargo-dist/
+[dist]
+# The preferred dist version to use in CI
+cargo-dist-version = "0.32.0"
+# CI backend
+ci = "github"
+# Installers to generate per release
+installers = ["shell"]
+# Target platforms (Rust target-triple syntax). v0.4.0-beta.1: Linux + macOS only.
+# musl variants for Linux give a static, distro-portable binary.
+targets = [
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+]
+# Path that the installer drops the binary into
+install-path = "CARGO_HOME"
+# Where to host releases
+hosting = "github"
+# Don't install an updater program — the install script already detects
+# the latest GitHub release and is idempotent (re-running upgrades in place).
+install-updater = false
+# On PRs, only run the planning step (no full multi-platform builds — fast).
+pr-run-mode = "plan"

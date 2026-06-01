@@ -1,12 +1,18 @@
 {
   "name": "@mfs/sdk",
-  "version": "0.4.0",
-  "description": "OpenAPI client for @mfs/sdk",
-  "author": "OpenAPI-Generator",
+  "version": "0.4.0-beta.1",
+  "description": "TypeScript SDK for MFS (Multi-source File-like Search) — auto-generated from protocol/openapi.yaml",
+  "author": "Cheney Zhang <chen.zhang@zilliz.com>",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/GIT_USER_ID/GIT_REPO_ID.git"
+    "url": "https://github.com/zilliztech/mfs.git"
   },
+  "homepage": "https://github.com/zilliztech/mfs",
+  "bugs": {
+    "url": "https://github.com/zilliztech/mfs/issues"
+  },
+  "keywords": ["mfs", "milvus", "search", "openapi"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/esm/index.js",

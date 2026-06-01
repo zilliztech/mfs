@@ -1,0 +1,152 @@
+# MFS — Multi-source File-like Search
+
+> Agent-native file search CLI for large local workspaces, ideal for managing memory, skill, codebase and knowledgebase.
+
+MFS exposes any heterogeneous data source — a codebase, a docs site, a
+database, a SaaS workspace — through the same shell verbs you already use
+on the filesystem: `ls`, `cat`, `tree`, `head`, `tail`, `grep`. On top of
+that, `mfs search` runs hybrid semantic + literal retrieval across one or
+many sources at once.
+
+It was designed to be the search/read surface for AI agents. Every command
+returns predictable structured output so an agent (or a human) can chain
+search → locate → browse without parsing prose.
+
+```
+        search                locate                  browse
+  ┌──────────────────┐   ┌──────────────────┐   ┌─────────────────────┐
+  │  semantic + BM25 │ → │ result has lines │ → │  cat --range / cat  │
+  │  finds candidate │   │  or a locator    │   │  --peek to confirm  │
+  │  files / rows    │   │  → reopen exact  │   │  context            │
+  └──────────────────┘   └──────────────────┘   └─────────────────────┘
+```
+
+This is the **`v0.4.0-beta.1` release** — an early-access build. The CLI is
+shipped as a static binary; the server runs in dev mode from this repo.
+See [Status](#status) for what's stable and what isn't.
+
+## Install the CLI
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.1/mfs-cli-installer.sh | sh
+```
+
+(The script name carries the crate name `mfs-cli`; the installed binary is `mfs`.)
+
+Or via cargo:
+
+```bash
+cargo install mfs-cli --version 0.4.0-beta.1
+```
+
+The binary is named `mfs`. Verify:
+
+```bash
+mfs --version
+```
+
+**Pre-built platforms**:
+
+- Linux x86_64 (musl, static)
+- Linux ARM64 (musl, static)
+- macOS x86_64 (Intel)
+- macOS ARM64 (Apple Silicon)
+
+> **macOS note**: the binary is **not yet code-signed**, so the first launch
+> may prompt "unidentified developer". Either allow it in System Settings →
+> Privacy & Security, or run `xattr -d com.apple.quarantine $(which mfs)`
+> once after install.
+
+## Run the server (dev mode)
+
+The server is a Python FastAPI app. For `v0.4.0-beta.1` it is **not** published
+to PyPI — clone the repo and run it from source:
+
+```bash
+git clone https://github.com/zilliztech/mfs.git
+cd mfs/server/python
+
+# uv installs all required deps into a local venv
+uv sync
+
+# starts on 127.0.0.1:8765 by default (matches the CLI's default endpoint)
+uv run mfs-server run
+```
+
+**Connector extras** (optional — install only what you need):
+
+```bash
+uv sync --extra pg          # postgres
+uv sync --extra slack       # Slack
+uv sync --extra all-connectors   # everything
+```
+
+**Optional Rust hot-path acceleration** (`server-rs`): the server transparently
+uses a Rust extension for directory walks, parallel hashing, grep and tail
+when available. Without it, it falls back to pure Python — identical
+behaviour, just slower on big inputs. To install:
+
+```bash
+cd server-rs
+uv run --project ../server/python maturin develop --release
+```
+
+## Try it
+
+With the server running on `127.0.0.1:8765`:
+
+```bash
+mfs status                      # server up? connectors registered?
+mfs add ./my-repo               # register a directory, indexes in the background
+mfs status file://my-repo       # poll until 'available'
+
+mfs search "rate limit handler" --connector-uri file://my-repo --top-k 5
+# Hit returns: file path + line range
+mfs cat file://my-repo/src/throttle.go --range 42:78
+```
+
+Beyond `file://`, MFS ships connectors for postgres, mysql, snowflake,
+mongo, github, jira, hubspot, salesforce, notion, zendesk, slack, discord,
+gmail, feishu, s3, web — twenty schemes in total. See
+[`design/09-connector-catalog.md`](design/09-connector-catalog.md) for the
+catalog and [`design/03-cli-commands.md`](design/03-cli-commands.md) for
+the full CLI surface.
+
+## For agents
+
+If you're an agent reading this, the matching SKILL is at
+[`skills/mfs/SKILL.md`](skills/mfs/SKILL.md). Connector-specific reference
+material is in [`skills/mfs/references/`](skills/mfs/references/) — load
+each file only when the situation matches its "Open WHEN" line.
+
+## Status
+
+`v0.4.0-beta.1` is a **public beta** intended for evaluation and feedback.
+Concretely:
+
+- ✅ CLI: stable surface for the documented commands.
+- ✅ Server: 20-scheme connector matrix, hybrid search, rename detection,
+  incremental sync. Phase-14 e2e suites exercise the major flows.
+- ⚠ Distribution: only the CLI is published. Server / SDK / Rust wheel
+  run from source.
+- ⚠ APIs marked "stable" in design docs may still shift before `v0.4.0` —
+  please pin the version in any scripts you write against the beta.
+
+Found a bug? Surprising behaviour? Open an issue at
+https://github.com/zilliztech/mfs/issues.
+
+## Docs
+
+- [`design/01-overview.md`](design/01-overview.md) — what MFS is and why
+- [`design/02-architecture.md`](design/02-architecture.md) — server layout, storage backends, deployment modes
+- [`design/03-cli-commands.md`](design/03-cli-commands.md) — every CLI command, every flag
+- [`design/04-connector-and-ingest.md`](design/04-connector-and-ingest.md) — how connectors work, how to write one
+- [`design/06-search-and-retrieval.md`](design/06-search-and-retrieval.md) — embedding, chunking, ranking, modes
+- [`design/09-connector-catalog.md`](design/09-connector-catalog.md) — per-connector URI / auth / config reference
+- [`design/10-packaging-and-deployment.md`](design/10-packaging-and-deployment.md) — packaging, profiles, CS upload flow
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup, testing, lint, commit / PR conventions
+
+## License
+
+Apache-2.0. See [`LICENSE`](LICENSE).
