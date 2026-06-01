@@ -288,3 +288,42 @@ class SnowflakePlugin(ConnectorPlugin):
         for p in set(old) - set(seen):
             yield ObjectChange(p, "deleted")
         await self.state.set("tables", seen)
+
+    async def introspect_for_wizard(self) -> dict[str, dict]:
+        from ..base import pick_text_candidates, safe_ident
+
+        out: dict[str, dict] = {}
+        for db in await self._databases():
+            for schema in await self._schemas(db):
+                for table in await self._tables(db, schema):
+                    col_rows = await self._query(
+                        f'SELECT column_name, data_type FROM "{safe_ident(db)}".'
+                        "information_schema.columns "
+                        "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position",
+                        (schema, table),
+                    )
+                    # Snowflake exposes PKs via information_schema.table_constraints
+                    pk_rows = await self._query(
+                        f'SELECT column_name FROM "{safe_ident(db)}".'
+                        "information_schema.key_column_usage k "
+                        "JOIN information_schema.table_constraints c "
+                        " ON k.constraint_name = c.constraint_name "
+                        "WHERE c.constraint_type='PRIMARY KEY' "
+                        " AND k.table_schema=%s AND k.table_name=%s",
+                        (schema, table),
+                    )
+                    pk = [r["COLUMN_NAME"] for r in pk_rows]
+                    cols = [
+                        {
+                            "name": r["COLUMN_NAME"],
+                            "type": r["DATA_TYPE"],
+                            "pk": r["COLUMN_NAME"] in pk,
+                        }
+                        for r in col_rows
+                    ]
+                    out[f"/{db}/{schema}/tables/{table}"] = {
+                        "columns": cols,
+                        "pk": pk,
+                        "text_candidates": pick_text_candidates(cols),
+                    }
+        return out

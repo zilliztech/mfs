@@ -204,3 +204,27 @@ class BigQueryPlugin(ConnectorPlugin):
         for p in set(old) - set(seen):
             yield ObjectChange(p, "deleted")
         await self.state.set("tables", seen)
+
+    async def introspect_for_wizard(self) -> dict[str, dict]:
+        from ..base import pick_text_candidates
+
+        out: dict[str, dict] = {}
+        for dataset in await self._datasets():
+            for table in await self._tables(dataset):
+                # BQ table.schema gives [SchemaField] objects; mode='REPEATED' /
+                # 'NULLABLE' / 'REQUIRED'. PKs aren't a first-class concept in
+                # BQ — most tables don't declare them. We surface the schema
+                # fields and let the user pick locator_fields manually.
+                tbl = await asyncio.to_thread(
+                    lambda d=dataset, t=table: self._client.get_table(f"{d}.{t}")
+                )
+                cols = [
+                    {"name": f.name, "type": str(f.field_type).lower(), "pk": False}
+                    for f in tbl.schema
+                ]
+                out[f"/{dataset}/tables/{table}"] = {
+                    "columns": cols,
+                    "pk": [],
+                    "text_candidates": pick_text_candidates(cols),
+                }
+        return out

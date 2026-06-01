@@ -226,6 +226,39 @@ class PostgresPlugin(ConnectorPlugin):
             yield ObjectChange(p, "deleted")
         await self.state.set("tables", seen)
 
+    async def introspect_for_wizard(self) -> dict[str, dict]:
+        from ..base import pick_text_candidates
+
+        out: dict[str, dict] = {}
+        for schema in self._cfg("schemas", ["public"]):
+            for table in await self._list_tables(schema):
+                async with self._pool.acquire() as c:
+                    col_rows = await c.fetch(
+                        "SELECT column_name, data_type FROM information_schema.columns "
+                        "WHERE table_schema=$1 AND table_name=$2 ORDER BY ordinal_position",
+                        schema,
+                        table,
+                    )
+                    pk_rows = await c.fetch(
+                        "SELECT a.attname FROM pg_index i "
+                        "JOIN pg_attribute a ON a.attrelid = i.indrelid "
+                        "AND a.attnum = ANY(i.indkey) "
+                        "WHERE i.indrelid = ($1 || '.' || $2)::regclass AND i.indisprimary",
+                        schema,
+                        table,
+                    )
+                pk = [r["attname"] for r in pk_rows]
+                cols = [
+                    {"name": r["column_name"], "type": r["data_type"], "pk": r["column_name"] in pk}
+                    for r in col_rows
+                ]
+                out[f"/{schema}/{table}"] = {
+                    "columns": cols,
+                    "pk": pk,
+                    "text_candidates": pick_text_candidates(cols),
+                }
+        return out
+
     async def grep(
         self, pattern: str, path: str, options: GrepOptions
     ) -> Optional[AsyncIterator[GrepMatch]]:

@@ -171,3 +171,32 @@ class MongoPlugin(ConnectorPlugin):
         for p in set(old) - set(seen):
             yield ObjectChange(p, "deleted")
         await self.state.set("collections", seen)
+
+    async def introspect_for_wizard(self) -> dict[str, dict]:
+        """Mongo is schemaless — sample one doc per collection and infer
+        fields from its keys. _id is always the PK."""
+        from ..base import pick_text_candidates
+
+        out: dict[str, dict] = {}
+        db = self._db()
+        for coll_name in await self._collections():
+            sample = await db[coll_name].find_one()
+            if not sample:
+                out[f"/{coll_name}"] = {"columns": [], "pk": ["_id"], "text_candidates": []}
+                continue
+            cols = []
+            for k, v in sample.items():
+                t = type(v).__name__
+                # Map python types -> SQL-ish category so pick_text_candidates
+                # picks up actual string fields.
+                if isinstance(v, str):
+                    t = "string"
+                elif isinstance(v, dict):
+                    t = "object"
+                cols.append({"name": k, "type": t, "pk": k == "_id"})
+            out[f"/{coll_name}"] = {
+                "columns": cols,
+                "pk": ["_id"],
+                "text_candidates": pick_text_candidates(cols),
+            }
+        return out

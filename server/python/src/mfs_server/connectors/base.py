@@ -46,6 +46,60 @@ EnumerationMode = Literal["full", "incremental", "explicit_only"]
 _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 
+_TEXT_FIELD_NAME_PATTERN = re.compile(
+    r"^("
+    r"title|name|label|subject|summary|"
+    r"description|details?|body|content|text|message|comment|notes?|memo|excerpt|abstract|"
+    r"category|tag|reason|status|"
+    r"html|markdown|caption"
+    r")(_\w+)?$",
+    re.IGNORECASE,
+)
+
+
+def pick_text_candidates(columns: list[dict]) -> list[str]:
+    """Heuristic: from the column list, return likely text-field candidates.
+
+    Order: name-matching string columns first (title/description/body/...),
+    then any other string columns. Caller (wizard) picks the top few and
+    prompts the user to confirm.
+
+    Each column dict must have keys: name (str), type (str), and may
+    optionally carry a 'pk' bool (ignored here).
+    """
+    string_types = (
+        "varchar",
+        "text",
+        "char",
+        "character",
+        "string",
+        "longtext",
+        "mediumtext",
+        "tinytext",
+        "nvarchar",
+        "ntext",
+        "clob",
+        "json",
+        "jsonb",
+        "object",
+    )
+    name_matches: list[str] = []
+    other_strings: list[str] = []
+    for c in columns:
+        if c.get("pk"):
+            continue  # PKs aren't text fields
+        col_type = str(c.get("type", "")).lower()
+        is_string = any(t in col_type for t in string_types)
+        if not is_string:
+            continue
+        col_name = c["name"]
+        if _TEXT_FIELD_NAME_PATTERN.match(col_name):
+            name_matches.append(col_name)
+        else:
+            other_strings.append(col_name)
+    return name_matches + other_strings
+
+
 def safe_ident(name: str) -> str:
     """Validate a SQL identifier (schema/table/column/object) before interpolating it
     into a query string. Connectors derive these from user-supplied paths (cat/head a
@@ -302,6 +356,30 @@ class ConnectorPlugin(ABC):
 
     async def healthcheck(self) -> HealthStatus:
         return HealthStatus(ok=True)
+
+    async def introspect_for_wizard(self) -> dict[str, dict]:
+        """Per-object schema preview for the `mfs-server connector add` wizard.
+
+        SQL-family connectors override this to surface each table /
+        collection's columns + primary-key + heuristically-suggested
+        text-field candidates so the wizard can pre-populate
+        text_fields / locator_fields rather than ask the user to type them
+        in by hand.
+
+        Return shape:
+            {
+                "<object_path>": {
+                    "columns": [{"name": "id", "type": "integer", "pk": True}, ...],
+                    "pk": ["id"],
+                    "text_candidates": ["title", "description"],
+                },
+                ...
+            }
+
+        Default {} = the wizard skips the per-table step for this scheme
+        (file / web / SaaS connectors don't need a schema preview).
+        """
+        return {}
 
     # --- required: core IO ---
     @abstractmethod

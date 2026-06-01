@@ -222,6 +222,29 @@ class MySQLPlugin(ConnectorPlugin):
             yield ObjectChange(p, "deleted")
         await self.state.set("tables", seen)
 
+    async def introspect_for_wizard(self) -> dict[str, dict]:
+        from ..base import pick_text_candidates
+
+        db = self._cfg("database")
+        out: dict[str, dict] = {}
+        for table in await self._list_tables():
+            async with self._pool.acquire() as c:
+                async with c.cursor() as cur:
+                    await cur.execute(
+                        "SELECT column_name, data_type, column_key FROM information_schema.columns "
+                        "WHERE table_schema=%s AND table_name=%s ORDER BY ordinal_position",
+                        (db, table),
+                    )
+                    rows = await cur.fetchall()
+            pk = [r[0] for r in rows if r[2] == "PRI"]
+            cols = [{"name": r[0], "type": r[1], "pk": r[0] in pk} for r in rows]
+            out[f"/{table}"] = {
+                "columns": cols,
+                "pk": pk,
+                "text_candidates": pick_text_candidates(cols),
+            }
+        return out
+
     async def grep(
         self, pattern: str, path: str, options: GrepOptions
     ) -> Optional[AsyncIterator[GrepMatch]]:

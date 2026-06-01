@@ -50,6 +50,15 @@ def _prompt(label: str, default: str = "", *, secret: bool = False) -> str:
     return val if val else default
 
 
+def _prompt_choice(label: str, choices: list[str], default: str) -> str:
+    options = "/".join(c + ("*" if c == default else "") for c in choices)
+    while True:
+        val = _prompt(f"{label} ({options})", default).lower()
+        if val in choices:
+            return val
+        print(f"    ! please choose one of: {', '.join(choices)}")
+
+
 def _prompt_field(f: ConnectorField) -> Any:
     if f.help:
         print(f"    ({f.help})")
@@ -109,7 +118,14 @@ def _format_scalar(v: Any) -> str:
     return f'"{s}"'
 
 
-def _render_toml(scheme: str, uri: str, fields: dict[str, Any], extras_hint: str) -> str:
+def _render_toml(
+    scheme: str,
+    uri: str,
+    fields: dict[str, Any],
+    extras_hint: str,
+    *,
+    objects: list[dict[str, Any]] | None = None,
+) -> str:
     lines = [
         f"# mfs-server connector config — {scheme}",
         f"# URI: {uri}",
@@ -126,8 +142,162 @@ def _render_toml(scheme: str, uri: str, fields: dict[str, Any], extras_hint: str
     lines.append("")
     for k, v in fields.items():
         lines.append(f"{k} = {_format_scalar(v)}")
+    # Per-object blocks: text_fields + locator_fields, one [[objects]] per table.
+    for obj in objects or []:
+        lines.append("")
+        lines.append("[[objects]]")
+        for k, v in obj.items():
+            lines.append(f"{k} = {_format_scalar(v)}")
     lines.append("")
     return "\n".join(lines)
+
+
+# ─── introspection + per-table prompt ──────────────────────────────────────
+
+
+class _IntrospectError(Exception):
+    """Wraps non-KeyboardInterrupt failures (auth, network, missing tables, ...)
+    from connect() / introspect_for_wizard() so the runner can keep going with
+    no [[objects]] blocks rather than abort."""
+
+
+class _StubStateStore:
+    """No-op StateStore for the wizard. introspect_for_wizard() doesn't touch
+    state, but ConnectorPlugin.__init__ requires one."""
+
+    async def get(self, key: str) -> Any:
+        return None
+
+    async def set(self, key: str, value: Any) -> None:
+        return None
+
+    async def delete(self, key: str) -> None:
+        return None
+
+    async def checkpoint(self) -> None:
+        return None
+
+
+def _introspect_and_prompt(scheme: str, uri: str, values: dict[str, Any]) -> list[dict[str, Any]]:
+    """Connect to the source with the just-collected creds, walk its tables /
+    collections, and prompt the user to confirm text_fields / locator_fields
+    per object. Returns a list of dicts ready to be rendered as `[[objects]]`
+    blocks. Returns [] if the scheme doesn't implement introspect.
+    """
+    import asyncio
+
+    from ..connectors.base import ConnectorContext
+    from ..connectors.registry import get_plugin_cls, load_builtin
+
+    load_builtin()
+    plugin_cls = get_plugin_cls(scheme)
+    if plugin_cls is None:
+        return []
+
+    # Build a plugin instance with the wizard-collected values as config dict.
+    # SQL plugins read via self._cfg() so a plain dict works. credential is
+    # passed as None — secrets sit in the config dict directly.
+    state = _StubStateStore()
+    ctx = ConnectorContext(state, connector_id="wizard", namespace_id="default")
+    try:
+        plugin = plugin_cls(config=dict(values), credential=None, ctx=ctx)
+    except Exception as e:  # noqa: BLE001
+        raise _IntrospectError(f"plugin instantiation failed: {e}") from e
+
+    async def go() -> dict[str, dict]:
+        try:
+            await plugin.connect()
+        except Exception as e:  # noqa: BLE001
+            raise _IntrospectError(f"connect failed (check credentials?): {e}") from e
+        try:
+            return await plugin.introspect_for_wizard()
+        finally:
+            with contextlib.suppress(Exception):
+                await plugin.close()
+
+    import contextlib
+
+    print()
+    print(f"── live introspection: {uri} ──")
+    print("   Connecting + listing tables / collections …")
+    try:
+        introspect = asyncio.run(go())
+    except _IntrospectError:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise _IntrospectError(str(e)) from e
+
+    if not introspect:
+        # Non-SQL connectors or empty source — nothing to prompt about.
+        print(
+            "   (no tables / collections to configure — the connector either doesn't\n"
+            "   support introspection or the source is empty.)"
+        )
+        return []
+
+    print(f"   Found {len(introspect)} object(s). For each one you can index it as-is,")
+    print("   tweak its text_fields / locator_fields, or skip it entirely.")
+    return _prompt_per_object(introspect)
+
+
+def _prompt_per_object(introspect: dict[str, dict]) -> list[dict[str, Any]]:
+    """Walk the introspect output and ask the user about each table.
+
+    UX:
+    - shows table path + column count + suggested text_fields + suggested PK
+    - "use suggestions" (y, default) → take both defaults
+    - "edit" (e)                     → prompt text_fields + locator_fields lines
+    - "skip" (s)                     → don't emit an [[objects]] block (won't index)
+    """
+    objects: list[dict[str, Any]] = []
+    for path, info in introspect.items():
+        cols = info.get("columns", [])
+        pk = info.get("pk", [])
+        text_default = info.get("text_candidates", [])
+        # Some tables have no text columns at all (pure-numeric metric tables);
+        # skip them by default — text_fields = [] would index zero content.
+        if not text_default and not cols:
+            print(f"\n  {path}: empty schema → skipping")
+            continue
+        col_summary = ", ".join(
+            f"{c['name']}({c['type']})" + ("*" if c.get("pk") else "") for c in cols[:8]
+        )
+        if len(cols) > 8:
+            col_summary += f", …(+{len(cols) - 8} more)"
+
+        print(f"\n  {path}")
+        print(f"    columns:        {col_summary or '(none discovered)'}")
+        print(f"    suggested text: {text_default or '(none — table has no string cols)'}")
+        print(f"    suggested PK:   {pk or '(none — set locator_fields manually)'}")
+        choice = _prompt_choice(
+            "index this table?",
+            ["use", "edit", "skip"],
+            "use" if text_default else "skip",
+        )
+        if choice == "skip":
+            continue
+        if choice == "use":
+            text_fields = list(text_default)
+            locator_fields = list(pk)
+        else:  # edit
+            raw_t = _prompt(
+                "text_fields (comma-separated)",
+                ",".join(text_default),
+            )
+            raw_l = _prompt(
+                "locator_fields (comma-separated)",
+                ",".join(pk),
+            )
+            text_fields = [s.strip() for s in raw_t.split(",") if s.strip()]
+            locator_fields = [s.strip() for s in raw_l.split(",") if s.strip()]
+        if not text_fields:
+            print("    (text_fields empty — this table would index zero content; skipping)")
+            continue
+        block: dict[str, Any] = {"match": path, "text_fields": text_fields}
+        if locator_fields:
+            block["locator_fields"] = locator_fields
+        objects.append(block)
+    return objects
 
 
 # ─── HTTP registration via local /v1/add ────────────────────────────────────
@@ -235,7 +405,21 @@ def run_connector_add(
         print("\naborted; nothing written.")
         return 130
 
-    rendered = _render_toml(scheme, uri, values, schema.extras_hint)
+    # Per-table introspection (SQL-family connectors only). connect() doubles
+    # as a credential healthcheck: if the credentials are bad we surface it
+    # here, before writing the TOML or hitting /v1/add.
+    objects: list[dict[str, Any]] = []
+    try:
+        objects = _introspect_and_prompt(scheme, uri, values)
+    except KeyboardInterrupt:
+        print("\naborted; nothing written.")
+        return 130
+    except _IntrospectError as e:
+        print(f"\n  ! could not introspect schema: {e}")
+        print("  (writing the connector TOML without [[objects]] blocks; you can")
+        print("   add them by hand later — see the connector reference docs.)")
+
+    rendered = _render_toml(scheme, uri, values, schema.extras_hint, objects=objects)
 
     if out_path.exists():
         bak = out_path.with_suffix(out_path.suffix + ".bak")
