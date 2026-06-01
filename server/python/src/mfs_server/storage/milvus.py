@@ -34,10 +34,21 @@ class MilvusStore:
     def __init__(self, cfg: ServerConfig):
         self.uri = cfg.milvus.uri
         self.token = cfg.milvus.token
+        # Empty = use Milvus SDK / server default. Set in cfg.milvus.consistency_level.
+        self.consistency_level = cfg.milvus.consistency_level
+        # BM25 analyzer config for the `content` field — passed through to
+        # Milvus if non-empty. See cfg.milvus.analyzer_params for the schema.
+        self.analyzer_params = cfg.milvus.analyzer_params or None
         self.strategy = cfg.milvus.collection_strategy
         self.num_partitions = cfg.milvus.num_partitions
         self.dim = cfg.embedding.dim
         self.client: Optional[MilvusClient] = None
+
+    def _cl_kw(self) -> dict[str, Any]:
+        """Return {} when consistency_level is empty (= let pymilvus use its
+        default), {'consistency_level': X} otherwise. Saves every call site
+        from a conditional."""
+        return {"consistency_level": self.consistency_level} if self.consistency_level else {}
 
     def connect(self) -> None:
         kwargs: dict[str, Any] = {"uri": self.uri}
@@ -75,7 +86,10 @@ class MilvusStore:
         # The framework reserves "lines" as a key; user-configured
         # locator_fields is rejected at startup if it tries to use it.
         schema.add_field("locator", DataType.JSON, nullable=True)
-        schema.add_field("content", DataType.VARCHAR, max_length=65535, enable_analyzer=True)
+        content_kw: dict[str, Any] = {"enable_analyzer": True}
+        if self.analyzer_params:
+            content_kw["analyzer_params"] = self.analyzer_params
+        schema.add_field("content", DataType.VARCHAR, max_length=65535, **content_kw)
         schema.add_field("dense_vec", DataType.FLOAT_VECTOR, dim=self.dim)
         schema.add_field("sparse_vec", DataType.SPARSE_FLOAT_VECTOR)
         schema.add_field("chunk_kind", DataType.VARCHAR, max_length=32)
@@ -94,11 +108,14 @@ class MilvusStore:
     def _build_index_params(self):
         assert self.client is not None
         ip = MilvusClient.prepare_index_params()
+        # AUTOINDEX lets Milvus (Lite + standalone) pick the best index type
+        # for the data size. Zilliz Cloud always treats this as AUTOINDEX too,
+        # so the same setting works across deployments. Avoids hand-tuning
+        # HNSW M/efConstruction.
         ip.add_index(
             field_name="dense_vec",
-            index_type="HNSW",
+            index_type="AUTOINDEX",
             metric_type="COSINE",
-            params={"M": 16, "efConstruction": 200},
         )
         ip.add_index(
             field_name="sparse_vec", index_type="SPARSE_INVERTED_INDEX", metric_type="BM25"
@@ -184,7 +201,7 @@ class MilvusStore:
             collection_name=name,
             filter=expr or "chunk_id != ''",
             output_fields=["count(*)"],
-            consistency_level="Strong",
+            **self._cl_kw(),
         )
         if rows and "count(*)" in rows[0]:
             return int(rows[0]["count(*)"])
@@ -215,7 +232,7 @@ class MilvusStore:
                 "metadata",
                 "indexed_at",
             ],
-            consistency_level="Strong",
+            **self._cl_kw(),
         )
 
     def search_dense(
@@ -225,12 +242,13 @@ class MilvusStore:
         limit: int,
         expr: str = "",
         output_fields: Optional[list[str]] = None,
-        consistency_level: str = "Strong",
+        consistency_level: Optional[str] = None,
     ) -> list[dict]:
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         if not self.client.has_collection(name):
             return []
+        cl_kw = {"consistency_level": consistency_level} if consistency_level else self._cl_kw()
         res = self.client.search(
             collection_name=name,
             data=[query_vec],
@@ -240,7 +258,7 @@ class MilvusStore:
             output_fields=output_fields
             or ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "lines", "metadata"],
             search_params={"metric_type": "COSINE"},
-            consistency_level=consistency_level,
+            **cl_kw,
         )
         return list(res[0]) if res else []
 
@@ -261,7 +279,7 @@ class MilvusStore:
         limit: int,
         expr: str = "",
         output_fields: Optional[list[str]] = None,
-        consistency_level: str = "Strong",
+        consistency_level: Optional[str] = None,
     ) -> list[dict]:
         """BM25 keyword search: Milvus turns query_text into a sparse vector via the
         content_bm25 Function. (verified: pymilvus search(data=[text], anns_field='sparse_vec'))."""
@@ -269,6 +287,7 @@ class MilvusStore:
         name = self.resolve_collection(namespace_id)
         if not self.client.has_collection(name):
             return []
+        cl_kw = {"consistency_level": consistency_level} if consistency_level else self._cl_kw()
         res = self.client.search(
             collection_name=name,
             data=[query_text],
@@ -276,7 +295,7 @@ class MilvusStore:
             limit=limit,
             filter=expr,
             output_fields=output_fields or self._DEFAULT_OUT,
-            consistency_level=consistency_level,
+            **cl_kw,
         )
         return list(res[0]) if res else []
 
@@ -289,13 +308,14 @@ class MilvusStore:
         expr: str = "",
         output_fields: Optional[list[str]] = None,
         over_fetch: int = 3,
-        consistency_level: str = "Strong",
+        consistency_level: Optional[str] = None,
     ) -> list[dict]:
         """dense + BM25 sparse fused with RRF."""
         assert self.client is not None
         name = self.resolve_collection(namespace_id)
         if not self.client.has_collection(name):
             return []
+        cl_kw = {"consistency_level": consistency_level} if consistency_level else self._cl_kw()
         k = limit * over_fetch
         rd = AnnSearchRequest(
             data=[query_vec],
@@ -313,6 +333,6 @@ class MilvusStore:
             ranker=RRFRanker(),
             limit=limit,
             output_fields=output_fields or self._DEFAULT_OUT,
-            consistency_level=consistency_level,
+            **cl_kw,
         )
         return list(res[0]) if res else []

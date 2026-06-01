@@ -167,15 +167,19 @@ def _wizard_milvus(current: MilvusConfig, env_resolved: bool) -> dict[str, Any]:
     # values that were already in server.toml itself become defaults.
     default_backend = "remote" if (current.uri.startswith("http") and not env_resolved) else "lite"
     backend = _prompt_choice("Backend", ["lite", "remote"], default_backend)
+    cl = _prompt(
+        "Consistency level (empty = Milvus default; Strong/Bounded/Eventually/Session)",
+        current.consistency_level,
+    )
     if backend == "lite":
-        return {"uri": "", "token": ""}
+        return {"uri": "", "token": "", "consistency_level": cl}
     uri_default = "" if env_resolved else current.uri
     tok_default = "" if env_resolved else current.token
     uri = _prompt("URI (e.g. https://xxx.zillizcloud.com)", uri_default)
     token = _prompt("Token", tok_default, secret=True)
     if env_resolved and not uri:
         print("  (kept empty — server will fall back to $MFS_MILVUS_URI / $ZILLIZ_URI at runtime.)")
-    return {"uri": uri, "token": token}
+    return {"uri": uri, "token": token, "consistency_level": cl}
 
 
 def _wizard_metadata(current: MetadataConfig) -> dict[str, Any]:

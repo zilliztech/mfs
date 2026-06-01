@@ -45,6 +45,17 @@ class ObjectStoreConfig(BaseModel):
 class MilvusConfig(BaseModel):
     uri: str = ""  # ~/.mfs/milvus.db (Lite) | https://*.zillizcloud.com
     token: str = ""
+    # Empty = use Milvus SDK / server default (Bounded, ~5s staleness — strong
+    # enough for any near-real-time UI). Set to "Strong" for strict
+    # read-your-writes, or "Eventually" / "Session" to tune staleness vs.
+    # latency.
+    consistency_level: str = ""
+    # Optional BM25 analyzer config — passes through to Milvus
+    # `enable_analyzer` on the `content` field. Empty = Milvus default
+    # (standard tokenizer, English-leaning whitespace + lowercase). For
+    # Chinese-heavy corpora set e.g. {"type": "chinese"}. Docs:
+    # https://milvus.io/docs/analyzer-overview.md
+    analyzer_params: dict = {}
     collection_strategy: str = "shared"  # shared | per_namespace
     num_partitions: int = 64
 
