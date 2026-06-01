@@ -42,13 +42,27 @@ def _ensure_auth_token(cfg) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    # `setup` is special — it has its own argparse with --section and --config,
-    # so we route on the first positional and forward the rest verbatim.
+    # `setup` / `connector` are special — each has its own argparse, so we
+    # route on the first positional and forward the rest verbatim.
     raw = list(argv if argv is not None else sys.argv[1:])
     if raw and raw[0] == "setup":
         from .setup_wizard import main_entry
 
         return main_entry(raw[1:])
+    if raw and raw[0] == "connector":
+        # `mfs-server connector add <uri> ...` — only `add` is implemented for
+        # now; other verbs (list/inspect/remove) live on the regular `mfs`
+        # CLI today.
+        from .connector_wizard import main_entry as connector_main
+
+        if len(raw) >= 2 and raw[1] == "add":
+            return connector_main(raw[2:])
+        print(
+            "usage: mfs-server connector add <uri> [options]\n"
+            "  see `mfs-server connector add --help` for the wizard",
+            file=sys.stderr,
+        )
+        return 2
 
     p = argparse.ArgumentParser(prog="mfs-server")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -61,9 +75,13 @@ def main(argv: list[str] | None = None) -> int:
     wk.add_argument("--concurrency", default="auto")
     rl = sub.add_parser("reload")
     rl.add_argument("--config", default=None)
-    # Stub so `mfs-server setup --help` shows up in the top-level help even
-    # though dispatch happens before argparse sees it.
+    # Stubs so `mfs-server <subcmd> --help` shows up in the top-level help
+    # even though dispatch happens before argparse sees it.
     sub.add_parser("setup", help="Interactive base config wizard (writes server.toml).")
+    sub.add_parser(
+        "connector",
+        help="Connector subcommands. Currently: `connector add <uri>` (interactive wizard).",
+    )
 
     args = p.parse_args(raw)
 

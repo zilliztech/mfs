@@ -36,6 +36,23 @@ cd mfs
 pre-commit install
 ```
 
+### Interactive setup helpers
+
+Two wizards for operators who'd rather not hand-edit TOML:
+
+```bash
+# Base config (embedding / vlm / milvus / metadata / object_store / auth).
+# Press Enter through to get a self-contained-local server.
+uv run mfs-server setup
+uv run mfs-server setup --section embedding   # change one section later
+
+# Per-connector wizard — pass the URI, the wizard knows the scheme's schema.
+# Writes $MFS_HOME/connectors/<alias>.toml and POSTs /v1/add to a running server.
+uv run mfs-server connector add postgres://prod-db
+uv run mfs-server connector add slack://my-workspace
+uv run mfs-server connector add --help        # lists every supported scheme
+```
+
 ### Build the CLI
 
 ```bash
