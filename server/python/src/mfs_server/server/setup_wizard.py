@@ -69,6 +69,33 @@ def _llm_choices() -> list[tuple[str, str]]:
     ]
 
 
+def _probe_dimension(provider: str, model: str) -> tuple[int | None, str | None]:
+    """Instantiate the provider and read its `.dimension` property.
+
+    The provider is the source of truth: each backend already knows how to
+    resolve dim either from a tiny built-in lookup (openai/voyage well-known
+    models — no network) or from an actual probe (onnx/local/ollama load
+    weights; gemini does a trial call). Mirroring that in the wizard via a
+    second hand-curated table is duplicate work that goes stale.
+
+    Returns (dim, error). On success error is None; on failure dim is None and
+    error is a short human-readable explanation the caller can show.
+    """
+    from ..common.embeddings import get_provider
+
+    try:
+        client = get_provider(provider, model)
+    except ImportError as exc:
+        return None, f"missing dependency: {exc}"
+    except Exception as exc:  # noqa: BLE001 — surface anything to the user
+        return None, f"{type(exc).__name__}: {exc}"
+    try:
+        dim = int(client.dimension)
+    except Exception as exc:  # noqa: BLE001
+        return None, f"provider returned no dimension: {exc}"
+    return dim, None
+
+
 def _wizard_embedding(current: EmbeddingConfig, step: int, total: int) -> dict[str, Any]:
     from ..common.embeddings import DEFAULT_MODELS as EMBED_DEFAULTS
 
@@ -90,29 +117,30 @@ def _wizard_embedding(current: EmbeddingConfig, step: int, total: int) -> dict[s
         else EMBED_DEFAULTS.get(provider, "")
     )
     model = ui.text("Model", default=default_model, required=True)
-    dim_hints = {
-        "openai": {
-            "text-embedding-3-small": 1536,
-            "text-embedding-3-large": 3072,
-            "text-embedding-ada-002": 1536,
-        },
-        "onnx": {"gpahal/bge-m3-onnx-int8": 1024, "Xenova/bge-small-en-v1.5": 384},
-        "gemini": {"gemini-embedding-001": 768},
-        "voyage": {"voyage-3-lite": 512, "voyage-3": 1024, "voyage-3-large": 2048},
-        "ollama": {"nomic-embed-text": 768, "mxbai-embed-large": 1024},
-        "local": {"all-MiniLM-L6-v2": 384, "all-mpnet-base-v2": 768},
-    }
-    dim_default = (
-        dim_hints.get(provider, {}).get(model)
-        or (current.dim if current.provider == provider else 0)
-        or 1024
-    )
-    dim = ui.int_text("Dimension", default=int(dim_default), min_v=1, max_v=8192)
 
     if provider == "openai":
         ui.info("OPENAI_API_KEY is read from env at request time, not stored here.")
     elif provider != "onnx":
         ui.info(f"Provider {provider!r} needs: uv sync --extra {provider}")
+
+    # Probe the actual provider for the real dimension. For ONNX this triggers
+    # the model download on first run (HF Hub shows its own progress bar). For
+    # OpenAI/Voyage well-known models this is a pure table lookup (<1ms).
+    ui.note("Detecting embedding dimension from the provider…")
+    dim, err = _probe_dimension(provider, model)
+    if dim is not None:
+        ui.emphasis(f"  detected dim={dim}")
+        return {"provider": provider, "model": model, "dim": dim}
+
+    # Probe failed — usually because the user's env isn't ready yet (missing
+    # extra, API key not exported, ollama not running). Surface the cause and
+    # let them either fix env + re-run, or override the dim by hand.
+    ui.warn(f"could not probe the provider: {err}")
+    ui.note(
+        "  Enter the dimension manually below, or Ctrl-C to abort, fix the env,\n"
+        "  and re-run `mfs-server setup`."
+    )
+    dim = ui.int_text("Dimension (manual)", default=1024, min_v=1, max_v=8192, required=True)
     return {"provider": provider, "model": model, "dim": dim}
 
 
@@ -303,7 +331,14 @@ def _wizard_auth(current_token: str, step: int, total: int) -> dict[str, Any]:
         return {"auto": True}
     if mode == "disable":
         return {"token": "-"}
-    tok = ui.text("Token", default=current_token if current_token != "-" else "", required=True)
+    # Custom token uses password() so the secret never appears on screen as it
+    # is typed (terminal recordings, screen shares, tmux scrollback).
+    tok = ui.password(
+        "Token",
+        default=current_token if current_token != "-" else "",
+        required=True,
+        hint="input hidden",
+    )
     return {"token": tok}
 
 
@@ -525,10 +560,17 @@ def run_wizard(sections: list[str] | None = None, config_path: str | None = None
     ui.emphasis(f"wrote {out_path}")
 
     if "auth_token" not in existing:
-        tok = _bootstrap_auth_token(out_path.parent)
-        ui.note(f"\nAPI token written to {out_path.parent / 'server.token'}")
-        ui.note("  Pass to clients on other machines via:")
-        ui.emphasis(f"    export MFS_API_TOKEN={tok}")
+        # Auto mode: bootstrap a fresh random token to server.token (chmod 600).
+        # We deliberately do NOT echo the token here — terminal scrollback, tmux
+        # capture-pane, and recorded sessions would otherwise leak it. The
+        # operator reads it from the file when they need it.
+        token_file = out_path.parent / "server.token"
+        _bootstrap_auth_token(out_path.parent)
+        ui.note(f"\nAPI token written to {token_file} (mode 0600, not shown).")
+        ui.note("  Read it on this host with:")
+        ui.emphasis(f"    cat {token_file}")
+        ui.note("  Or export it inline:")
+        ui.emphasis(f'    export MFS_API_TOKEN="$(cat {token_file})"')
 
     ui.console.print()
     ui.console.print("[bold #5fafff]Summary[/bold #5fafff]")
