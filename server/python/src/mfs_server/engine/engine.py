@@ -154,20 +154,57 @@ def _field_values(rec: dict, field: str) -> list[str]:
     return [str(x) for x in items if x is not None and x != ""]
 
 
-def _render_record(rec: dict, text_fields: list[str]) -> str:
-    """Render a record into chunk content by joining configured text_fields (JSONPath-lite)
-    with a default `field: value` layout. Multi-valued paths (e.g. `comments[].body`) flatten
-    to bulleted lists."""
+def _render_record(rec: dict, text_fields: list[str], render_template: str | None = None) -> str:
+    """Render a record into chunk content for embedding.
+
+    Two rendering modes:
+
+    1. **render_template** (chat / message presets): Python str.format applied
+       directly to the record. e.g. `"{user}: {text}"` against a Slack message
+       gives `"U012345: 部署炸了"` — speaker identity stays inside each chunk
+       so the embedding can learn who-said-what. Missing keys fall back to an
+       empty string instead of raising KeyError, so a partial record doesn't
+       sink the whole ingest.
+
+    2. **labeled text_fields** (default for structured / record_collection
+       presets): JSONPath-lite walk of each field, joined with `field: value`
+       lines. Multi-valued paths (e.g. `comments[].body`) flatten to bulleted
+       lists. When `text_fields` has exactly one bare entry (no `[]`), the
+       label is dropped — `name: alice` would be redundant when the whole
+       chunk is one field; chat-style presets used to suffer this with
+       `text: ...` until we added render_template.
+    """
+    if render_template is not None:
+        try:
+            return render_template.format_map(_SafeDict(rec))
+        except Exception:  # noqa: BLE001 — bad template shouldn't crash ingest
+            pass  # fall through to labeled rendering
+
     parts = []
+    single_bare = len(text_fields) == 1 and "[" not in text_fields[0]
     for f in text_fields:
         vals = _field_values(rec, f)
         if not vals:
             continue
         if len(vals) == 1 and "[" not in f:
-            parts.append(f"{f}: {vals[0]}")
+            if single_bare:
+                parts.append(str(vals[0]))
+            else:
+                parts.append(f"{f}: {vals[0]}")
         else:
             parts.append(f"{f}:\n- " + "\n- ".join(vals))
     return "\n\n".join(parts)
+
+
+class _SafeDict(dict):
+    """str.format_map helper: missing keys render as empty string, nested
+    {a[b]} lookups still work because str.format reaches into the value."""
+
+    def __init__(self, rec: dict):
+        super().__init__(rec)
+
+    def __missing__(self, key):
+        return ""
 
 
 # Internal knobs for thread-aggregate sub-chunking. Not user-configurable: 2025 chat-RAG
@@ -1645,7 +1682,10 @@ class Engine:
                         break
                 pairs: list[tuple[str, dict | None]] = []
                 for gk in order:
-                    rendered = [_render_record(m, ocfg.text_fields) for m in groups[gk]]
+                    rendered = [
+                        _render_record(m, ocfg.text_fields, ocfg.render_template)
+                        for m in groups[gk]
+                    ]
                     rendered = [r for r in rendered if r.strip()]
                     sub = _split_thread(rendered)
                     if len(sub) == 1:
@@ -1713,7 +1753,7 @@ class Engine:
                         if ocfg.metadata_fields
                         else {}
                     )
-                    text = _render_record(rec, ocfg.text_fields)
+                    text = _render_record(rec, ocfg.text_fields, ocfg.render_template)
                     if text.strip():
                         pairs.append((text, loc, meta))
                     i += 1
@@ -1946,7 +1986,7 @@ class Engine:
                     if records is not None and ocfg.text_fields:
                         n = 0
                         async for rec in records:
-                            t = _render_record(rec, ocfg.text_fields)
+                            t = _render_record(rec, ocfg.text_fields, ocfg.render_template)
                             if t.strip():
                                 texts.append(t)
                             n += 1

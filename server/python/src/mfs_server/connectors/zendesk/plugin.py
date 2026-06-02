@@ -125,6 +125,10 @@ class ZendeskPlugin(ConnectorPlugin):
                 for rec in body.get(key, []):
                     yield rec
                     n += 1
+                    if n >= limit:
+                        break  # honour max_read_rows mid-page (each page is up to 100)
+                if n >= limit:
+                    break
                 meta = body.get("meta", {})
                 if not meta.get("has_more"):
                     break
@@ -151,6 +155,12 @@ class ZendeskPlugin(ConnectorPlugin):
                         cm["ticket_id"] = t["id"]
                         yield cm
                         n += 1
+                        if n >= limit:
+                            break  # honour max_read_rows mid-page
+                    if n >= limit:
+                        break
+                if n >= limit:
+                    break
                 meta = body.get("meta", {})
                 if not meta.get("has_more"):
                     break

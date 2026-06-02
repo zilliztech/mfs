@@ -39,10 +39,42 @@ from .connector_schemas import ConnectorField, ConnectorSchema, lookup_schema, s
 # ─── per-field prompt ────────────────────────────────────────────────────────
 
 
+def _validate_secret_ref(s: str) -> str | None:
+    """Inline check for `env:VAR` / `file:/path` indirections in secret prompts.
+
+    The engine's `_resolve_ref` (see engine.py) translates these on plugin
+    init; catching typos here turns "server boot fails with ValueError" into
+    a friendly wizard re-prompt.
+    """
+    if s.startswith("env:"):
+        name = s[4:].strip()
+        if not name:
+            return "env: needs a variable name, e.g. env:SLACK_BOT_TOKEN"
+        import os as _os
+
+        if name not in _os.environ:
+            return f"env var {name!r} is not set in this shell — export it and retry"
+        return None
+    if s.startswith("file:"):
+        from pathlib import Path
+
+        path = Path(s[5:].strip())
+        if not path.is_file():
+            return f"file {path!s} does not exist or is not a regular file"
+        return None
+    return None
+
+
 def _prompt_field(f: ConnectorField) -> Any:
     """Drive one ConnectorField through wizard_ui, with type coercion +
     inline validation (required, int parsing) handled by wizard_ui itself."""
     hint = f.help or None
+    # Secret fields universally accept `env:VAR` / `file:/path` indirections
+    # (resolved server-side by engine._resolve_ref). Surface this in the
+    # prompt hint so users don't bake plaintext into the toml unless they
+    # really mean to.
+    if f.secret:
+        hint = (hint + "  •  " if hint else "") + "or env:VAR / file:/path"
 
     def _int_validate(s: str) -> str | None:
         if f.multi:
@@ -71,7 +103,12 @@ def _prompt_field(f: ConnectorField) -> Any:
             required=f.required,
         )
 
-    validate = _int_validate if f.type == "int" else None
+    if f.type == "int":
+        validate = _int_validate
+    elif f.secret:
+        validate = _validate_secret_ref
+    else:
+        validate = None
     raw = ui.text(
         f.label,
         default=f.default,

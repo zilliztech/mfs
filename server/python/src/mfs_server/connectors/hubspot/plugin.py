@@ -146,6 +146,10 @@ class HubSpotPlugin(ConnectorPlugin):
                         rec.update(props)
                     yield rec
                     n += 1
+                    if n >= limit:
+                        break  # honour max_read_rows mid-page (each page is up to 100)
+                if n >= limit:
+                    break
                 nxt = getattr(page, "paging", None)
                 after = nxt.next.after if (nxt and nxt.next) else None
                 if not after:

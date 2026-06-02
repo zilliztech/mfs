@@ -565,6 +565,10 @@ class FeishuPlugin(ConnectorPlugin):
                         "text": _extract_text(msg_type, content),
                     }
                     n += 1
+                    if n >= limit:
+                        break  # honour max_read_rows mid-page
+                if n >= limit:
+                    break
                 if not data.has_more:
                     break
                 page_token = data.page_token

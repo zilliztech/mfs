@@ -295,11 +295,16 @@ def _migrate_legacy_blocks(data: dict[str, Any]) -> None:
 
 
 def _apply_env_overrides(cfg: ServerConfig) -> None:
-    """Env overrides for dogfood: Milvus endpoint/token from env if not set in toml.
+    """Env overrides for dogfood: Milvus endpoint/token + a few server knobs.
 
-    MFS_MILVUS_URI / MFS_MILVUS_TOKEN take precedence; falls back to ZILLIZ_URI /
-    ZILLIZ_API_KEY when those are set (so the existing Zilliz creds work out of the box).
-    OpenAI key is read by the openai SDK directly from OPENAI_API_KEY.
+    Milvus URI / token use a single primary name (`MILVUS_URI` / `MILVUS_TOKEN`)
+    that works for both Milvus self-hosted and Zilliz Cloud — conceptually
+    Zilliz Cloud is hosted Milvus, the URI/token are the same idea. As
+    fallback we accept `ZILLIZ_URI` / `ZILLIZ_TOKEN` / `ZILLIZ_API_KEY`
+    because Zilliz Cloud users typically already have one of those exported
+    from their notebooks. Primary names are documented; fallbacks are
+    silent-compat. OpenAI key is read by the openai SDK directly from
+    OPENAI_API_KEY.
     """
     api_token = os.environ.get("MFS_API_TOKEN")
     if api_token:
@@ -309,8 +314,12 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
     if summ is not None:
         cfg.summary.enabled = summ.strip().lower() in ("1", "true", "yes", "on")
 
-    uri = os.environ.get("MFS_MILVUS_URI") or os.environ.get("ZILLIZ_URI")
-    token = os.environ.get("MFS_MILVUS_TOKEN") or os.environ.get("ZILLIZ_API_KEY")
+    uri = os.environ.get("MILVUS_URI") or os.environ.get("ZILLIZ_URI")
+    token = (
+        os.environ.get("MILVUS_TOKEN")
+        or os.environ.get("ZILLIZ_TOKEN")
+        or os.environ.get("ZILLIZ_API_KEY")
+    )
     if uri:
         cfg.milvus.uri = uri
     if token:

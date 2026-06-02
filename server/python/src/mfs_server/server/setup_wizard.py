@@ -242,7 +242,7 @@ def _wizard_milvus(
     tok_default = "" if env_resolved else current.token
     token = ui.password("Token", default=tok_default, hint="leave blank if your Milvus has no auth")
     if env_resolved and not uri:
-        ui.info("(kept empty — server will fall back to $MFS_MILVUS_URI / $ZILLIZ_URI at runtime.)")
+        ui.info("(kept empty — server will fall back to $MILVUS_URI / $ZILLIZ_URI at runtime.)")
     return {"uri": uri, "token": token}
 
 
@@ -577,7 +577,7 @@ def run_wizard(sections: list[str] | None = None, config_path: str | None = None
     existing = _load_existing_toml(out_path)
     current_resolved = load_server_config(str(out_path) if out_path.exists() else None)
     milvus_from_env = bool(
-        (os.environ.get("MFS_MILVUS_URI") or os.environ.get("ZILLIZ_URI"))
+        (os.environ.get("MILVUS_URI") or os.environ.get("ZILLIZ_URI"))
         and not existing.get("milvus", {}).get("uri")
     )
 

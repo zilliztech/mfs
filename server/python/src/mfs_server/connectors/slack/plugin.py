@@ -94,7 +94,11 @@ class SlackPlugin(ConnectorPlugin):
         return dir_name.rsplit("__", 1)[-1]
 
     def preset_for(self, path: str):
-        return "slack.messages" if path.endswith("messages.jsonl") else None
+        if path.endswith("messages.jsonl"):
+            return "slack.messages"
+        if path.endswith("/users.jsonl") or path == "/users.jsonl":
+            return "slack.users"
+        return None
 
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith("messages.jsonl"):
@@ -139,6 +143,10 @@ class SlackPlugin(ConnectorPlugin):
                     m.setdefault("thread_ts", m.get("ts"))
                     yield m
                     n += 1
+                    if n >= limit:
+                        break  # honour max_read_rows mid-page (each page is up to 200)
+                if n >= limit:
+                    break
                 if not resp.get("has_more"):
                     break
                 cursor = (resp.get("response_metadata") or {}).get("next_cursor")
@@ -163,10 +171,17 @@ class SlackPlugin(ConnectorPlugin):
         self.ctx.declare_enumeration("full")
         old = await self.state.get("objects") or {}
         seen: dict[str, str] = {}
+        # Channel message streams.
         for ch in await self._channels():
             p = f"/channels/{self._dir_name(ch)}/messages.jsonl"
             seen[p] = ""
             yield ObjectChange(p, "modified" if p in old else "added")
+        # Workspace user directory — small and high-value for "who is X?"
+        # searches. preset_for("/users.jsonl") applies slack.users, indexing
+        # each member as a row_text chunk (name, real_name, title, email).
+        users_p = "/users.jsonl"
+        seen[users_p] = ""
+        yield ObjectChange(users_p, "modified" if users_p in old else "added")
         for p in set(old) - set(seen):
             yield ObjectChange(p, "deleted")
         await self.state.set("objects", seen)

@@ -222,6 +222,14 @@ class ObjectConfig:
     indexable: bool = True
     chunk_max: int = 1_000_000
     group_by: Optional[str] = None  # message_stream: override the auto-detected thread key
+    # Optional Python str.format template applied per record before chunking.
+    # Lets message presets render `alice: 部署炸了, 503 spike` instead of the
+    # default labeled `text: 部署炸了, 503 spike`, which embeds better and
+    # keeps speaker identity inside each message. Template placeholders are
+    # record keys; for nested fields use {a[b]} (str.format dict syntax).
+    # When None, _render_record falls back to the labeled rendering, with
+    # the label suppressed when text_fields has exactly one bare entry.
+    render_template: Optional[str] = None
 
     def __post_init__(self) -> None:
         # "lines" is a framework-reserved key inside the locator dict (body /
@@ -251,15 +259,53 @@ PRESETS: dict[str, dict] = {
     ),
     "slack.messages": dict(
         group_by="thread_ts",
+        # render_template puts speaker identity inside the embedded chunk
+        # text. The Slack `user` field is a U… id (resolving to real name
+        # requires the users.jsonl side index, which is also synced now), so
+        # the chunk reads like "U012345: 部署炸了". Still strictly more useful
+        # than the bare "text: 部署炸了" label because the embedding can
+        # learn the id↔user-row association and downstream tools can map ids
+        # to names at display time.
+        render_template="{user}: {text}",
         text_fields=["text"],
         metadata_fields=["channel", "user", "ts"],
         locator_fields=["thread_ts"],
     ),
+    "slack.users": dict(
+        # Workspace member directory: name handle, real name, display name,
+        # title, email — all of these are useful search hits for "who is X"
+        # or "who handles Y on the team". The /users.jsonl object is small
+        # even for large workspaces (a few thousand users at most), so indexing
+        # each row costs nothing and unlocks `mfs search "VP of Engineering"`
+        # against the team directory.
+        text_fields=[
+            "name",
+            "real_name",
+            "profile.display_name",
+            "profile.title",
+            "profile.email",
+        ],
+        metadata_fields=["is_admin", "is_bot", "deleted", "tz"],
+        locator_fields=["id"],
+    ),
     "discord.messages": dict(
-        group_by="thread_id",
+        # Discord's per-message records don't have a `thread_id` field — a
+        # thread is a separate child channel (type=11/10/12) with its own id
+        # and `parent_id`. Aggregating Slack-style by `thread_id` would either
+        # miss everything (no such field on the record) or degenerate to
+        # one-chunk-per-message (every id is unique). So each Discord message
+        # is indexed as its own chunk, keyed by `id`. Thread channels (when
+        # synced — see DiscordPlugin.sync) get their own `messages.jsonl`
+        # objects under /channels/<parent>/threads/<thread>/, indexed the
+        # same way.
+        group_by="id",
+        # Discord message records carry `author.username` directly, so the
+        # rendered chunk reads as "alice: 部署炸了" — much stronger search
+        # signal than the bare content.
+        render_template="{author[username]}: {content}",
         text_fields=["content"],
         metadata_fields=["channel_id", "author", "timestamp"],
-        locator_fields=["thread_id"],
+        locator_fields=["id"],
     ),
     "gmail.messages": dict(
         group_by="threadId",
@@ -274,6 +320,9 @@ PRESETS: dict[str, dict] = {
     ),
     "feishu.messages": dict(
         group_by="thread_id",
+        # Feishu `sender` is the user open_id (not a readable name); same
+        # trade-off as Slack — the embedded chunk reads as "<id>: ...".
+        render_template="{sender}: {text}",
         text_fields=["text"],
         metadata_fields=["msg_type", "create_time", "sender"],
         locator_fields=["message_id"],
