@@ -68,6 +68,11 @@ class LinearPlugin(ConnectorPlugin):
 
     def _headers(self) -> dict:
         key = self._cfg("api_key") or self.credential
+        # Validate before building the header: httpx rejects a None header value with a raw
+        # "Header value must be str or bytes, not NoneType", which leaks as the probe detail.
+        # A clean message lets probe report ok=false: missing credential instead.
+        if not key:
+            raise ValueError("missing credential: api_key (set LINEAR_API_KEY)")
         return {"Authorization": key, "Content-Type": "application/json"}
 
     async def _gql(self, query: str, variables: Optional[dict] = None) -> dict:

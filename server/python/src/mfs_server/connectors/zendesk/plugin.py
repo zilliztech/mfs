@@ -58,7 +58,13 @@ class ZendeskPlugin(ConnectorPlugin):
         return self._cfg("base_url") or f"https://{sub}.zendesk.com"
 
     def _auth(self):
-        return (f"{self._cfg('email')}/token", self._cfg("api_token") or self.credential)
+        token = self._cfg("api_token") or self.credential
+        # Validate before httpx builds the basic-auth header: a None password raises a raw
+        # "sequence item 1: expected a bytes-like object, NoneType found" during b64 encoding,
+        # which leaks as the probe detail. Surface a clean missing-credential message instead.
+        if not token:
+            raise ValueError("missing credential: api_token (set ZENDESK_API_TOKEN)")
+        return (f"{self._cfg('email')}/token", token)
 
     async def healthcheck(self) -> HealthStatus:
         try:
