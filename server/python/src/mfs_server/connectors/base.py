@@ -258,11 +258,10 @@ PRESETS: dict[str, dict] = {
         locator_fields=["number"],
     ),
     "jira.issues": dict(
-        # JiraPlugin._flatten_issue yields summary + description (the issue body) plus
-        # business fields. Comments are NOT in the flattened record today — the raw fetch
-        # carries fields.comment (fields="*all") but the flatten drops it — so they are out
-        # of the embedded text for now; surfacing them is a separate follow-up.
-        text_fields=["summary", "description"],
+        # JiraPlugin._flatten_issue yields summary + description (the issue body), the
+        # comment bodies as [{"body": ...}], plus business fields — so search covers the
+        # whole issue conversation (summary + description + comments), matching jira.md.
+        text_fields=["summary", "description", "comments[].body"],
         metadata_fields=["status", "priority", "assignee", "reporter", "labels[*]", "updated"],
         locator_fields=["key"],
     ),

@@ -122,11 +122,22 @@ class JiraPlugin(ConnectorPlugin):
 
     def _flatten_issue(self, issue: dict) -> dict:
         f = issue.get("fields", {}) or {}
+        # Comments are already in the fetched payload (fields="*all"). Cloud returns each
+        # body as a plain string; keep the {"body": ...} shape so the jira.issues preset can
+        # address them as "comments[].body" (mirrors github.issues). Defensive: drop
+        # non-string / empty bodies, and issues with no comments yield an empty list.
+        comments = (f.get("comment") or {}).get("comments", []) or []
+        comment_bodies = [
+            {"body": c["body"]}
+            for c in comments
+            if isinstance(c, dict) and isinstance(c.get("body"), str) and c["body"].strip()
+        ]
         return {
             "key": issue.get("key"),
             "id": issue.get("id"),
             "summary": f.get("summary"),
             "description": f.get("description"),
+            "comments": comment_bodies,
             "status": (f.get("status") or {}).get("name"),
             "priority": (f.get("priority") or {}).get("name"),
             "assignee": (f.get("assignee") or {}).get("displayName"),
