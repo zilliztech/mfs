@@ -8,7 +8,7 @@ OpenAI / Zilliz Cloud / Postgres / S3 is purely opt-in — provide credentials
 when prompted and the section flips to the hosted backend.
 
 Sections (default order):
-  embedding -> vlm -> milvus -> database -> cache -> auth -> connectors
+  embedding -> vlm -> milvus -> database -> cache -> auth
 
 `database` configures the single relational backend used for both
 metadata (connectors / objects / queue) and the transformation-cache
@@ -19,9 +19,12 @@ lookup table — see config.DatabaseConfig.
 derived blobs (PDF→markdown, VLM image descriptions, …). Maps to
 [artifact_cache] in the TOML.
 
-`connectors` is optional and runs the per-scheme `connector add` wizard
-in a loop; users can skip it (default No) and add connectors later with
-`mfs-server connector add <uri>`.
+Connector registration is intentionally NOT part of this wizard — that
+flow is owned by the client-side `mfs-ingest` skill (or, as an admin
+fallback on the server host itself, `mfs-server connector add <uri>`).
+Most operators finish base setup before they've gathered the
+credentials for any specific data source, so it's not the natural
+moment to ask for them.
 
 UI is built on `wizard_ui` (rich panels + questionary prompts).
 """
@@ -54,7 +57,7 @@ from ..config import (
 )
 from . import wizard_ui as ui
 
-SECTIONS = ("embedding", "vlm", "milvus", "database", "cache", "auth", "connectors")
+SECTIONS = ("embedding", "vlm", "milvus", "database", "cache", "auth")
 
 
 # ─── per-section wizards ────────────────────────────────────────────────────
@@ -351,49 +354,6 @@ def _wizard_auth(current_token: str, step: int, total: int) -> dict[str, Any]:
     return {"token": tok}
 
 
-def _wizard_connectors(step: int, total: int) -> dict[str, Any]:
-    """Optional last step: invite the user to add one or more connectors now.
-
-    Defaults to "No" — most operators are still gathering credentials when
-    they finish base setup and add connectors later. Saying Yes drops them
-    into the same per-scheme flow as `mfs-server connector add <uri>`,
-    looped until they say "no more".
-
-    Returns {} (this step doesn't modify the server toml itself — each
-    connector writes its own toml under $MFS_HOME/connectors/<alias>.toml).
-    """
-    from .connector_wizard import list_existing_connectors, prompt_and_add_one
-
-    ui.section(
-        "Connectors",
-        "(optional) Register one or more data sources now. You can also add\n"
-        "them later with: mfs-server connector add <uri>",
-        step=step,
-        total=total,
-    )
-    existing = list_existing_connectors()
-    if existing:
-        ui.note(f"Existing connectors in {mfs_home() / 'connectors'}:")
-        for row in existing:
-            ui.note(f"  • {row['uri']}")
-    else:
-        ui.note("No connectors registered yet.")
-
-    if not ui.confirm("Add a connector now?", default=False):
-        ui.info("Skipped. Add later with: mfs-server connector add <scheme>://<host>")
-        return {}
-
-    added = 0
-    while True:
-        ok = prompt_and_add_one()
-        if ok:
-            added += 1
-        if not ui.confirm("Add another connector?", default=False):
-            break
-    ui.emphasis(f"  added {added} connector(s)")
-    return {}
-
-
 # ─── apply + render ─────────────────────────────────────────────────────────
 
 
@@ -412,7 +372,6 @@ def _build_runners(
         "database": lambda c: _wizard_database(c.database, step_of["database"], total),
         "cache": lambda c: _wizard_cache(c.artifact_cache, step_of["cache"], total),
         "auth": lambda c: _wizard_auth(c.auth_token, step_of["auth"], total),
-        "connectors": lambda c: _wizard_connectors(step_of["connectors"], total),
     }
 
 
@@ -453,10 +412,6 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
             current.pop("auth_token", None)  # let server auto-generate to server.token
         else:
             current["auth_token"] = answers["token"]
-    elif section == "connectors":
-        # No-op: connectors write to their own per-instance tomls under
-        # $MFS_HOME/connectors/, not the server toml.
-        pass
     return current
 
 
