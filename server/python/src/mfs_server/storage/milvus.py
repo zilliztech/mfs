@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from pymilvus import AnnSearchRequest, DataType, Function, FunctionType, MilvusClient, RRFRanker
+from pymilvus.exceptions import MilvusException
 
 from ..config import ServerConfig
 
@@ -21,6 +22,26 @@ from ..config import ServerConfig
 # embedding dim, so a build always targets a collection built for ITS schema/model and never
 # silently reuses an incompatible one written by a different version (migrations out of scope).
 _COLLECTION_SCHEMA_VERSION = 1
+
+# Milvus rejects any search whose `offset + limit` exceeds this window with
+# `MilvusException(code=65535, "invalid max query result window")`. A user-supplied
+# top_k is validated against this before we touch Milvus so the limit surfaces as a
+# clean envelope instead of a leaked 500. Hybrid search over-fetches (limit * ratio),
+# so the effective window can exceed top_k — callers must account for that.
+MILVUS_MAX_RESULT_WINDOW = 16384
+
+
+def _reraise_result_limit(exc: MilvusException) -> None:
+    """Translate Milvus' oversized-request errors into a stable `top_k_too_large` domain
+    error. Milvus rejects too-large requests with code=65535 and a message about an invalid
+    `topk` or `max query result window`. The exact ceiling is backend-specific (Milvus Lite
+    caps topk at 1024; full Milvus/Zilliz allow far more), so the engine's coarse pre-check
+    can't catch every case up front — this is the authoritative guard. Any other Milvus error
+    is re-raised unchanged so genuine internal failures still surface as such."""
+    msg = (exc.message or str(exc)).lower()
+    if exc.code == 65535 and ("topk" in msg or "result window" in msg):
+        raise ValueError("top_k_too_large") from exc
+    raise exc
 
 
 def _lit(v: str) -> str:
@@ -267,17 +288,20 @@ class MilvusStore:
         if not self.client.has_collection(name):
             return []
         cl_kw = {"consistency_level": consistency_level} if consistency_level else self._cl_kw()
-        res = self.client.search(
-            collection_name=name,
-            data=[query_vec],
-            anns_field="dense_vec",
-            limit=limit,
-            filter=expr,
-            output_fields=output_fields
-            or ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "metadata"],
-            search_params={"metric_type": "COSINE"},
-            **cl_kw,
-        )
+        try:
+            res = self.client.search(
+                collection_name=name,
+                data=[query_vec],
+                anns_field="dense_vec",
+                limit=limit,
+                filter=expr,
+                output_fields=output_fields
+                or ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "metadata"],
+                search_params={"metric_type": "COSINE"},
+                **cl_kw,
+            )
+        except MilvusException as e:
+            _reraise_result_limit(e)
         return list(res[0]) if res else []
 
     # The collection has no top-level "lines" field — line ranges live INSIDE
@@ -310,15 +334,18 @@ class MilvusStore:
         if not self.client.has_collection(name):
             return []
         cl_kw = {"consistency_level": consistency_level} if consistency_level else self._cl_kw()
-        res = self.client.search(
-            collection_name=name,
-            data=[query_text],
-            anns_field="sparse_vec",
-            limit=limit,
-            filter=expr,
-            output_fields=output_fields or self._DEFAULT_OUT,
-            **cl_kw,
-        )
+        try:
+            res = self.client.search(
+                collection_name=name,
+                data=[query_text],
+                anns_field="sparse_vec",
+                limit=limit,
+                filter=expr,
+                output_fields=output_fields or self._DEFAULT_OUT,
+                **cl_kw,
+            )
+        except MilvusException as e:
+            _reraise_result_limit(e)
         return list(res[0]) if res else []
 
     def hybrid_search(
@@ -349,12 +376,15 @@ class MilvusStore:
         rs = AnnSearchRequest(
             data=[query_text], anns_field="sparse_vec", param={}, limit=k, expr=expr or None
         )
-        res = self.client.hybrid_search(
-            collection_name=name,
-            reqs=[rd, rs],
-            ranker=RRFRanker(),
-            limit=limit,
-            output_fields=output_fields or self._DEFAULT_OUT,
-            **cl_kw,
-        )
+        try:
+            res = self.client.hybrid_search(
+                collection_name=name,
+                reqs=[rd, rs],
+                ranker=RRFRanker(),
+                limit=limit,
+                output_fields=output_fields or self._DEFAULT_OUT,
+                **cl_kw,
+            )
+        except MilvusException as e:
+            _reraise_result_limit(e)
         return list(res[0]) if res else []

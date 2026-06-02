@@ -10,6 +10,7 @@
 | `density_unsupported` | `--peek/--skim/--deep` on structured object | use `head` / `cat --range` |
 | `tail_unsupported` | object has no stable ordering | use `head` / `cat --range` |
 | `locator_not_found` | `cat --locator` key not present | re-search; the record may be gone/changed |
+| `top_k_too_large` | `--top-k` exceeds the vector store's result limit (hybrid mode over-fetches, so its effective limit is higher than top_k) | lower `--top-k` |
 | `chunk_max_exceeded` | object partially indexed (too large) | `search` works but recall partial; add `index_filter`/`windowed` or raise `chunk_max` |
 | `since_unsupported` | `--since` on a connector without time cursor | drop `--since` |
 | `sync_already_running` | a sync is in flight | `mfs job list`, then wait or `mfs job cancel JOB_ID` |

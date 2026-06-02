@@ -28,7 +28,7 @@ from ..processors.text import chunk_body
 from ..storage.file_state import FileStateStore
 from ..storage.ids import chunk_id
 from ..storage.metadata import make_metadata_store
-from ..storage.milvus import MilvusStore
+from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW, MilvusStore
 from ..storage.artifact_cache import make_artifact_cache
 from ..storage.transformation_cache import make_transformation_cache
 from .state import ConnectorStateStore
@@ -1904,6 +1904,15 @@ class Engine:
     ) -> list[dict]:
         if top_k <= 0 or not query or not query.strip():
             return []  # nothing to ask for: skip the embed call and Milvus' limit>0 rule
+        # Coarse fast-path: reject an absurd top_k before embedding/querying. Hybrid
+        # over-fetches each sub-search by over_fetch_ratio, so the request Milvus sees is
+        # top_k * ratio; other modes send top_k directly. This only catches values above the
+        # hard window — the backend's real per-search cap is lower and backend-specific
+        # (Milvus Lite tops out far below Zilliz), so MilvusStore translates the actual
+        # MilvusException into the same `top_k_too_large` error as the authoritative guard.
+        effective = top_k * self.cfg.search.over_fetch_ratio if mode == "hybrid" else top_k
+        if effective > MILVUS_MAX_RESULT_WINDOW:
+            raise ValueError("top_k_too_large")
         expr = build_filter(self.ns, connector_uri, object_prefix, chunk_kinds)
         if mode == "keyword":
             hits = await asyncio.to_thread(self.milvus.sparse_search, self.ns, query, top_k, expr)

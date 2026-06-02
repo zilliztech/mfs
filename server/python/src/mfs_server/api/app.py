@@ -51,6 +51,9 @@ _CODE_SUGGESTIONS = {
     "connector_unhealthy": ["check credentials/connectivity"],
     "not_found": ["check the URI"],
     "not_available": ["the connector may require an optional dependency; install its extra"],
+    "top_k_too_large": [
+        "lower --top-k: it exceeds the vector store's result limit (hybrid mode over-fetches, so its effective limit is higher than top_k)"
+    ],
 }
 # HTTP status -> code when `detail` isn't already a canonical code (human strings).
 _STATUS_CODE = {
@@ -309,15 +312,18 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             connector_uri, object_prefix = await eng().resolve_connector_uri(path)
         # comma-separated chunk_kinds, e.g. ?kind=body,directory_summary
         chunk_kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
-        results = await eng().search(
-            q,
-            connector_uri=connector_uri,
-            object_prefix=object_prefix,
-            mode=mode,
-            top_k=top_k,
-            chunk_kinds=chunk_kinds,
-            collapse=collapse,
-        )
+        try:
+            results = await eng().search(
+                q,
+                connector_uri=connector_uri,
+                object_prefix=object_prefix,
+                mode=mode,
+                top_k=top_k,
+                chunk_kinds=chunk_kinds,
+                collapse=collapse,
+            )
+        except ValueError as e:
+            raise HTTPException(400, str(e))
         return SearchResponse(results=results)
 
     @app.get("/v1/grep", response_model=GrepResponse, operation_id="grep", tags=["retrieval"])
