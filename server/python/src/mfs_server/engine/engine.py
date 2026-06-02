@@ -2297,9 +2297,27 @@ class Engine:
             # --- structured object: range pushdown over records (lazy, not materialized) ---
             if structured:
                 if range is None:
-                    # a bare cat would stream the whole table -> reject; the agent picks
-                    # head / cat --range / export
-                    raise ValueError("object_too_large_for_cat")
+                    # Bare cat of a structured object: stream the records as JSONL
+                    # into a buffer up to _BARE_CAT_MAX_BYTES, then return. Small
+                    # objects (Slack users.jsonl, small GitHub issue feeds, dozens-
+                    # of-row tables) fit comfortably and round-trip as JSONL. Large
+                    # ones (a postgres table with 1M rows) blow the budget mid-
+                    # stream and raise the same object_too_large_for_cat so the
+                    # caller still falls back to head / cat --range / export.
+                    records = plugin.read_records(rel)
+                    if records is None:
+                        raise ValueError("object_too_large_for_cat")
+                    budget = _BARE_CAT_MAX_BYTES
+                    out: list[str] = []
+                    size = 0
+                    async with aclosing(records):
+                        async for rec in records:
+                            line = _json.dumps(rec, default=str, ensure_ascii=False)
+                            size += len(line.encode("utf-8")) + 1  # +1 newline
+                            if size > budget:
+                                raise ValueError("object_too_large_for_cat")
+                            out.append(line)
+                    return "\n".join(out)
                 start, end = range[0], range[1]
                 # hand the range to the connector so a pushdown-capable one can LIMIT/OFFSET
                 # at the source; the engine still slices defensively for connectors that ignore it.

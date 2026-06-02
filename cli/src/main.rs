@@ -1231,16 +1231,28 @@ fn parse(resp: reqwest::blocking::Response) -> Result<Value, String> {
     let status = resp.status();
     let v: Value = resp.json().map_err(|e| e.to_string())?;
     if !status.is_success() {
-        // surface the stable error `code` alongside the human detail
+        // The server returns a stable {code, detail, suggestions: [...]} envelope
+        // for every error (see api/app.py _http_exc). Surface all three so users
+        // see the recovery hint without having to read --json output.
         let code = v.get("code").and_then(|c| c.as_str()).unwrap_or("");
         let detail = v
             .get("detail")
             .and_then(|d| d.as_str())
             .unwrap_or("request failed");
-        return Err(if code.is_empty() {
+        let suggestions: Vec<&str> = v
+            .get("suggestions")
+            .and_then(|s| s.as_array())
+            .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect())
+            .unwrap_or_default();
+        let header = if code.is_empty() {
             format!("{status}: {detail}")
         } else {
             format!("{status} [{code}]: {detail}")
+        };
+        return Err(if suggestions.is_empty() {
+            header
+        } else {
+            format!("{header}\n  try: {}", suggestions.join(", "))
         });
     }
     Ok(v)
