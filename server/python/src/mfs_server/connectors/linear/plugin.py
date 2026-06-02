@@ -101,6 +101,16 @@ class LinearPlugin(ConnectorPlugin):
             nodes = [t for t in nodes if t["key"] in cfg or t["id"] in cfg]
         return nodes
 
+    def preset_for(self, path: str):
+        # issues.jsonl / users.jsonl -> linear.* presets. Without this the record_collection
+        # gets no text_fields and the per-row chunker emits 0 chunks (records index but are
+        # not searchable).
+        if path.endswith("/issues.jsonl"):
+            return "linear.issues"
+        if path.endswith("users.jsonl"):
+            return "linear.users"
+        return None
+
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith(".jsonl"):
             return "record_collection"
