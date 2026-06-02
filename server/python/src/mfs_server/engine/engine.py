@@ -1956,18 +1956,27 @@ class Engine:
         """Try-connect a connector without registering or writing state."""
         _, connector_uri, ctype, default_config = self._resolve_target(target)
         cfg_dict = {**default_config, **config} if config is not None else default_config
-        plugin, _ = self._build_plugin(ctype, cfg_dict, "probe-" + uuid.uuid4().hex)
+        plugin = None
         try:
+            # Build inside the guard: _build_plugin resolves credential refs (_resolve_ref),
+            # and a missing/unresolvable env:/file: ref is a user config error — it must come
+            # back as ok=false like a failed connect/auth, not escape to the generic 500
+            # handler. NotImplementedError (an uninstalled connector extra) is intentionally
+            # NOT caught here so it still renders as the 501 not_available envelope.
+            plugin, _ = self._build_plugin(ctype, cfg_dict, "probe-" + uuid.uuid4().hex)
             await plugin.connect()
             hs = await plugin.healthcheck()
             return {"target": connector_uri, "type": ctype, "ok": hs.ok, "detail": hs.detail}
+        except NotImplementedError:
+            raise
         except Exception as e:  # noqa: BLE001
             return {"target": connector_uri, "type": ctype, "ok": False, "detail": str(e)}
         finally:
-            try:
-                await plugin.close()
-            except Exception:  # noqa: BLE001
-                pass
+            if plugin is not None:
+                try:
+                    await plugin.close()
+                except Exception:  # noqa: BLE001
+                    pass
 
     async def estimate(
         self,
