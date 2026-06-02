@@ -58,7 +58,13 @@ class GitHubPlugin(ConnectorPlugin):
         )
 
     def _owner_repo(self) -> tuple[str, str]:
-        o, r = self._cfg("repo").split("/", 1)
+        # `repo` is normally derived from the github://owner/repo URI into config at add
+        # time (see Engine._resolve_target). Guard the genuinely-missing case with a clean
+        # client error instead of an AttributeError 500 on None.split().
+        repo = self._cfg("repo")
+        if not repo or "/" not in repo:
+            raise ValueError("github connector requires 'repo' as owner/name")
+        o, r = repo.split("/", 1)
         return o, r
 
     def _headers(self) -> dict:

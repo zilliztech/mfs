@@ -279,6 +279,19 @@ class Engine:
         m = _SCHEME_RE.match(target)
         if m:
             sch = m.group(1)
+            if sch == "github":
+                # github://<owner>/<repo> (also tolerate github://github.com/<owner>/<repo>):
+                # derive `repo` from the URI into the connector config so the bare documented
+                # form works without an explicit `--config repo=…`. This mirrors how a local
+                # path injects {root}; the plugin has no access to its own connector URI, so
+                # the identity must be carried in config. Without it the github plugin's
+                # _owner_repo() has no repo and the sync/read path raises a 500.
+                rest = target[len("github://") :].strip("/")
+                if rest.startswith("github.com/"):
+                    rest = rest[len("github.com/") :]
+                parts = [p for p in rest.split("/") if p]
+                cfg = {"repo": f"{parts[0]}/{parts[1]}"} if len(parts) >= 2 else {}
+                return "github", target, "github", cfg
             if sch in (
                 "web",
                 "github",
