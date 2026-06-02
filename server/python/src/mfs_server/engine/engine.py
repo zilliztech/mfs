@@ -2319,9 +2319,16 @@ class Engine:
         # dispatches body-chunk reads through plugin.read(range=...) before reaching
         # this helper, so seeing it here is a misconfiguration we just ignore.
         keys = [k for k in (ocfg.locator_fields or list(locator.keys())) if k != "lines"]
+        present = [k for k in keys if k in locator]
+        # Require at least one recognized locator key: a locator that's empty or whose keys
+        # don't correspond to this object's locator_fields matches nothing. Without this guard
+        # `all([])` is True, so a bogus/typo'd locator silently returns record #0 instead of
+        # the documented locator_not_found.
+        if not present:
+            return False
         # resolve with the SAME JSONPath-lite used to WRITE the locator (engine indexing:
         # {f: _resolve_path(rec, f)}); plain rec.get() couldn't reopen a nested locator key.
-        return all(str(_resolve_path(rec, k)) == str(locator.get(k)) for k in keys if k in locator)
+        return all(str(_resolve_path(rec, k)) == str(locator.get(k)) for k in present)
 
     async def cat(
         self,
