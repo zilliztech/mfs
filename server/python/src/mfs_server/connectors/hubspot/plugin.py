@@ -109,6 +109,16 @@ class HubSpotPlugin(ConnectorPlugin):
     def _parts(self, path: str) -> list[str]:
         return [p for p in path.strip("/").split("/") if p]
 
+    def preset_for(self, path: str):
+        # <object>/records.jsonl -> hubspot.<object> preset (contacts/companies/deals/tickets).
+        # Without this the record_collection gets no text_fields and the per-row chunker emits
+        # 0 chunks, so records index but never become searchable. Custom objects (p_*) have no
+        # preset and still require an explicit [[objects]] block.
+        parts = self._parts(path)
+        if len(parts) == 2 and parts[1] == "records.jsonl":
+            return f"hubspot.{parts[0]}"
+        return None
+
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith("records.jsonl"):
             return "record_collection"

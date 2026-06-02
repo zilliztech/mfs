@@ -335,6 +335,31 @@ PRESETS: dict[str, dict] = {
         metadata_fields=["msg_type", "create_time", "sender"],
         locator_fields=["message_id"],
     ),
+    # HubSpot CRM objects. HubSpotPlugin flattens {id, properties:{...}} to top-level and
+    # fetches only each object's DEFAULT property set, so text_fields must reference fields
+    # actually returned by basic_api.get_page. contacts + companies are grounded against this
+    # portal's live records; deals/tickets use HubSpot's standard default property names but
+    # are UNVERIFIED here (deals had 0 records, tickets 403'd without Service Hub).
+    "hubspot.contacts": dict(
+        text_fields=["firstname", "lastname", "email"],
+        metadata_fields=["createdate", "lastmodifieddate"],
+        locator_fields=["id"],
+    ),
+    "hubspot.companies": dict(
+        text_fields=["name", "domain"],
+        metadata_fields=["createdate"],
+        locator_fields=["id"],
+    ),
+    "hubspot.deals": dict(  # unverified field names (no deal records in test portal)
+        text_fields=["dealname", "dealstage"],
+        metadata_fields=["createdate"],
+        locator_fields=["id"],
+    ),
+    "hubspot.tickets": dict(  # unverified field names (Service Hub 403 in test portal)
+        text_fields=["subject", "content"],
+        metadata_fields=["createdate"],
+        locator_fields=["id"],
+    ),
 }
 
 
