@@ -50,6 +50,7 @@ _CODE_SUGGESTIONS = {
     "connector_removing": ["wait for removal to finish, then retry"],
     "connector_unhealthy": ["check credentials/connectivity"],
     "not_found": ["check the URI"],
+    "not_available": ["the connector may require an optional dependency; install its extra"],
 }
 # HTTP status -> code when `detail` isn't already a canonical code (human strings).
 _STATUS_CODE = {
@@ -57,6 +58,7 @@ _STATUS_CODE = {
     404: "not_found",
     409: "conflict",
     422: "validation_error",
+    501: "not_available",
     502: "connector_unhealthy",
 }
 
@@ -140,6 +142,25 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
                 "detail": str(exc),
                 "suggestions": ["fix request shape"],
             },
+        )
+
+    @app.exception_handler(NotImplementedError)
+    async def _not_impl_exc(_request: Request, exc: NotImplementedError) -> JSONResponse:
+        """A requested connector scheme has no registered plugin — usually because its
+        optional extra isn't installed (registry.load_builtin skips connectors whose
+        import fails). Return a clean 501 envelope instead of a 500 + traceback, with an
+        actionable hint to install the connector's extra."""
+        detail = str(exc) or "not implemented"
+        # message shape is "no plugin for <scheme>": surface an install hint for that extra.
+        scheme = detail.rsplit(" ", 1)[-1] if detail.startswith("no plugin for ") else None
+        suggestions = (
+            [f"install the connector extra: uv sync --extra {scheme}"]
+            if scheme
+            else _CODE_SUGGESTIONS["not_available"]
+        )
+        return JSONResponse(
+            status_code=501,
+            content={"code": "not_available", "detail": detail, "suggestions": suggestions},
         )
 
     @app.exception_handler(Exception)
