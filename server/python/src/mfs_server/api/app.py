@@ -51,6 +51,7 @@ _CODE_SUGGESTIONS = {
     "connector_unhealthy": ["check credentials/connectivity"],
     "embedding_auth_failed": ["fix the embedding provider API key, then `mfs add` again"],
     "embedding_quota_exceeded": ["top up the embedding provider quota/billing, then `mfs add` again"],
+    "field_missing": ["fix the connector `[[objects]]` text_fields — a configured field is absent from the records"],
     "not_found": ["check the URI"],
     "not_available": ["the connector may require an optional dependency; install its extra"],
     "top_k_too_large": [

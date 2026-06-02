@@ -154,6 +154,12 @@ def _field_values(rec: dict, field: str) -> list[str]:
     return [str(x) for x in items if x is not None and x != ""]
 
 
+def _field_top_key(field: str) -> str:
+    """First JSONPath-lite segment of a text_field — the record key whose PRESENCE (not value)
+    decides absent-vs-empty: 'comments[].body' -> 'comments', 'a.b' -> 'a', 'name' -> 'name'."""
+    return field.split(".", 1)[0].split("[", 1)[0]
+
+
 def _render_record(rec: dict, text_fields: list[str], render_template: str | None = None) -> str:
     """Render a record into chunk content for embedding.
 
@@ -1197,6 +1203,16 @@ class Engine:
                     )
                     self._warn_object_failed(connector_uri, task, e)
                     return code
+                if str(e).startswith("field_missing"):
+                    # Deterministic [[objects]] config error (text_field key absent from the
+                    # records) — retrying re-reads the same records to no avail. Fail this
+                    # object immediately with the documented code so the user fixes the config.
+                    await self.meta.execute(
+                        "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
+                        (_now(), str(e), task["id"]),
+                    )
+                    self._warn_object_failed(connector_uri, task, e)
+                    return "retryable_exhausted"
                 if attempt < max_r:
                     # exponential backoff capped at backoff_max_ms: a flat
                     # initial-only sleep ignored backoff_max_ms entirely and hammered a
@@ -1818,9 +1834,19 @@ class Engine:
                 head_buf: list[str] = []  # first N raw records -> head_cache artifact
                 partial = False
                 i = 0
+                # Track whether each configured text_field's KEY ever appears in a record, to
+                # tell a schema mismatch (key absent everywhere -> the documented field_missing)
+                # apart from a legitimately empty/null value (key present). Membership-only, so
+                # present-but-empty never trips it.
+                text_top_keys = {f: _field_top_key(f) for f in ocfg.text_fields}
+                seen_field_keys: set[str] = set()
                 async for rec in records:
                     if len(head_buf) < _HEAD_CACHE_N:
                         head_buf.append(json.dumps(rec, default=str, ensure_ascii=False))
+                    if isinstance(rec, dict):
+                        for f, tk in text_top_keys.items():
+                            if tk in rec:
+                                seen_field_keys.add(f)
                     loc = (
                         {f: _resolve_path(rec, f) for f in ocfg.locator_fields}
                         if ocfg.locator_fields
@@ -1841,6 +1867,15 @@ class Engine:
                 # release the record generator (cursor/connection) before the slow embed
                 # batch, and so a chunk_max break doesn't leak a held connection.
                 await records.aclose()
+                # Schema mismatch: records exist but NONE of the configured text_fields' keys
+                # are present in any of them -> would silently index 0 chunks. Surface the
+                # documented field_missing so the user fixes [[objects]] instead of guessing.
+                # (A partial config where at least one text_field key is present still indexes.)
+                if i > 0 and ocfg.text_fields and not seen_field_keys:
+                    raise ValueError(
+                        f"field_missing: configured text_fields "
+                        f"{list(ocfg.text_fields)} are absent from every record"
+                    )
                 if head_buf:  # pre-cache first rows so `head` is fast without re-querying
                     await self._put_artifact(
                         ns, full_uri, "head_cache", ("\n".join(head_buf)).encode()
