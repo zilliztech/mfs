@@ -1186,6 +1186,7 @@ class Engine:
                         "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
                         (_now(), f"fatal: {e}", task["id"]),
                     )
+                    self._warn_object_failed(connector_uri, task, e)
                     return "fatal"
                 if attempt < max_r:
                     # exponential backoff capped at backoff_max_ms: a flat
@@ -1201,8 +1202,21 @@ class Engine:
                     "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
                     (_now(), str(e), task["id"]),
                 )
+                self._warn_object_failed(connector_uri, task, e)
                 return "retryable_exhausted"
         return "retryable_exhausted"
+
+    @staticmethod
+    def _warn_object_failed(connector_uri: str, task: dict, e: Exception) -> None:
+        """One-line server-log WARNING when an object is finally marked failed. object_tasks
+        rows (and their last_error) are pruned after the job, so without this a user only sees
+        the aggregate `failed_objects: N` with no way to learn which object failed or why.
+        Pairs with the 'Milvus backend:' / dim-mismatch startup logs."""
+        uri = f"{connector_uri}{task.get('object_uri', '')}"
+        reason = f"{type(e).__name__}: {e}".replace("\n", " ").strip()
+        if len(reason) > 300:
+            reason = reason[:297] + "..."
+        print(f"mfs-server: WARNING object {uri} failed: {reason}", flush=True)
 
     async def _should_stop(self, job_id: str, cid: str) -> bool:
         """A task boundary must stop the job if it was cancelled OR its connector is being
