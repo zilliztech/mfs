@@ -85,6 +85,12 @@ class JiraPlugin(ConnectorPlugin):
         projs = await asyncio.to_thread(self._jira.projects)
         return [p["key"] for p in (projs or [])]
 
+    def preset_for(self, path: str):
+        # issues.jsonl rows -> jira.issues preset (summary/description text). Without this
+        # the record_collection gets no text_fields and the per-row chunker emits 0 chunks,
+        # so issues index but never become searchable.
+        return "jira.issues" if path.endswith("/issues.jsonl") else None
+
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith(".jsonl"):
             return "record_collection"

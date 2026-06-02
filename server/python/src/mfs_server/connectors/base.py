@@ -257,6 +257,15 @@ PRESETS: dict[str, dict] = {
         metadata_fields=["state", "draft", "labels[*]", "author", "merged_at", "updated_at"],
         locator_fields=["number"],
     ),
+    "jira.issues": dict(
+        # JiraPlugin._flatten_issue yields summary + description (the issue body) plus
+        # business fields. Comments are NOT in the flattened record today — the raw fetch
+        # carries fields.comment (fields="*all") but the flatten drops it — so they are out
+        # of the embedded text for now; surfacing them is a separate follow-up.
+        text_fields=["summary", "description"],
+        metadata_fields=["status", "priority", "assignee", "reporter", "labels[*]", "updated"],
+        locator_fields=["key"],
+    ),
     "slack.messages": dict(
         group_by="thread_ts",
         # render_template puts speaker identity inside the embedded chunk
