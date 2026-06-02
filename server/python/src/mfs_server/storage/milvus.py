@@ -11,6 +11,7 @@ asyncio.to_thread. Works against Milvus Lite (local file) and Zilliz Cloud.
 from __future__ import annotations
 
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 from pymilvus import AnnSearchRequest, DataType, Function, FunctionType, MilvusClient, RRFRanker
 from pymilvus.exceptions import MilvusException
@@ -88,6 +89,15 @@ class MilvusStore:
         if self.token:
             kwargs["token"] = self.token
         self.client = MilvusClient(**kwargs)
+        # One-line observability: state the FINAL resolved backend (after env overrides) so
+        # it's obvious whether this server is talking to Lite or a remote/Zilliz cluster — a
+        # silent env override (ZILLIZ_URI) had us mistake a Zilliz server for Lite. Token is
+        # never logged; only the host (remote) or db path (Lite).
+        if self.is_lite():
+            print(f"mfs-server: Milvus backend: Lite ({self.uri})", flush=True)
+        else:
+            host = urlparse(self.uri).netloc or self.uri
+            print(f"mfs-server: Milvus backend: Zilliz/remote {host}", flush=True)
 
     def is_lite(self) -> bool:
         return not self.uri.startswith("http")
