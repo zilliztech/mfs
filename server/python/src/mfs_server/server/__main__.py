@@ -50,16 +50,18 @@ def main(argv: list[str] | None = None) -> int:
 
         return main_entry(raw[1:])
     if raw and raw[0] == "connector":
-        # `mfs-server connector add <uri> ...` — only `add` is implemented for
-        # now; other verbs (list/inspect/remove) live on the regular `mfs`
-        # CLI today.
-        from .connector_wizard import main_entry as connector_main
+        # `mfs-server connector <verb> ...`. Today: add (interactive wizard)
+        # and list (locally-registered TOML listing). Other verbs (inspect/
+        # remove) live on the regular `mfs` CLI for now.
+        from .connector_wizard import list_entry, main_entry as connector_main
 
         if len(raw) >= 2 and raw[1] == "add":
             return connector_main(raw[2:])
+        if len(raw) >= 2 and raw[1] == "list":
+            return list_entry(raw[2:])
         print(
-            "usage: mfs-server connector add <uri> [options]\n"
-            "  see `mfs-server connector add --help` for the wizard",
+            "usage: mfs-server connector {add <uri> | list} [options]\n"
+            "  see `mfs-server connector add --help` / `connector list --help`",
             file=sys.stderr,
         )
         return 2
@@ -139,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(
             f"config OK — milvus={'lite' if not cfg.milvus.uri.startswith('http') else 'remote'}, "
-            f"metadata={cfg.metadata.backend}, object_store={cfg.object_store.backend}. "
+            f"metadata={cfg.metadata.backend}, artifact_cache={cfg.artifact_cache.backend}. "
             "Restart the server process to apply changes."
         )
         return 0

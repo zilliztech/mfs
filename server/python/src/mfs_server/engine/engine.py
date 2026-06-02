@@ -29,7 +29,7 @@ from ..storage.file_state import FileStateStore
 from ..storage.ids import chunk_id
 from ..storage.metadata import make_metadata_store
 from ..storage.milvus import MilvusStore
-from ..storage.object_store import make_object_store
+from ..storage.artifact_cache import make_artifact_cache
 from ..storage.transformation_cache import make_transformation_cache
 from .state import ConnectorStateStore
 
@@ -217,7 +217,7 @@ class Engine:
         self.ns = cfg.namespace
         self.meta = make_metadata_store(cfg)
         self.milvus = MilvusStore(cfg)
-        self.object_store = make_object_store(cfg)
+        self.artifact_cache = make_artifact_cache(cfg)
         self.tx_cache = make_transformation_cache(cfg)
         self.embed = CachingEmbeddingClient(cfg, self.tx_cache)
         self.converter = CachingConverterClient(cfg, self.tx_cache)
@@ -705,7 +705,7 @@ class Engine:
         import hashlib
 
         sub = hashlib.sha1(f"{client_id}:{root}".encode()).hexdigest()[:16]
-        return os.path.realpath(str(self.object_store.files_root(self.ns, sub)))
+        return os.path.realpath(str(self.artifact_cache.files_root(self.ns, sub)))
 
     async def _staging_connector(self, client_id: str, root: str):
         """(staging_dir, connector_uri, connector_id). The connector's stable identity is
@@ -1277,11 +1277,11 @@ class Engine:
         if okind == "image":
             if not self.cfg.summary.include_image_desc:
                 return ""
-            data = await asyncio.to_thread(self.object_store.get_artifact, ns, full_uri, "vlm_text")
+            data = await asyncio.to_thread(self.artifact_cache.get_artifact, ns, full_uri, "vlm_text")
             return data.decode("utf-8", errors="replace")[:cap] if data else ""
         if okind == "document" and ext in CONVERT_EXTS:
             data = await asyncio.to_thread(
-                self.object_store.get_artifact, ns, full_uri, "converted_md"
+                self.artifact_cache.get_artifact, ns, full_uri, "converted_md"
             )
             return data.decode("utf-8", errors="replace")[:cap] if data else ""
         if okind in ("document", "code"):
@@ -1357,7 +1357,7 @@ class Engine:
         no-op (same content) and gives a stale-check handle."""
         import hashlib
 
-        path = await asyncio.to_thread(self.object_store.put_artifact, ns, object_uri, kind, data)
+        path = await asyncio.to_thread(self.artifact_cache.put_artifact, ns, object_uri, kind, data)
         now = _now()
         fp = hashlib.sha1(data).hexdigest()
         await self.meta.execute(
@@ -1378,7 +1378,7 @@ class Engine:
         object deletion so the cache doesn't retain orphaned bytes."""
         for kind in ("converted_md", "vlm_text", "head_cache"):
             try:
-                await asyncio.to_thread(self.object_store.delete_artifact, ns, object_uri, kind)
+                await asyncio.to_thread(self.artifact_cache.delete_artifact, ns, object_uri, kind)
             except Exception:  # noqa: BLE001
                 pass
         await self.meta.execute(
@@ -1387,7 +1387,7 @@ class Engine:
 
     async def _read_artifact(self, ns: str, object_uri: str, kind: str) -> bytes | None:
         """Fetch artifact bytes and bump last_accessed (LRU recency) when present."""
-        data = await asyncio.to_thread(self.object_store.get_artifact, ns, object_uri, kind)
+        data = await asyncio.to_thread(self.artifact_cache.get_artifact, ns, object_uri, kind)
         if data is not None:
             await self.meta.execute(
                 "UPDATE artifact_cache SET last_accessed=? "
@@ -1417,7 +1417,7 @@ class Engine:
                 break
             try:
                 await asyncio.to_thread(
-                    self.object_store.delete_artifact, ns, v["object_uri"], v["artifact_kind"]
+                    self.artifact_cache.delete_artifact, ns, v["object_uri"], v["artifact_kind"]
                 )
             except Exception:  # noqa: BLE001
                 pass
@@ -1480,7 +1480,7 @@ class Engine:
                     )
                 await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, old_full)
                 await asyncio.to_thread(self.milvus.upsert, ns, rows)
-                await asyncio.to_thread(self.object_store.move_artifacts, ns, old_full, full_uri)
+                await asyncio.to_thread(self.artifact_cache.move_artifacts, ns, old_full, full_uri)
                 # move_artifacts moved the per-object dir; bring the artifact_cache
                 # indirection rows along too so LRU bookkeeping (size accounting,
                 # last_accessed bumps on cat) tracks the artifact under its new uri.
@@ -1491,7 +1491,7 @@ class Engine:
                 )
                 for ar in artifact_rows:
                     new_storage = str(
-                        self.object_store.artifact_path(ns, full_uri, ar["artifact_kind"])
+                        self.artifact_cache.artifact_path(ns, full_uri, ar["artifact_kind"])
                     )
                     await self.meta.execute(
                         "UPDATE artifact_cache SET object_uri=?, storage_path=? "

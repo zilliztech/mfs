@@ -110,6 +110,123 @@ def _derive_alias(uri: str) -> str:
         return uri.split("://", 1)[0]
 
 
+# ─── existing-connector listing (shared with setup wizard step 7) ──────────
+
+
+def list_existing_connectors(connectors_dir: Path | None = None) -> list[dict[str, str]]:
+    """Walk $MFS_HOME/connectors/*.toml and return [{alias, uri, scheme, path}, ...].
+
+    The URI is read from the `# URI: <uri>` header line that `_render_toml`
+    writes for every generated connector toml. If a hand-edited toml has no
+    such header we fall back to `<scheme-from-filename>://<alias>` which
+    matches what `mfs-server connector add` would have written.
+    """
+    try:
+        import tomllib  # py3.11+
+    except ImportError:
+        import tomli as tomllib  # type: ignore[no-redef]
+
+    cdir = connectors_dir or (mfs_home() / "connectors")
+    rows: list[dict[str, str]] = []
+    if not cdir.is_dir():
+        return rows
+
+    for path in sorted(cdir.glob("*.toml")):
+        alias = path.stem
+        uri = ""
+        scheme = ""
+        # Header: first line containing `# URI: <uri>` written by _render_toml.
+        try:
+            for line in path.read_text().splitlines()[:20]:
+                stripped = line.strip()
+                if stripped.startswith("# URI:"):
+                    uri = stripped.split("URI:", 1)[1].strip()
+                    break
+                if stripped.startswith("# mfs-server connector config —"):
+                    scheme = stripped.split("—", 1)[1].strip()
+        except OSError:
+            continue
+        if not uri:
+            # Hand-edited toml without a header — best effort.
+            try:
+                with open(path, "rb") as f:
+                    data = tomllib.load(f)
+                # Some scheme-specific tomls store the connection URI under
+                # different keys; check the common ones.
+                for k in ("uri", "url", "dsn"):
+                    if isinstance(data.get(k), str) and "://" in data[k]:
+                        uri = data[k]
+                        break
+            except Exception:  # noqa: BLE001
+                pass
+        if uri:
+            scheme = scheme or uri.split("://", 1)[0]
+        rows.append(
+            {"alias": alias, "uri": uri or f"(no URI header in {path.name})", "scheme": scheme,
+             "path": str(path)}
+        )
+    return rows
+
+
+def _list_same_scheme(scheme: str) -> list[dict[str, str]]:
+    """Filtered list_existing_connectors() — instances of the same scheme."""
+    return [r for r in list_existing_connectors() if r["scheme"] == scheme]
+
+
+def prompt_and_add_one() -> bool:
+    """Interactive scheme + alias picker → delegate to run_connector_add.
+
+    Used by the setup-wizard step 7 loop. Returns True if a connector was
+    successfully registered (or its toml written), False if the user aborted
+    the sub-wizard.
+    """
+    schemes_with_hints = [
+        ("file", "local directory or remote upload — usually `mfs add ./path` instead"),
+        ("postgres", "PostgreSQL — DSN-based"),
+        ("mysql", "MySQL / MariaDB — DSN-based"),
+        ("mongo", "MongoDB — URI-based"),
+        ("snowflake", "Snowflake warehouse"),
+        ("bigquery", "Google BigQuery"),
+        ("slack", "Slack workspace — needs bot token"),
+        ("notion", "Notion workspace"),
+        ("github", "GitHub repository"),
+        ("web", "Web site (crawled)"),
+        ("s3", "S3 bucket"),
+    ]
+    # Only offer schemes we actually have a wizard schema for.
+    available = set(supported_schemes())
+    choices = [(s, h) for s, h in schemes_with_hints if s in available]
+    if not choices:
+        ui.warn("no connector schemes are registered; cannot add interactively.")
+        return False
+    scheme = ui.select("Connector type", choices, default=choices[0][0])
+
+    if scheme == "file":
+        ui.info("Run `mfs add <path>` directly for file connectors — skipping.")
+        return False
+
+    existing = _list_same_scheme(scheme)
+    if existing:
+        ui.note(f"Existing {scheme}:// instances:")
+        for row in existing:
+            ui.note(f"  • {row['alias']}  ({row['uri']})")
+
+    alias = ui.text(
+        "Instance alias",
+        required=True,
+        hint=f"becomes the URI host: {scheme}://<alias>",
+        validate=lambda v: (
+            None
+            if v.replace("-", "").replace("_", "").isalnum()
+            else "alias must be alphanumeric (- and _ allowed)"
+        ),
+    )
+    uri = f"{scheme}://{alias}"
+    # Reuse the full single-connector flow.
+    rc = run_connector_add(uri)
+    return rc == 0
+
+
 # ─── TOML rendering (small subset — shared style with setup_wizard) ────────
 
 
@@ -389,6 +506,16 @@ def run_connector_add(
             "Press Ctrl-C to abort without saving",
         ],
     )
+    # Help users avoid alias collisions — list any same-scheme instances they
+    # already registered. The wizard will still proceed (and back up .bak)
+    # even if alias matches; this just makes "I forgot what I had" visible.
+    siblings = [r for r in _list_same_scheme(scheme) if r["alias"] != alias]
+    if siblings:
+        ui.note(f"Other {scheme}:// instances on this host:")
+        for row in siblings:
+            ui.note(f"  • {row['alias']}  ({row['uri']})")
+    if out_path.exists():
+        ui.warn(f"alias '{alias}' already exists — re-running will overwrite the previous TOML.")
 
     total = 1 + (1 if scheme in {"postgres", "mysql", "mongo", "snowflake", "bigquery"} else 0)
     ui.section("Credentials", "", step=1, total=total)
@@ -486,3 +613,45 @@ def main_entry(argv: list[str]) -> int:
         out_dir=args.out_dir,
         server_port=args.server_port,
     )
+
+
+def list_entry(argv: list[str]) -> int:
+    """`mfs-server connector list` — print every connector TOML under
+    $MFS_HOME/connectors/ along with its URI and scheme.
+
+    This is the "where did I leave my connectors" command: every successful
+    `connector add` writes a toml here, so this is the local source of truth
+    for what the operator has configured (the running server's view via
+    /v1/status may differ if the server is down or hasn't picked up an
+    edit).
+    """
+    import argparse
+
+    p = argparse.ArgumentParser(
+        prog="mfs-server connector list",
+        description="List connector TOMLs under $MFS_HOME/connectors/.",
+    )
+    p.add_argument(
+        "--connectors-dir",
+        type=Path,
+        default=None,
+        help="Override the connectors directory (default: $MFS_HOME/connectors/)",
+    )
+    args = p.parse_args(argv)
+
+    rows = list_existing_connectors(args.connectors_dir)
+    cdir = args.connectors_dir or (mfs_home() / "connectors")
+    if not rows:
+        print(f"No connectors registered under {cdir}.")
+        print("Add one with: mfs-server connector add <scheme>://<alias>")
+        return 0
+    print(f"{len(rows)} connector(s) under {cdir}:\n")
+    width = max(len(r["alias"]) for r in rows)
+    for r in rows:
+        print(f"  {r['alias']:<{width}}  {r['uri']}")
+    print()
+    print(
+        "Each TOML is the on-disk spec for one instance. The running server "
+        "registers them via POST /v1/add (`mfs add <uri> --update` after edits)."
+    )
+    return 0

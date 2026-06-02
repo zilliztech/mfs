@@ -1,19 +1,29 @@
 """Interactive setup wizard — `mfs-server setup`.
 
-Walks the operator through the base server config (embedding / vlm / milvus /
-metadata / object_store / auth) one section at a time and writes the result to
-$MFS_HOME/server.toml. Every prompt has a "lightweight-local" default so the
-operator can press Enter through the whole flow and get a self-contained
-server that needs zero external services. Plugging in OpenAI / Zilliz Cloud /
-Postgres / S3 is purely opt-in — provide credentials when prompted and the
-section flips to the hosted backend.
+Walks the operator through the base server config one section at a time and
+writes the result to $MFS_HOME/server.toml. Every prompt has a "lightweight-
+local" default so the operator can press Enter through the whole flow and get
+a self-contained server that needs zero external services. Plugging in
+OpenAI / Zilliz Cloud / Postgres / S3 is purely opt-in — provide credentials
+when prompted and the section flips to the hosted backend.
 
-Connector setup is intentionally NOT here. Connectors are added one at a time
-through their own per-scheme flow (mfs-server connector add <uri>), not by
-walking through every connector type during base setup.
+Sections (default order):
+  embedding -> vlm -> milvus -> database -> cache -> auth -> connectors
 
-UI is built on `wizard_ui` (rich panels + questionary prompts). The
-underlying TOML schema is unchanged from the pre-styling version.
+`database` configures the single relational backend used for both
+metadata (connectors / objects / queue) and the transformation-cache
+lookup table — see config.DatabaseConfig.
+
+`cache` configures the artifact half of the outward Cache concept
+(design doc §2 + §10.4): a local filesystem or S3-compatible store for
+derived blobs (PDF→markdown, VLM image descriptions, …). Maps to
+[artifact_cache] in the TOML.
+
+`connectors` is optional and runs the per-scheme `connector add` wizard
+in a loop; users can skip it (default No) and add connectors later with
+`mfs-server connector add <uri>`.
+
+UI is built on `wizard_ui` (rich panels + questionary prompts).
 """
 
 from __future__ import annotations
@@ -32,10 +42,10 @@ except ImportError:
     _HAVE_TOMLI_W = False
 
 from ..config import (
+    ArtifactCacheConfig,
+    DatabaseConfig,
     EmbeddingConfig,
-    MetadataConfig,
     MilvusConfig,
-    ObjectStoreConfig,
     ServerConfig,
     SummaryConfig,
     VlmConfig,
@@ -44,7 +54,7 @@ from ..config import (
 )
 from . import wizard_ui as ui
 
-SECTIONS = ("embedding", "vlm", "milvus", "metadata", "object_store", "auth")
+SECTIONS = ("embedding", "vlm", "milvus", "database", "cache", "auth", "connectors")
 
 
 # ─── per-section wizards ────────────────────────────────────────────────────
@@ -209,19 +219,11 @@ def _wizard_milvus(
         ],
         default=default_backend,
     )
-    cl = ui.select(
-        "Consistency level",
-        [
-            ("", "Milvus default (Bounded ~5s staleness)"),
-            ("Strong", "strict read-your-writes (highest latency)"),
-            ("Bounded", "Milvus default explicitly"),
-            ("Eventually", "lowest latency, may read stale"),
-            ("Session", "per-session consistency"),
-        ],
-        default=current.consistency_level or "",
-    )
+    # consistency_level is intentionally not prompted: the mfs default (Strong;
+    # see MilvusStore._cl_kw) handles the read-after-write demo case, and
+    # power users can override via [milvus] consistency_level in the toml.
     if backend == "lite":
-        return {"uri": "", "token": "", "consistency_level": cl}
+        return {"uri": "", "token": ""}
     # Remote: require a non-empty URI and don't echo a Lite-path default.
     raw_default_uri = "" if env_resolved else current.uri
     if _is_lite_path(raw_default_uri):
@@ -241,14 +243,18 @@ def _wizard_milvus(
     token = ui.password("Token", default=tok_default, hint="leave blank if your Milvus has no auth")
     if env_resolved and not uri:
         ui.info("(kept empty — server will fall back to $MFS_MILVUS_URI / $ZILLIZ_URI at runtime.)")
-    return {"uri": uri, "token": token, "consistency_level": cl}
+    return {"uri": uri, "token": token}
 
 
-def _wizard_metadata(current: MetadataConfig, step: int, total: int) -> dict[str, Any]:
+def _wizard_database(current: DatabaseConfig, step: int, total: int) -> dict[str, Any]:
     ui.section(
-        "Metadata DB",
+        "Database",
+        "One relational backend for all server state:\n"
+        "  • connector registry + object index + the ingest job queue\n"
+        "  • the transformation cache lookup table (embeddings, summaries)\n\n"
         "Default = SQLite (a file under $MFS_HOME). Switch to Postgres for\n"
-        "team / multi-replica deployments.",
+        "team / multi-replica deployments where multiple server processes\n"
+        "share the same state.",
         step=step,
         total=total,
     )
@@ -258,7 +264,7 @@ def _wizard_metadata(current: MetadataConfig, step: int, total: int) -> dict[str
             ("sqlite", "single-host, file-based (no setup)"),
             ("postgres", "asyncpg-backed (needs Postgres reachable)"),
         ],
-        default=current.backend,
+        default=current.backend or "sqlite",
     )
     if backend == "sqlite":
         return {"backend": "sqlite", "dsn": ""}
@@ -271,12 +277,15 @@ def _wizard_metadata(current: MetadataConfig, step: int, total: int) -> dict[str
     return {"backend": "postgres", "dsn": dsn}
 
 
-def _wizard_object_store(current: ObjectStoreConfig, step: int, total: int) -> dict[str, Any]:
+def _wizard_cache(current: ArtifactCacheConfig, step: int, total: int) -> dict[str, Any]:
     ui.section(
-        "Object store",
-        "Holds transformation-cache artifacts (PDF→markdown, VLM descriptions).\n"
-        "Default = local filesystem under $MFS_HOME. Switch to S3 (or MinIO /\n"
-        "R2 / GCS via endpoint_url) for shared storage across server replicas.",
+        "Cache",
+        "Where derived artifact blobs live (PDF→markdown conversions, VLM\n"
+        "image descriptions, …). Default = local filesystem under $MFS_HOME.\n"
+        "Switch to S3 (or MinIO / R2 / GCS via endpoint_url) for shared\n"
+        "storage across server replicas.\n\n"
+        "(Size + eviction policy are advanced knobs — defaults are fine; edit\n"
+        "[artifact_cache].max_size_gb / eviction in the TOML to change them.)",
         step=step,
         total=total,
     )
@@ -286,7 +295,7 @@ def _wizard_object_store(current: ObjectStoreConfig, step: int, total: int) -> d
             ("local", "filesystem under $MFS_HOME (no setup)"),
             ("s3", "S3 / MinIO / R2 / GCS via endpoint_url"),
         ],
-        default=current.backend,
+        default=current.backend or "local",
     )
     if backend == "local":
         return {"backend": "local"}
@@ -342,6 +351,49 @@ def _wizard_auth(current_token: str, step: int, total: int) -> dict[str, Any]:
     return {"token": tok}
 
 
+def _wizard_connectors(step: int, total: int) -> dict[str, Any]:
+    """Optional last step: invite the user to add one or more connectors now.
+
+    Defaults to "No" — most operators are still gathering credentials when
+    they finish base setup and add connectors later. Saying Yes drops them
+    into the same per-scheme flow as `mfs-server connector add <uri>`,
+    looped until they say "no more".
+
+    Returns {} (this step doesn't modify the server toml itself — each
+    connector writes its own toml under $MFS_HOME/connectors/<alias>.toml).
+    """
+    from .connector_wizard import list_existing_connectors, prompt_and_add_one
+
+    ui.section(
+        "Connectors",
+        "(optional) Register one or more data sources now. You can also add\n"
+        "them later with: mfs-server connector add <uri>",
+        step=step,
+        total=total,
+    )
+    existing = list_existing_connectors()
+    if existing:
+        ui.note(f"Existing connectors in {mfs_home() / 'connectors'}:")
+        for row in existing:
+            ui.note(f"  • {row['uri']}")
+    else:
+        ui.note("No connectors registered yet.")
+
+    if not ui.confirm("Add a connector now?", default=False):
+        ui.info("Skipped. Add later with: mfs-server connector add <scheme>://<host>")
+        return {}
+
+    added = 0
+    while True:
+        ok = prompt_and_add_one()
+        if ok:
+            added += 1
+        if not ui.confirm("Add another connector?", default=False):
+            break
+    ui.emphasis(f"  added {added} connector(s)")
+    return {}
+
+
 # ─── apply + render ─────────────────────────────────────────────────────────
 
 
@@ -357,11 +409,10 @@ def _build_runners(
         "milvus": lambda c: _wizard_milvus(
             c.milvus, env_resolved=milvus_from_env, step=step_of["milvus"], total=total
         ),
-        "metadata": lambda c: _wizard_metadata(c.metadata, step_of["metadata"], total),
-        "object_store": lambda c: _wizard_object_store(
-            c.object_store, step_of["object_store"], total
-        ),
+        "database": lambda c: _wizard_database(c.database, step_of["database"], total),
+        "cache": lambda c: _wizard_cache(c.artifact_cache, step_of["cache"], total),
         "auth": lambda c: _wizard_auth(c.auth_token, step_of["auth"], total),
+        "connectors": lambda c: _wizard_connectors(step_of["connectors"], total),
     }
 
 
@@ -386,24 +437,26 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
             summ["model"] = answers["vlm_model"]
             current["vlm"] = {"provider": answers["vlm_provider"], "model": answers["vlm_model"]}
     elif section == "milvus":
-        # consistency_level can be empty string (= Milvus SDK default); keep
-        # it explicitly when set; drop when blank.
         block = {k: v for k, v in answers.items() if v != ""}
         if block:
             current["milvus"] = block
         else:
             current.pop("milvus", None)
-    elif section == "metadata":
+    elif section == "database":
         block = {k: v for k, v in answers.items() if v != ""}
-        current["metadata"] = block
-    elif section == "object_store":
+        current["database"] = block
+    elif section == "cache":
         block = {k: v for k, v in answers.items() if v != ""}
-        current["object_store"] = block
+        current["artifact_cache"] = block
     elif section == "auth":
         if answers.get("auto"):
             current.pop("auth_token", None)  # let server auto-generate to server.token
         else:
             current["auth_token"] = answers["token"]
+    elif section == "connectors":
+        # No-op: connectors write to their own per-instance tomls under
+        # $MFS_HOME/connectors/, not the server toml.
+        pass
     return current
 
 
@@ -489,12 +542,10 @@ def _summary_pairs(out: dict[str, Any]) -> list[tuple[str, str]]:
         pairs.append(("Milvus", f"remote {m.get('uri')}"))
     else:
         pairs.append(("Milvus", "Lite (local file)"))
-    if m.get("consistency_level"):
-        pairs.append(("  consistency", m["consistency_level"]))
-    md = out.get("metadata", {})
-    pairs.append(("Metadata", md.get("backend", "sqlite")))
-    obj = out.get("object_store", {})
-    pairs.append(("Object store", obj.get("backend", "local")))
+    db = out.get("database", {})
+    pairs.append(("Database", db.get("backend", "sqlite")))
+    ac = out.get("artifact_cache", {})
+    pairs.append(("Cache", ac.get("backend", "local")))
     if "auth_token" in out:
         pairs.append(("Auth", "disabled" if out["auth_token"] == "-" else "custom token"))
     else:

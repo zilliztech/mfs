@@ -36,7 +36,7 @@ Mount `/data` to a volume so the model survives container restarts.
 
 Connector SDKs are baked at build time via `--build-arg EXTRAS="[postgres,slack,s3]"`
 — the default `[all-connectors]` covers every scheme. The base config
-(embedding / vlm / milvus / metadata / object_store / auth) is set up
+(embedding / vlm / milvus / database / cache / auth / connectors) is set up
 interactively inside the container:
 
 ```bash

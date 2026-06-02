@@ -1,14 +1,21 @@
-"""Object store: artifact cache bytes + upload staging.
+"""Artifact-cache storage: derived blobs (PDF→md, VLM image text, …) per object.
+
+This is the "artifact" half of the outward Cache concept (design doc §2 +
+§10.4): per-object derived bytes that let cat/head/tail not round-trip back
+to the source connector. The "transformation" half (small KV lookups for
+embeddings/summaries) lives next door in `storage/transformation_cache/`.
 
 Layout (sliced by namespace_id):
   <root>/artifacts/<ns>/<sha1(object_uri)>/<artifact_kind>
   <root>/uploads/<ns>/<connector_id>/<request_id>.zip
   <root>/files/<ns>/<connector_id>/...        (CS upload flow extracted tree)
 
-Two backends with the same interface: LocalObjectStore (fs) and S3ObjectStore
-(S3 / R2 / GCS / MinIO via boto3 + endpoint_url). `make_object_store(cfg)` picks one.
-Upload staging (files_root / uploads_dir) is always local fs (ephemeral scratch the
-worker scans); only artifacts go to S3. Synchronous; callers wrap in asyncio.to_thread.
+Two backends with the same interface: LocalArtifactCache (fs) and
+S3ArtifactCache (S3 / R2 / GCS / MinIO via boto3 + endpoint_url).
+`make_artifact_cache(cfg)` picks one. Upload staging (files_root /
+uploads_dir) is always local fs (ephemeral scratch the worker scans);
+only the artifact bytes themselves go to S3. Synchronous; callers wrap in
+asyncio.to_thread.
 """
 
 from __future__ import annotations
@@ -20,17 +27,17 @@ from ..config import ServerConfig
 from .ids import sha1_hex
 
 
-def make_object_store(cfg: ServerConfig):
-    """Factory: local fs or S3-compatible store per cfg.object_store.backend."""
-    if cfg.object_store.backend == "s3":
-        return S3ObjectStore(cfg)
-    return LocalObjectStore(cfg)
+def make_artifact_cache(cfg: ServerConfig):
+    """Factory: local fs or S3-compatible store per cfg.artifact_cache.backend."""
+    if cfg.artifact_cache.backend == "s3":
+        return S3ArtifactCache(cfg)
+    return LocalArtifactCache(cfg)
 
 
-class LocalObjectStore:
+class LocalArtifactCache:
     def __init__(self, cfg: ServerConfig):
-        self.root = Path(cfg.object_store.root)
-        self.backend = cfg.object_store.backend
+        self.root = Path(cfg.artifact_cache.root)
+        self.backend = cfg.artifact_cache.backend
 
     def _artifact_dir(self, namespace_id: str, object_uri: str) -> Path:
         return self.root / "artifacts" / namespace_id / sha1_hex(object_uri.encode())
@@ -78,24 +85,24 @@ class LocalObjectStore:
         return p
 
 
-class S3ObjectStore:
+class S3ArtifactCache:
     """Artifact bytes on an S3-compatible store (AWS S3 / R2 / GCS / MinIO). Same
-    interface as LocalObjectStore. Staging dirs (files_root/uploads_dir) stay local."""
+    interface as LocalArtifactCache. Staging dirs (files_root/uploads_dir) stay local."""
 
     def __init__(self, cfg: ServerConfig):
         import boto3
 
         self.backend = "s3"
-        oc = cfg.object_store
-        self.bucket = oc.bucket
-        self.prefix = (oc.prefix or "").strip("/")
-        self.root = Path(cfg.object_store.root or "/tmp/mfs-staging")  # local staging scratch
-        kw = {"region_name": oc.region}
-        if oc.endpoint_url:
-            kw["endpoint_url"] = oc.endpoint_url
-        if oc.access_key_id:
-            kw["aws_access_key_id"] = oc.access_key_id
-            kw["aws_secret_access_key"] = oc.secret_access_key
+        ac = cfg.artifact_cache
+        self.bucket = ac.bucket
+        self.prefix = (ac.prefix or "").strip("/")
+        self.root = Path(cfg.artifact_cache.root or "/tmp/mfs-staging")  # local staging scratch
+        kw = {"region_name": ac.region}
+        if ac.endpoint_url:
+            kw["endpoint_url"] = ac.endpoint_url
+        if ac.access_key_id:
+            kw["aws_access_key_id"] = ac.access_key_id
+            kw["aws_secret_access_key"] = ac.secret_access_key
         self._s3 = boto3.client("s3", **kw)
         self._ensure_bucket()
 

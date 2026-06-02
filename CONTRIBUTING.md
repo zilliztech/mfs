@@ -41,7 +41,7 @@ pre-commit install
 Two wizards for operators who'd rather not hand-edit TOML:
 
 ```bash
-# Base config (embedding / vlm / milvus / metadata / object_store / auth).
+# Base config (embedding / vlm / milvus / database / cache / auth / connectors).
 # Press Enter through to get a self-contained-local server.
 uv run mfs-server setup
 uv run mfs-server setup --section embedding   # change one section later
