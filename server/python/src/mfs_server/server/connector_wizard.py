@@ -162,8 +162,12 @@ def list_existing_connectors(connectors_dir: Path | None = None) -> list[dict[st
         if uri:
             scheme = scheme or uri.split("://", 1)[0]
         rows.append(
-            {"alias": alias, "uri": uri or f"(no URI header in {path.name})", "scheme": scheme,
-             "path": str(path)}
+            {
+                "alias": alias,
+                "uri": uri or f"(no URI header in {path.name})",
+                "scheme": scheme,
+                "path": str(path),
+            }
         )
     return rows
 

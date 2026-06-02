@@ -247,7 +247,6 @@ class MilvusStore:
                 "dense_vec",
                 "chunk_kind",
                 "locator",
-                "lines",
                 "metadata",
                 "indexed_at",
             ],
@@ -275,19 +274,23 @@ class MilvusStore:
             limit=limit,
             filter=expr,
             output_fields=output_fields
-            or ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "lines", "metadata"],
+            or ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "metadata"],
             search_params={"metric_type": "COSINE"},
             **cl_kw,
         )
         return list(res[0]) if res else []
 
+    # The collection has no top-level "lines" field — line ranges live INSIDE
+    # the JSON locator ({"lines": [start, end]} for body/code chunks). Requesting
+    # "lines" as an output_field is silently dropped by Milvus Lite (which is
+    # why CI never caught it) but fails on remote Milvus with
+    #   <MilvusException: code=1100, message=field lines not exist>
     _DEFAULT_OUT = [
         "chunk_id",
         "object_uri",
         "content",
         "chunk_kind",
         "locator",
-        "lines",
         "metadata",
     ]
 

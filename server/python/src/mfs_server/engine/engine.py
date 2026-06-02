@@ -1277,7 +1277,9 @@ class Engine:
         if okind == "image":
             if not self.cfg.summary.include_image_desc:
                 return ""
-            data = await asyncio.to_thread(self.artifact_cache.get_artifact, ns, full_uri, "vlm_text")
+            data = await asyncio.to_thread(
+                self.artifact_cache.get_artifact, ns, full_uri, "vlm_text"
+            )
             return data.decode("utf-8", errors="replace")[:cap] if data else ""
         if okind == "document" and ext in CONVERT_EXTS:
             data = await asyncio.to_thread(
