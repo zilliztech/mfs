@@ -1,0 +1,69 @@
+# Build context excludes: keep the `docker build` upload small (≈3 MB of real
+# source instead of ~800 MB of dev-machine clutter) so layer-cache hits aren't
+# undone by an irrelevant file changing.
+
+# Python build artefacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+wheels/
+
+# Virtual environments
+.venv/
+venv/
+
+# Lint / test caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Rust target dirs (cli/ and server-rs/ both build locally during dev)
+target/
+
+# Node / TS
+node_modules/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Other tool state directories that some build hosts have
+.cc-use/
+.claude/
+
+# Git metadata — the runtime image doesn't need it
+.git/
+.gitignore
+.gitattributes
+
+# MFS runtime state from local dev
+.mfs/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Local logs / temp
+*.log
+*.bak
+*.tmp
+
+# Tests not shipped in the production server image
+server/python/tests/
+sdks/python/test/
+sdks/smoke/
+
+# CI / docs / examples that the server image doesn't need
+.github/
+docs/
+skills/
+
+# Other deployment targets (helm / compose configs don't go INTO the image)
+deployments/compose/
+deployments/helm/

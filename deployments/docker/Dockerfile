@@ -6,13 +6,25 @@
 # Build context = repo root:
 #   docker build -f deployments/docker/Dockerfile \
 #                --build-arg EXTRAS="[all-connectors]" \
-#                -t mfs-server:0.4.0-beta.1 .
+#                -t mfs-server:0.4.0-beta.2 .
+#
+# Layer caching strategy (matters a lot — without it every code edit re-pulls
+# all of pymilvus / onnxruntime / markitdown / huggingface-hub / ... ~ minutes):
+#
+#   1. System deps                — apt build-essential (rare-change)
+#   2. Dep manifest + README      — pyproject.toml only
+#   3. Install deps over a STUB src so the wheel-builder succeeds without our
+#      real code; this is the slow layer (~hundreds of MB downloaded) and
+#      gets cached unless pyproject.toml itself changes
+#   4. Copy real source           — invalidates on every commit; cheap
+#   5. Reinstall the local package with --no-deps over the stub — fast (no
+#      network, just rebuild the local wheel)
 #
 # Backends (DB / Milvus / object store) are all RUNTIME — pass env at `docker run`:
 #   MFS_METADATA_DSN=postgresql://...   # default = SQLite under /data
-#   MFS_MILVUS_URI=https://...zillizcloud.com / MFS_MILVUS_TOKEN=...  # default = Lite under /data
+#   MILVUS_URI=https://...zillizcloud.com / MILVUS_TOKEN=...  # default = Lite under /data
 #   MFS_API_TOKEN=...                   # default = auto-generated to /data/server.token
-#   OPENAI_API_KEY=...                  # required for embedding (`add` / `search`)
+#   OPENAI_API_KEY=...                  # only if embedding.provider = openai
 #
 # The native Rust accelerator (server-rs) is OPTIONAL — omitted here so the image
 # stays pure-Python; mfs_server.common.accel falls back transparently.
@@ -22,21 +34,41 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     MFS_HOME=/data
 
-# build deps for any wheels that need compiling (kept minimal)
+# Layer 1: system deps. Cached unless this RUN line itself changes.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY server/python /app/server/python
-# server/python/pyproject.toml references ../../README.md as the long_description.
-# Pull the repo-root README into the layout that resolves so the build doesn't break.
+
+# Layer 2: dep manifest + the README pyproject.toml references via `readme = `.
+# Copying ONLY these (not src/) means subsequent code edits don't invalidate
+# the layer that does the slow `pip install`.
+COPY server/python/pyproject.toml /app/server/python/pyproject.toml
 COPY README.md /app/README.md
 
-# install the server. Pass extras at build time, e.g.:
-#   --build-arg EXTRAS="[postgres,slack,s3]"
+# Layer 3: install ALL third-party deps. Trick: hatchling needs the source tree
+# to build a wheel; create a stub `src/mfs_server/__init__.py` so the local
+# wheel can be assembled with no real code. `pip install` then resolves and
+# downloads every dep declared in pyproject.toml.
+#
+# When pyproject.toml is unchanged across builds this layer is a perfect cache
+# hit — even on a different machine pulling the same Dockerfile.
 ARG EXTRAS=""
-RUN pip install "/app/server/python${EXTRAS}"
+RUN mkdir -p /app/server/python/src/mfs_server \
+    && printf '"""placeholder for layer caching; overridden by the real source in the next COPY"""\n' \
+       > /app/server/python/src/mfs_server/__init__.py \
+    && pip install "/app/server/python${EXTRAS}"
+
+# Layer 4: real source. This is the layer that invalidates on every code
+# change. With .dockerignore the COPY ships ~3 MB instead of ~800 MB of
+# .venv / __pycache__ clutter.
+COPY server/python/src /app/server/python/src
+
+# Layer 5: reinstall the local package over the placeholder. --no-deps because
+# every third-party dep is already pinned in the env from layer 3, --force-reinstall
+# to swap the stub mfs_server out for the real one. No network calls here.
+RUN pip install /app/server/python --no-deps --force-reinstall
 
 # data volume: SQLite metadata + Milvus Lite + cache live here (mount to persist!)
 RUN mkdir -p /data
