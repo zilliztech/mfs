@@ -314,6 +314,17 @@ class Engine:
                 "file",
                 {"root": abs_path, "client_id": "local"},
             )
+        # canonical local URI: file://local<abs_path> — what `mfs connector list` prints.
+        # Map it back to the same (root, connector_uri) a bare path would resolve to,
+        # so inspect/remove/update accept the identifier `connector list` shows.
+        if target.startswith("file://local/"):
+            abs_path = target[len("file://local") :]
+            return (
+                "file",
+                f"file://local{abs_path}",
+                "file",
+                {"root": abs_path, "client_id": "local"},
+            )
         # logical upload identity file://<client_id><abs> (client_id != local): the real
         # config (staging root) lives on the already-registered connector, so return bare.
         if target.startswith("file://") and not target.startswith("file://local"):
