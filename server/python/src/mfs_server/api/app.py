@@ -49,6 +49,8 @@ _CODE_SUGGESTIONS = {
     "sync_already_running": ["mfs job list", "mfs job cancel JOB_ID"],
     "connector_removing": ["wait for removal to finish, then retry"],
     "connector_unhealthy": ["check credentials/connectivity"],
+    "embedding_auth_failed": ["fix the embedding provider API key, then `mfs add` again"],
+    "embedding_quota_exceeded": ["top up the embedding provider quota/billing, then `mfs add` again"],
     "not_found": ["check the URI"],
     "not_available": ["the connector may require an optional dependency; install its extra"],
     "top_k_too_large": [

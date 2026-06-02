@@ -1149,25 +1149,30 @@ class Engine:
 
     @staticmethod
     def _classify_error(e: Exception) -> str:
-        """retryable (transient: 429 rate-limit / 5xx / timeout) vs fatal (structural:
-        quota exhausted / auth)."""
+        """Classify an embedding/provider error:
+          'auth'      — bad/unauthorized key (OpenAI 401 / AuthenticationError)
+          'quota'     — billing/quota exhausted (insufficient_quota / 402)
+          'retryable' — transient (429 rate-limit / 5xx / timeout)
+        'auth' and 'quota' are GLOBAL and non-retryable: a known-bad key or empty balance
+        fails identically for every object, so the caller aborts the whole job with the
+        documented embedding_auth_failed / embedding_quota_exceeded code instead of grinding
+        each object (and masking the run as a 0-indexed 'succeeded')."""
         m = str(e).lower()
-        fatal_markers = (
-            "insufficient_quota",
-            "quota",
+        nm = type(e).__name__.lower()
+        auth_markers = (
             "invalid_api_key",
+            "invalid x-api-key",
             "authentication",
             "unauthorized",
-            "402",
-            "401",
             "permission denied",
-            "invalid x-api-key",
+            "401",
         )
-        if any(k in m for k in fatal_markers):
-            return "fatal"
-        nm = type(e).__name__.lower()
-        if "authentication" in nm or "permissiondenied" in nm:
-            return "fatal"
+        if any(k in m for k in auth_markers) or "authentication" in nm or "permissiondenied" in nm:
+            return "auth"
+        # quota exhausted is distinct from a transient 429 rate-limit (which stays retryable):
+        # OpenAI signals it with insufficient_quota; 402 is payment-required.
+        if "insufficient_quota" in m or "402" in m:
+            return "quota"
         return "retryable"
 
     async def _process_with_retry(self, plugin, connector_uri: str, task: dict) -> str | None:
@@ -1181,13 +1186,17 @@ class Engine:
                 return None
             except Exception as e:  # noqa: BLE001
                 kind = self._classify_error(e)
-                if kind == "fatal":
+                if kind in ("auth", "quota"):
+                    # Global, non-retryable provider failure: return the documented code so
+                    # _run_job_loop aborts the whole job (status=failed, error=<code>) on the
+                    # first occurrence rather than retrying or marking the run 'succeeded'.
+                    code = "embedding_auth_failed" if kind == "auth" else "embedding_quota_exceeded"
                     await self.meta.execute(
                         "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
-                        (_now(), f"fatal: {e}", task["id"]),
+                        (_now(), f"{code}: {e}", task["id"]),
                     )
                     self._warn_object_failed(connector_uri, task, e)
-                    return "fatal"
+                    return code
                 if attempt < max_r:
                     # exponential backoff capped at backoff_max_ms: a flat
                     # initial-only sleep ignored backoff_max_ms entirely and hammered a
@@ -1297,11 +1306,21 @@ class Engine:
                         (_now(), t["id"]),
                     )
                     consec_fail = 0
+                elif r in ("embedding_auth_failed", "embedding_quota_exceeded"):
+                    # Global, non-retryable failure (bad key / no quota): abort the whole job
+                    # at once with the documented code — every object would fail identically,
+                    # so grinding them (or finishing 'succeeded' with 0 indexed) just hides it.
+                    await self.meta.execute(
+                        "UPDATE object_tasks SET status='cancelled' "
+                        "WHERE connector_job_id=? AND status IN ('pending','running')",
+                        (job_id,),
+                    )
+                    return r
                 else:
-                    # both 'fatal' AND 'retryable_exhausted' count toward the breaker: a
-                    # provider that rate-limits (429) or times out on every object is
-                    # classified retryable, and without counting it the job would grind the
-                    # whole connector, burning (max_retries+1) calls per object.
+                    # retryable_exhausted counts toward the breaker: a provider that rate-limits
+                    # (429) or times out on every object is classified retryable, and without
+                    # counting it the job would grind the whole connector, burning
+                    # (max_retries+1) calls per object.
                     consec_fail += 1
                     if consec_fail >= threshold:
                         await self.meta.execute(
