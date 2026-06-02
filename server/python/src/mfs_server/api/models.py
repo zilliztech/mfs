@@ -188,6 +188,8 @@ class ConnectorRow(BaseModel):
     root_uri: str
     type: str
     status: str
+    object_count: int = Field(0, description="indexed objects for this connector")
+    chunk_count: int = Field(0, description="indexed vector chunks for this connector")
 
 
 class StatusResponse(BaseModel):

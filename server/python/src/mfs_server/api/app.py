@@ -422,8 +422,17 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.get("/v1/status", response_model=StatusResponse, operation_id="status", tags=["server"])
     async def status() -> StatusResponse:
+        # Per-connector object/chunk counts come from the metadata `objects` table
+        # (objects.chunk_count is already maintained per object). One grouped LEFT JOIN —
+        # connectors with nothing indexed yet still report 0/0 — so status surfaces store
+        # state without a full Milvus scan.
         conns = await eng().meta.fetchall(
-            "SELECT root_uri, type, status FROM connectors WHERE namespace_id=?", (cfg.namespace,)
+            "SELECT c.root_uri AS root_uri, c.type AS type, c.status AS status, "
+            "  COUNT(o.object_uri) AS object_count, "
+            "  COALESCE(SUM(o.chunk_count), 0) AS chunk_count "
+            "FROM connectors c LEFT JOIN objects o ON o.connector_id = c.id "
+            "WHERE c.namespace_id=? GROUP BY c.id, c.root_uri, c.type, c.status",
+            (cfg.namespace,),
         )
         jobs = await eng().meta.fetchall(
             "SELECT status, count(*) AS n FROM connector_jobs GROUP BY status"

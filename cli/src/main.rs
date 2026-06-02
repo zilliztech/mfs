@@ -696,10 +696,12 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 }
                 for c in v["connectors"].as_array().unwrap_or(&vec![]) {
                     println!(
-                        "{:10}  {:8}  {}",
+                        "{:10}  {:8}  {}  ({} objects, {} chunks)",
                         c["type"].as_str().unwrap_or("?"),
                         c["status"].as_str().unwrap_or("?"),
-                        c["root_uri"].as_str().unwrap_or("?")
+                        c["root_uri"].as_str().unwrap_or("?"),
+                        c["object_count"].as_u64().unwrap_or(0),
+                        c["chunk_count"].as_u64().unwrap_or(0)
                     );
                 }
             }
