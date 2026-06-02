@@ -54,6 +54,10 @@ _CODE_SUGGESTIONS = {
     "top_k_too_large": [
         "lower --top-k: it exceeds the vector store's result limit (hybrid mode over-fetches, so its effective limit is higher than top_k)"
     ],
+    "embedding_dim_mismatch": [
+        "the embedding dimension doesn't match this collection's vectors (the collection name encodes its dim)",
+        "re-run `mfs-server setup --section embedding` to set the correct dim, or re-index into a fresh collection",
+    ],
 }
 # HTTP status -> code when `detail` isn't already a canonical code (human strings).
 _STATUS_CODE = {

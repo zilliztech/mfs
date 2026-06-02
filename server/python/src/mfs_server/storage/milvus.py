@@ -32,16 +32,22 @@ _COLLECTION_SCHEMA_VERSION = 1
 MILVUS_MAX_RESULT_WINDOW = 16384
 
 
-def _reraise_result_limit(exc: MilvusException) -> None:
-    """Translate Milvus' oversized-request errors into a stable `top_k_too_large` domain
-    error. Milvus rejects too-large requests with code=65535 and a message about an invalid
-    `topk` or `max query result window`. The exact ceiling is backend-specific (Milvus Lite
-    caps topk at 1024; full Milvus/Zilliz allow far more), so the engine's coarse pre-check
-    can't catch every case up front — this is the authoritative guard. Any other Milvus error
-    is re-raised unchanged so genuine internal failures still surface as such."""
+def _reraise_known_milvus_error(exc: MilvusException) -> None:
+    """Translate Milvus errors that are really user/config problems into stable domain
+    errors (raised as ValueError) so the API renders a clean 4xx envelope instead of leaking
+    a raw MilvusException as a 500. Any other Milvus error is re-raised unchanged so genuine
+    internal failures still surface as such."""
     msg = (exc.message or str(exc)).lower()
+    # Oversized top_k / result window (code=65535; backend-specific ceiling — Lite caps topk
+    # at 1024, full Milvus/Zilliz allow far more).
     if exc.code == 65535 and ("topk" in msg or "result window" in msg):
         raise ValueError("top_k_too_large") from exc
+    # Vector dimension mismatch: the query (or row) vector dim doesn't match the collection's
+    # dense_vec dim — usually a stale cfg.embedding.dim after an embedding-provider swap.
+    # Surfaces on Milvus Lite as a numpy matmul "core dimension ... different from" error and
+    # on remote Milvus as "expected dim N, got M".
+    if "dim" in msg and ("mismatch" in msg or "different from" in msg or "expected dim" in msg):
+        raise ValueError("embedding_dim_mismatch") from exc
     raise exc
 
 
@@ -311,7 +317,7 @@ class MilvusStore:
                 **cl_kw,
             )
         except MilvusException as e:
-            _reraise_result_limit(e)
+            _reraise_known_milvus_error(e)
         return list(res[0]) if res else []
 
     # The collection has no top-level "lines" field — line ranges live INSIDE
@@ -355,7 +361,7 @@ class MilvusStore:
                 **cl_kw,
             )
         except MilvusException as e:
-            _reraise_result_limit(e)
+            _reraise_known_milvus_error(e)
         return list(res[0]) if res else []
 
     def hybrid_search(
@@ -396,5 +402,5 @@ class MilvusStore:
                 **cl_kw,
             )
         except MilvusException as e:
-            _reraise_result_limit(e)
+            _reraise_known_milvus_error(e)
         return list(res[0]) if res else []

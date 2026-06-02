@@ -269,6 +269,27 @@ class Engine:
         await self.tx_cache.connect()
         self.milvus.connect()
         self.milvus.ensure_collection(self.ns)
+        self._warn_dim_mismatch()
+
+    def _warn_dim_mismatch(self) -> None:
+        """Best-effort startup check: warn if cfg.embedding.dim (which names the Milvus
+        collection) doesn't match the embedding provider's actual output dim. A stale dim
+        after a provider swap otherwise only surfaces at search/index time as a vector-dim
+        error. Never fatal — the provider is lazy (browse/ls/cat need no embedding creds), so
+        if it can't be built here we silently skip. Pairs with the 'Milvus backend:' log."""
+        try:
+            actual = int(self.embed._ensure_provider().dimension)
+        except Exception:  # noqa: BLE001 — missing SDK/creds: skip the check, don't block boot
+            return
+        if actual != self.cfg.embedding.dim:
+            print(
+                f"mfs-server: WARNING embedding dim mismatch — configured dim="
+                f"{self.cfg.embedding.dim} but provider '{self.cfg.embedding.provider}'"
+                f"/'{self.cfg.embedding.model}' emits dim={actual}. Search/index will fail "
+                f"against the dim={self.cfg.embedding.dim} collection; re-run "
+                f"`mfs-server setup --section embedding` or re-index into a fresh collection.",
+                flush=True,
+            )
 
     async def shutdown(self) -> None:
         await self.meta.close()
