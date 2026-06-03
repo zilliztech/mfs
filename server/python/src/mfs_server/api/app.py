@@ -350,7 +350,14 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.get("/v1/grep", response_model=GrepResponse, operation_id="grep", tags=["retrieval"])
     async def grep(pattern: str, path: str) -> GrepResponse:
-        return GrepResponse(results=await eng().grep(pattern, path))
+        # A scope path that resolves under no connector raises ValueError ("path not under
+        # any registered connector") from _open_path — map it to a clean 404 like ls/cat
+        # instead of letting it escape as a raw 500 (search returns [] for the same case;
+        # grep follows the browse family's explicit not_found here).
+        try:
+            return GrepResponse(results=await eng().grep(pattern, path))
+        except (FileNotFoundError, NotADirectoryError, ValueError) as e:
+            raise HTTPException(404, str(e))
 
     @app.get("/v1/ls", response_model=LsResponse, operation_id="ls", tags=["browse"])
     async def ls(path: str) -> LsResponse:

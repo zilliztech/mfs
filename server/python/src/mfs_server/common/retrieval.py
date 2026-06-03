@@ -24,12 +24,18 @@ def build_filter(
     if connector_uri:
         parts.append(f'connector_uri == "{_lit(connector_uri)}"')
     if object_prefix:
-        # Prefix scope via a byte range, NOT `like "...%"`. Milvus LIKE treats '_' and '%'
-        # in the pattern as wildcards, so scoping to a path whose component contains '_'
-        # (ubiquitous, e.g. /my_dir) would over-match siblings like /myXdir (verified).
-        # [prefix, prefix+U+10FFFF) is an exact, wildcard-free startswith(prefix).
-        hi = object_prefix + "\U0010ffff"
-        parts.append(f'object_uri >= "{_lit(object_prefix)}" and object_uri < "{_lit(hi)}"')
+        # Scope to the object ITSELF or its SUBTREE, anchored on a PATH-COMPONENT boundary:
+        # scoping to `.../src` must NOT over-match a sibling `.../src-old`. A raw
+        # startswith(prefix) byte range would (`.../src-old` >= `.../src`), so we anchor the
+        # subtree range on prefix + "/" and add an exact-match arm for a file/object scope.
+        # (Range, not Milvus LIKE, whose '_'/'%' are wildcards -> wildcard-free.)
+        base = object_prefix.rstrip("/")
+        sub = base + "/"
+        hi = sub + "\U0010ffff"
+        parts.append(
+            f'(object_uri == "{_lit(base)}" or '
+            f'(object_uri >= "{_lit(sub)}" and object_uri < "{_lit(hi)}"))'
+        )
     if chunk_kinds:
         kinds = ", ".join(f'"{_lit(k)}"' for k in chunk_kinds)
         parts.append(f"chunk_kind in [{kinds}]")

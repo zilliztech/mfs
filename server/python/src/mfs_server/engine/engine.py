@@ -2790,12 +2790,22 @@ class Engine:
             root_abs = (
                 curi.replace("file://local", "", 1) if curi.startswith("file://local") else None
             )
-            like = (rel.rstrip("/") + "%") if rel != "/" else "%"
-            not_idx = await self.meta.fetchall(
-                "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed' "
-                "AND object_uri LIKE ?",
-                (cid, like),
-            )
+            # Path-component boundary, same fix as build_filter: scope `/src` must match the
+            # object itself OR `/src/...`, NOT a sibling `/src-old`. Escape SQL LIKE wildcards
+            # ('_'/'%') in the literal prefix so a path with '_' doesn't over-match either.
+            if rel == "/":
+                not_idx = await self.meta.fetchall(
+                    "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed'",
+                    (cid,),
+                )
+            else:
+                base = rel.rstrip("/")
+                esc = base.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                not_idx = await self.meta.fetchall(
+                    "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed' "
+                    "AND (object_uri = ? OR object_uri LIKE ? ESCAPE '\\')",
+                    (cid, base, esc + "/%"),
+                )
             if len(not_idx) > _GREP_LINEAR_SCAN_MAX:
                 # don't silently scan a subset and imply it was exhaustive — tell the agent
                 # so it can narrow the path or index first.
