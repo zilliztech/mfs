@@ -1101,35 +1101,70 @@ class Engine:
             return 1
 
     async def _reclaim_stale_jobs(self, stale_after_s: int = _JOB_STALE_AFTER_S) -> None:
-        """Housekeeping: a job whose worker died keeps status='running'
-        with a stale heartbeat forever. Reset such jobs to 'queued' so a live worker
-        re-claims them. Best-effort — tolerate the rare one-queued-per-connector clash."""
+        """Housekeeping: a job whose worker died keeps status='running' (or 'preparing')
+        with a stale heartbeat forever. Recover such jobs so a live worker resumes them.
+
+        Each job is recovered independently and any error is LOGGED, never silently swallowed
+        — a single un-recoverable job must not abort (and thus starve) the reclaim of every
+        other orphan, which is exactly how an unrecoverable orphan used to wedge crash-recovery
+        for all connectors."""
         cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
+
+        # Fail stale 'preparing' jobs FIRST: one whose process died mid-enumeration never
+        # started running, and while it lingers it holds the connector's ux_jobs_one_pending
+        # slot — which would make the running->queued reset below raise a UNIQUE violation.
+        try:
+            stale_prep = await self.meta.fetchall(
+                "SELECT id FROM connector_jobs WHERE status='preparing' "
+                "AND heartbeat IS NOT NULL AND heartbeat < ?",
+                (cutoff,),
+            )
+        except Exception as e:  # noqa: BLE001
+            print(f"mfs-server: WARNING reclaim: listing stale preparing jobs failed: {e}", flush=True)
+            stale_prep = []
+        for j in stale_prep:
+            try:
+                await self.meta.execute(
+                    "UPDATE connector_jobs SET status='failed', finished_at=?, "
+                    "error='reclaimed: enumeration abandoned' WHERE id=? AND status='preparing'",
+                    (_now(), j["id"]),
+                )
+            except Exception as e:  # noqa: BLE001
+                print(
+                    f"mfs-server: WARNING reclaim: failing stale preparing job {j['id']}: {e}",
+                    flush=True,
+                )
+
         try:
             stale = await self.meta.fetchall(
                 "SELECT id, connector_id FROM connector_jobs WHERE status='running' "
                 "AND heartbeat IS NOT NULL AND heartbeat < ?",
                 (cutoff,),
             )
-            for j in stale:
-                # If the connector already has a queued job (e.g. a sync was preempted),
-                # flipping this stale one to 'queued' would violate ux_jobs_one_queued and
-                # — silently swallowed — leave it stuck 'running' forever, never reclaimed.
-                # Instead hand its in-flight tasks to that queued job and fail the stale one.
-                existing_queued = await self.meta.fetchone(
-                    "SELECT id FROM connector_jobs WHERE connector_id=? AND status='queued' "
-                    "AND id<>? LIMIT 1",
+        except Exception as e:  # noqa: BLE001
+            print(f"mfs-server: WARNING reclaim: listing stale running jobs failed: {e}", flush=True)
+            return
+        for j in stale:
+            try:
+                # If the connector still has another in-flight enqueue (queued OR a non-stale
+                # 'preparing'), flipping this orphan to 'queued' would violate
+                # ux_jobs_one_pending. Hand its in-flight tasks to that job and fail the orphan
+                # instead — covers 'preparing' too (the guard used to only check 'queued', so a
+                # preparing sibling raised UNIQUE and silently aborted the whole reclaim pass).
+                sibling = await self.meta.fetchone(
+                    "SELECT id FROM connector_jobs WHERE connector_id=? "
+                    "AND status IN ('queued', 'preparing') AND id<>? LIMIT 1",
                     (j["connector_id"], j["id"]),
                 )
-                if existing_queued:
+                if sibling:
                     await self.meta.execute(
                         "UPDATE object_tasks SET status='pending', connector_job_id=? "
                         "WHERE connector_job_id=? AND status='running'",
-                        (existing_queued["id"], j["id"]),
+                        (sibling["id"], j["id"]),
                     )
                     await self.meta.execute(
                         "UPDATE connector_jobs SET status='failed', finished_at=?, "
-                        "error='reclaimed: superseded by queued job' WHERE id=? AND status='running'",
+                        "error='reclaimed: superseded by in-flight job' WHERE id=? AND status='running'",
                         (_now(), j["id"]),
                     )
                     continue
@@ -1145,23 +1180,11 @@ class Engine:
                     "UPDATE connector_jobs SET status='queued' WHERE id=? AND status='running'",
                     (j["id"],),
                 )
-            # A 'preparing' job whose process died mid-enumeration would otherwise hold the
-            # one-in-flight-enqueue slot forever (blocking future enqueues with
-            # sync_already_running). It never started running, so just fail it; any partially
-            # enqueued tasks are inherited by the next sync (pending/failed inheritance).
-            stale_prep = await self.meta.fetchall(
-                "SELECT id FROM connector_jobs WHERE status='preparing' "
-                "AND heartbeat IS NOT NULL AND heartbeat < ?",
-                (cutoff,),
-            )
-            for j in stale_prep:
-                await self.meta.execute(
-                    "UPDATE connector_jobs SET status='failed', finished_at=?, "
-                    "error='reclaimed: enumeration abandoned' WHERE id=? AND status='preparing'",
-                    (_now(), j["id"]),
+            except Exception as e:  # noqa: BLE001 — one un-recoverable orphan must not starve the rest
+                print(
+                    f"mfs-server: WARNING reclaim: recovering stale running job {j['id']}: {e}",
+                    flush=True,
                 )
-        except Exception:  # noqa: BLE001
-            pass
 
     async def run_worker_forever(self, poll_interval: float = 1.0, concurrency=None) -> None:
         """Drain the queued-job queue with `concurrency` parallel workers. Each worker
