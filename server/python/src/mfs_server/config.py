@@ -120,11 +120,16 @@ class MilvusConfig(BaseModel):
     # large clusters with strict P99 SLAs, or "Eventually" / "Session" to
     # tune staleness vs. latency further.
     consistency_level: str = ""
-    # Optional BM25 analyzer config — passes through to Milvus
-    # `enable_analyzer` on the `content` field. Empty = Milvus default
-    # (standard tokenizer, English-leaning whitespace + lowercase). For
-    # Chinese-heavy corpora set e.g. {"type": "chinese"}. Docs:
-    # https://milvus.io/docs/analyzer-overview.md
+    # Optional BM25 analyzer config — passes through to Milvus `enable_analyzer`
+    # on the `content` field. Empty = Milvus default (standard tokenizer, English-
+    # leaning whitespace + lowercase) — note this cannot segment space-less CJK, so
+    # keyword/grep miss Chinese/Japanese terms (dense/semantic still works).
+    # Supported tokenizer types are 'standard' and 'jieba'. For Chinese-heavy corpora
+    # set {"type": "jieba"} — jieba is NOT a default dependency, install it first
+    # (`uv pip install jieba`). The analyzer is applied only at COLLECTION CREATION,
+    # so changing it on an existing index has no effect until the collection is
+    # dropped and re-indexed (it is not encoded in the collection name).
+    # Docs: https://milvus.io/docs/analyzer-overview.md
     analyzer_params: dict = {}
     collection_strategy: str = "shared"  # shared | per_namespace
     num_partitions: int = 64
