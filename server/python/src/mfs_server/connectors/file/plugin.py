@@ -23,6 +23,7 @@ from ..base import (
     Capabilities,
     ConnectorPlugin,
     Entry,
+    HealthStatus,
     ObjectChange,
     ObjectKind,
     PathStat,
@@ -176,6 +177,15 @@ class FilePlugin(ConnectorPlugin):
     @property
     def root(self) -> Path:
         return Path(self.config.root)
+
+    async def healthcheck(self) -> HealthStatus:
+        # The base default rubber-stamps ok=True; for a LOCAL connector "try-connect"
+        # means the root must actually be a readable directory. Without this, `probe`
+        # reports ok:true for a missing/non-directory root and lets a doomed `add`
+        # proceed (it would then 4xx as connector_unhealthy — keep probe consistent).
+        if not self.root.is_dir():
+            return HealthStatus(ok=False, detail="connector_unhealthy")
+        return HealthStatus(ok=True)
 
     def _real(self, path: str) -> Path:
         # Resolve and confine to the connector root. The control plane matches connector
