@@ -161,7 +161,11 @@ class FilePlugin(ConnectorPlugin):
     )
     CAPABILITIES = Capabilities(
         manual_sync=True,
-        watch=True,
+        # No filesystem watcher / daemon is wired anywhere (nothing consumes
+        # CAPABILITIES.watch beyond serialization), so advertising watch=True
+        # claimed a capability the connector does not actually have. Declare it
+        # honestly until an inotify/poll watcher is implemented.
+        watch=False,
         cursor_kind=None,
         full_scan=True,
         delete_detection="full_scan",
