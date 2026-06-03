@@ -363,8 +363,13 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         rg = None
         if range:
             a, _, b = range.partition(":")  # supports "a:b", "a:", ":b", "a"
-            start = int(a) if a.strip() else 0
-            end = int(b) if b.strip() else (2**63 - 1)
+            # Mirror the locator parse below: a non-numeric/garbage range must be a clean
+            # 400, not a raw 500 from int() leaking to the generic exception handler.
+            try:
+                start = int(a) if a.strip() else 0
+                end = int(b) if b.strip() else (2**63 - 1)
+            except ValueError:
+                raise HTTPException(400, "invalid range")
             rg = (start, end)
         loc = None
         if locator:
