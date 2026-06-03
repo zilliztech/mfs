@@ -381,6 +381,18 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             yes,
         } => {
             let is_local = std::path::Path::new(target).exists();
+            // Make a bare/relative local path absolute CLIENT-side before sending: a
+            // loopback server resolves a relative path against its OWN cwd (not the user's),
+            // so `mfs add ./repo` would 500 with a server-side FileNotFoundError. Canonicalizing
+            // to the stable file://local<abs> identity also keeps search/cat/remove consistent.
+            let canon_target: String = if is_local {
+                std::fs::canonicalize(target)
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .unwrap_or_else(|_| target.clone())
+            } else {
+                target.clone()
+            };
+            let target = &canon_target;
             // zero-billing estimate + confirm before indexing an external connector
             //: the user sees physical work before any embedding spend.
             if !is_local && !yes {
