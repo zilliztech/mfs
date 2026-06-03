@@ -172,9 +172,15 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         actionable hint to install the connector's extra."""
         detail = str(exc) or "not implemented"
         # message shape is "no plugin for <scheme>": surface an install hint for that extra.
+        # The extra name usually equals the URI scheme, but a few differ because the SDK is
+        # shared/renamed: postgres's extra is `pg` (asyncpg), and gdrive/gmail share `google`
+        # (google-api-python-client). Map those so the hint names a command that exists
+        # (`uv sync --extra postgres` would fail — the real extra is `pg`).
+        _SCHEME_TO_EXTRA = {"postgres": "pg", "gdrive": "google", "gmail": "google"}
         scheme = detail.rsplit(" ", 1)[-1] if detail.startswith("no plugin for ") else None
+        extra = _SCHEME_TO_EXTRA.get(scheme, scheme) if scheme else None
         suggestions = (
-            [f"install the connector extra: uv sync --extra {scheme}"]
+            [f"install the connector extra: uv sync --extra {extra}"]
             if scheme
             else _CODE_SUGGESTIONS["not_available"]
         )
