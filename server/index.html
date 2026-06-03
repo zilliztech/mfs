@@ -6,17 +6,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Semantic file search CLI for agents and developers, powered by Milvus">
+        <meta name="description" content="Multi-source File-like Search for agents and developers, powered by Milvus">
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/agent-workflows/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/server/">
       
       
-        <link rel="prev" href="../backends/">
+        <link rel="prev" href="../skills/">
       
       
-        <link rel="next" href="../cli/">
+        <link rel="next" href="../api/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Agent Workflows - MFS</title>
+        <title>Server - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#agent-workflows" class="md-skip">
+        <a href="#server" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Agent Workflows
+              Server
             
           </span>
         </div>
@@ -199,7 +199,47 @@
           
   
   
-  Home
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Get Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../search-and-browse/" class="md-tabs__link">
+          
+  
+  
+  User Guide
 
         </a>
       </li>
@@ -217,53 +257,15 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../search-and-browse/" class="md-tabs__link">
+        <a href="./" class="md-tabs__link">
           
   
   
-  User Guide
+  Developer Guide
 
         </a>
       </li>
     
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../cli/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  CLI Reference
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="https://github.com/zilliztech/mfs/tree/main/evaluation" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Evaluation
-
-      </a>
-    </li>
   
 
       
@@ -368,7 +370,7 @@
   <span class="md-ellipsis">
     
   
-    Home
+    Overview
   
 
     
@@ -384,7 +386,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Home
+    Overview
   
 
           </label>
@@ -404,7 +406,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    Home
   
 
     
@@ -453,62 +455,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../comparison/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    How MFS Compares
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../design-philosophy/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Design Philosophy
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../architecture/" class="md-nav__link">
         
   
@@ -537,14 +483,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/" class="md-nav__link">
+      <a href="../roadmap/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Quickstart
+    Roadmap
   
 
     
@@ -569,38 +515,33 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    User Guide
+    Get Started
   
 
     
@@ -611,12 +552,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide
+    Get Started
   
 
           </label>
@@ -629,70 +570,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../search-and-browse/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Search and Browse
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../skill/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Agent Skill
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../formats/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    File Formats
+    Quickstart
   
 
     
@@ -741,14 +626,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../backends/" class="md-nav__link">
+      <a href="../deployment/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Milvus Backends
+    Deployment
   
 
     
@@ -766,44 +651,17 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Agent Workflows
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Agent Workflows
+    Troubleshooting
   
 
     
@@ -812,81 +670,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#general-rule" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        General rule
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#code-work" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Code work
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#documentation-work" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Documentation work
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#memory-and-transcript-work" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Memory and transcript work
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#json-output" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        JSON output
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -901,6 +684,86 @@
     
       
       
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../search-and-browse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search and Browse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
   
   
   
@@ -925,15 +788,230 @@
     </li>
   
 
-    
-      
-      
+              
+            
+              
+                
   
   
   
   
     <li class="md-nav__item">
-      <a href="https://github.com/zilliztech/mfs/tree/main/evaluation" class="md-nav__link">
+      <a href="../connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDKs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
         
   
   
@@ -949,6 +1027,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1033,34 +1119,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../troubleshooting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Troubleshooting
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -1088,69 +1146,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#general-rule" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        General rule
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#code-work" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Code work
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#documentation-work" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Documentation work
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#memory-and-transcript-work" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Memory and transcript work
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#json-output" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        JSON output
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1169,52 +1164,45 @@
   
 
 
-<h1 id="agent-workflows">Agent Workflows<a class="headerlink" href="#agent-workflows" title="Permanent link">&para;</a></h1>
-<p>MFS is designed for agents that can run shell commands. The agent does not need
-an SDK; it needs a small workflow.</p>
-<p>For reusable setup, install the companion skill from <code>skills/mfs/</code>. See
-<a href="../skill/">Agent Skill</a> for installation and usage notes.</p>
-<h2 id="general-rule">General rule<a class="headerlink" href="#general-rule" title="Permanent link">&para;</a></h2>
-<p>Use MFS to locate and orient. Use native shell tools when they are the best
-literal tool for the job.</p>
-<p>Good pattern:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>tree<span class="w"> </span>--peek<span class="w"> </span>-L<span class="w"> </span><span class="m">2</span><span class="w"> </span>.
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;where are stale summaries tracked&quot;</span><span class="w"> </span>.<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>--skim<span class="w"> </span>./src/mfs/search/summary.py
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>-n<span class="w"> </span><span class="m">1</span>:160<span class="w"> </span>./src/mfs/search/summary.py
+<h1 id="server">Server<a class="headerlink" href="#server" title="Permanent link">&para;</a></h1>
+<p>The Python server is the heavy side of MFS. It exposes the HTTP API and owns
+the source registry, connector execution, ingest pipeline, retrieval, metadata,
+cache, and Milvus integration.</p>
+<p>Run it locally:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>server/python
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>all-connectors
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
 </code></pre></div>
-<h2 id="code-work">Code work<a class="headerlink" href="#code-work" title="Permanent link">&para;</a></h2>
-<p>For codebases, combine semantic queries with exact identifiers.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;how does add decide queue priority&quot;</span><span class="w"> </span>.
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mfs<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;_task_priority&quot;</span><span class="w"> </span>./src
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>--skim<span class="w"> </span>./src/mfs/cli.py
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>-n<span class="w"> </span><span class="m">120</span>:220<span class="w"> </span>./src/mfs/cli.py
-</code></pre></div>
-<p>Use <code>mfs tree --peek</code> before broad edits. It helps avoid missing nearby modules
-whose filenames do not match the query.</p>
-<h2 id="documentation-work">Documentation work<a class="headerlink" href="#documentation-work" title="Permanent link">&para;</a></h2>
-<p>For documentation corpora, wording often differs between the user question and
-the relevant page.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;how do I publish a site from markdown docs&quot;</span><span class="w"> </span>./docs
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>--skim<span class="w"> </span>./docs/getting-started.md
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>mfs<span class="w"> </span>grep<span class="w"> </span>-C<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="s2">&quot;mkdocs&quot;</span><span class="w"> </span>./docs
-</code></pre></div>
-<p>Search finds paraphrases. Grep confirms exact commands or option names.</p>
-<h2 id="memory-and-transcript-work">Memory and transcript work<a class="headerlink" href="#memory-and-transcript-work" title="Permanent link">&para;</a></h2>
-<p>For memory logs, conversation transcripts, or daily notes:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;when did we decide not to store raw chunks in queue&quot;</span><span class="w"> </span>./memory
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mfs<span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;queue.json&quot;</span><span class="w"> </span>./memory
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>--skim<span class="w"> </span>./memory/2026-04-29.md
-</code></pre></div>
-<p>This is where the two-leg model is especially useful: semantic search finds the
-episode, browse recovers the surrounding decision.</p>
-<h2 id="json-output">JSON output<a class="headerlink" href="#json-output" title="Permanent link">&para;</a></h2>
-<p>Use <code>--json</code> when the caller is a program.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;pdf cache eviction&quot;</span><span class="w"> </span>.<span class="w"> </span>--json
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>--skim<span class="w"> </span>./docs/formats.md<span class="w"> </span>--json
-</code></pre></div>
-<p>The output uses one Hit envelope shape across <code>search</code>, <code>grep</code>, <code>ls</code>, <code>tree</code>,
-and <code>cat</code>: source, line range, content, score when relevant, and metadata.</p>
+<p>Important areas:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>server/python/src/mfs_server/api/</code></td>
+<td>HTTP API models and app wiring.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/connectors/</code></td>
+<td>Connector plugins.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/storage/</code></td>
+<td>Milvus, metadata, and cache backends.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/server/</code></td>
+<td>CLI entrypoints and setup wizards.</td>
+</tr>
+</tbody>
+</table>
+<p>Optional Rust acceleration lives in <code>server-rs/</code> and is imported by the server
+when installed.</p>
 
 
 

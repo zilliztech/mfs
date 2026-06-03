@@ -6,17 +6,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Semantic file search CLI for agents and developers, powered by Milvus">
+        <meta name="description" content="Multi-source File-like Search for agents and developers, powered by Milvus">
       
       
       
         <link rel="canonical" href="https://zilliztech.github.io/mfs/architecture/">
       
       
-        <link rel="prev" href="../design-philosophy/">
+        <link rel="prev" href="../why/">
       
       
-        <link rel="next" href="../getting-started/">
+        <link rel="next" href="../roadmap/">
       
       
         
@@ -201,7 +201,27 @@
           
   
   
-  Home
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Get Started
 
         </a>
       </li>
@@ -234,36 +254,18 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="../cli/" class="md-tabs__link">
-        
-  
-  
     
-  
-  CLI Reference
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="https://github.com/zilliztech/mfs/tree/main/evaluation" class="md-tabs__link">
-        
-  
-  
     
+      <li class="md-tabs__item">
+        <a href="../server/" class="md-tabs__link">
+          
   
-  Evaluation
+  
+  Developer Guide
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -373,7 +375,7 @@
   <span class="md-ellipsis">
     
   
-    Home
+    Overview
   
 
     
@@ -389,7 +391,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Home
+    Overview
   
 
           </label>
@@ -409,7 +411,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    Home
   
 
     
@@ -438,62 +440,6 @@
     
   
     Why MFS
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../comparison/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    How MFS Compares
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../design-philosophy/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Design Philosophy
   
 
     
@@ -574,10 +520,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#system-position" class="md-nav__link">
+  <a href="#main-packages" class="md-nav__link">
     <span class="md-ellipsis">
       
-        System Position
+        Main packages
       
     </span>
   </a>
@@ -585,76 +531,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#command-surface" class="md-nav__link">
+  <a href="#runtime-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Command Surface
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ingest-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ingest Path
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#queue-and-worker" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Queue and Worker
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#milvus-collection-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Milvus Collection Model
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#retrieval-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Retrieval Path
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#browse-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Browse Path
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sync-and-state" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sync and State
+        Runtime modes
       
     </span>
   </a>
@@ -677,14 +557,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/" class="md-nav__link">
+      <a href="../roadmap/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Quickstart
+    Roadmap
   
 
     
@@ -735,7 +615,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide
+    Get Started
   
 
     
@@ -751,7 +631,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide
+    Get Started
   
 
           </label>
@@ -764,70 +644,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../search-and-browse/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Search and Browse
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../skill/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Agent Skill
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../formats/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    File Formats
+    Quickstart
   
 
     
@@ -876,14 +700,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../backends/" class="md-nav__link">
+      <a href="../deployment/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Milvus Backends
+    Deployment
   
 
     
@@ -904,14 +728,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../agent-workflows/" class="md-nav__link">
+      <a href="../troubleshooting/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Agent Workflows
+    Troubleshooting
   
 
     
@@ -938,6 +762,86 @@
   
   
   
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../search-and-browse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search and Browse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../cli/" class="md-nav__link">
         
@@ -958,6 +862,70 @@
     </li>
   
 
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
     
       
       
@@ -965,8 +933,144 @@
   
   
   
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
-      <a href="https://github.com/zilliztech/mfs/tree/main/evaluation" class="md-nav__link">
+      <a href="../server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDKs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
         
   
   
@@ -982,6 +1086,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1066,34 +1178,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../troubleshooting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Troubleshooting
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -1128,10 +1212,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#system-position" class="md-nav__link">
+  <a href="#main-packages" class="md-nav__link">
     <span class="md-ellipsis">
       
-        System Position
+        Main packages
       
     </span>
   </a>
@@ -1139,76 +1223,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#command-surface" class="md-nav__link">
+  <a href="#runtime-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Command Surface
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ingest-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ingest Path
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#queue-and-worker" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Queue and Worker
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#milvus-collection-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Milvus Collection Model
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#retrieval-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Retrieval Path
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#browse-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Browse Path
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sync-and-state" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sync and State
+        Runtime modes
       
     </span>
   </a>
@@ -1236,262 +1254,57 @@
 
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>MFS is a small CLI layer around local files and Milvus. It has two major data
-paths:</p>
-<ul>
-<li><strong>ingest</strong>: turn files into indexed chunks, summaries, and metadata</li>
-<li><strong>retrieve</strong>: combine indexed search with live filesystem browsing</li>
-</ul>
-<h2 id="system-position">System Position<a class="headerlink" href="#system-position" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>flowchart TB
-  agent[Shell-based agents&lt;br/&gt;Codex, Claude Code, OpenCode, custom tools]
-  skill[MFS Skill&lt;br/&gt;search, browse, verify workflow]
-  cli[MFS CLI&lt;br/&gt;add, search, grep, ls, tree, cat]
-  files[Local files&lt;br/&gt;memory, skills, transcripts, code, docs]
-  state[MFS state&lt;br/&gt;~/.mfs/config.toml&lt;br/&gt;queue.json, status.json, converted cache]
-  milvus[Milvus / Zilliz Cloud&lt;br/&gt;dense vectors, BM25, metadata filters]
-
-  agent --&gt; skill
-  skill --&gt; cli
-  agent --&gt; cli
-  cli --&gt; files
-  cli --&gt; state
-  cli --&gt; milvus
-  milvus --&gt; cli</code></pre>
-<p>MFS does not mount a filesystem and does not require an always-on service. The
-project directory stays clean; derived state lives under <code>~/.mfs/</code> by default.</p>
-<h2 id="command-surface">Command Surface<a class="headerlink" href="#command-surface" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>                ┌─────────────── mfs ───────────────┐
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                │                                    │
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        ingest  │  add      status      remove       │
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                │                                    │
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        search  │  search   grep                    │
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                │                                    │
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        browse  │  ls       tree       cat           │
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                │                                    │
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        config  │  config path/show/get/set/init     │
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>                └────────────────────────────────────┘
-</code></pre></div>
-<p>Search commands read indexed state. Browse commands read the live filesystem and
-can be used before indexing.</p>
-<h2 id="ingest-path">Ingest Path<a class="headerlink" href="#ingest-path" title="Permanent link">&para;</a></h2>
-<p><code>mfs add &lt;path...&gt;</code> scans files, detects changes, builds chunk tasks, and either
-processes them in the foreground or hands them to a short-lived worker.</p>
+<p>MFS v0.4 is a client/server system. The CLI is intentionally light: it parses
+commands, packages local input when needed, calls the HTTP API, and renders
+results. The server owns connector logic, indexing, retrieval, cache, and
+storage.</p>
 <pre class="mermaid"><code>flowchart LR
-  input[paths] --&gt; scan[Scanner&lt;br/&gt;ignore rules, extension policy, size limit]
-  scan --&gt; diff[Diff&lt;br/&gt;disk files vs indexed sources]
-  diff --&gt; added[added / modified]
-  diff --&gt; deleted[deleted]
-  deleted --&gt; drop[delete rows by source]
-  added --&gt; convert{convertible?}
-  convert -- PDF/DOCX --&gt; md[Markdown converter&lt;br/&gt;cached in ~/.mfs/converted]
-  convert -- text/code/markdown --&gt; chunk[Chunker]
-  md --&gt; chunk
-  chunk --&gt; tasks[QueueTask records]
-  tasks --&gt; mode{--sync?}
-  mode -- yes --&gt; inline[inline batch processing]
-  mode -- no --&gt; queue[~/.mfs/queue.json]
-  queue --&gt; worker[detached worker]
-  inline --&gt; embed[Embedding provider]
-  worker --&gt; embed
-  embed --&gt; store[Milvus upsert]
-  store --&gt; dirs[rebuild directory summaries]</code></pre>
-<p>Key points:</p>
-<ul>
-<li><code>mtime</code> is used as a fast hint; file hash is the content check.</li>
-<li><code>--force</code> skips the mtime shortcut and recomputes hashes.</li>
-<li>Modified files only re-queue chunks that changed; unchanged chunk IDs are
-  preserved.</li>
-<li>PDF and DOCX are converted to Markdown before chunking or summarization.</li>
-<li><code>--summarize</code> and <code>--describe</code> add enrichment tasks; they are opt-in.</li>
-</ul>
-<h2 id="queue-and-worker">Queue and Worker<a class="headerlink" href="#queue-and-worker" title="Permanent link">&para;</a></h2>
-<p>The async path is intentionally simple.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs add .
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  ├─ scan, diff, chunk
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  ├─ write lightweight QueueTask records to ~/.mfs/queue.json
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>  ├─ start worker if one is not running
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  └─ return to caller
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>worker
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  ├─ dequeue batch
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  ├─ restore chunk text from source file when task_type=embed_ref
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>  ├─ call LLM/VLM only for opt-in summary/description tasks
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>  ├─ embed texts in batches
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>  ├─ upsert rows into Milvus
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>  ├─ update ~/.mfs/status.json
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>  ├─ rebuild touched directory summaries
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>  └─ exit when queue is empty
-</code></pre></div>
-<p>The queue is not a durable broker. It stores references and metadata instead of
-large raw chunk bodies. If the machine stops mid-index, run <code>mfs add .</code> again or
-use <code>mfs add . --force</code>.</p>
-<p>Priority ordering is applied before async enqueue:</p>
-<pre class="mermaid"><code>flowchart TB
-  root[Entry files&lt;br/&gt;README, SKILL, CLAUDE, INDEX] --&gt; pkg[Package and build metadata]
-  pkg --&gt; src[Source roots&lt;br/&gt;src, lib, app, services]
-  src --&gt; docs[Docs and references&lt;br/&gt;docs, guides, manuals]
-  docs --&gt; examples[Examples and notebooks]
-  examples --&gt; tests[Tests, fixtures, generated, vendor]</code></pre>
-<p>This does not change the final index. It only makes large corpora useful earlier
-while embedding is still running.</p>
-<h2 id="milvus-collection-model">Milvus Collection Model<a class="headerlink" href="#milvus-collection-model" title="Permanent link">&para;</a></h2>
-<p>All searchable records share one collection.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs_chunks
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  id             primary key, deterministic chunk id
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  source         original file or directory path
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  parent_dir     parent directory path
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  chunk_index    body chunk index, -1 for generated enrichment, 0 for dirs
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  start_line     source start line
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>  end_line       source end line
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  chunk_text     searchable text, analyzer-enabled for BM25
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>  dense_vector   embedding vector
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>  sparse_vector  BM25 sparse vector generated by Milvus
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>  content_type   markdown, code, text, llm_summary, vlm_description, directory
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>  file_hash      source file hash
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>  is_dir         directory summary marker
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>  embed_status   complete / pending
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>  metadata       JSON details such as headings, language, stale state
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>  account_id     tenant or namespace label
-</code></pre></div>
-<pre class="mermaid"><code>flowchart LR
-  body[Body chunks&lt;br/&gt;chunk_index &gt;= 0] --&gt; collection[(Milvus collection)]
-  summary[LLM summaries&lt;br/&gt;chunk_index = -1] --&gt; collection
-  image[VLM image descriptions&lt;br/&gt;chunk_index = -1] --&gt; collection
-  dir[Directory summaries&lt;br/&gt;is_dir = true] --&gt; collection
-  collection --&gt; dense[dense vector index]
-  collection --&gt; sparse[BM25 sparse index]
-  collection --&gt; scalar[source/path/content filters]</code></pre>
-<p>Directory summaries are records too. They let broad queries return a directory
-when the directory is the right navigation target, and they feed <code>mfs ls</code> /
-<code>mfs tree</code> previews.</p>
-<h2 id="retrieval-path">Retrieval Path<a class="headerlink" href="#retrieval-path" title="Permanent link">&para;</a></h2>
-<p><code>mfs search</code> and <code>mfs grep</code> use different routes.</p>
-<pre class="mermaid"><code>flowchart TB
-  query[query] --&gt; mode{search mode}
-  mode -- semantic --&gt; emb[embed query]
-  emb --&gt; dense[dense vector search]
-  mode -- keyword --&gt; bm25[BM25 keyword search]
-  mode -- hybrid --&gt; both[dense + BM25]
-  both --&gt; rrf[RRF fusion]
-  dense --&gt; post[post-process stale paths]
-  bm25 --&gt; post
-  rrf --&gt; post
-  post --&gt; hits[ranked hits&lt;br/&gt;source, lines, content, score, metadata]</code></pre>
-<p>Search modes:</p>
+  cli[Rust CLI&lt;br/&gt;mfs] --&gt; api[HTTP /v1 API]
+  api --&gt; server[Python FastAPI server]
+  server --&gt; connectors[Connectors&lt;br/&gt;file, web, SaaS, DB, object store]
+  server --&gt; cache[Cache and metadata DB]
+  server --&gt; milvus[Milvus / Zilliz Cloud]
+  server --&gt; accel[Optional Rust acceleration]
+  api --&gt; sdks[Generated SDKs]</code></pre>
+<h2 id="main-packages">Main packages<a class="headerlink" href="#main-packages" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Mode</th>
-<th>Route</th>
-<th>Best for</th>
+<th>Path</th>
+<th>Role</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>hybrid</code></td>
-<td>dense + BM25 + reciprocal rank fusion</td>
-<td>default agent search</td>
+<td><code>cli/</code></td>
+<td>Rust CLI binary distributed as <code>mfs</code>.</td>
 </tr>
 <tr>
-<td><code>semantic</code></td>
-<td>dense vector only</td>
-<td>paraphrased or conceptual queries</td>
+<td><code>server/python/</code></td>
+<td>FastAPI server, connectors, ingest, retrieval, storage.</td>
 </tr>
 <tr>
-<td><code>keyword</code></td>
-<td>BM25 only</td>
-<td>identifiers, exact terms, error codes</td>
+<td><code>server-rs/</code></td>
+<td>Optional PyO3 acceleration for server hot paths.</td>
+</tr>
+<tr>
+<td><code>protocol/</code></td>
+<td>OpenAPI source of truth for the HTTP API.</td>
+</tr>
+<tr>
+<td><code>sdks/</code></td>
+<td>Generated Python and TypeScript clients.</td>
+</tr>
+<tr>
+<td><code>skills/</code></td>
+<td>Agent-facing workflows for finding and ingesting data.</td>
 </tr>
 </tbody>
 </table>
-<p><code>mfs grep</code> is exact search. It first uses indexed BM25 to find likely indexed
-files, then verifies matches by reading file lines. For unindexed files under a
-scoped directory, it can fall back to system grep.</p>
-<pre class="mermaid"><code>flowchart LR
-  pattern[pattern] --&gt; prefilter[Milvus BM25 prefilter]
-  prefilter --&gt; indexed[read indexed files and regex match lines]
-  pattern --&gt; unindexed[system grep over unindexed scoped files]
-  indexed --&gt; matches[grep matches with context lines]
-  unindexed --&gt; matches</code></pre>
-<h2 id="browse-path">Browse Path<a class="headerlink" href="#browse-path" title="Permanent link">&para;</a></h2>
-<p>Browse commands read files directly. They are not just wrappers around search.</p>
-<pre class="mermaid"><code>flowchart TB
-  path[path] --&gt; command{command}
-  command -- ls --&gt; children[directory children]
-  command -- tree --&gt; recursive[recursive directory tree]
-  command -- cat --&gt; file[file content]
-  children --&gt; density[W/H/D density renderer]
-  recursive --&gt; density
-  file --&gt; parser{file shape}
-  parser -- Markdown --&gt; headings[heading tree]
-  parser -- Code --&gt; symbols[symbols and excerpts]
-  parser -- JSON/JSONL --&gt; keys[keys, rows, nested values]
-  parser -- CSV --&gt; table[headers and sample rows]
-  parser -- PDF/DOCX --&gt; converted[converted Markdown]
-  headings --&gt; density
-  symbols --&gt; density
-  keys --&gt; density
-  table --&gt; density
-  converted --&gt; density
-  density --&gt; output[text or JSON]</code></pre>
-<p>The density controls are shared:</p>
-<table>
-<thead>
-<tr>
-<th>Control</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-W</code></td>
-<td>width: characters per node, value, paragraph, or summary</td>
-</tr>
-<tr>
-<td><code>-H</code></td>
-<td>height: number of headings, rows, entries, or children</td>
-</tr>
-<tr>
-<td><code>-D</code></td>
-<td>depth: nested levels to expand</td>
-</tr>
-</tbody>
-</table>
-<p>This is the "look once" layer between <code>ls</code> and full-file <code>cat</code>.</p>
-<h2 id="sync-and-state">Sync and State<a class="headerlink" href="#sync-and-state" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>sequenceDiagram
-  participant U as user or agent
-  participant CLI as mfs add
-  participant FS as filesystem
-  participant M as Milvus
-  participant Q as queue.json
-  participant W as worker
-
-  U-&gt;&gt;CLI: mfs add .
-  CLI-&gt;&gt;FS: scan current files
-  CLI-&gt;&gt;M: read indexed {source, file_hash}
-  CLI-&gt;&gt;CLI: compute added / modified / deleted
-  CLI-&gt;&gt;M: delete stale rows
-  CLI-&gt;&gt;Q: enqueue changed chunk refs
-  CLI-&gt;&gt;W: start if needed
-  W-&gt;&gt;Q: dequeue batch
-  W-&gt;&gt;FS: restore chunk text
-  W-&gt;&gt;M: embed and upsert
-  W-&gt;&gt;M: rebuild directory summaries
-  W-&gt;&gt;Q: exit when empty</code></pre>
-<p>Default state layout:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>~/.mfs/
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  config.toml
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  milvus.db
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>  queue.json
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>  queue.json.lock
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>  status.json
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  worker.log
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>  converted/
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    &lt;hash&gt;.md
-</code></pre></div>
-<p>The collection can be rebuilt from files. The files remain the durable source.</p>
+<h2 id="runtime-modes">Runtime modes<a class="headerlink" href="#runtime-modes" title="Permanent link">&para;</a></h2>
+<p>The normal development shape is one server process plus one or more clients.
+For local smoke tests, the server and CLI can run on the same machine. For
+client/server tests, the server can run in Docker while the host uses the CLI.</p>
 
 
 

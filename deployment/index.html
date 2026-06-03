@@ -6,17 +6,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Semantic file search CLI for agents and developers, powered by Milvus">
+        <meta name="description" content="Multi-source File-like Search for agents and developers, powered by Milvus">
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/comparison/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/deployment/">
       
       
-        <link rel="prev" href="../why/">
+        <link rel="prev" href="../configuration/">
       
       
-        <link rel="next" href="../design-philosophy/">
+        <link rel="next" href="../troubleshooting/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>How MFS Compares - MFS</title>
+        <title>Deployment - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#how-mfs-compares" class="md-skip">
+        <a href="#deployment" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              How MFS Compares
+              Deployment
             
           </span>
         </div>
@@ -191,17 +191,37 @@
   
   
   
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href=".." class="md-tabs__link">
+          
+  
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
     
   
   
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href=".." class="md-tabs__link">
+        <a href="../getting-started/" class="md-tabs__link">
           
   
   
-  Home
+  Get Started
 
         </a>
       </li>
@@ -234,36 +254,18 @@
   
   
   
-    <li class="md-tabs__item">
-      <a href="../cli/" class="md-tabs__link">
-        
-  
-  
     
-  
-  CLI Reference
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="https://github.com/zilliztech/mfs/tree/main/evaluation" class="md-tabs__link">
-        
-  
-  
     
+      <li class="md-tabs__item">
+        <a href="../server/" class="md-tabs__link">
+          
   
-  Evaluation
+  
+  Developer Guide
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -342,38 +344,33 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
         
           
-          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    Home
+    Overview
   
 
     
@@ -384,12 +381,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_1">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Home
+    Overview
   
 
           </label>
@@ -409,7 +406,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    Home
   
 
     
@@ -438,164 +435,6 @@
     
   
     Why MFS
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    How MFS Compares
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    How MFS Compares
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#the-short-version" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The Short Version
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compared-with-openviking" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compared with OpenViking
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compared-with-mgrep" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compared with mgrep
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compared-with-agentfs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compared with AgentFS
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-this-shape" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why This Shape
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../design-philosophy/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Design Philosophy
   
 
     
@@ -644,14 +483,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/" class="md-nav__link">
+      <a href="../roadmap/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Quickstart
+    Roadmap
   
 
     
@@ -676,33 +515,38 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    User Guide
+    Get Started
   
 
     
@@ -713,12 +557,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide
+    Get Started
   
 
           </label>
@@ -731,70 +575,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../search-and-browse/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Search and Browse
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../skill/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Agent Skill
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../formats/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    File Formats
+    Quickstart
   
 
     
@@ -840,17 +628,44 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../backends/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    Milvus Backends
+    Deployment
   
 
     
@@ -859,6 +674,59 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#development-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development server
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docker-server-with-host-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docker server with host CLI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kubernetes-and-manifests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kubernetes and manifests
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -871,14 +739,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../agent-workflows/" class="md-nav__link">
+      <a href="../troubleshooting/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Agent Workflows
+    Troubleshooting
   
 
     
@@ -905,6 +773,86 @@
   
   
   
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../search-and-browse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search and Browse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../cli/" class="md-nav__link">
         
@@ -925,6 +873,70 @@
     </li>
   
 
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
     
       
       
@@ -932,8 +944,144 @@
   
   
   
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
-      <a href="https://github.com/zilliztech/mfs/tree/main/evaluation" class="md-nav__link">
+      <a href="../server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDKs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
         
   
   
@@ -949,6 +1097,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1033,34 +1189,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../troubleshooting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Troubleshooting
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -1095,10 +1223,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-short-version" class="md-nav__link">
+  <a href="#development-server" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The Short Version
+        Development server
       
     </span>
   </a>
@@ -1106,10 +1234,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#compared-with-openviking" class="md-nav__link">
+  <a href="#docker-server-with-host-cli" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Compared with OpenViking
+        Docker server with host CLI
       
     </span>
   </a>
@@ -1117,32 +1245,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#compared-with-mgrep" class="md-nav__link">
+  <a href="#kubernetes-and-manifests" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Compared with mgrep
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compared-with-agentfs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compared with AgentFS
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-this-shape" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why This Shape
+        Kubernetes and manifests
       
     </span>
   </a>
@@ -1169,86 +1275,33 @@
   
 
 
-<h1 id="how-mfs-compares">How MFS Compares<a class="headerlink" href="#how-mfs-compares" title="Permanent link">&para;</a></h1>
-<p>MFS overlaps with semantic grep tools, context databases, and agent
-filesystems, but it is intentionally narrower than all three. It keeps existing
-files as the source of truth and adds a Milvus-backed search and browse layer
-for agents.</p>
-<h2 id="the-short-version">The Short Version<a class="headerlink" href="#the-short-version" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Project</th>
-<th>Main job</th>
-<th>Source of truth</th>
-<th>Best fit</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>MFS</td>
-<td>Search and browse existing folders</td>
-<td>User files, with Milvus as a derived index</td>
-<td>Agents searching memory files, skills, docs, code, transcripts, and knowledge bases</td>
-</tr>
-<tr>
-<td><a href="https://github.com/volcengine/OpenViking">OpenViking</a></td>
-<td>Context database for agents</td>
-<td>OpenViking-managed context</td>
-<td>Teams that want a managed context model for memory, resources, and skills</td>
-</tr>
-<tr>
-<td><a href="https://github.com/mixedbread-ai/mgrep">mgrep</a></td>
-<td>Semantic grep CLI</td>
-<td>Mixedbread-powered search index</td>
-<td>Fast semantic candidate search from a query</td>
-</tr>
-<tr>
-<td><a href="https://github.com/tursodatabase/agentfs">AgentFS</a></td>
-<td>Agent filesystem and state substrate</td>
-<td>SQLite/Turso-backed agent filesystem</td>
-<td>Agent-owned filesystem state, isolation, snapshots, and audit trails</td>
-</tr>
-</tbody>
-</table>
-<h2 id="compared-with-openviking">Compared with OpenViking<a class="headerlink" href="#compared-with-openviking" title="Permanent link">&para;</a></h2>
-<p>OpenViking is closer to a full context database for agents. It is useful when a
-team wants a managed context model rather than only a search layer over existing
-files. MFS chooses a narrower integration point: files remain ordinary files,
-and Milvus is a derived index over them, without requiring heavy file copying or
-migration into a new context system. A key retrieval difference is that
-summary-first search can miss fine-grained details, such as error codes, config
-keys, function names, flags, IDs, and small decisions. MFS instead searches
-original body chunks first, then uses progressive browse around the best
-candidates to inspect nearby structure and context. This follows a familiar
-human search pattern: search broadly, preview likely results, then read the
-right neighborhood. Optional LLM summaries help with orientation, but they are
-not the primary search surface.</p>
-<h2 id="compared-with-mgrep">Compared with mgrep<a class="headerlink" href="#compared-with-mgrep" title="Permanent link">&para;</a></h2>
-<p>mgrep is a focused semantic grep tool. It is useful when the main task is to
-find likely matches quickly from a query. MFS covers that first step, but also
-keeps the follow-up workflow in the same CLI: inspect directories, skim file
-structure, compare nearby candidates, and read exact line ranges before
-answering. The difference is less about search quality alone and more about the
-full search-then-verify loop an agent usually needs.</p>
-<h2 id="compared-with-agentfs">Compared with AgentFS<a class="headerlink" href="#compared-with-agentfs" title="Permanent link">&para;</a></h2>
-<p>AgentFS is a real filesystem substrate for agent state, including mounting,
-snapshots, and audit-oriented storage. It is useful when the goal is to manage
-agent-owned state as a filesystem. MFS works at a different layer: it does not
-mount or replace the user's filesystem. It keeps existing project and knowledge
-folders intact, then adds retrieval and progressive browsing on top.</p>
-<h2 id="why-this-shape">Why This Shape<a class="headerlink" href="#why-this-shape" title="Permanent link">&para;</a></h2>
-<p>MFS chooses a small surface area:</p>
+<h1 id="deployment">Deployment<a class="headerlink" href="#deployment" title="Permanent link">&para;</a></h1>
+<p>During the v0.4 beta, the CLI is the published artifact and the server is
+typically run from source or from a local Docker image.</p>
+<h2 id="development-server">Development server<a class="headerlink" href="#development-server" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>server/python
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>all-connectors
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+</code></pre></div>
+<h2 id="docker-server-with-host-cli">Docker server with host CLI<a class="headerlink" href="#docker-server-with-host-cli" title="Permanent link">&para;</a></h2>
+<p>A useful smoke-test topology is:</p>
 <ul>
-<li>existing files stay readable, editable, and Git-friendly</li>
-<li>Milvus stores a rebuildable search index, not the canonical data</li>
-<li>search works over original body chunks instead of generated summaries alone</li>
-<li>browse commands expose structure without reading whole files</li>
-<li>the CLI and Skill fit agents that already know how to run shell commands</li>
+<li>Docker runs <code>mfs-server</code></li>
+<li>the host runs the Rust CLI</li>
+<li>server state lives in a Docker volume</li>
+<li>the CLI talks to the server over HTTP</li>
 </ul>
-<p>That shape makes MFS useful as infrastructure under memory systems, skill
-managers, codebase agents, transcript search, and document search without asking
-those systems to adopt a new storage model.</p>
+<p>This avoids polluting the host Python environment and exercises the real
+client/server upload path.</p>
+<h2 id="kubernetes-and-manifests">Kubernetes and manifests<a class="headerlink" href="#kubernetes-and-manifests" title="Permanent link">&para;</a></h2>
+<p>Deployment assets live under:</p>
+<ul>
+<li><code>deployments/docker/</code></li>
+<li><code>deployments/compose/</code></li>
+<li><code>deployments/helm/</code></li>
+</ul>
+<p>These pages will be expanded once the server packaging and stable release flow
+settle.</p>
 
 
 

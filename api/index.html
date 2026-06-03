@@ -6,17 +6,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Semantic file search CLI for agents and developers, powered by Milvus">
+        <meta name="description" content="Multi-source File-like Search for agents and developers, powered by Milvus">
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/formats/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/api/">
       
       
-        <link rel="prev" href="../skill/">
+        <link rel="prev" href="../server/">
       
       
-        <link rel="next" href="../configuration/">
+        <link rel="next" href="../sdks/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>File Formats - MFS</title>
+        <title>HTTP API - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#file-formats" class="md-skip">
+        <a href="#http-api" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              File Formats
+              HTTP API
             
           </span>
         </div>
@@ -199,7 +199,47 @@
           
   
   
-  Home
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Get Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../search-and-browse/" class="md-tabs__link">
+          
+  
+  
+  User Guide
 
         </a>
       </li>
@@ -217,53 +257,15 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../search-and-browse/" class="md-tabs__link">
+        <a href="../server/" class="md-tabs__link">
           
   
   
-  User Guide
+  Developer Guide
 
         </a>
       </li>
     
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../cli/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  CLI Reference
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="https://github.com/zilliztech/mfs/tree/main/evaluation" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Evaluation
-
-      </a>
-    </li>
   
 
       
@@ -368,7 +370,7 @@
   <span class="md-ellipsis">
     
   
-    Home
+    Overview
   
 
     
@@ -384,7 +386,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Home
+    Overview
   
 
           </label>
@@ -404,7 +406,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    Home
   
 
     
@@ -453,62 +455,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../comparison/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    How MFS Compares
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../design-philosophy/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Design Philosophy
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../architecture/" class="md-nav__link">
         
   
@@ -537,6 +483,93 @@
   
   
     <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Get Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../getting-started/" class="md-nav__link">
         
   
@@ -545,6 +578,261 @@
     
   
     Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../search-and-browse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search and Browse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills
   
 
     
@@ -590,17 +878,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    User Guide
+    Developer Guide
   
 
     
@@ -611,12 +899,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_2">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide
+    Developer Guide
   
 
           </label>
@@ -629,42 +917,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../search-and-browse/" class="md-nav__link">
+      <a href="../server/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Search and Browse
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../skill/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Agent Skill
+    Server
   
 
     
@@ -694,24 +954,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    File Formats
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -719,7 +961,7 @@
   <span class="md-ellipsis">
     
   
-    File Formats
+    HTTP API
   
 
     
@@ -728,69 +970,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#indexed-by-default" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Indexed by default
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#readable-and-grep-able-not-embedded-by-default" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Readable and grep-able, not embedded by default
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#images" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Images
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ignored-by-default" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ignored by default
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -804,14 +983,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../configuration/" class="md-nav__link">
+      <a href="../sdks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Configuration
+    SDKs
   
 
     
@@ -832,42 +1011,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../backends/" class="md-nav__link">
+      <a href="../evaluation/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Milvus Backends
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../agent-workflows/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Agent Workflows
+    Evaluation
   
 
     
@@ -884,60 +1035,6 @@
           </ul>
         </nav>
       
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../cli/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    CLI Reference
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="https://github.com/zilliztech/mfs/tree/main/evaluation" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Evaluation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1022,34 +1119,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../troubleshooting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Troubleshooting
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -1077,58 +1146,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#indexed-by-default" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Indexed by default
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#readable-and-grep-able-not-embedded-by-default" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Readable and grep-able, not embedded by default
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#images" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Images
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ignored-by-default" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Ignored by default
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1147,101 +1164,43 @@
   
 
 
-<h1 id="file-formats">File Formats<a class="headerlink" href="#file-formats" title="Permanent link">&para;</a></h1>
-<p>MFS separates files into three groups: indexed, readable/searchable, and
-ignored.</p>
-<h2 id="indexed-by-default">Indexed by default<a class="headerlink" href="#indexed-by-default" title="Permanent link">&para;</a></h2>
+<h1 id="http-api">HTTP API<a class="headerlink" href="#http-api" title="Permanent link">&para;</a></h1>
+<p>The HTTP API is the protocol boundary between the CLI, SDKs, and server.
+The source of truth is <code>protocol/openapi.yaml</code>.</p>
+<p>Major endpoint groups:</p>
 <table>
 <thead>
 <tr>
 <th>Group</th>
-<th>Extensions</th>
-<th>Notes</th>
+<th>Examples</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Markdown</td>
-<td><code>.md</code>, <code>.rst</code>, <code>.markdown</code></td>
-<td>heading-aware chunking</td>
+<td>Server</td>
+<td><code>/v1/server/info</code>, <code>/v1/status</code></td>
 </tr>
 <tr>
-<td>Text</td>
-<td><code>.txt</code></td>
-<td>plain text chunking</td>
+<td>Ingest</td>
+<td><code>/v1/add</code>, <code>/v1/upload</code>, job APIs</td>
 </tr>
 <tr>
-<td>Code</td>
-<td><code>.py</code>, <code>.js</code>, <code>.ts</code>, <code>.tsx</code>, <code>.go</code>, <code>.rs</code>, <code>.java</code>, <code>.sh</code>, <code>.sql</code>, <code>.tf</code>, and more</td>
-<td>code-oriented chunking and metadata</td>
+<td>Connectors</td>
+<td>probe, estimate, inspect, remove</td>
 </tr>
 <tr>
-<td>Documents</td>
-<td><code>.pdf</code>, <code>.docx</code></td>
-<td>converted to Markdown before chunking</td>
+<td>Retrieval</td>
+<td>search and grep</td>
+</tr>
+<tr>
+<td>Browse</td>
+<td>ls and cat</td>
 </tr>
 </tbody>
 </table>
-<p>PDF conversion uses <code>pymupdf4llm</code>. DOCX conversion uses <code>python-docx</code>.</p>
-<p>Converted Markdown is cached under:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.mfs/converted/
-</code></pre></div>
-<p>The cache is bounded by:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[cache]</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">max_size_mb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">500</span>
-</code></pre></div>
-<p>MFS evicts least-recently-used converted files when the cache exceeds the cap.</p>
-<h2 id="readable-and-grep-able-not-embedded-by-default">Readable and grep-able, not embedded by default<a class="headerlink" href="#readable-and-grep-able-not-embedded-by-default" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Group</th>
-<th>Extensions</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Structured data</td>
-<td><code>.json</code>, <code>.jsonl</code>, <code>.ndjson</code>, <code>.csv</code>, <code>.tsv</code></td>
-</tr>
-<tr>
-<td>Config</td>
-<td><code>.yaml</code>, <code>.yml</code>, <code>.toml</code>, <code>.ini</code>, <code>.env</code></td>
-</tr>
-<tr>
-<td>Web/style</td>
-<td><code>.html</code>, <code>.htm</code>, <code>.xml</code>, <code>.css</code>, <code>.scss</code>, <code>.sass</code>, <code>.less</code></td>
-</tr>
-<tr>
-<td>Logs</td>
-<td><code>.log</code></td>
-</tr>
-</tbody>
-</table>
-<p>These files are useful to inspect, but often noisy for semantic embedding.
-MFS keeps them available through:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;literal token&quot;</span><span class="w"> </span>./data
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>--skim<span class="w"> </span>./data/events.jsonl
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>--peek<span class="w"> </span>./data/config.json
-</code></pre></div>
-<h2 id="images">Images<a class="headerlink" href="#images" title="Permanent link">&para;</a></h2>
-<p>Image files are not directly embedded. MFS can index an image description as
-text when you opt into VLM description generation.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>./assets<span class="w"> </span>--describe
-</code></pre></div>
-<p>Supported image extensions for description workflows include PNG, JPG/JPEG,
-GIF, WEBP, and BMP.</p>
-<h2 id="ignored-by-default">Ignored by default<a class="headerlink" href="#ignored-by-default" title="Permanent link">&para;</a></h2>
-<p>Common binary, build, lock, media, archive, and virtual environment paths are
-ignored. Examples include:</p>
-<ul>
-<li><code>.git</code>, <code>node_modules</code>, <code>.venv</code>, <code>dist</code>, <code>build</code></li>
-<li><code>.pyc</code>, <code>.class</code>, <code>.so</code>, <code>.dll</code>, <code>.exe</code></li>
-<li><code>.zip</code>, <code>.tar</code>, <code>.gz</code>, <code>.7z</code></li>
-<li><code>package-lock.json</code></li>
-</ul>
-<p>Use <code>.gitignore</code>, <code>.mfsignore</code>, config include/exclude lists, or <code>mfs add
---exclude</code> to tune indexing.</p>
+<p>The OpenAPI file is also used to generate the Python and TypeScript SDKs.
+When the server API changes, update the spec and regenerate SDKs before
+publishing.</p>
 
 
 

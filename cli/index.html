@@ -6,17 +6,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Semantic file search CLI for agents and developers, powered by Milvus">
+        <meta name="description" content="Multi-source File-like Search for agents and developers, powered by Milvus">
       
       
       
         <link rel="canonical" href="https://zilliztech.github.io/mfs/cli/">
       
       
-        <link rel="prev" href="../agent-workflows/">
+        <link rel="prev" href="../search-and-browse/">
       
       
-        <link rel="next" href="../faq/">
+        <link rel="next" href="../connectors/">
       
       
         
@@ -199,7 +199,7 @@
           
   
   
-  Home
+  Overview
 
         </a>
       </li>
@@ -215,6 +215,28 @@
     
     
       <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Get Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../search-and-browse/" class="md-tabs__link">
           
   
@@ -231,39 +253,19 @@
   
   
   
-    
-  
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
-        
-  
   
     
-  
-  CLI Reference
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="https://github.com/zilliztech/mfs/tree/main/evaluation" class="md-tabs__link">
-        
-  
-  
     
+      <li class="md-tabs__item">
+        <a href="../server/" class="md-tabs__link">
+          
   
-  Evaluation
+  
+  Developer Guide
 
-      </a>
-    </li>
+        </a>
+      </li>
+    
   
 
       
@@ -368,7 +370,7 @@
   <span class="md-ellipsis">
     
   
-    Home
+    Overview
   
 
     
@@ -384,7 +386,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Home
+    Overview
   
 
           </label>
@@ -404,7 +406,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    Home
   
 
     
@@ -453,62 +455,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../comparison/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    How MFS Compares
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../design-philosophy/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Design Philosophy
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../architecture/" class="md-nav__link">
         
   
@@ -537,14 +483,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/" class="md-nav__link">
+      <a href="../roadmap/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Quickstart
+    Roadmap
   
 
     
@@ -595,7 +541,7 @@
   <span class="md-ellipsis">
     
   
-    User Guide
+    Get Started
   
 
     
@@ -611,7 +557,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide
+    Get Started
   
 
           </label>
@@ -624,70 +570,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../search-and-browse/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Search and Browse
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../skill/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Agent Skill
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../formats/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    File Formats
+    Quickstart
   
 
     
@@ -736,14 +626,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../backends/" class="md-nav__link">
+      <a href="../deployment/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Milvus Backends
+    Deployment
   
 
     
@@ -764,14 +654,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../agent-workflows/" class="md-nav__link">
+      <a href="../troubleshooting/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Agent Workflows
+    Troubleshooting
   
 
     
@@ -800,22 +690,34 @@
   
   
   
-    <li class="md-nav__item md-nav__item--active">
+    
+    
+    
+    
       
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+        
+        
       
       
         
       
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
           
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
     
   
-    CLI Reference
+    User Guide
   
 
     
@@ -823,8 +725,63 @@
   
   
 
-          <span class="md-nav__icon md-icon"></span>
-        </label>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../search-and-browse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search and Browse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -843,268 +800,69 @@
 
       </a>
       
-        
+    </li>
+  
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+              
+            
+              
+                
   
   
   
+  
+    <li class="md-nav__item">
+      <a href="../connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
     
   
+    Connectors
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#command-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Command Groups
-      
-    </span>
-  </a>
+
+    
+  </span>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#global-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Global Options
-      
-    </span>
-  </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#index-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Index Commands
-      
-    </span>
-  </a>
+
+      </a>
+    </li>
   
-    <nav class="md-nav" aria-label="Index Commands">
-      <ul class="md-nav__list">
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
         
-          <li class="md-nav__item">
-  <a href="#mfs-add" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs add
-      
-    </span>
-  </a>
   
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-status" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs status
-      
-    </span>
-  </a>
   
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-remove" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs remove
-      
-    </span>
-  </a>
+  <span class="md-ellipsis">
+    
   
-</li>
-        
-      </ul>
-    </nav>
+    Skills
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#search-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Search Commands
-      
-    </span>
-  </a>
+
+    
+  </span>
   
-    <nav class="md-nav" aria-label="Search Commands">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#mfs-search" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs search
-      
-    </span>
-  </a>
   
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-grep" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs grep
-      
-    </span>
-  </a>
+
+      </a>
+    </li>
   
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#browse-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Browse Commands
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Browse Commands">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#density-presets" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Density Presets
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-cat" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs cat
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-ls" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs ls
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-tree" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs tree
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration Commands
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Configuration Commands">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#mfs-config-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs config path
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-config-init" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs config init
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-config-show" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs config show
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-config-get" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs config get
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-config-set" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs config set
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
+
+              
+            
+          </ul>
+        </nav>
       
     </li>
   
@@ -1116,8 +874,144 @@
   
   
   
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
-      <a href="https://github.com/zilliztech/mfs/tree/main/evaluation" class="md-nav__link">
+      <a href="../server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDKs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
         
   
   
@@ -1133,6 +1027,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1217,34 +1119,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../troubleshooting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Troubleshooting
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -1272,258 +1146,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#command-groups" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Command Groups
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#global-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Global Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#index-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Index Commands
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Index Commands">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#mfs-add" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs add
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-status" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs status
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-remove" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs remove
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#search-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Search Commands
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Search Commands">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#mfs-search" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs search
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-grep" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs grep
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#browse-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Browse Commands
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Browse Commands">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#density-presets" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Density Presets
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-cat" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs cat
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-ls" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs ls
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-tree" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs tree
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration-commands" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration Commands
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Configuration Commands">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#mfs-config-path" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs config path
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-config-init" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs config init
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-config-show" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs config show
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-config-get" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs config get
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mfs-config-set" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        mfs config set
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -1543,831 +1165,56 @@
 
 
 <h1 id="cli-reference">CLI Reference<a class="headerlink" href="#cli-reference" title="Permanent link">&para;</a></h1>
-<p>MFS provides one command-line entry point:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span>COMMAND<span class="w"> </span><span class="o">[</span>ARGS<span class="o">]</span>...
-</code></pre></div>
-<p>Most commands accept local file-system paths. Search commands read from the
-Milvus-backed index, while browse commands can inspect the live file system even
-before a path has been indexed.</p>
-<h2 id="command-groups">Command Groups<a class="headerlink" href="#command-groups" title="Permanent link">&para;</a></h2>
+<p>The Rust CLI is distributed as the <code>mfs</code> binary. It talks to the HTTP API and
+renders human-readable or structured output.</p>
+<p>Common commands:</p>
 <table>
 <thead>
 <tr>
-<th>Group</th>
-<th>Commands</th>
+<th>Command</th>
 <th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Index</td>
-<td><code>add</code>, <code>remove</code>, <code>status</code></td>
-<td>Build, update, inspect, or delete indexed records.</td>
+<td><code>mfs status</code></td>
+<td>Check server health and registered sources.</td>
 </tr>
 <tr>
-<td>Search</td>
-<td><code>search</code>, <code>grep</code></td>
-<td>Find candidate files with semantic, hybrid, keyword, or exact matching.</td>
+<td><code>mfs add</code></td>
+<td>Register or upload a source for indexing.</td>
 </tr>
 <tr>
-<td>Browse</td>
-<td><code>cat</code>, <code>ls</code>, <code>tree</code></td>
-<td>Inspect files and directories with controllable context budgets.</td>
+<td><code>mfs search</code></td>
+<td>Search indexed sources.</td>
 </tr>
 <tr>
-<td>Configuration</td>
-<td><code>config path</code>, <code>config init</code>, <code>config show</code>, <code>config get</code>, <code>config set</code></td>
-<td>Manage <code>~/.mfs/config.toml</code>.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="global-options">Global Options<a class="headerlink" href="#global-options" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>--version
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mfs<span class="w"> </span>--help
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>mfs<span class="w"> </span>&lt;command&gt;<span class="w"> </span>--help
-</code></pre></div>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Output</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--version</code></td>
-<td>Prints the installed package version.</td>
+<td><code>mfs grep</code></td>
+<td>Search for literal terms.</td>
 </tr>
 <tr>
-<td><code>--help</code></td>
-<td>Prints usage, options, and subcommands.</td>
+<td><code>mfs ls</code></td>
+<td>List a source path.</td>
+</tr>
+<tr>
+<td><code>mfs cat</code></td>
+<td>Read a source object or range.</td>
+</tr>
+<tr>
+<td><code>mfs connector</code></td>
+<td>Inspect connector catalog and configured sources.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="index-commands">Index Commands<a class="headerlink" href="#index-commands" title="Permanent link">&para;</a></h2>
-<h3 id="mfs-add"><code>mfs add</code><a class="headerlink" href="#mfs-add" title="Permanent link">&para;</a></h3>
-<p>Index local files and directories.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>PATHS...<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
-</code></pre></div>
-<p>Inputs:</p>
-<table>
-<thead>
-<tr>
-<th>Input</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>PATHS...</code></td>
-<td>One or more existing files or directories. Directories are scanned recursively.</td>
-</tr>
-</tbody>
-</table>
-<p>Options:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--exclude TEXT</code></td>
-<td>Glob pattern to skip. Can be repeated. Applies in addition to ignore files and built-in ignored directories.</td>
-</tr>
-<tr>
-<td><code>--force</code></td>
-<td>Recompute hashes even when the stored mtime shortcut says a file is unchanged.</td>
-</tr>
-<tr>
-<td><code>--watch</code></td>
-<td>Keep watching the target paths and re-index changes.</td>
-</tr>
-<tr>
-<td><code>--interval TEXT</code></td>
-<td>Debounce interval for watch mode, such as <code>1500ms</code>, <code>10s</code>, or <code>1m</code>.</td>
-</tr>
-<tr>
-<td><code>--summarize</code></td>
-<td>Auto-generate file-level summaries for indexed text-like files using the configured <code>[llm]</code> provider. PDF and DOCX are converted to Markdown first.</td>
-</tr>
-<tr>
-<td><code>--describe</code></td>
-<td>Auto-generate searchable image descriptions for PNG, JPG/JPEG, GIF, WEBP, and BMP using a vision-capable provider.</td>
-</tr>
-<tr>
-<td><code>--sync</code></td>
-<td>Run embedding and writes in the foreground. Without this option, tasks are queued and a detached worker processes them.</td>
-</tr>
-<tr>
-<td><code>--quiet</code></td>
-<td>Suppress progress text.</td>
-</tr>
-</tbody>
-</table>
-<p>Output:</p>
-<ul>
-<li>In normal async mode, prints a summary of scanned files and queued chunks,
-  then starts the background worker.</li>
-<li>With <code>--sync</code>, blocks until embedding and Milvus writes finish.</li>
-<li>With <code>--quiet</code>, prints nothing unless an error occurs.</li>
-</ul>
-<p>Example:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>./docs<span class="w"> </span>./src<span class="w"> </span>--exclude<span class="w"> </span><span class="s2">&quot;node_modules/**&quot;</span><span class="w"> </span>--sync
-</code></pre></div>
-<p>Typical output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Indexed: 3 files scanned, 3 touched, 0 deleted, 4 chunks queued.
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>Embedding complete.
-</code></pre></div>
-<p>Notes:</p>
-<ul>
-<li>The async queue stores lightweight references for body chunks and generated
-  summaries; it does not store raw body text.</li>
-<li><code>--summarize</code> and <code>--describe</code> are opt-in. Normal indexing does not call an
-  LLM or VLM.</li>
-<li>Directory summary records are rebuilt after indexing so <code>mfs ls</code>, <code>mfs tree</code>,
-  and directory search results can show compact overviews.</li>
-</ul>
-<h3 id="mfs-status"><code>mfs status</code><a class="headerlink" href="#mfs-status" title="Permanent link">&para;</a></h3>
-<p>Show index and worker status.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mfs<span class="w"> </span>status<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
-</code></pre></div>
-<p>Options:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--json</code></td>
-<td>Emit machine-readable status.</td>
-</tr>
-<tr>
-<td><code>--needs-summary</code></td>
-<td>List indexed files that do not have a fresh generated summary.</td>
-</tr>
-</tbody>
-</table>
-<p>Text output includes:</p>
-<ul>
-<li>current worker state</li>
-<li>indexed file count</li>
-<li>total, complete, and pending chunk count</li>
-<li>directory summary count</li>
-<li>queued task count, when tasks are waiting</li>
-<li>last sync timestamps by root</li>
-</ul>
-<p>Example:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mfs<span class="w"> </span>status
-</code></pre></div>
-<p>Typical output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>State: idle
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>Indexed files: 3
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>Chunks: 4 total  (4 complete, 0 pending)
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>Directory summaries: 3
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>Processed this session: 4
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>Last sync:
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>  /repo/demo: 2026-04-30 08:03:33 UTC
-</code></pre></div>
-<p>JSON output is intended for scripts:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mfs<span class="w"> </span>status<span class="w"> </span>--json
-</code></pre></div>
-<h3 id="mfs-remove"><code>mfs remove</code><a class="headerlink" href="#mfs-remove" title="Permanent link">&para;</a></h3>
-<p>Remove indexed records for a file or directory.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mfs<span class="w"> </span>remove<span class="w"> </span>TARGET<span class="w"> </span><span class="o">[</span>--quiet<span class="o">]</span>
-</code></pre></div>
-<p>Inputs:</p>
-<table>
-<thead>
-<tr>
-<th>Input</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>TARGET</code></td>
-<td>File or directory path. Directory paths remove indexed records under that prefix.</td>
-</tr>
-</tbody>
-</table>
-<p>Options:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--quiet</code></td>
-<td>Suppress success text.</td>
-</tr>
-</tbody>
-</table>
-<p>Output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>Removed 12 indexed chunks for /repo/docs
-</code></pre></div>
-<h2 id="search-commands">Search Commands<a class="headerlink" href="#search-commands" title="Permanent link">&para;</a></h2>
-<h3 id="mfs-search"><code>mfs search</code><a class="headerlink" href="#mfs-search" title="Permanent link">&para;</a></h3>
-<p>Search indexed files using semantic, keyword, or hybrid retrieval.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mfs<span class="w"> </span>search<span class="w"> </span>QUERY<span class="w"> </span><span class="o">[</span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
-</code></pre></div>
-<p>Inputs:</p>
-<table>
-<thead>
-<tr>
-<th>Input</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>QUERY</code></td>
-<td>Natural-language query or keyword query.</td>
-</tr>
-<tr>
-<td><code>PATH</code></td>
-<td>Optional file or directory scope. If omitted, use <code>--all</code> or pipe scoped MFS output into stdin.</td>
-</tr>
-</tbody>
-</table>
-<p>Options:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--top-k INTEGER</code></td>
-<td>Number of results to return. Default: <code>10</code>.</td>
-</tr>
-<tr>
-<td><code>--path TEXT</code></td>
-<td>Compatibility alias for the positional <code>PATH</code>.</td>
-</tr>
-<tr>
-<td><code>--all</code></td>
-<td>Search across all indexed files.</td>
-</tr>
-<tr>
-<td><code>--mode hybrid</code></td>
-<td>Default. Combine dense semantic ranking and keyword/BM25 ranking.</td>
-</tr>
-<tr>
-<td><code>--mode semantic</code></td>
-<td>Dense-vector semantic retrieval only. Useful for paraphrased queries.</td>
-</tr>
-<tr>
-<td><code>--mode keyword</code></td>
-<td>Keyword/BM25 retrieval only. Useful for exact terms and identifiers.</td>
-</tr>
-<tr>
-<td><code>--json</code></td>
-<td>Emit structured result objects.</td>
-</tr>
-<tr>
-<td><code>--quiet</code></td>
-<td>Print one compact line per result, without snippets.</td>
-</tr>
-</tbody>
-</table>
-<p>Text output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;how are refresh tokens revoked&quot;</span><span class="w"> </span>./demo<span class="w"> </span>--top-k<span class="w"> </span><span class="m">2</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>[1] /repo/demo/README.md  score=0.033
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>  5  ## Operations
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>  6
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>  7  Refresh tokens rotate every seven days. The background cleanup job is called Cedar Sweep.
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>[2] /repo/demo/docs/runbook.md  score=0.032
-<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>
-<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>  1  # Runbook
-<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>  2
-<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>  3  Use Cedar Sweep when a refresh token must be revoked across all devices.
-</code></pre></div>
-<p>JSON output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;Cedar Sweep&quot;</span><span class="w"> </span>./demo<span class="w"> </span>--top-k<span class="w"> </span><span class="m">1</span><span class="w"> </span>--json
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="p">[</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="p">{</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="nt">&quot;source&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/repo/demo/docs/runbook.md&quot;</span><span class="p">,</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="nt">&quot;lines&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">],</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span><span class="nt">&quot;content&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;# Runbook\n\nUse Cedar Sweep when a refresh token must be revoked across all devices.&quot;</span><span class="p">,</span>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span><span class="nt">&quot;score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0325</span><span class="p">,</span>
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">    </span><span class="nt">&quot;metadata&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="w">      </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;search&quot;</span><span class="p">,</span>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">      </span><span class="nt">&quot;content_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;markdown&quot;</span><span class="p">,</span>
-<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">      </span><span class="nt">&quot;is_dir&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
-<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="w">      </span><span class="nt">&quot;chunk_index&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span>
-<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a><span class="p">]</span>
-</code></pre></div>
-<p>Stdin behavior:</p>
-<ul>
-<li>Piped <code>mfs cat</code> output with <code>::mfs:</code> headers scopes search to the original
-  source file.</li>
-<li>Plain stdin is searched as temporary text and may return an empty result if it
-  does not map to indexed files.</li>
-</ul>
-<h3 id="mfs-grep"><code>mfs grep</code><a class="headerlink" href="#mfs-grep" title="Permanent link">&para;</a></h3>
-<p>Run full-text search with index-aware routing.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>mfs<span class="w"> </span>grep<span class="w"> </span>PATTERN<span class="w"> </span><span class="o">[</span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
-</code></pre></div>
-<p>Inputs:</p>
-<table>
-<thead>
-<tr>
-<th>Input</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>PATTERN</code></td>
-<td>Literal or regex-like text pattern.</td>
-</tr>
-<tr>
-<td><code>PATH</code></td>
-<td>Optional file or directory scope. Use <code>--all</code> to skip scope checks.</td>
-</tr>
-</tbody>
-</table>
-<p>Options:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--path TEXT</code></td>
-<td>Compatibility alias for positional <code>PATH</code>.</td>
-</tr>
-<tr>
-<td><code>--all</code></td>
-<td>Search across all indexed files.</td>
-</tr>
-<tr>
-<td><code>-C INTEGER</code></td>
-<td>Include context lines before and after each match.</td>
-</tr>
-<tr>
-<td><code>-n</code></td>
-<td>Accepted for compatibility. Line numbers are always shown in the gutter.</td>
-</tr>
-<tr>
-<td><code>-i</code></td>
-<td>Case-insensitive search.</td>
-</tr>
-<tr>
-<td><code>--json</code></td>
-<td>Emit structured result objects.</td>
-</tr>
-<tr>
-<td><code>--quiet</code></td>
-<td>Print compact output.</td>
-</tr>
-</tbody>
-</table>
-<p>Example:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>mfs<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;Cedar Sweep&quot;</span><span class="w"> </span>./demo<span class="w"> </span>-C<span class="w"> </span><span class="m">1</span>
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>/repo/demo/README.md
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>  2
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>  3  This project documents token rotation, Cedar Sweep revocation, and search examples.
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>  4
-<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>--
-<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>  6
-<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>  7  Refresh tokens rotate every seven days. The background cleanup job is called Cedar Sweep.
-<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>
-<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>/repo/demo/docs/runbook.md
-<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>  2
-<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>  3  Use Cedar Sweep when a refresh token must be revoked across all devices.
-</code></pre></div>
-<p>When to use <code>mfs grep</code> versus shell <code>grep</code>:</p>
-<ul>
-<li><code>mfs grep</code> is useful when the directory has already been indexed and is large.
-  It searches indexed chunk text, so repeated searches avoid reading every file
-  from disk.</li>
-<li>Native shell <code>grep</code> is still excellent for small folders, one-off checks, and
-  files that have not been indexed.</li>
-</ul>
-<h2 id="browse-commands">Browse Commands<a class="headerlink" href="#browse-commands" title="Permanent link">&para;</a></h2>
-<p>Browse commands do not require semantic indexing. They read the live file
-system and are useful after search has found candidate paths.</p>
-<h3 id="density-presets">Density Presets<a class="headerlink" href="#density-presets" title="Permanent link">&para;</a></h3>
-<p><code>cat</code>, <code>ls</code>, and <code>tree</code> share the same context-budget model.</p>
-<table>
-<thead>
-<tr>
-<th>Preset</th>
-<th>Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--peek</code></td>
-<td>One-glance structure. Shows names, headings, or skeletons with little or no body text.</td>
-</tr>
-<tr>
-<td><code>--skim</code></td>
-<td>Default overview. Shows compact summaries and short excerpts.</td>
-</tr>
-<tr>
-<td><code>--deep</code></td>
-<td>Richer inspection. Shows more lines, headings, and nested structure.</td>
-</tr>
-</tbody>
-</table>
-<p>Overrides:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-W INTEGER</code></td>
-<td>Width budget. Controls characters per paragraph, value, or node.</td>
-</tr>
-<tr>
-<td><code>-H INTEGER</code></td>
-<td>Height budget. Controls max headings, items, or entries shown.</td>
-</tr>
-<tr>
-<td><code>-D INTEGER</code></td>
-<td>Depth budget. Controls heading or structure levels to expand.</td>
-</tr>
-</tbody>
-</table>
-<h3 id="mfs-cat"><code>mfs cat</code><a class="headerlink" href="#mfs-cat" title="Permanent link">&para;</a></h3>
-<p>Read exact content or show a density-controlled file overview.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>mfs<span class="w"> </span>cat<span class="w"> </span>FILE<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
-</code></pre></div>
-<p>Inputs:</p>
-<table>
-<thead>
-<tr>
-<th>Input</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>FILE</code></td>
-<td>File path to inspect. Markdown, code, text, JSON, JSONL, CSV, PDF, and DOCX are handled by the browse layer.</td>
-</tr>
-</tbody>
-</table>
-<p>Options:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--peek</code>, <code>--skim</code>, <code>--deep</code></td>
-<td>Density preset.</td>
-</tr>
-<tr>
-<td><code>-W INTEGER</code>, <code>-H INTEGER</code>, <code>-D INTEGER</code></td>
-<td>Override density budgets.</td>
-</tr>
-<tr>
-<td><code>-n TEXT</code></td>
-<td>Exact line range, such as <code>40:60</code>, <code>40:</code>, or <code>:60</code>.</td>
-</tr>
-<tr>
-<td><code>--no-frontmatter</code></td>
-<td>Strip YAML/TOML frontmatter before display.</td>
-</tr>
-<tr>
-<td><code>--meta</code></td>
-<td>Force <code>::mfs:</code> metadata headers even in a terminal.</td>
-</tr>
-<tr>
-<td><code>--no-meta</code></td>
-<td>Omit <code>::mfs:</code> metadata headers even when piped.</td>
-</tr>
-<tr>
-<td><code>--json</code></td>
-<td>Emit structured output.</td>
-</tr>
-<tr>
-<td><code>--no-line-numbers</code></td>
-<td>Omit source line numbers in <code>peek</code>, <code>skim</code>, and <code>deep</code> views.</td>
-</tr>
-</tbody>
-</table>
-<p>Overview example:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>mfs<span class="w"> </span>cat<span class="w"> </span>--skim<span class="w"> </span>./README.md
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>::mfs:source=/repo/demo/README.md
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>::mfs:indexed=true
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>::mfs:hash=595b1df9
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>  1  # Demo Project
-<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>  3    This project documents token rotation, Cedar Sweep revocation, and search examp…
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>  5    ## Operations
-<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>  7      Refresh tokens rotate every seven days. The background cleanup job is called Ce…
-</code></pre></div>
-<p>Exact range example:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>mfs<span class="w"> </span>cat<span class="w"> </span>-n<span class="w"> </span><span class="m">1</span>:4<span class="w"> </span>./README.md
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>::mfs:source=/repo/demo/README.md
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>::mfs:indexed=true
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>::mfs:hash=595b1df9
-<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>::mfs:lines=1:4
-<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>
-<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a># Demo Project
-<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>
-<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>This project documents token rotation, Cedar Sweep revocation, and search examples.
-</code></pre></div>
-<p>JSON and JSONL:</p>
-<ul>
-<li><code>mfs cat --peek data.json</code> shows a compact tree-like structure.</li>
-<li><code>mfs cat --skim data.jsonl</code> shows representative rows and keys.</li>
-<li><code>-D</code> increases structural depth for nested JSON values.</li>
-</ul>
-<h3 id="mfs-ls"><code>mfs ls</code><a class="headerlink" href="#mfs-ls" title="Permanent link">&para;</a></h3>
-<p>List one directory with compact file and subdirectory summaries.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>mfs<span class="w"> </span>ls<span class="w"> </span><span class="o">[</span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
-</code></pre></div>
-<p>Inputs:</p>
-<table>
-<thead>
-<tr>
-<th>Input</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>PATH</code></td>
-<td>Directory to list. Defaults to the current directory.</td>
-</tr>
-</tbody>
-</table>
-<p>Options:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--peek</code>, <code>--skim</code>, <code>--deep</code></td>
-<td>Density preset. Default: <code>--skim</code>.</td>
-</tr>
-<tr>
-<td><code>-W INTEGER</code>, <code>-H INTEGER</code>, <code>-D INTEGER</code></td>
-<td>Override density budgets.</td>
-</tr>
-<tr>
-<td><code>--json</code></td>
-<td>Emit directory entries as JSON.</td>
-</tr>
-</tbody>
-</table>
-<p>Example:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>mfs<span class="w"> </span>ls<span class="w"> </span>--skim<span class="w"> </span>./demo
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>/repo/demo/
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>README.md  # Demo Project  [indexed]
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>             This project documents token rotation, Cedar Sweep revocation, and search examp…
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>             ## Operations
-<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>docs/      - runbook.md: # Runbook   Use Cedar Sweep when a refresh token must be revoked across all devices.
-<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>src/       - auth.py: def rotate_token(user_id: str) -&gt; str:
-</code></pre></div>
-<p>Output notes:</p>
-<ul>
-<li><code>[indexed]</code> means the file has body chunks in the index.</li>
-<li>Stale generated summaries are marked when known.</li>
-<li>Binary and ignored files are listed without fabricated summaries.</li>
-</ul>
-<h3 id="mfs-tree"><code>mfs tree</code><a class="headerlink" href="#mfs-tree" title="Permanent link">&para;</a></h3>
-<p>Show a recursive tree with optional per-node summaries.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>mfs<span class="w"> </span>tree<span class="w"> </span><span class="o">[</span>PATH<span class="o">]</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
-</code></pre></div>
-<p>Inputs:</p>
-<table>
-<thead>
-<tr>
-<th>Input</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>PATH</code></td>
-<td>Directory to traverse. Defaults to the current directory.</td>
-</tr>
-</tbody>
-</table>
-<p>Options:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--peek</code>, <code>--skim</code>, <code>--deep</code></td>
-<td>Density preset. Default: <code>--skim</code>.</td>
-</tr>
-<tr>
-<td><code>-W INTEGER</code>, <code>-H INTEGER</code>, <code>-D INTEGER</code></td>
-<td>Override density budgets.</td>
-</tr>
-<tr>
-<td><code>-L INTEGER</code></td>
-<td>Maximum directory recursion depth. Default: <code>3</code>.</td>
-</tr>
-<tr>
-<td><code>--json</code></td>
-<td>Emit nested tree JSON.</td>
-</tr>
-</tbody>
-</table>
-<p>Example:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>mfs<span class="w"> </span>tree<span class="w"> </span>--skim<span class="w"> </span>-L<span class="w"> </span><span class="m">2</span><span class="w"> </span>./demo
-</code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>/repo/demo/
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>├── README.md  — # Demo Project
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>├── docs/
-<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>│   └── runbook.md  — # Runbook
-<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a>└── src/
-<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a>    └── auth.py  — def rotate_token(user_id: str) -&gt; str:
-</code></pre></div>
-<h2 id="configuration-commands">Configuration Commands<a class="headerlink" href="#configuration-commands" title="Permanent link">&para;</a></h2>
-<p>MFS reads configuration from <code>~/.mfs/config.toml</code> by default. Set <code>MFS_HOME</code> to
-use a different config and data directory:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="nv">MFS_HOME</span><span class="o">=</span>/tmp/mfs-demo<span class="w"> </span>mfs<span class="w"> </span>config<span class="w"> </span>path
-</code></pre></div>
-<h3 id="mfs-config-path"><code>mfs config path</code><a class="headerlink" href="#mfs-config-path" title="Permanent link">&para;</a></h3>
-<p>Print the absolute config path.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>mfs<span class="w"> </span>config<span class="w"> </span>path
-</code></pre></div>
-<p>Output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>/home/user/.mfs/config.toml
-</code></pre></div>
-<h3 id="mfs-config-init"><code>mfs config init</code><a class="headerlink" href="#mfs-config-init" title="Permanent link">&para;</a></h3>
-<p>Write a commented default config file.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>mfs<span class="w"> </span>config<span class="w"> </span>init<span class="w"> </span><span class="o">[</span>--force<span class="o">]</span>
-</code></pre></div>
-<p>Options:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--force</code></td>
-<td>Overwrite an existing config after writing a timestamped backup.</td>
-</tr>
-</tbody>
-</table>
-<p>Output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>wrote /home/user/.mfs/config.toml
-</code></pre></div>
-<h3 id="mfs-config-show"><code>mfs config show</code><a class="headerlink" href="#mfs-config-show" title="Permanent link">&para;</a></h3>
-<p>Display all effective config values and their source.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>mfs<span class="w"> </span>config<span class="w"> </span>show<span class="w"> </span><span class="o">[</span>--json<span class="o">]</span>
-</code></pre></div>
-<p>Options:</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--json</code></td>
-<td>Emit effective config as JSON. Secret values are redacted as <code>&lt;set&gt;</code>.</td>
-</tr>
-</tbody>
-</table>
-<p>Text output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>[embedding]
-<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>  provider               = &quot;openai&quot;                                 [default]
-<a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a>  model                  = &quot;text-embedding-3-small&quot;                 [default]
-<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a>  api_key                = &lt;set&gt;                                    [env OPENAI_API_KEY]
-</code></pre></div>
-<p>JSON output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a><span class="p">{</span>
-<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a><span class="w">  </span><span class="nt">&quot;embedding&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a><span class="w">    </span><span class="nt">&quot;provider&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
-<a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a><span class="w">    </span><span class="nt">&quot;model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;text-embedding-3-small&quot;</span><span class="p">,</span>
-<a id="__codelineno-37-5" name="__codelineno-37-5" href="#__codelineno-37-5"></a><span class="w">    </span><span class="nt">&quot;api_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;set&gt;&quot;</span>
-<a id="__codelineno-37-6" name="__codelineno-37-6" href="#__codelineno-37-6"></a><span class="w">  </span><span class="p">}</span>
-<a id="__codelineno-37-7" name="__codelineno-37-7" href="#__codelineno-37-7"></a><span class="p">}</span>
-</code></pre></div>
-<h3 id="mfs-config-get"><code>mfs config get</code><a class="headerlink" href="#mfs-config-get" title="Permanent link">&para;</a></h3>
-<p>Print one effective config value.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>mfs<span class="w"> </span>config<span class="w"> </span>get<span class="w"> </span>KEY
-</code></pre></div>
 <p>Examples:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>mfs<span class="w"> </span>config<span class="w"> </span>get<span class="w"> </span>embedding.provider
-<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a>mfs<span class="w"> </span>config<span class="w"> </span>get<span class="w"> </span>milvus.uri
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>status
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>--wait<span class="w"> </span>./repo
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>--wait<span class="w"> </span>./repo
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;release installer script&quot;</span><span class="w"> </span>./repo<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./repo/README.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
 </code></pre></div>
-<p>List values are printed as comma-separated strings.</p>
-<h3 id="mfs-config-set"><code>mfs config set</code><a class="headerlink" href="#mfs-config-set" title="Permanent link">&para;</a></h3>
-<p>Persist one value to <code>config.toml</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>mfs<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>KEY<span class="w"> </span>VALUE
-</code></pre></div>
-<p>Examples:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>mfs<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>embedding.provider<span class="w"> </span>onnx
-<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>mfs<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>embedding.batch_size<span class="w"> </span><span class="m">64</span>
-<a id="__codelineno-41-3" name="__codelineno-41-3" href="#__codelineno-41-3"></a>mfs<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>indexing.include_extensions<span class="w"> </span><span class="s1">&#39;[&quot;md&quot;,&quot;py&quot;,&quot;txt&quot;]&#39;</span>
-</code></pre></div>
-<p>Output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>set embedding.batch_size = 64 in /home/user/.mfs/config.toml
-</code></pre></div>
-<p>When changing <code>embedding.provider</code> or <code>llm.provider</code>, MFS may also update the
-corresponding model if the current model still matches a known provider default.</p>
-<p>Common keys:</p>
-<table>
-<thead>
-<tr>
-<th>Key</th>
-<th>Example</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>embedding.provider</code></td>
-<td><code>openai</code>, <code>onnx</code>, <code>local</code>, <code>jina</code>, <code>voyage</code>, <code>google</code>, <code>mistral</code>, <code>ollama</code></td>
-</tr>
-<tr>
-<td><code>embedding.model</code></td>
-<td><code>text-embedding-3-small</code></td>
-</tr>
-<tr>
-<td><code>embedding.batch_size</code></td>
-<td><code>32</code></td>
-</tr>
-<tr>
-<td><code>llm.provider</code></td>
-<td><code>openai</code>, <code>anthropic</code>, <code>google</code>, <code>ollama</code>, <code>mistral</code></td>
-</tr>
-<tr>
-<td><code>llm.model</code></td>
-<td><code>gpt-4o-mini</code></td>
-</tr>
-<tr>
-<td><code>milvus.uri</code></td>
-<td><code>~/.mfs/milvus.db</code>, <code>http://localhost:19530</code>, <code>https://xxx.zillizcloud.com</code></td>
-</tr>
-<tr>
-<td><code>milvus.collection_name</code></td>
-<td><code>mfs_chunks</code></td>
-</tr>
-<tr>
-<td><code>milvus.token</code></td>
-<td>Zilliz Cloud or Milvus auth token</td>
-</tr>
-<tr>
-<td><code>indexing.include_extensions</code></td>
-<td><code>["md","py"]</code></td>
-</tr>
-<tr>
-<td><code>indexing.exclude_extensions</code></td>
-<td><code>["log"]</code></td>
-</tr>
-<tr>
-<td><code>cache.max_size_mb</code></td>
-<td><code>500</code></td>
-</tr>
-</tbody>
-</table>
+<p>This page is intentionally only a scaffold for now. The next pass should
+generate or verify option tables from <code>mfs --help</code> so the docs do not drift.</p>
 
 
 
