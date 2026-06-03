@@ -10,6 +10,9 @@ asyncio.to_thread. Works against Milvus Lite (local file) and Zilliz Cloud.
 
 from __future__ import annotations
 
+import logging
+import os
+import sys
 from typing import Any, Optional
 from urllib.parse import urlparse
 
@@ -30,6 +33,14 @@ _COLLECTION_SCHEMA_VERSION = 1
 # clean envelope instead of a leaked 500. Hybrid search over-fetches (limit * ratio),
 # so the effective window can exceed top_k — callers must account for that.
 MILVUS_MAX_RESULT_WINDOW = 16384
+
+
+def _is_analyzer_config_error(text: str) -> bool:
+    """True when a create_collection failure is really an analyzer/tokenizer misconfig
+    (unknown tokenizer type, or jieba configured but its package isn't installed) rather
+    than a transient/backend error — so the caller can fail clean instead of crash-looping."""
+    t = text.lower()
+    return any(k in t for k in ("tokenizer", "analyzer", "jieba"))
 
 
 def _reraise_known_milvus_error(exc: MilvusException) -> None:
@@ -209,7 +220,40 @@ class MilvusStore:
         }
         # num_partitions only meaningful with a partition_key field
         kwargs["num_partitions"] = self.num_partitions
-        self.client.create_collection(**kwargs)
+        try:
+            # pymilvus (and the embedded milvus-lite engine) log every failed RPC with a full
+            # traceback via the logging module before raising; mute all logging just around
+            # this call so an analyzer misconfig surfaces as our single clean actionable
+            # message rather than a scary double traceback.
+            logging.disable(logging.CRITICAL)
+            try:
+                self.client.create_collection(**kwargs)
+            finally:
+                logging.disable(logging.NOTSET)
+        except Exception as exc:  # noqa: BLE001 — translate analyzer misconfig into a clean exit
+            detail = getattr(exc, "message", None) or str(exc)
+            if self.analyzer_params and _is_analyzer_config_error(detail):
+                # A bad milvus.analyzer_params (unknown tokenizer, or jieba configured but not
+                # installed) otherwise crash-loops the server at startup with a raw
+                # MilvusException traceback. Fail clean + actionable instead — never silently
+                # fall back to 'standard', which would hide the misconfig. os._exit avoids the
+                # starlette lifespan re-wrapping a SystemExit into another "startup failed"
+                # traceback; nothing is initialized yet at this point, so there is no cleanup
+                # to skip.
+                print(
+                    f"mfs-server: FATAL invalid milvus.analyzer_params "
+                    f"{self.analyzer_params!r}: {detail}\n"
+                    f"  Supported BM25 tokenizers: 'standard' (default) and 'jieba' (Chinese "
+                    f"segmentation; requires the jieba package — `uv pip install jieba`).\n"
+                    f"  Fix milvus.analyzer_params in server.toml (e.g. {{type = \"jieba\"}}) and "
+                    f"recreate the collection: the analyzer is applied only at collection "
+                    f"creation, so an existing index must be dropped and re-indexed for the "
+                    f"change to take effect.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                os._exit(1)
+            raise
         self._add_scalar_indexes(name)
         self.client.load_collection(name)
         return name
