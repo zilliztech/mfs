@@ -1,0 +1,18 @@
+[project]
+name = "mfs-docs"
+version = "0.0.0"
+description = "Documentation tooling for the MFS monorepo"
+requires-python = ">=3.10"
+dependencies = []
+
+[dependency-groups]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.6",
+]
+dev = [
+    { include-group = "docs" },
+]
+
+[tool.uv]
+package = false

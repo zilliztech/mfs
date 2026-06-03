@@ -21,7 +21,7 @@ search → locate → browse without parsing prose.
   └──────────────────┘   └──────────────────┘   └─────────────────────┘
 ```
 
-This is the **`v0.4.0-beta.1` release** — an early-access build. The CLI is
+This is the **`v0.4.0-beta.2` release** — an early-access build. The CLI is
 shipped as a static binary; the server runs in dev mode from this repo.
 See [Status](#status) for what's stable and what isn't.
 
@@ -29,7 +29,7 @@ See [Status](#status) for what's stable and what isn't.
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.1/mfs-cli-installer.sh | sh
+  https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.2/mfs-cli-installer.sh | sh
 ```
 
 (The script name carries the crate name `mfs-cli`; the installed binary is `mfs`.)
@@ -37,7 +37,7 @@ curl --proto '=https' --tlsv1.2 -LsSf \
 Or via cargo:
 
 ```bash
-cargo install mfs-cli --version 0.4.0-beta.1
+cargo install mfs-cli --version 0.4.0-beta.2
 ```
 
 The binary is named `mfs`. Verify:
@@ -60,7 +60,7 @@ mfs --version
 
 ## Run the server (dev mode)
 
-The server is a Python FastAPI app. For `v0.4.0-beta.1` it is **not** published
+The server is a Python FastAPI app. For `v0.4.0-beta.2` it is **not** published
 to PyPI — clone the repo and run it from source:
 
 ```bash
@@ -136,14 +136,16 @@ for the registered catalog and `mfs --help` for the full CLI surface.
 
 ## For agents
 
-If you're an agent reading this, the matching SKILL is at
-[`skills/mfs/SKILL.md`](skills/mfs/SKILL.md). Connector-specific reference
-material is in [`skills/mfs/references/`](skills/mfs/references/) — load
-each file only when the situation matches its "Open WHEN" line.
+If you're an agent reading this, use the matching skill for the operation:
+
+- [`skills/mfs-find/SKILL.md`](skills/mfs-find/SKILL.md) for read-only search,
+  grep, browse, and cat workflows over registered sources.
+- [`skills/mfs-ingest/SKILL.md`](skills/mfs-ingest/SKILL.md) for adding or
+  updating sources, connector configuration, and ingest troubleshooting.
 
 ## Status
 
-`v0.4.0-beta.1` is a **public beta** intended for evaluation and feedback.
+`v0.4.0-beta.2` is a **public beta** intended for evaluation and feedback.
 Concretely:
 
 - ✅ CLI: stable surface for the documented commands.
@@ -159,10 +161,12 @@ https://github.com/zilliztech/mfs/issues.
 
 ## Docs
 
-- [`skills/mfs/SKILL.md`](skills/mfs/SKILL.md) — agent skill (also the most
-  concise human reference for the CLI workflow)
-- [`skills/mfs/references/`](skills/mfs/references/) — per-connector "Open
-  WHEN" pages: URI shape, auth, config, gotchas
+- [`docs/`](docs/) — MkDocs source for the public documentation site
+- [`mkdocs.yml`](mkdocs.yml) — documentation site structure and theme config
+- [`skills/mfs-find/SKILL.md`](skills/mfs-find/SKILL.md) — agent search and
+  browse workflow
+- [`skills/mfs-ingest/SKILL.md`](skills/mfs-ingest/SKILL.md) — agent ingest and
+  connector workflow
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup, testing, lint, commit /
   PR conventions
 

@@ -1,0 +1,15 @@
+:root {
+  --mfs-terminal-cyan: #45f3ff;
+  --mfs-terminal-green: #7cff9b;
+  --mfs-terminal-muted: #8b9bb4;
+}
+
+.md-typeset code {
+  border-radius: 4px;
+}
+
+.md-typeset .mfs-callout {
+  border-left: 3px solid var(--mfs-terminal-cyan);
+  padding-left: 1rem;
+  color: var(--mfs-terminal-muted);
+}
