@@ -39,6 +39,8 @@ _BARE_CAT_MAX_BYTES = 5 * 1024 * 1024  # bare `cat` (no range) rejects objects l
 _GREP_LINEAR_SCAN_MAX = 200  # cap on not-indexed files a single grep scans linearly
 _JOB_STALE_AFTER_S = 120  # no heartbeat for this long => worker presumed dead
 _HEARTBEAT_INTERVAL_S = 10  # worker refreshes its job heartbeat this often (<< stale)
+_WORKER_CONNECT_TIMEOUT_S = 30  # bound plugin.connect() in the worker so a hanging/unreachable
+# connector fails its job cleanly instead of blocking the single in-process worker forever
 
 
 def _now() -> str:
@@ -1039,22 +1041,54 @@ class Engine:
         )
         connector_uri, ctype = crow["root_uri"], crow["type"]
         stored_cfg = json.loads(crow["config_json"]) if crow["config_json"] else {}
-        plugin, _ = self._build_plugin(ctype, stored_cfg, cid)
-        await plugin.connect()
-        aborted: str | None = None
+        plugin = None
         try:
+            plugin, _ = self._build_plugin(ctype, stored_cfg, cid)
+            # Bound connect(): an unreachable/hanging connector (or one whose persisted creds
+            # no longer resolve) must fail THIS job cleanly, not block the single in-process
+            # sqlite worker forever — one bad connector cannot be allowed to wedge all ingest.
+            await asyncio.wait_for(plugin.connect(), timeout=_WORKER_CONNECT_TIMEOUT_S)
             aborted = await self._run_job(job["id"], cid, connector_uri, plugin)
-        finally:
-            await plugin.close()
-        await self._finalize_job(job["id"], aborted)
-        # commit the deferred connector state only now that the job succeeded:
-        # a failed/cancelled background job leaves the cursor where it was.
-        if aborted is None:
-            jrow = await self.meta.fetchone(
-                "SELECT state_snapshot, status FROM connector_jobs WHERE id=?", (job["id"],)
+            await self._finalize_job(job["id"], aborted)
+            # commit the deferred connector state only now that the job succeeded:
+            # a failed/cancelled background job leaves the cursor where it was.
+            if aborted is None:
+                jrow = await self.meta.fetchone(
+                    "SELECT state_snapshot, status FROM connector_jobs WHERE id=?", (job["id"],)
+                )
+                if jrow and jrow["status"] == "succeeded" and jrow["state_snapshot"]:
+                    await ConnectorStateStore(self.meta, cid).apply(
+                        json.loads(jrow["state_snapshot"])
+                    )
+        except Exception as e:  # noqa: BLE001
+            # Move the claimed job to a terminal 'failed' state and release the worker, so the
+            # queue keeps draining. Without this a connect timeout/exception would leave the
+            # job stuck 'running' and (with the single sqlite worker) wedge every later job.
+            reason = (
+                "connector_unhealthy: connect timed out"
+                if isinstance(e, asyncio.TimeoutError)
+                else f"sync_error: {e}"
             )
-            if jrow and jrow["status"] == "succeeded" and jrow["state_snapshot"]:
-                await ConnectorStateStore(self.meta, cid).apply(json.loads(jrow["state_snapshot"]))
+            await self.meta.execute(
+                "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? "
+                "WHERE connector_job_id=? AND status='running'",
+                (_now(), str(reason)[:300], job["id"]),
+            )
+            await self.meta.execute(
+                "UPDATE connector_jobs SET status='failed', finished_at=?, error=? "
+                "WHERE id=? AND status IN ('running', 'queued')",
+                (_now(), str(reason)[:300], job["id"]),
+            )
+            print(
+                f"mfs-server: WARNING sync job {job['id']} for {connector_uri} failed: {reason}",
+                flush=True,
+            )
+        finally:
+            if plugin is not None:
+                try:
+                    await plugin.close()
+                except Exception:  # noqa: BLE001
+                    pass
         return job["id"]
 
     def _resolve_concurrency(self, concurrency=None) -> int:
@@ -1138,7 +1172,11 @@ class Engine:
 
         async def _loop() -> None:
             while True:
-                jid = await self.run_worker_once()
+                try:
+                    jid = await self.run_worker_once()
+                except Exception:  # noqa: BLE001 — a single job must NEVER kill the worker
+                    # coroutine; with the sqlite single worker that would wedge all ingest.
+                    jid = None
                 if jid is None:
                     await self._reclaim_stale_jobs()
                     await asyncio.sleep(poll_interval)
