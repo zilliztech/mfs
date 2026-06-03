@@ -2206,13 +2206,24 @@ class Engine:
                     records = plugin.read_records(rel)
                     if records is not None and ocfg.text_fields:
                         n = 0
-                        async for rec in records:
-                            t = _render_record(rec, ocfg.text_fields, ocfg.render_template)
-                            if t.strip():
-                                texts.append(t)
-                            n += 1
-                            if n >= sample_records:
-                                break
+                        try:
+                            async for rec in records:
+                                t = _render_record(rec, ocfg.text_fields, ocfg.render_template)
+                                if t.strip():
+                                    texts.append(t)
+                                n += 1
+                                if n >= sample_records:
+                                    break
+                        finally:
+                            # Breaking out of `async for` does NOT close the async generator,
+                            # so a connector that yields from inside `async with pool.acquire()`
+                            # (mysql/postgres/mongo) keeps a DB connection pinned by the
+                            # suspended generator; the estimate's `plugin.close()` then deadlocks
+                            # in pool.wait_closed() waiting for that connection. Explicitly close
+                            # the generator after the capped sample so the connection is released.
+                            aclose = getattr(records, "aclose", None)
+                            if aclose is not None:
+                                await aclose()
                 if texts:
                     s_chunks += len(texts)
                     s_tokens += sum(ntok(t) for t in texts)
