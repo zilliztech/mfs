@@ -145,11 +145,21 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.exception_handler(RequestValidationError)
     async def _val_exc(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        # Build the detail from only each error's location + message — deliberately DROP
+        # pydantic's `input`/`url`/`ctx` fields. `input` echoes the submitted value (which
+        # for a config body can be a live secret) and `url` carries the server source path;
+        # `str(exc)` would leak both. Keep `detail` a plain string so the envelope shape is
+        # unchanged for SDK consumers.
+        parts = []
+        for err in exc.errors():
+            loc = ".".join(str(p) for p in err.get("loc", ()) if p != "body")
+            msg = err.get("msg", "invalid")
+            parts.append(f"{loc}: {msg}" if loc else msg)
         return JSONResponse(
             status_code=422,
             content={
                 "code": "validation_error",
-                "detail": str(exc),
+                "detail": "; ".join(parts) or "validation error",
                 "suggestions": ["fix request shape"],
             },
         )
