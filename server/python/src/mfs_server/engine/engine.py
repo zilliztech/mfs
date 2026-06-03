@@ -2002,9 +2002,18 @@ class Engine:
             records = plugin.read_records(relpath)
             schema_obj = None
             if records is not None:
-                async for r in records:
-                    schema_obj = r
-                    break
+                try:
+                    async for r in records:
+                        schema_obj = r
+                        break
+                finally:
+                    # Mirror the record_collection (line ~1952), cat (~2526/2553/2567) and
+                    # estimate paths: breaking after the first record does NOT close the async
+                    # generator, so a table_schema connector that yields from inside
+                    # `async with pool.acquire()` would pin a pool connection; aclose() releases it.
+                    aclose = getattr(records, "aclose", None)
+                    if aclose is not None:
+                        await aclose()
             if schema_obj is not None:
                 import json as _json
 
