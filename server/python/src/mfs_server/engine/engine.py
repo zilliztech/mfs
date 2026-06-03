@@ -160,6 +160,18 @@ def _field_top_key(field: str) -> str:
     return field.split(".", 1)[0].split("[", 1)[0]
 
 
+# Per-chunk content ceiling (Milvus VARCHAR / embedding input limit). Capping is unavoidable,
+# but a cap that actually cuts content means the tail is unsearchable, so callers OR the
+# was_truncated flag into the object's partial state (search_status='partial') instead of
+# silently reporting 'indexed'.
+_CONTENT_MAX = 65000
+
+
+def _cap_content(text: str) -> tuple[str, bool]:
+    """Return (text capped to _CONTENT_MAX, whether the cap actually removed any content)."""
+    return text[:_CONTENT_MAX], len(text) > _CONTENT_MAX
+
+
 def _render_record(rec: dict, text_fields: list[str], render_template: str | None = None) -> str:
     """Render a record into chunk content for embedding.
 
@@ -1697,11 +1709,14 @@ class Engine:
             if pairs:
                 vecs = await self.embed.batch_embed([p[0] for p in pairs])
                 now_ms = int(time.time() * 1000)
+                content_truncated = False
                 rows = []
                 for (ctext, lines), vec in zip(pairs, vecs):
                     # Body chunks: the per-chunk identity is the line range,
                     # stored as the reserved "lines" key inside locator.
                     loc = {"lines": lines}
+                    capped, was_trunc = _cap_content(ctext)
+                    content_truncated = content_truncated or was_trunc
                     rows.append(
                         {
                             "chunk_id": chunk_id(ns, connector_uri, full_uri, "body", loc),
@@ -1709,7 +1724,7 @@ class Engine:
                             "connector_uri": connector_uri,
                             "object_uri": full_uri,
                             "locator": loc,
-                            "content": ctext[:65000],
+                            "content": capped,
                             "dense_vec": vec,
                             "chunk_kind": "body",
                             "metadata": {},
@@ -1721,7 +1736,7 @@ class Engine:
                 await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
                 await asyncio.to_thread(self.milvus.upsert, ns, rows)
                 chunk_count = len(rows)
-                search_status = "partial" if partial else "indexed"
+                search_status = "partial" if (partial or content_truncated) else "indexed"
 
         elif okind == "image":
             ext = os.path.splitext(relpath)[1].lower()
@@ -1775,6 +1790,7 @@ class Engine:
                     if len(order) >= ocfg.chunk_max:
                         break
                 pairs: list[tuple[str, dict | None]] = []
+                content_truncated = False
                 for gk in order:
                     rendered = [
                         _render_record(m, ocfg.text_fields, ocfg.render_template)
@@ -1785,14 +1801,18 @@ class Engine:
                     if len(sub) == 1:
                         # short thread: keep the existing single-chunk locator shape so
                         # existing search/cat semantics are preserved.
-                        pairs.append((sub[0][2][:65000], {group_key: gk}))
+                        capped, was_trunc = _cap_content(sub[0][2])
+                        content_truncated = content_truncated or was_trunc
+                        pairs.append((capped, {group_key: gk}))
                     else:
                         # long thread: tag each sub-chunk with its position WITHIN the
                         # thread (0..N-1) so callers can stitch / cite a specific window.
                         for sub_i, (s, e, text) in enumerate(sub):
+                            capped, was_trunc = _cap_content(text)
+                            content_truncated = content_truncated or was_trunc
                             pairs.append(
                                 (
-                                    text[:65000],
+                                    capped,
                                     {group_key: gk, "chunk_index": sub_i, "msg_range": [s, e]},
                                 )
                             )
@@ -1808,7 +1828,7 @@ class Engine:
                             "connector_uri": connector_uri,
                             "object_uri": full_uri,
                             "locator": loc,
-                            "content": ctext[:65000],
+                            "content": ctext,
                             "dense_vec": vec,
                             "chunk_kind": "thread_aggregate",
                             "metadata": {},
@@ -1821,7 +1841,7 @@ class Engine:
                     )
                     await asyncio.to_thread(self.milvus.upsert, ns, rows)
                     chunk_count = len(rows)
-                    search_status = "indexed"
+                    search_status = "partial" if content_truncated else "indexed"
 
         elif okind in ("table_rows", "record_collection"):
             ocfg = plugin.ctx.object_config_for(relpath)
@@ -1883,29 +1903,36 @@ class Engine:
                 if pairs:
                     vecs = await self.embed.batch_embed([p[0] for p in pairs])
                     now_ms = int(time.time() * 1000)
-                    rows = [
-                        {
-                            "chunk_id": chunk_id(ns, connector_uri, full_uri, "row_text", loc),
-                            "namespace_id": ns,
-                            "connector_uri": connector_uri,
-                            "object_uri": full_uri,
-                            "locator": loc,
-                            "content": ctext[:65000],
-                            "dense_vec": vec,
-                            "chunk_kind": "row_text",
-                            "metadata": meta,
-                            "indexed_at": now_ms,
-                        }
-                        for (ctext, loc, meta), vec in zip(pairs, vecs)
-                    ]
+                    content_truncated = False
+                    rows = []
+                    for (ctext, loc, meta), vec in zip(pairs, vecs):
+                        capped, was_trunc = _cap_content(ctext)
+                        content_truncated = content_truncated or was_trunc
+                        rows.append(
+                            {
+                                "chunk_id": chunk_id(ns, connector_uri, full_uri, "row_text", loc),
+                                "namespace_id": ns,
+                                "connector_uri": connector_uri,
+                                "object_uri": full_uri,
+                                "locator": loc,
+                                "content": capped,
+                                "dense_vec": vec,
+                                "chunk_kind": "row_text",
+                                "metadata": meta,
+                                "indexed_at": now_ms,
+                            }
+                        )
                     await asyncio.to_thread(
                         self.milvus.delete_by_object, ns, connector_uri, full_uri
                     )
                     await asyncio.to_thread(self.milvus.upsert, ns, rows)
                     chunk_count = len(rows)
-                    # partial if chunk_max truncated OR the connector capped the read
-                    capped = plugin.ctx.was_partial(relpath)
-                    search_status = "partial" if (partial or capped) else "indexed"
+                    # partial if chunk_max truncated, the connector capped the read, OR a field
+                    # was truncated to _CONTENT_MAX (its tail is unsearchable) — recall-incomplete.
+                    was_capped = plugin.ctx.was_partial(relpath)
+                    search_status = (
+                        "partial" if (partial or was_capped or content_truncated) else "indexed"
+                    )
 
         elif okind == "table_schema" and self.summary.enabled:
             # schema_summary chunk: an LLM description of the table/collection schema
