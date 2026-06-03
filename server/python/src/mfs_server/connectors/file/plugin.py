@@ -355,12 +355,23 @@ class FilePlugin(ConnectorPlugin):
         pathspec) fallback. Raises on IO/permission error (enumerate completely or raise)."""
         from ...common import accel
 
-        return {
-            rel: (size, mtime_ns, inode)
-            for rel, size, mtime_ns, inode in accel.walk_tree(
-                str(self.root), self._ignore_patterns()
-            )
-        }
+        # A missing / non-directory root (never created, or deleted out from under a
+        # synchronous add/estimate enumerate) is a source-health problem, not an internal
+        # error. Surface it as a clean `connector_unhealthy` envelope instead of letting the
+        # raw OSError bubble up to the generic 500 handler. The upfront check is
+        # backend-agnostic (covers both the native and pure-Python walkers); the except guards
+        # the narrow TOCTOU race where the root vanishes between the check and the walk.
+        if not self.root.is_dir():
+            raise ValueError("connector_unhealthy")
+        try:
+            return {
+                rel: (size, mtime_ns, inode)
+                for rel, size, mtime_ns, inode in accel.walk_tree(
+                    str(self.root), self._ignore_patterns()
+                )
+            }
+        except OSError as e:
+            raise ValueError("connector_unhealthy") from e
 
     # --- sync (core: stat-first + rename pairing) ---
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:

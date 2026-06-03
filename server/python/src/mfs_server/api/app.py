@@ -238,7 +238,12 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     async def estimate(body: ProbeRequest) -> EstimateResponse:
         """Zero-billing pre-flight estimate: object/chunk/token counts via
         metadata + a local chunker/tokenizer dry-run. No embedding API calls."""
-        return EstimateResponse(**await eng().estimate(body.target, body.config))
+        try:
+            return EstimateResponse(**await eng().estimate(body.target, body.config))
+        except ValueError as e:
+            # e.g. an unreachable / missing source root surfaces as connector_unhealthy;
+            # return the clean envelope instead of a raw 500.
+            raise HTTPException(400, str(e))
 
     @app.get("/v1/connectors/inspect", operation_id="inspectConnector", tags=["connectors"])
     async def inspect(target: str):
