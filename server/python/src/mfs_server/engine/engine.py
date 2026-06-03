@@ -748,6 +748,16 @@ class Engine:
         import io
         import tarfile
 
+        # Validate the body IS a readable, non-empty tar BEFORE registering a connector, so a
+        # garbage / empty bundle returns a clean 400 and leaves no residual connector behind
+        # (a non-tar throws tarfile.ReadError; an all-zero body parses as an empty archive).
+        try:
+            with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as _probe:
+                if not _probe.getmembers():
+                    raise ValueError("invalid or empty upload bundle")
+        except tarfile.TarError as e:
+            raise ValueError("invalid or empty upload bundle") from e
+
         staging, connector_uri, cid = await self._staging_connector(name, "")
         fs = FileStateStore(self.meta, self.ns, cid)
 
@@ -846,6 +856,16 @@ class Engine:
         import shutil
         import tarfile
         import tempfile
+
+        # Validate the bundle IS a readable, non-empty tar BEFORE registering a connector, so a
+        # garbage / empty bundle returns a clean 400 and leaves no residual connector behind
+        # (a non-tar throws tarfile.ReadError; an all-zero body parses as an empty archive).
+        try:
+            with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:*") as _probe:
+                if not _probe.getmembers():
+                    raise ValueError("invalid or empty upload bundle")
+        except tarfile.TarError as e:
+            raise ValueError("invalid or empty upload bundle") from e
 
         staging, connector_uri, cid = await self._staging_connector(client_id, root)
         fs = FileStateStore(self.meta, self.ns, cid)
