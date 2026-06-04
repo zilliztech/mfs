@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/architecture/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/providers/">
       
       
-        <link rel="prev" href="../why/">
+        <link rel="prev" href="../auth-and-secrets/">
       
       
-        <link rel="next" href="../roadmap/">
+        <link rel="next" href="../deployment/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Architecture - MFS</title>
+        <title>Providers and Processing - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture" class="md-skip">
+        <a href="#providers-and-processing" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture
+              Providers and Processing
             
           </span>
         </div>
@@ -191,12 +191,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href=".." class="md-tabs__link">
           
   
@@ -213,10 +211,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../getting-started/" class="md-tabs__link">
           
   
@@ -344,31 +344,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
         
           
-          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
             
   
   
@@ -386,7 +381,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -457,37 +452,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
@@ -503,92 +471,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#runtime-and-data-flow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Runtime and data flow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#component-responsibilities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Component responsibilities
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#api-surface-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        API surface map
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#runtime-modes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Runtime modes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration-boundaries" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration boundaries
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-runbooks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related runbooks
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -633,26 +515,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -670,7 +557,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -797,10 +684,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../providers/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers and Processing
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -816,6 +730,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#fast-choice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fast Choice
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#install-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install Paths
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#embedding-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding Providers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary-and-vlm-providers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary and VLM Providers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conversion-and-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conversion and Processing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-provider-errors-show-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where Provider Errors Show Up
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1564,10 +1564,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#runtime-and-data-flow" class="md-nav__link">
+  <a href="#fast-choice" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Runtime and data flow
+        Fast Choice
       
     </span>
   </a>
@@ -1575,10 +1575,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#component-responsibilities" class="md-nav__link">
+  <a href="#install-paths" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Component responsibilities
+        Install Paths
       
     </span>
   </a>
@@ -1586,10 +1586,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#api-surface-map" class="md-nav__link">
+  <a href="#embedding-providers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        API surface map
+        Embedding Providers
       
     </span>
   </a>
@@ -1597,10 +1597,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#runtime-modes" class="md-nav__link">
+  <a href="#summary-and-vlm-providers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Runtime modes
+        Summary and VLM Providers
       
     </span>
   </a>
@@ -1608,10 +1608,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration-boundaries" class="md-nav__link">
+  <a href="#conversion-and-processing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration boundaries
+        Conversion and Processing
       
     </span>
   </a>
@@ -1619,10 +1619,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#related-runbooks" class="md-nav__link">
+  <a href="#where-provider-errors-show-up" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Related runbooks
+        Where Provider Errors Show Up
       
     </span>
   </a>
@@ -1649,199 +1649,363 @@
   
 
 
-<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>MFS v0.4 is a client/server system. The Rust CLI and generated SDKs are client
-surfaces over the <code>/v1</code> HTTP control plane. The Python FastAPI server owns
-connector execution, ingest jobs, retrieval, browsing, metadata, cache, and
-Milvus/Zilliz integration.</p>
-<p>Use this page for the system map. For runnable steps, start with
-<a href="../getting-started/">Quickstart</a>. For exact commands, use
-<a href="../cli/">CLI Reference</a>. For direct integration, use <a href="../api/">HTTP API</a> and
-<a href="../sdks/">SDKs</a>.</p>
-<h2 id="runtime-and-data-flow">Runtime and data flow<a class="headerlink" href="#runtime-and-data-flow" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>flowchart TB
-  subgraph Clients
-    cli["Rust CLI&lt;br/&gt;mfs"]
-    sdk["Generated SDKs&lt;br/&gt;Python / TypeScript"]
-    http["Direct HTTP clients"]
-  end
-
-  cli --&gt;|HTTP /v1 + bearer token| api["Python FastAPI server&lt;br/&gt;mfs-server"]
-  sdk --&gt;|HTTP /v1 + bearer token| api
-  http --&gt;|HTTP /v1 + bearer token| api
-  api -.-&gt; health["GET /healthz&lt;br/&gt;no bearer token"]
-
-  api --&gt; engine["Engine&lt;br/&gt;registry, ingest, search, browse"]
-  engine --&gt; jobs["Jobs&lt;br/&gt;inline, queued, worker-drained"]
-  jobs --&gt; connectors["Connector plugins&lt;br/&gt;file + optional built-ins"]
-  connectors --&gt; sources["Source systems&lt;br/&gt;folders, object stores, databases, SaaS, docs"]
-
-  jobs --&gt; transform["Conversion, embedding,&lt;br/&gt;optional VLM and summaries"]
-  transform --&gt; txcache["Transformation cache&lt;br/&gt;embedding / summary lookup"]
-  transform --&gt; artifacts["Artifact cache&lt;br/&gt;converted blobs"]
-  transform --&gt; milvus["Milvus / Zilliz / Milvus Lite&lt;br/&gt;indexed chunks"]
-
-  engine --&gt; metadata["Metadata database&lt;br/&gt;connectors, objects, jobs"]
-  engine --&gt; milvus
-  engine --&gt; connectors</code></pre>
-<p><code>search</code> reads indexed chunks. <code>grep</code>, <code>ls</code>, <code>tree</code>, <code>cat</code>, <code>head</code>, <code>tail</code>, and
-<code>export</code> are browse/read operations: <code>tree</code> is implemented by repeated <code>ls</code>
-calls, and search hits should be reopened with <code>cat</code> or a bounded read before
-being used as evidence.</p>
-<h2 id="component-responsibilities">Component responsibilities<a class="headerlink" href="#component-responsibilities" title="Permanent link">&para;</a></h2>
-<p>| Component | Repository area | Responsibility | Go deeper |
-|---|---|
-| Rust CLI | <code>cli/</code> | Parses commands, resolves endpoint and token sources, packages uploads when needed, calls <code>/v1</code>, and renders JSON or text output. | <a href="../cli/">CLI Reference</a> |
-| OpenAPI protocol | <code>protocol/openapi.yaml</code> | Source of truth for <code>/v1</code> endpoint paths, operation IDs, and typed schemas used by docs and SDK generation. | <a href="../api/">HTTP API</a> |
-| Generated SDKs | <code>sdks/python/</code>, <code>sdks/typescript/</code> | Generated Python and TypeScript clients for programmatic callers. | <a href="../sdks/">SDKs</a> |
-| FastAPI server | <code>server/python/src/mfs_server/api/</code> | Wires the <code>/v1</code> API, bearer-token middleware, <code>/healthz</code>, error envelopes, and request/response models. | <a href="../server/">Server</a>, <a href="../api/">HTTP API</a> |
-| Engine | <code>server/python/src/mfs_server/engine/</code> | Orchestrates add/sync jobs, connector registration, upload staging, object processing, search, grep, browse, and connector removal. | <a href="../server/">Server</a> |
-| Connectors | <code>server/python/src/mfs_server/connectors/</code> | Expose local and external sources as URI trees; <code>file</code> is always imported and other built-in schemes are loaded lazily when optional dependencies exist. | <a href="../connectors/">Connectors</a> |
-| Metadata database | <code>server/python/src/mfs_server/storage/</code> | Stores connector registry rows, object state, jobs, and related metadata. SQLite is the local default; Postgres is configured through server settings. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Transformation cache | <code>server/python/src/mfs_server/storage/</code> | Stores transformation lookups such as embedding and summary bytes. It defaults under <code>$MFS_HOME</code> and can share Postgres when configured. | <a href="../configuration/">Configuration</a> |
-| Artifact cache | <code>server/python/src/mfs_server/storage/</code> | Stores derived blobs such as converted document text and image descriptions. Local filesystem is the default; S3-compatible storage is configured through server settings. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Vector database | <code>server/python/src/mfs_server/storage/</code> | Stores indexed chunks in Milvus Lite by default, or a configured Milvus/Zilliz endpoint. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Workers | <code>server/python/src/mfs_server/engine/</code>, <code>mfs-server worker</code> | Drain queued jobs. SQLite all-in-one runs can use an in-process worker; api/worker deployments use a standalone worker process. | <a href="../deployment/">Deployment</a>, <a href="../troubleshooting/">Troubleshooting</a> |
-| Optional Rust acceleration | <code>server-rs/</code> | Optional PyO3 extension for server hot paths such as directory walks, hashing, grep, and tail; the server falls back to Python when it is not installed. | <a href="../server/">Server</a> |</p>
-<h2 id="api-surface-map">API surface map<a class="headerlink" href="#api-surface-map" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Group</th>
-<th>Endpoints</th>
-<th>Used by</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Server</td>
-<td><code>GET /v1/server/info</code>, <code>GET /v1/status</code>, <code>GET /healthz</code></td>
-<td><code>mfs status</code>, <code>mfs config show</code>, liveness checks, direct clients</td>
-</tr>
-<tr>
-<td>Ingest and jobs</td>
-<td><code>POST /v1/add</code>, <code>POST /v1/upload</code>, <code>POST /v1/files/manifest</code>, <code>PUT /v1/files/upload</code>, <code>GET /v1/jobs</code>, <code>GET /v1/jobs/{job_id}</code>, <code>POST /v1/jobs/{job_id}/cancel</code></td>
-<td><code>mfs add</code>, upload mode, <code>mfs job ...</code>, SDK/API integrations</td>
-</tr>
-<tr>
-<td>Connectors</td>
-<td><code>POST /v1/connectors/probe</code>, <code>POST /v1/connectors/estimate</code>, <code>GET /v1/connectors/inspect</code>, <code>DELETE /v1/connectors</code></td>
-<td><code>mfs connector ...</code>, <code>mfs remove</code>, pre-flight checks</td>
-</tr>
-<tr>
-<td>Retrieval</td>
-<td><code>GET /v1/search</code>, <code>GET /v1/grep</code></td>
-<td><code>mfs search</code>, <code>mfs grep</code>, search integrations</td>
-</tr>
-<tr>
-<td>Browse/read</td>
-<td><code>GET /v1/ls</code>, <code>GET /v1/cat</code>, <code>GET /v1/head</code>, <code>GET /v1/tail</code>, <code>GET /v1/export</code></td>
-<td><code>mfs ls</code>, <code>mfs tree</code>, <code>mfs cat</code>, <code>mfs head</code>, <code>mfs tail</code>, <code>mfs export</code></td>
-</tr>
-</tbody>
-</table>
-<p>Every <code>/v1</code> request requires <code>Authorization: Bearer &lt;token&gt;</code> when the server has
-<code>auth_token</code> configured. <code>GET /healthz</code> is intentionally outside <code>/v1</code> and is
-not bearer-token gated.</p>
-<h2 id="runtime-modes">Runtime modes<a class="headerlink" href="#runtime-modes" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Mode</th>
-<th>What runs</th>
-<th>Worker and state notes</th>
-<th>Use this when</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Source all-in-one</td>
-<td>Host <code>mfs-server run</code> plus one or more <code>mfs</code> clients.</td>
-<td>Defaults to <code>127.0.0.1:13619</code>; <code>$MFS_HOME</code> defaults to <code>~/.mfs</code>; local defaults are ONNX embeddings, Milvus Lite, SQLite, local artifact cache, and a generated server token. SQLite all-in-one runs can drain queued jobs in-process.</td>
-<td>You are doing the first local run, evaluation, or connector development. Start with <a href="../getting-started/">Quickstart</a>.</td>
-</tr>
-<tr>
-<td>Docker or Compose all-in-one</td>
-<td>One container runs <code>mfs-server run</code> with persistent <code>/data</code>.</td>
-<td>The container uses <code>/data</code> for config, token, SQLite, caches, ONNX cache, and Milvus Lite. Use <code>mfs add --upload</code> from the host unless the target path is mounted into the container and passed as a server-visible path.</td>
-<td>You want an isolated local server or repeatable container startup. See <a href="../deployment/">Deployment</a>.</td>
-</tr>
-<tr>
-<td>Direct client/server</td>
-<td>CLI, SDK, or HTTP client talks to a server it cannot assume shares local paths with the client.</td>
-<td>Set endpoint and token explicitly, and use upload mode for client-local folders. The CLI chooses upload for local paths when it detects a different server machine unless <code>--no-upload</code> is set.</td>
-<td>You are integrating from another host, VM, container, or automation process. See <a href="../cli/">CLI Reference</a>, <a href="../api/">HTTP API</a>, and <a href="../sdks/">SDKs</a>.</td>
-</tr>
-<tr>
-<td>Helm-rendered api/worker</td>
-<td>The chart renders an API Deployment, Worker Deployment, and API Service.</td>
-<td>The repository documents this as the post-v0.4 scalable direction, not the runnable v0.4 operations path. The rendered shape expects externalized state such as Postgres, object storage, and remote Milvus/Zilliz.</td>
-<td>You are validating the chart or planning the future split. See <a href="../deployment/">Deployment</a>.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="configuration-boundaries">Configuration boundaries<a class="headerlink" href="#configuration-boundaries" title="Permanent link">&para;</a></h2>
-<p>The CLI configures client concerns: endpoint selection, profile selection,
-client identity, upload decisions, and bearer-token source. The server configures
-runtime concerns: namespace, auth, database, metadata, transformation cache,
-artifact cache, Milvus, embeddings, summaries, VLM, conversion, workers,
-chunking, and search behavior.</p>
-<p>Key local defaults are shared through <code>$MFS_HOME</code>: the CLI can read
-<code>$MFS_HOME/server.token</code> for same-host local auth, while the server stores
-<code>server.toml</code>, SQLite files, local caches, Milvus Lite, and the ONNX model cache
-under the same root. For precedence rules and environment overrides, see
-<a href="../configuration/">Configuration</a>.</p>
-<h2 id="related-runbooks">Related runbooks<a class="headerlink" href="#related-runbooks" title="Permanent link">&para;</a></h2>
+<h1 id="providers-and-processing">Providers and Processing<a class="headerlink" href="#providers-and-processing" title="Permanent link">&para;</a></h1>
+<p>Use this page when you need to choose an embedding provider, install the right
+server extra, set the right credential, or understand where conversion, VLM,
+summary, embedding, and search failures appear.</p>
+<p>For Milvus, database, cache, auth, and config-file precedence, use
+<a href="../configuration/">Configuration</a>. For source, Docker, Compose, and Helm
+topologies, use <a href="../deployment/">Deployment</a>.</p>
+<h2 id="fast-choice">Fast Choice<a class="headerlink" href="#fast-choice" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Need</th>
-<th>Page</th>
+<th>Use</th>
+<th>Setup path</th>
+<th>Credential or service</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>First local run</td>
-<td><a href="../getting-started/">Quickstart</a></td>
+<td>Local default with no API key</td>
+<td><code>onnx</code> embeddings</td>
+<td><code>uv sync</code>, then <code>uv run mfs-server setup --section embedding</code> or built-in defaults</td>
+<td>None</td>
 </tr>
 <tr>
-<td>Search, browse, and evidence verification</td>
-<td><a href="../search-and-browse/">Search and Browse</a></td>
+<td>Hosted OpenAI embeddings</td>
+<td><code>openai</code> embeddings</td>
+<td><code>uv sync</code>, then <code>uv run mfs-server setup --section embedding</code></td>
+<td><code>OPENAI_API_KEY</code></td>
 </tr>
 <tr>
-<td>Connector selection and TOML setup</td>
-<td><a href="../connectors/">Connectors</a></td>
+<td>Google Gemini embeddings</td>
+<td><code>gemini</code> embeddings</td>
+<td><code>uv sync --extra gemini</code>, then <code>uv run mfs-server setup --section embedding</code></td>
+<td><code>GOOGLE_API_KEY</code>, or Vertex AI auth for the embedding SDK</td>
 </tr>
 <tr>
-<td>Exact CLI command surface</td>
-<td><a href="../cli/">CLI Reference</a></td>
+<td>Voyage embeddings</td>
+<td><code>voyage</code> embeddings</td>
+<td><code>uv sync --extra voyage</code>, then <code>uv run mfs-server setup --section embedding</code></td>
+<td><code>VOYAGE_API_KEY</code></td>
 </tr>
 <tr>
-<td>Server package map</td>
-<td><a href="../server/">Server</a></td>
+<td>Local Ollama embeddings</td>
+<td><code>ollama</code> embeddings</td>
+<td><code>uv sync --extra ollama</code>, then <code>uv run mfs-server setup --section embedding</code></td>
+<td>Running Ollama server; <code>OLLAMA_HOST</code> is optional</td>
 </tr>
 <tr>
-<td>Direct <code>/v1</code> integration</td>
-<td><a href="../api/">HTTP API</a></td>
+<td>Local sentence-transformers embeddings</td>
+<td><code>local</code> embeddings</td>
+<td><code>uv sync --extra local</code>, then <code>uv run mfs-server setup --section embedding</code></td>
+<td>None; this extra pulls the sentence-transformers stack</td>
 </tr>
 <tr>
-<td>Generated clients</td>
-<td><a href="../sdks/">SDKs</a></td>
-</tr>
-<tr>
-<td>Source, Docker, Compose, and Helm shapes</td>
-<td><a href="../deployment/">Deployment</a></td>
-</tr>
-<tr>
-<td>Config files, env vars, and persisted state</td>
-<td><a href="../configuration/">Configuration</a></td>
-</tr>
-<tr>
-<td>Endpoint, auth, job, ingest, search, and browse failures</td>
-<td><a href="../troubleshooting/">Troubleshooting</a></td>
+<td>Image-description and summary setup</td>
+<td><code>openai</code>, <code>anthropic</code>, or <code>gemini</code> LLM/VLM</td>
+<td><code>uv run mfs-server setup --section vlm</code></td>
+<td>Provider key for the selected LLM/VLM provider</td>
 </tr>
 </tbody>
 </table>
+<p>Provider names are exact. The supported embedding names are <code>openai</code>, <code>onnx</code>,
+<code>gemini</code>, <code>voyage</code>, <code>ollama</code>, and <code>local</code>.</p>
+<h2 id="install-paths">Install Paths<a class="headerlink" href="#install-paths" title="Permanent link">&para;</a></h2>
+<p>Run these commands from <code>server/python</code> in a source checkout:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>server/python
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>sync
+</code></pre></div>
+<p>Core dependencies include the OpenAI SDK and the default ONNX embedding stack.
+Alternate provider extras are separate:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>gemini
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>voyage
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>ollama
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span><span class="nb">local</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>anthropic
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>all-providers
+</code></pre></div>
+<p><code>all-providers</code> installs Gemini, Voyage, Ollama, and Anthropic provider
+dependencies. It does not include <code>local</code>, because <code>local</code> pulls the larger
+sentence-transformers dependency stack.</p>
+<h2 id="embedding-providers">Embedding Providers<a class="headerlink" href="#embedding-providers" title="Permanent link">&para;</a></h2>
+<p>The embedding registry is the source of truth for provider names and default
+models.</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Default model</th>
+<th>Default or detected dimension</th>
+<th>Dependency</th>
+<th>Runtime requirement</th>
+<th>First-run behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>onnx</code></td>
+<td><code>gpahal/bge-m3-onnx-int8</code></td>
+<td>1024 in the default config; probed from the model by setup</td>
+<td>Core</td>
+<td>No API key</td>
+<td>The first provider probe or embedding call downloads model files when they are not already cached under <code>$MFS_HOME/onnx-cache/</code>.</td>
+</tr>
+<tr>
+<td><code>openai</code></td>
+<td><code>text-embedding-3-small</code></td>
+<td>1536 for the default model</td>
+<td>Core</td>
+<td><code>OPENAI_API_KEY</code>; <code>OPENAI_BASE_URL</code> is optional</td>
+<td>No local model download. Unknown model dimensions may require a trial embedding call.</td>
+</tr>
+<tr>
+<td><code>gemini</code></td>
+<td><code>gemini-embedding-001</code></td>
+<td>768 for the default model</td>
+<td><code>uv sync --extra gemini</code> or <code>all-providers</code></td>
+<td><code>GOOGLE_API_KEY</code>, or Vertex AI auth with <code>GOOGLE_GENAI_USE_VERTEXAI=true</code></td>
+<td>Known model dimensions use a local table; unknown models require a trial embedding call.</td>
+</tr>
+<tr>
+<td><code>voyage</code></td>
+<td><code>voyage-3-lite</code></td>
+<td>512 for the default model</td>
+<td><code>uv sync --extra voyage</code> or <code>all-providers</code></td>
+<td><code>VOYAGE_API_KEY</code></td>
+<td>Known model dimensions use a local table; unknown models require a trial embedding call.</td>
+</tr>
+<tr>
+<td><code>ollama</code></td>
+<td><code>nomic-embed-text</code></td>
+<td>Detected by a trial embed against the selected Ollama model</td>
+<td><code>uv sync --extra ollama</code> or <code>all-providers</code></td>
+<td>Running Ollama server; <code>OLLAMA_HOST</code> can point at a non-default host</td>
+<td>The selected model must be available to the Ollama server before dimension probing and embedding can succeed.</td>
+</tr>
+<tr>
+<td><code>local</code></td>
+<td><code>all-MiniLM-L6-v2</code></td>
+<td>Detected from sentence-transformers model metadata</td>
+<td><code>uv sync --extra local</code></td>
+<td>No API key</td>
+<td>Loads the sentence-transformers model on the detected device: CUDA, MPS, then CPU.</td>
+</tr>
+</tbody>
+</table>
+<p>Prefer the setup wizard when switching providers:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>embedding
+</code></pre></div>
+<p>The wizard writes:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[embedding]</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;onnx&quot;</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpahal/bge-m3-onnx-int8&quot;</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">dim</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1024</span>
+</code></pre></div>
+<p>It probes the selected provider for the actual dimension. If the probe fails
+because credentials, dependencies, or a local service are not ready, the wizard
+lets you enter the dimension manually. Only hand-edit <code>dim</code> when you know the
+provider model's output size.</p>
+<p>After changing the embedding provider or model, re-index sources you depend on
+so query vectors and indexed vectors come from the same embedding space:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--force-index<span class="w"> </span>--wait<span class="w"> </span>TARGET
+</code></pre></div>
+<h2 id="summary-and-vlm-providers">Summary and VLM Providers<a class="headerlink" href="#summary-and-vlm-providers" title="Permanent link">&para;</a></h2>
+<p>Text summary and image-description clients use the LLM provider registry.</p>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>Default text and vision model</th>
+<th>Dependency</th>
+<th>Runtime requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>openai</code></td>
+<td><code>gpt-4o-mini</code></td>
+<td>Core</td>
+<td><code>OPENAI_API_KEY</code>; <code>OPENAI_BASE_URL</code> is optional</td>
+</tr>
+<tr>
+<td><code>anthropic</code></td>
+<td><code>claude-sonnet-4-5-20250929</code></td>
+<td><code>uv sync --extra anthropic</code> or <code>all-providers</code></td>
+<td><code>ANTHROPIC_API_KEY</code></td>
+</tr>
+<tr>
+<td><code>gemini</code></td>
+<td><code>gemini-2.0-flash</code></td>
+<td><code>uv sync --extra gemini</code> or <code>all-providers</code></td>
+<td><code>GOOGLE_API_KEY</code>; the Gemini provider module also documents Vertex AI auth</td>
+</tr>
+</tbody>
+</table>
+<p>Directory and schema summaries are off by default. VLM provider defaults are
+configured separately:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[summary]</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">include_image_desc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpt-4o-mini&quot;</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="k">[vlm]</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpt-4o-mini&quot;</span>
+</code></pre></div>
+<p>Run the VLM setup section when you want the wizard to write summary settings and
+VLM provider/model settings:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>vlm
+</code></pre></div>
+<p>When enabled through the wizard, this section sets <code>summary.enabled</code>,
+<code>summary.include_image_desc</code>, the summary provider/model, and the VLM
+provider/model. You can also set <code>MFS_SUMMARY_ENABLED</code> in the server
+environment; truthy values are <code>1</code>, <code>true</code>, <code>yes</code>, and <code>on</code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Runtime image indexing does not check <code>summary.enabled</code>: indexable image
+objects use the configured VLM provider to produce <code>vlm_description</code> chunks
+when the VLM call succeeds. <code>summary.include_image_desc</code> only controls
+whether cached image-description text is included in directory-summary
+input.</p>
+</div>
+<h2 id="conversion-and-processing">Conversion and Processing<a class="headerlink" href="#conversion-and-processing" title="Permanent link">&para;</a></h2>
+<p>Framework conversion uses MarkItDown by default:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">[converter]</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">default</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;markitdown&quot;</span>
+</code></pre></div>
+<p>The framework converter path is used for these file-form document extensions:
+<code>.pdf</code>, <code>.docx</code>, <code>.doc</code>, <code>.pptx</code>, <code>.ppt</code>, <code>.xlsx</code>, <code>.xls</code>, <code>.html</code>, and
+<code>.htm</code>. Web crawler HTML-to-markdown conversion is connector-specific and does
+not use this framework converter path.</p>
+<pre class="mermaid"><code>flowchart LR
+  source["Object bytes or records"]
+  classify["Connector object kind"]
+  convert["MarkItDown conversion&lt;br/&gt;for configured document extensions"]
+  text["Text, code, rows, records,&lt;br/&gt;or message threads"]
+  vlm["Image description&lt;br/&gt;through VLM provider"]
+  chunks["Search chunks&lt;br/&gt;body / row_text / thread_aggregate&lt;br/&gt;directory_summary / schema_summary / vlm_description"]
+  embed["Embedding provider"]
+  index["Milvus dense vectors&lt;br/&gt;plus BM25 content"]
+  artifacts["Artifact cache&lt;br/&gt;converted_md / vlm_text / head_cache"]
+  txcache["Transformation cache&lt;br/&gt;convert / embedding / vlm / summary"]
+
+  source --&gt; classify
+  classify --&gt; convert --&gt; chunks
+  classify --&gt; text --&gt; chunks
+  classify --&gt; vlm --&gt; chunks
+  convert --&gt; artifacts
+  vlm --&gt; artifacts
+  chunks --&gt; embed
+  embed --&gt; index
+  convert --&gt; txcache
+  vlm --&gt; txcache
+  embed --&gt; txcache</code></pre>
+<table>
+<thead>
+<tr>
+<th>Input kind</th>
+<th>Processing path</th>
+<th>Search chunk kind</th>
+<th>Cache or artifact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Text, code, markdown, plain documents</td>
+<td>Read text, split into chunks, embed</td>
+<td><code>body</code></td>
+<td>Embedding results in the transformation cache</td>
+</tr>
+<tr>
+<td>Documents with converter extensions</td>
+<td>Convert to markdown, split, embed</td>
+<td><code>body</code></td>
+<td><code>converted_md</code> artifact plus convert and embedding cache entries</td>
+</tr>
+<tr>
+<td>Structured rows or record collections</td>
+<td>Render configured text fields, embed each record</td>
+<td><code>row_text</code></td>
+<td><code>head_cache</code> artifact for fast <code>head</code>; embedding cache entries</td>
+</tr>
+<tr>
+<td>Message streams</td>
+<td>Aggregate messages by thread, split long threads, embed</td>
+<td><code>thread_aggregate</code></td>
+<td>Embedding cache entries</td>
+</tr>
+<tr>
+<td>Table schemas, when summary is enabled</td>
+<td>Summarize schema, embed summary</td>
+<td><code>schema_summary</code></td>
+<td>Summary and embedding cache entries</td>
+</tr>
+<tr>
+<td>Directories, when summary is enabled</td>
+<td>Build bottom-up directory summaries, embed summaries</td>
+<td><code>directory_summary</code></td>
+<td>Summary and embedding cache entries</td>
+</tr>
+<tr>
+<td>Images</td>
+<td>Generate an image description through the configured VLM provider, then embed it</td>
+<td><code>vlm_description</code></td>
+<td><code>vlm_text</code> artifact plus VLM and embedding cache entries</td>
+</tr>
+</tbody>
+</table>
+<p>The transformation cache is content-addressed by input hash, kind, provider,
+model, and version. Losing it causes recomputation. The artifact cache stores
+derived per-object blobs such as converted markdown and image-description text.
+For how these chunks appear as <code>ResultEnvelope.source</code>, <code>locator</code>,
+<code>metadata.chunk_kind</code>, and <code>metadata.fields</code>, see
+<a href="../content-model/">Content Model</a>.</p>
+<h2 id="where-provider-errors-show-up">Where Provider Errors Show Up<a class="headerlink" href="#where-provider-errors-show-up" title="Permanent link">&para;</a></h2>
+<p>Provider SDKs and credentials are loaded lazily. A server can start even when an
+optional provider dependency or API key is missing; the failure appears when the
+provider is first used.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Provider used</th>
+<th>Failure surface</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mfs-server setup --section embedding</code></td>
+<td>Selected embedding provider</td>
+<td>Dimension probe can fail; install the extra, export credentials, start local services, or enter a verified dimension manually.</td>
+</tr>
+<tr>
+<td><code>mfs add ...</code> indexing</td>
+<td>Embedding provider, and summary/VLM provider when those features are enabled</td>
+<td><code>mfs job show JOB_ID</code>, <code>mfs connector inspect TARGET</code>, and the provider-related codes in <a href="../troubleshooting/#canonical-error-codes">Troubleshooting</a>.</td>
+</tr>
+<tr>
+<td><code>mfs search QUERY PATH --mode semantic</code></td>
+<td>Embedding provider for the query vector</td>
+<td>Search can fail if the selected embedding provider is unavailable.</td>
+</tr>
+<tr>
+<td><code>mfs search QUERY PATH --mode hybrid</code></td>
+<td>Embedding provider for the dense half plus Milvus BM25 for the keyword half</td>
+<td>Hybrid search can fail before querying Milvus if query embedding fails.</td>
+</tr>
+<tr>
+<td><code>mfs search QUERY PATH --mode keyword</code></td>
+<td>No embedding provider for the query</td>
+<td>Useful when the embedding provider is unavailable but indexed BM25 content exists.</td>
+</tr>
+</tbody>
+</table>
+<p>For provider auth, quota, repeated retry, and circuit-breaker recovery, see
+<a href="../troubleshooting/#canonical-error-codes">Troubleshooting</a>.</p>
 
 
 

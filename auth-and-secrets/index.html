@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/architecture/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/auth-and-secrets/">
       
       
-        <link rel="prev" href="../why/">
+        <link rel="prev" href="../configuration/">
       
       
-        <link rel="next" href="../roadmap/">
+        <link rel="next" href="../providers/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Architecture - MFS</title>
+        <title>Auth and Secrets - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture" class="md-skip">
+        <a href="#auth-and-secrets" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture
+              Auth and Secrets
             
           </span>
         </div>
@@ -191,12 +191,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href=".." class="md-tabs__link">
           
   
@@ -213,10 +211,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../getting-started/" class="md-tabs__link">
           
   
@@ -344,31 +344,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
         
           
-          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
             
   
   
@@ -386,7 +381,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -457,37 +452,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
@@ -503,92 +471,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#runtime-and-data-flow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Runtime and data flow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#component-responsibilities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Component responsibilities
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#api-surface-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        API surface map
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#runtime-modes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Runtime modes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration-boundaries" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration boundaries
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-runbooks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related runbooks
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -633,26 +515,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -670,7 +557,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -769,10 +656,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../auth-and-secrets/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Auth and Secrets
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -788,6 +702,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#process-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Process Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#server-api-auth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server API Auth
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-and-api-token-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI and API Token Sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connector-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connector Credentials
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment-injection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment Injection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#first-failure-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        First Failure Recovery
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1564,10 +1564,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#runtime-and-data-flow" class="md-nav__link">
+  <a href="#process-boundaries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Runtime and data flow
+        Process Boundaries
       
     </span>
   </a>
@@ -1575,10 +1575,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#component-responsibilities" class="md-nav__link">
+  <a href="#server-api-auth" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Component responsibilities
+        Server API Auth
       
     </span>
   </a>
@@ -1586,10 +1586,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#api-surface-map" class="md-nav__link">
+  <a href="#cli-and-api-token-sources" class="md-nav__link">
     <span class="md-ellipsis">
       
-        API surface map
+        CLI and API Token Sources
       
     </span>
   </a>
@@ -1597,10 +1597,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#runtime-modes" class="md-nav__link">
+  <a href="#connector-credentials" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Runtime modes
+        Connector Credentials
       
     </span>
   </a>
@@ -1608,10 +1608,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration-boundaries" class="md-nav__link">
+  <a href="#deployment-injection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration boundaries
+        Deployment Injection
       
     </span>
   </a>
@@ -1619,10 +1619,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#related-runbooks" class="md-nav__link">
+  <a href="#first-failure-recovery" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Related runbooks
+        First Failure Recovery
       
     </span>
   </a>
@@ -1649,199 +1649,307 @@
   
 
 
-<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>MFS v0.4 is a client/server system. The Rust CLI and generated SDKs are client
-surfaces over the <code>/v1</code> HTTP control plane. The Python FastAPI server owns
-connector execution, ingest jobs, retrieval, browsing, metadata, cache, and
-Milvus/Zilliz integration.</p>
-<p>Use this page for the system map. For runnable steps, start with
-<a href="../getting-started/">Quickstart</a>. For exact commands, use
-<a href="../cli/">CLI Reference</a>. For direct integration, use <a href="../api/">HTTP API</a> and
-<a href="../sdks/">SDKs</a>.</p>
-<h2 id="runtime-and-data-flow">Runtime and data flow<a class="headerlink" href="#runtime-and-data-flow" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>flowchart TB
-  subgraph Clients
-    cli["Rust CLI&lt;br/&gt;mfs"]
-    sdk["Generated SDKs&lt;br/&gt;Python / TypeScript"]
-    http["Direct HTTP clients"]
-  end
-
-  cli --&gt;|HTTP /v1 + bearer token| api["Python FastAPI server&lt;br/&gt;mfs-server"]
-  sdk --&gt;|HTTP /v1 + bearer token| api
-  http --&gt;|HTTP /v1 + bearer token| api
-  api -.-&gt; health["GET /healthz&lt;br/&gt;no bearer token"]
-
-  api --&gt; engine["Engine&lt;br/&gt;registry, ingest, search, browse"]
-  engine --&gt; jobs["Jobs&lt;br/&gt;inline, queued, worker-drained"]
-  jobs --&gt; connectors["Connector plugins&lt;br/&gt;file + optional built-ins"]
-  connectors --&gt; sources["Source systems&lt;br/&gt;folders, object stores, databases, SaaS, docs"]
-
-  jobs --&gt; transform["Conversion, embedding,&lt;br/&gt;optional VLM and summaries"]
-  transform --&gt; txcache["Transformation cache&lt;br/&gt;embedding / summary lookup"]
-  transform --&gt; artifacts["Artifact cache&lt;br/&gt;converted blobs"]
-  transform --&gt; milvus["Milvus / Zilliz / Milvus Lite&lt;br/&gt;indexed chunks"]
-
-  engine --&gt; metadata["Metadata database&lt;br/&gt;connectors, objects, jobs"]
-  engine --&gt; milvus
-  engine --&gt; connectors</code></pre>
-<p><code>search</code> reads indexed chunks. <code>grep</code>, <code>ls</code>, <code>tree</code>, <code>cat</code>, <code>head</code>, <code>tail</code>, and
-<code>export</code> are browse/read operations: <code>tree</code> is implemented by repeated <code>ls</code>
-calls, and search hits should be reopened with <code>cat</code> or a bounded read before
-being used as evidence.</p>
-<h2 id="component-responsibilities">Component responsibilities<a class="headerlink" href="#component-responsibilities" title="Permanent link">&para;</a></h2>
-<p>| Component | Repository area | Responsibility | Go deeper |
-|---|---|
-| Rust CLI | <code>cli/</code> | Parses commands, resolves endpoint and token sources, packages uploads when needed, calls <code>/v1</code>, and renders JSON or text output. | <a href="../cli/">CLI Reference</a> |
-| OpenAPI protocol | <code>protocol/openapi.yaml</code> | Source of truth for <code>/v1</code> endpoint paths, operation IDs, and typed schemas used by docs and SDK generation. | <a href="../api/">HTTP API</a> |
-| Generated SDKs | <code>sdks/python/</code>, <code>sdks/typescript/</code> | Generated Python and TypeScript clients for programmatic callers. | <a href="../sdks/">SDKs</a> |
-| FastAPI server | <code>server/python/src/mfs_server/api/</code> | Wires the <code>/v1</code> API, bearer-token middleware, <code>/healthz</code>, error envelopes, and request/response models. | <a href="../server/">Server</a>, <a href="../api/">HTTP API</a> |
-| Engine | <code>server/python/src/mfs_server/engine/</code> | Orchestrates add/sync jobs, connector registration, upload staging, object processing, search, grep, browse, and connector removal. | <a href="../server/">Server</a> |
-| Connectors | <code>server/python/src/mfs_server/connectors/</code> | Expose local and external sources as URI trees; <code>file</code> is always imported and other built-in schemes are loaded lazily when optional dependencies exist. | <a href="../connectors/">Connectors</a> |
-| Metadata database | <code>server/python/src/mfs_server/storage/</code> | Stores connector registry rows, object state, jobs, and related metadata. SQLite is the local default; Postgres is configured through server settings. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Transformation cache | <code>server/python/src/mfs_server/storage/</code> | Stores transformation lookups such as embedding and summary bytes. It defaults under <code>$MFS_HOME</code> and can share Postgres when configured. | <a href="../configuration/">Configuration</a> |
-| Artifact cache | <code>server/python/src/mfs_server/storage/</code> | Stores derived blobs such as converted document text and image descriptions. Local filesystem is the default; S3-compatible storage is configured through server settings. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Vector database | <code>server/python/src/mfs_server/storage/</code> | Stores indexed chunks in Milvus Lite by default, or a configured Milvus/Zilliz endpoint. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Workers | <code>server/python/src/mfs_server/engine/</code>, <code>mfs-server worker</code> | Drain queued jobs. SQLite all-in-one runs can use an in-process worker; api/worker deployments use a standalone worker process. | <a href="../deployment/">Deployment</a>, <a href="../troubleshooting/">Troubleshooting</a> |
-| Optional Rust acceleration | <code>server-rs/</code> | Optional PyO3 extension for server hot paths such as directory walks, hashing, grep, and tail; the server falls back to Python when it is not installed. | <a href="../server/">Server</a> |</p>
-<h2 id="api-surface-map">API surface map<a class="headerlink" href="#api-surface-map" title="Permanent link">&para;</a></h2>
+<h1 id="auth-and-secrets">Auth and Secrets<a class="headerlink" href="#auth-and-secrets" title="Permanent link">&para;</a></h1>
+<p>Use this page when you need to identify which MFS process needs which token,
+where that value is read from, and what to check first after a <code>401</code> or missing
+credential error. For the full setting tables, see
+<a href="../configuration/">Configuration</a>. For topology-specific commands, see
+<a href="../deployment/">Deployment</a>.</p>
+<h2 id="process-boundaries">Process Boundaries<a class="headerlink" href="#process-boundaries" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Group</th>
-<th>Endpoints</th>
-<th>Used by</th>
+<th>Actor</th>
+<th>Needs</th>
+<th>Reads from</th>
+<th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Server</td>
-<td><code>GET /v1/server/info</code>, <code>GET /v1/status</code>, <code>GET /healthz</code></td>
-<td><code>mfs status</code>, <code>mfs config show</code>, liveness checks, direct clients</td>
+<td><code>mfs-server run</code> or <code>mfs-server api</code></td>
+<td>API bearer token for <code>/v1</code> auth</td>
+<td>Resolved <code>auth_token</code>, server-side <code>MFS_API_TOKEN</code>, or <code>$MFS_HOME/server.token</code></td>
+<td>If no token is configured, the entrypoint creates or reuses <code>server.token</code>.</td>
 </tr>
 <tr>
-<td>Ingest and jobs</td>
-<td><code>POST /v1/add</code>, <code>POST /v1/upload</code>, <code>POST /v1/files/manifest</code>, <code>PUT /v1/files/upload</code>, <code>GET /v1/jobs</code>, <code>GET /v1/jobs/{job_id}</code>, <code>POST /v1/jobs/{job_id}/cancel</code></td>
-<td><code>mfs add</code>, upload mode, <code>mfs job ...</code>, SDK/API integrations</td>
+<td><code>mfs</code> CLI</td>
+<td>Bearer token for the target <code>/v1</code> server</td>
+<td>CLI-side <code>MFS_API_TOKEN</code>, active profile token, or local <code>$MFS_HOME/server.token</code></td>
+<td>The local file fallback only helps when the CLI can read the same <code>MFS_HOME</code> as the server.</td>
 </tr>
 <tr>
-<td>Connectors</td>
-<td><code>POST /v1/connectors/probe</code>, <code>POST /v1/connectors/estimate</code>, <code>GET /v1/connectors/inspect</code>, <code>DELETE /v1/connectors</code></td>
-<td><code>mfs connector ...</code>, <code>mfs remove</code>, pre-flight checks</td>
+<td>Direct HTTP or SDK client</td>
+<td>Bearer token for the target <code>/v1</code> server</td>
+<td>The caller's own secret source</td>
+<td>Send <code>Authorization: Bearer &lt;token&gt;</code> when server auth is enabled.</td>
 </tr>
 <tr>
-<td>Retrieval</td>
-<td><code>GET /v1/search</code>, <code>GET /v1/grep</code></td>
-<td><code>mfs search</code>, <code>mfs grep</code>, search integrations</td>
+<td>Connector plugin</td>
+<td>Connector credentials such as database DSNs, SaaS tokens, or PEM keys</td>
+<td>Top-level connector config values resolved from <code>env:VAR</code> or <code>file:/abs/path</code> by the server/plugin process</td>
+<td>The client shell does not resolve connector credential references.</td>
 </tr>
 <tr>
-<td>Browse/read</td>
-<td><code>GET /v1/ls</code>, <code>GET /v1/cat</code>, <code>GET /v1/head</code>, <code>GET /v1/tail</code>, <code>GET /v1/export</code></td>
-<td><code>mfs ls</code>, <code>mfs tree</code>, <code>mfs cat</code>, <code>mfs head</code>, <code>mfs tail</code>, <code>mfs export</code></td>
+<td>Docker or Compose server container</td>
+<td>Server API token and provider/backend secrets</td>
+<td>Container environment and <code>/data/server.token</code></td>
+<td>Compose sets <code>MFS_HOME=/data</code>; persist <code>/data</code> to keep generated tokens and state.</td>
+</tr>
+<tr>
+<td>Helm API and worker pods</td>
+<td>Shared API token plus backend/provider/object-store secrets</td>
+<td>The configured Kubernetes Secret and chart values</td>
+<td>The chart helper injects the same environment block into API and worker pods.</td>
 </tr>
 </tbody>
 </table>
-<p>Every <code>/v1</code> request requires <code>Authorization: Bearer &lt;token&gt;</code> when the server has
-<code>auth_token</code> configured. <code>GET /healthz</code> is intentionally outside <code>/v1</code> and is
-not bearer-token gated.</p>
-<h2 id="runtime-modes">Runtime modes<a class="headerlink" href="#runtime-modes" title="Permanent link">&para;</a></h2>
+<h2 id="server-api-auth">Server API Auth<a class="headerlink" href="#server-api-auth" title="Permanent link">&para;</a></h2>
+<p><code>/v1</code> endpoints are protected only when the resolved server config has
+<code>auth_token</code> set. <code>mfs-server run</code> and <code>mfs-server api</code> make auth the default by
+creating or reusing a token file when no token is configured.</p>
 <table>
 <thead>
 <tr>
-<th>Mode</th>
-<th>What runs</th>
-<th>Worker and state notes</th>
-<th>Use this when</th>
+<th>Server-side mode</th>
+<th>How to configure it</th>
+<th>Runtime behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Source all-in-one</td>
-<td>Host <code>mfs-server run</code> plus one or more <code>mfs</code> clients.</td>
-<td>Defaults to <code>127.0.0.1:13619</code>; <code>$MFS_HOME</code> defaults to <code>~/.mfs</code>; local defaults are ONNX embeddings, Milvus Lite, SQLite, local artifact cache, and a generated server token. SQLite all-in-one runs can drain queued jobs in-process.</td>
-<td>You are doing the first local run, evaluation, or connector development. Start with <a href="../getting-started/">Quickstart</a>.</td>
+<td>Auto token</td>
+<td>Omit <code>auth_token</code> in <code>server.toml</code>, or choose auto in <code>mfs-server setup --section auth</code>.</td>
+<td><code>mfs-server setup</code>, <code>run</code>, or <code>api</code> creates or reuses <code>$MFS_HOME/server.token</code>.</td>
 </tr>
 <tr>
-<td>Docker or Compose all-in-one</td>
-<td>One container runs <code>mfs-server run</code> with persistent <code>/data</code>.</td>
-<td>The container uses <code>/data</code> for config, token, SQLite, caches, ONNX cache, and Milvus Lite. Use <code>mfs add --upload</code> from the host unless the target path is mounted into the container and passed as a server-visible path.</td>
-<td>You want an isolated local server or repeatable container startup. See <a href="../deployment/">Deployment</a>.</td>
+<td>Known token</td>
+<td>Set <code>auth_token = "..."</code> in TOML, or set non-empty <code>MFS_API_TOKEN</code> in the server environment.</td>
+<td>The server requires that value as <code>Authorization: Bearer &lt;token&gt;</code> on <code>/v1</code>.</td>
 </tr>
 <tr>
-<td>Direct client/server</td>
-<td>CLI, SDK, or HTTP client talks to a server it cannot assume shares local paths with the client.</td>
-<td>Set endpoint and token explicitly, and use upload mode for client-local folders. The CLI chooses upload for local paths when it detects a different server machine unless <code>--no-upload</code> is set.</td>
-<td>You are integrating from another host, VM, container, or automation process. See <a href="../cli/">CLI Reference</a>, <a href="../api/">HTTP API</a>, and <a href="../sdks/">SDKs</a>.</td>
-</tr>
-<tr>
-<td>Helm-rendered api/worker</td>
-<td>The chart renders an API Deployment, Worker Deployment, and API Service.</td>
-<td>The repository documents this as the post-v0.4 scalable direction, not the runnable v0.4 operations path. The rendered shape expects externalized state such as Postgres, object storage, and remote Milvus/Zilliz.</td>
-<td>You are validating the chart or planning the future split. See <a href="../deployment/">Deployment</a>.</td>
+<td>Explicitly open</td>
+<td>Set the resolved <code>auth_token</code> value to <code>-</code>.</td>
+<td><code>mfs-server run</code> and <code>api</code> convert it to no auth. Use only for an intentionally open trusted or isolated network.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="configuration-boundaries">Configuration boundaries<a class="headerlink" href="#configuration-boundaries" title="Permanent link">&para;</a></h2>
-<p>The CLI configures client concerns: endpoint selection, profile selection,
-client identity, upload decisions, and bearer-token source. The server configures
-runtime concerns: namespace, auth, database, metadata, transformation cache,
-artifact cache, Milvus, embeddings, summaries, VLM, conversion, workers,
-chunking, and search behavior.</p>
-<p>Key local defaults are shared through <code>$MFS_HOME</code>: the CLI can read
-<code>$MFS_HOME/server.token</code> for same-host local auth, while the server stores
-<code>server.toml</code>, SQLite files, local caches, Milvus Lite, and the ONNX model cache
-under the same root. For precedence rules and environment overrides, see
-<a href="../configuration/">Configuration</a>.</p>
-<h2 id="related-runbooks">Related runbooks<a class="headerlink" href="#related-runbooks" title="Permanent link">&para;</a></h2>
+<p><code>MFS_API_TOKEN</code> has two meanings:</p>
 <table>
 <thead>
 <tr>
-<th>Need</th>
-<th>Page</th>
+<th>Process</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>First local run</td>
-<td><a href="../getting-started/">Quickstart</a></td>
+<td>Server process</td>
+<td>Runtime override for <code>auth_token</code>.</td>
 </tr>
 <tr>
-<td>Search, browse, and evidence verification</td>
-<td><a href="../search-and-browse/">Search and Browse</a></td>
-</tr>
-<tr>
-<td>Connector selection and TOML setup</td>
-<td><a href="../connectors/">Connectors</a></td>
-</tr>
-<tr>
-<td>Exact CLI command surface</td>
-<td><a href="../cli/">CLI Reference</a></td>
-</tr>
-<tr>
-<td>Server package map</td>
-<td><a href="../server/">Server</a></td>
-</tr>
-<tr>
-<td>Direct <code>/v1</code> integration</td>
-<td><a href="../api/">HTTP API</a></td>
-</tr>
-<tr>
-<td>Generated clients</td>
-<td><a href="../sdks/">SDKs</a></td>
-</tr>
-<tr>
-<td>Source, Docker, Compose, and Helm shapes</td>
-<td><a href="../deployment/">Deployment</a></td>
-</tr>
-<tr>
-<td>Config files, env vars, and persisted state</td>
-<td><a href="../configuration/">Configuration</a></td>
-</tr>
-<tr>
-<td>Endpoint, auth, job, ingest, search, and browse failures</td>
-<td><a href="../troubleshooting/">Troubleshooting</a></td>
+<td>CLI process</td>
+<td>Highest-priority bearer token source sent to the server.</td>
 </tr>
 </tbody>
 </table>
+<p>Set the same known value in the server environment and in every remote client
+environment that should call <code>/v1</code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Health checks are not auth checks</p>
+<p><code>GET /healthz</code> is outside the OpenAPI <code>/v1</code> control plane and the FastAPI
+auth middleware exempts it. It returns only <code>{"status":"ok"}</code> so liveness
+and readiness probes can work without API credentials. Use
+<code>/v1/server/info</code> or <code>/v1/status</code> with a bearer token to test API auth.</p>
+</div>
+<h2 id="cli-and-api-token-sources">CLI and API Token Sources<a class="headerlink" href="#cli-and-api-token-sources" title="Permanent link">&para;</a></h2>
+<p>The CLI chooses its endpoint separately from its bearer token. Endpoint
+precedence is documented in <a href="../cli/#global-behavior">CLI Reference</a> and
+<a href="../configuration/#cli-endpoint-and-token-resolution">Configuration</a>. Token
+precedence is:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Priority</th>
+<th>CLI bearer token source</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td>Non-empty <code>MFS_API_TOKEN</code></td>
+<td>Wins over profile tokens and local token files.</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>Active profile token in <code>$MFS_HOME/client.toml</code></td>
+<td>May be a literal token or <code>env:VAR</code>. If <code>env:VAR</code> resolves empty, the CLI sends no bearer token from that profile.</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td><code>$MFS_HOME/server.token</code></td>
+<td>Same-host fallback for local auto-token servers.</td>
+</tr>
+</tbody>
+</table>
+<p>For direct HTTP and SDK callers, there is no CLI fallback. Send the header
+explicitly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_URL</span><span class="o">=</span>http://127.0.0.1:13619
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_TOKEN</span><span class="o">=</span><span class="s2">&quot;replace-with-your-token&quot;</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>curl<span class="w"> </span>-sS<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$MFS_API_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="s2">&quot;</span><span class="nv">$MFS_URL</span><span class="s2">/v1/server/info&quot;</span>
+</code></pre></div>
+<h2 id="connector-credentials">Connector Credentials<a class="headerlink" href="#connector-credentials" title="Permanent link">&para;</a></h2>
+<p>Connector TOML is loaded by the CLI and sent as the API <code>config</code> object. The
+server resolves supported credential references when it builds the connector
+plugin.</p>
+<table>
+<thead>
+<tr>
+<th>Form</th>
+<th>Resolved by</th>
+<th>Behavior</th>
+<th>Use for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>env:VAR</code></td>
+<td>Server/plugin process environment</td>
+<td>Reads <code>VAR</code> when the connector is constructed; missing variables fail fast.</td>
+<td>Tokens, DSNs, and short secrets injected into the server process.</td>
+</tr>
+<tr>
+<td><code>file:/abs/path</code></td>
+<td>Server/plugin process filesystem</td>
+<td>Reads the file contents and strips trailing whitespace. The public connector reference requires an absolute path.</td>
+<td>Mounted secrets, PEM keys, and multi-line credentials.</td>
+</tr>
+<tr>
+<td>Plaintext string</td>
+<td>No indirection</td>
+<td>Passed as the literal value and may be stored in connector TOML or metadata after redaction rules apply.</td>
+<td>Short-lived demos only when you accept the storage risk.</td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>credential_ref</code> when a connector expects the resolved value through the
+plugin <code>credential</code> fallback. Snowflake's private key config is one example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">credential_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file:/etc/mfs/snowflake/rsa_key.p8&quot;</span>
+</code></pre></div>
+<p>When MFS runs in Docker or Kubernetes, <code>env:VAR</code> and <code>file:/abs/path</code> are
+resolved inside the container or pod. Exporting a variable only in the shell
+that runs <code>mfs add</code> is not enough unless that shell is also starting the server.
+For connector-specific fields and pitfalls, see <a href="../connectors/">Connectors</a> and
+<a href="../connector-reference/">Connector Reference</a>.</p>
+<h2 id="deployment-injection">Deployment Injection<a class="headerlink" href="#deployment-injection" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Topology</th>
+<th>API token path</th>
+<th>Other secret paths</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source server</td>
+<td><code>MFS_API_TOKEN</code> in the server environment, or <code>$MFS_HOME/server.token</code> in auto mode</td>
+<td>Server environment variables such as <code>MILVUS_TOKEN</code>, <code>ZILLIZ_TOKEN</code>, <code>ZILLIZ_API_KEY</code>, object-store keys, and provider SDK env vars</td>
+<td><code>MFS_HOME</code> defaults to <code>~/.mfs</code>.</td>
+</tr>
+<tr>
+<td>Docker all-in-one</td>
+<td><code>docker run -e MFS_API_TOKEN=...</code>, or <code>/data/server.token</code> when omitted</td>
+<td><code>docker run -e ...</code> for server-read env vars</td>
+<td>Mount <code>/data</code> so generated tokens and state survive container removal.</td>
+</tr>
+<tr>
+<td>Compose all-in-one</td>
+<td><code>MFS_API_TOKEN: ${MFS_API_TOKEN:-}</code> and <code>MFS_HOME=/data</code> in <code>deployments/compose/docker-compose.yml</code></td>
+<td>Compose passes <code>OPENAI_API_KEY</code>; it also sets <code>MFS_MILVUS_URI</code> and <code>MFS_MILVUS_TOKEN</code> from host <code>ZILLIZ_*</code> values</td>
+<td>If <code>MFS_API_TOKEN</code> is empty, read <code>/data/server.token</code> from the container.</td>
+</tr>
+<tr>
+<td>Helm-rendered API/worker</td>
+<td><code>MFS_API_TOKEN</code> from existing Secret key <code>api-token</code></td>
+<td>Secret keys <code>zilliz-token</code>, <code>openai-api-key</code>, <code>object-store-access-key</code>, and <code>object-store-secret-key</code>; object-store values from chart values</td>
+<td>Every API replica must share the same <code>api-token</code>. API probes use unauthenticated <code>/healthz</code>.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Rendered Milvus env name mismatch</p>
+<p>The current Compose file and Helm helper render <code>MFS_MILVUS_URI</code> and
+<code>MFS_MILVUS_TOKEN</code>, while the current server config code reads
+<code>MILVUS_URI</code> / <code>MILVUS_TOKEN</code>, <code>ZILLIZ_URI</code> / <code>ZILLIZ_TOKEN</code>, and
+<code>ZILLIZ_API_KEY</code>. Treat the <code>MFS_MILVUS_*</code> names as a deployment/runtime
+mismatch until the assets and server config are aligned. See
+<a href="../deployment/#environment-variables">Deployment</a>.</p>
+</div>
+<h2 id="first-failure-recovery">First Failure Recovery<a class="headerlink" href="#first-failure-recovery" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>First commands</th>
+<th>What to fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mfs status</code> returns <code>401 [unauthorized]</code></td>
+<td><code>mfs config show</code></td>
+<td>Set the intended CLI-side <code>MFS_API_TOKEN</code>, fix the active profile token, or read the same-host <code>server.token</code>.</td>
+</tr>
+<tr>
+<td><code>/healthz</code> works but <code>/v1/server/info</code> returns <code>401</code></td>
+<td><code>curl http://127.0.0.1:13619/healthz</code> then <code>curl -H "Authorization: Bearer $MFS_API_TOKEN" http://127.0.0.1:13619/v1/server/info</code></td>
+<td>Health proves process liveness only; send the API bearer token for <code>/v1</code>.</td>
+</tr>
+<tr>
+<td>Local source server uses auto auth</td>
+<td><code>export MFS_API_TOKEN="$(cat ${MFS_HOME:-$HOME/.mfs}/server.token)"</code></td>
+<td>Use the generated local server token for direct HTTP or remote-style CLI testing.</td>
+</tr>
+<tr>
+<td>Host CLI talks to Docker</td>
+<td><code>export MFS_API_TOKEN="$(docker exec mfs-server cat /data/server.token)"</code></td>
+<td>Match the host client token to the container's server token, or restart with a known <code>MFS_API_TOKEN</code>.</td>
+</tr>
+<tr>
+<td>Host CLI talks to Compose</td>
+<td><code>docker compose -f deployments/compose/docker-compose.yml exec -T mfs-server cat /data/server.token</code></td>
+<td>Export that value as host <code>MFS_API_TOKEN</code>, or start Compose with a known token.</td>
+</tr>
+<tr>
+<td>Active profile uses <code>env:VAR</code> and auth is missing</td>
+<td><code>mfs config show</code> and <code>test -n "$VAR" &amp;&amp; echo set || echo missing</code></td>
+<td>Export <code>VAR</code> in the CLI environment, update the profile token, or set CLI-side <code>MFS_API_TOKEN</code>.</td>
+</tr>
+<tr>
+<td>Connector reports missing environment variable</td>
+<td><code>mfs connector probe TARGET --config FILE</code></td>
+<td>Set the variable in the server process environment or container/pod spec, then retry probe/add.</td>
+</tr>
+<tr>
+<td>Connector cannot read <code>file:/abs/path</code></td>
+<td>Check the path from the server host, container, or pod</td>
+<td>Mount the file where the server process can read it, use an absolute <code>file:</code> path, and retry probe/add.</td>
+</tr>
+<tr>
+<td>Need canonical error meaning</td>
+<td>Open <a href="../errors/">Error Codes</a></td>
+<td><code>unauthorized</code> means server auth is enabled and the bearer token is missing or wrong.</td>
+</tr>
+</tbody>
+</table>
+<p>For deeper runbooks, use <a href="../troubleshooting/#endpoint-and-auth">Troubleshooting</a>
+for endpoint/auth failures and <a href="../troubleshooting/#connector-failures">Troubleshooting</a>
+for connector failures. For the server-side implementation boundary, see
+<a href="../server/#auth-and-config-boundary">Server</a>.</p>
 
 
 

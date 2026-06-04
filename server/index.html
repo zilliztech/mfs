@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://zilliztech.github.io/mfs/server/">
       
       
-        <link rel="prev" href="../skills/">
+        <link rel="prev" href="../development/">
       
       
         <link rel="next" href="../api/">
@@ -257,7 +257,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+        <a href="../content-model/" class="md-tabs__link">
           
   
   
@@ -277,7 +277,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../faq/" class="md-tabs__link">
+        <a href="../errors/" class="md-tabs__link">
           
   
   
@@ -490,7 +490,7 @@
   <span class="md-ellipsis">
     
   
-    Roadmap
+    Status and Limits
   
 
     
@@ -598,6 +598,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../configuration/" class="md-nav__link">
         
   
@@ -626,6 +654,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../auth-and-secrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Auth and Secrets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers and Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../deployment/" class="md-nav__link">
         
   
@@ -634,6 +718,34 @@
     
   
     Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-and-backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage and Backup
   
 
     
@@ -769,6 +881,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs and Indexing Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cli/" class="md-nav__link">
         
   
@@ -805,6 +945,62 @@
     
   
     Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-config-recipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Configuration Recipes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Reference
   
 
     
@@ -914,6 +1110,62 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../content-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -925,6 +1177,24 @@
       
         
       
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -942,6 +1212,124 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#run-from-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run From Source
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entrypoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entrypoints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-responsibility-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module Responsibility Map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Surface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auth-and-config-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auth and Config Boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs-and-workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs and Workers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storage-and-cache-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage and Cache Boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-to-open-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What To Open Next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1098,6 +1486,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../faq/" class="md-nav__link">
         
   
@@ -1146,6 +1590,113 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#run-from-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run From Source
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime Boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entrypoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entrypoints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-responsibility-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module Responsibility Map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Surface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auth-and-config-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auth and Config Boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs-and-workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs and Workers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storage-and-cache-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage and Cache Boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-to-open-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What To Open Next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1165,44 +1716,417 @@
 
 
 <h1 id="server">Server<a class="headerlink" href="#server" title="Permanent link">&para;</a></h1>
-<p>The Python server is the heavy side of MFS. It exposes the HTTP API and owns
-the source registry, connector execution, ingest pipeline, retrieval, metadata,
-cache, and Milvus integration.</p>
-<p>Run it locally:</p>
+<p>The Python server is the runtime that sits behind the Rust <code>mfs</code> CLI,
+generated SDKs, and direct HTTP clients. It exposes the FastAPI <code>/v1</code> control
+plane and owns connector execution, ingest jobs, upload staging, object
+processing, search, browse/read operations, metadata, caches, and Milvus
+integration.</p>
+<p>Use this page when you need to orient yourself in the server code. For exact
+endpoint shapes, open <a href="../api/">HTTP API</a>. For backend values and precedence,
+open <a href="../configuration/">Configuration</a>. For provider selection and processing
+behavior, open <a href="../providers/">Providers and Processing</a>. For runnable source,
+Docker, Compose, and rendered Helm topologies, open <a href="../deployment/">Deployment</a>.
+For local package setup and contributor checks, open
+<a href="../development/">Development</a>.
+For operator state, backup, and reset guidance, open
+<a href="../storage-and-backup/">Storage and Backup</a>.</p>
+<h2 id="run-from-source">Run From Source<a class="headerlink" href="#run-from-source" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>server/python
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>all-connectors
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
 </code></pre></div>
-<p>Important areas:</p>
+<p><code>mfs-server run</code> and <code>mfs-server api</code> both default to
+<code>--bind 127.0.0.1:13619</code>. The Rust CLI default endpoint is
+<code>http://127.0.0.1:13619</code>, and <code>mfs serve start</code> starts a detached
+<code>mfs-server run --bind &lt;bind&gt;</code> process with the same default bind address.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run<span class="w"> </span>--bind<span class="w"> </span><span class="m">127</span>.0.0.1:13619
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>api<span class="w"> </span>--bind<span class="w"> </span><span class="m">127</span>.0.0.1:13619
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>worker<span class="w"> </span>--concurrency<span class="w"> </span>auto
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>mfs<span class="w"> </span>serve<span class="w"> </span>start
+</code></pre></div>
+<h2 id="runtime-boundary">Runtime Boundary<a class="headerlink" href="#runtime-boundary" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+  cli["Rust CLI&lt;br/&gt;cli/src/main.rs"]
+  sdk["Generated SDKs&lt;br/&gt;OpenAPI clients"]
+  http["Direct HTTP clients"]
+
+  cli --&gt;|HTTP /v1 + bearer token| api["FastAPI app&lt;br/&gt;api/app.py"]
+  sdk --&gt;|HTTP /v1 + bearer token| api
+  http --&gt;|HTTP /v1 + bearer token| api
+  api -.-&gt;|unauthenticated| health["GET /healthz"]
+
+  api --&gt; engine["Engine&lt;br/&gt;engine.py"]
+  engine --&gt; registry["Connector registry&lt;br/&gt;connectors/registry.py"]
+  engine --&gt; jobs["connector_jobs + object_tasks"]
+  jobs --&gt; worker["inline processing or&lt;br/&gt;mfs-server worker"]
+  engine --&gt; metadata["Metadata DB&lt;br/&gt;SQLite or Postgres"]
+  engine --&gt; txcache["Transformation cache&lt;br/&gt;SQLite or Postgres"]
+  engine --&gt; artifacts["Artifact cache&lt;br/&gt;local or S3-compatible"]
+  engine --&gt; milvus["MilvusStore&lt;br/&gt;Lite or remote Milvus/Zilliz"]
+  engine --&gt; source["Connector plugins&lt;br/&gt;source systems"]</code></pre>
+<p>The HTTP layer is deliberately thin: it validates request/response models,
+applies bearer-token middleware, maps runtime errors into the stable error
+envelope, and forwards work to <code>Engine</code>. The Engine is where connector
+registration, job orchestration, uploads, object processing, search, grep,
+browse, and removal happen.</p>
+<p>The Rust CLI owns client concerns: endpoint selection, bearer-token source,
+profiles, local/remote path decisions, upload packaging, and terminal output.
+The server owns runtime concerns: auth enforcement, config-backed storage and
+cache construction, connector execution, jobs, indexing, and read/search
+behavior.</p>
+<h2 id="entrypoints">Entrypoints<a class="headerlink" href="#entrypoints" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Path</th>
-<th>Role</th>
+<th>Command or surface</th>
+<th>Runtime path</th>
+<th>Verified behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>server/python/src/mfs_server/api/</code></td>
-<td>HTTP API models and app wiring.</td>
+<td><code>mfs-server run</code></td>
+<td><code>server/python/src/mfs_server/server/__main__.py</code></td>
+<td>Loads server config, bootstraps auth, creates the FastAPI app, and runs Uvicorn. Defaults to <code>--bind 127.0.0.1:13619</code>.</td>
 </tr>
 <tr>
-<td><code>server/python/src/mfs_server/connectors/</code></td>
-<td>Connector plugins.</td>
+<td><code>mfs-server api</code></td>
+<td><code>server/python/src/mfs_server/server/__main__.py</code></td>
+<td>Same FastAPI startup path as <code>run</code>. Defaults to <code>--bind 127.0.0.1:13619</code>.</td>
 </tr>
 <tr>
-<td><code>server/python/src/mfs_server/storage/</code></td>
-<td>Milvus, metadata, and cache backends.</td>
+<td><code>mfs-server worker</code></td>
+<td><code>server/python/src/mfs_server/server/__main__.py</code></td>
+<td>Constructs <code>Engine</code>, runs <code>Engine.startup()</code>, then drains queued jobs with <code>run_worker_forever()</code>.</td>
 </tr>
 <tr>
-<td><code>server/python/src/mfs_server/server/</code></td>
-<td>CLI entrypoints and setup wizards.</td>
+<td><code>mfs-server reload</code></td>
+<td><code>server/python/src/mfs_server/server/__main__.py</code></td>
+<td>Validates <code>server.toml</code> and prints resolved backend kinds. Restart the process to apply changes.</td>
+</tr>
+<tr>
+<td><code>mfs-server setup</code></td>
+<td><code>server/python/src/mfs_server/server/__main__.py</code></td>
+<td>Special entrypoint routed before the main argparse subcommands to the setup wizard.</td>
+</tr>
+<tr>
+<td><code>mfs-server connector add</code></td>
+<td><code>server/python/src/mfs_server/server/__main__.py</code></td>
+<td>Special entrypoint routed before the main argparse subcommands to the connector wizard.</td>
+</tr>
+<tr>
+<td><code>mfs-server connector list</code></td>
+<td><code>server/python/src/mfs_server/server/__main__.py</code></td>
+<td>Special entrypoint routed before the main argparse subcommands to the local connector listing path.</td>
+</tr>
+<tr>
+<td><code>mfs serve start</code></td>
+<td><code>cli/src/main.rs</code></td>
+<td>Rust CLI process manager that spawns <code>mfs-server run --bind &lt;bind&gt;</code> and records local PID/log files under <code>MFS_HOME</code>.</td>
+</tr>
+<tr>
+<td><code>/v1</code> HTTP API</td>
+<td><code>server/python/src/mfs_server/api/app.py</code> and <code>api/models.py</code></td>
+<td>FastAPI routes, lifespan startup/shutdown, auth middleware, error wrappers, and Pydantic request/response models.</td>
+</tr>
+<tr>
+<td>OpenAPI contract</td>
+<td><code>protocol/openapi.yaml</code></td>
+<td>Source of truth for endpoint paths, operation IDs, tags, and schemas.</td>
 </tr>
 </tbody>
 </table>
-<p>Optional Rust acceleration lives in <code>server-rs/</code> and is imported by the server
-when installed.</p>
+<div class="admonition note">
+<p class="admonition-title">Special server subcommands</p>
+<p><code>mfs-server setup</code>, <code>mfs-server connector add</code>, and
+<code>mfs-server connector list</code> are dispatched from raw <code>argv</code> before the
+regular argparse subcommands. Do not debug those commands by looking only at
+the <code>run</code> / <code>api</code> / <code>worker</code> / <code>reload</code> parser branch.</p>
+</div>
+<h2 id="module-responsibility-map">Module Responsibility Map<a class="headerlink" href="#module-responsibility-map" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Owns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>server/python/src/mfs_server/server/__main__.py</code></td>
+<td>Server command dispatch, auth-token bootstrap, Uvicorn startup, standalone worker startup, and config reload validation.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/api/app.py</code></td>
+<td>FastAPI app construction, lifespan, bearer auth middleware, <code>/healthz</code>, <code>/v1</code> routes, and error-envelope handlers.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/api/models.py</code></td>
+<td>Pydantic request and response models for the <code>/v1</code> control plane.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/config.py</code></td>
+<td><code>ServerConfig</code>, config lookup, resolved defaults, environment overrides, auth settings, backend settings, worker settings, chunking, and search knobs.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/engine/engine.py</code></td>
+<td>Connector registration, credential-reference resolution, sync jobs, upload staging, object task processing, inline and queued workers, indexing, artifact writes, search, grep, browse/read, and connector removal.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/engine/state.py</code></td>
+<td>Persistent per-connector state with staged writes, checkpoints, commits, and worker-applied snapshots.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/connectors/registry.py</code></td>
+<td>URI scheme to plugin registry. <code>file</code> is imported directly; optional built-ins are loaded lazily and skipped when their dependencies are not installed.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/storage/metadata/</code></td>
+<td>Metadata store factory and SQLite/Postgres implementations for connector registry rows, objects, jobs, tasks, state, and related metadata.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/storage/transformation_cache/</code></td>
+<td>Transformation-cache factory and SQLite/Postgres implementations for content-addressed conversion, embedding, VLM, and summary lookup data.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/storage/artifact_cache.py</code></td>
+<td>Local and S3-compatible artifact-cache backends, plus local upload/file staging directories.</td>
+</tr>
+<tr>
+<td><code>server/python/src/mfs_server/storage/milvus.py</code></td>
+<td>Milvus client, collection creation/loading, chunk upsert/delete, dense search, BM25 sparse search, and hybrid search.</td>
+</tr>
+<tr>
+<td><code>server-rs/</code></td>
+<td>Optional Rust acceleration for server hot paths when installed; the Python server falls back when it is absent.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="api-surface">API Surface<a class="headerlink" href="#api-surface" title="Permanent link">&para;</a></h2>
+<p>The server page should explain the runtime, not replace the API reference.
+<code>protocol/openapi.yaml</code> lists the <code>/v1</code> control-plane groups. The runtime
+FastAPI app also exposes <code>GET /healthz</code> outside <code>/v1</code> for probes.</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Endpoints</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Server and health</td>
+<td><code>GET /v1/server/info</code>, <code>GET /v1/status</code>, <code>GET /healthz</code></td>
+</tr>
+<tr>
+<td>Ingest and jobs</td>
+<td><code>POST /v1/add</code>, <code>POST /v1/upload</code>, <code>POST /v1/files/manifest</code>, <code>PUT /v1/files/upload</code>, <code>GET /v1/jobs</code>, <code>GET /v1/jobs/{job_id}</code>, <code>POST /v1/jobs/{job_id}/cancel</code></td>
+</tr>
+<tr>
+<td>Connectors</td>
+<td><code>POST /v1/connectors/probe</code>, <code>POST /v1/connectors/estimate</code>, <code>GET /v1/connectors/inspect</code>, <code>DELETE /v1/connectors</code></td>
+</tr>
+<tr>
+<td>Retrieval</td>
+<td><code>GET /v1/search</code>, <code>GET /v1/grep</code></td>
+</tr>
+<tr>
+<td>Browse/read</td>
+<td><code>GET /v1/ls</code>, <code>GET /v1/cat</code>, <code>GET /v1/head</code>, <code>GET /v1/tail</code>, <code>GET /v1/export</code></td>
+</tr>
+</tbody>
+</table>
+<p>Generated SDK coverage can be narrower than the OpenAPI surface. Use
+<a href="../api/">HTTP API</a> for the full endpoint contract and <a href="../sdks/">SDKs</a> before
+depending on a generated client method name.</p>
+<h2 id="auth-and-config-boundary">Auth and Config Boundary<a class="headerlink" href="#auth-and-config-boundary" title="Permanent link">&para;</a></h2>
+<p><code>mfs-server run</code> and <code>mfs-server api</code> call <code>load_server_config()</code>, then
+bootstrap the bearer token before starting Uvicorn:</p>
+<table>
+<thead>
+<tr>
+<th>Server config state</th>
+<th>Runtime behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>auth_token</code> is a non-empty value</td>
+<td>The server uses that token.</td>
+</tr>
+<tr>
+<td><code>auth_token = "-"</code></td>
+<td>The entrypoint converts it to no auth. Use only for an intentionally open trusted or isolated network.</td>
+</tr>
+<tr>
+<td><code>auth_token</code> is empty or omitted</td>
+<td>The server reuses or creates <code>$MFS_HOME/server.token</code> and uses it as the bearer token.</td>
+</tr>
+</tbody>
+</table>
+<p>When <code>cfg.auth_token</code> is set, FastAPI middleware requires
+<code>Authorization: Bearer &lt;token&gt;</code> for every request except <code>GET /healthz</code>.
+<code>/healthz</code> returns only liveness data and is left unauthenticated for probes.</p>
+<p>Config lookup and default paths are owned by <code>config.py</code>: <code>--config</code>,
+<code>MFS_SERVER_CONFIG</code>, <code>./server.toml</code>, <code>$MFS_HOME/server.toml</code>,
+<code>~/.mfs/server.toml</code>, <code>/etc/mfs/server.toml</code>, then built-in defaults. Resolved
+defaults put local server state under <code>MFS_HOME</code>, including metadata SQLite,
+transformation-cache SQLite, local artifact cache, Milvus Lite, and
+<code>server.token</code>. See <a href="../configuration/">Configuration</a> for the full precedence
+table and environment overrides. For an operator-focused token and secret
+lookup, see <a href="../auth-and-secrets/">Auth and Secrets</a>.</p>
+<h2 id="jobs-and-workers">Jobs and Workers<a class="headerlink" href="#jobs-and-workers" title="Permanent link">&para;</a></h2>
+<p>Ingest is a job system whether it is driven by the CLI, direct HTTP, or a
+worker process.</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>How work runs</th>
+<th>Use it for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inline request</td>
+<td><code>POST /v1/add</code> or upload endpoints with <code>process=true</code>; <code>Engine.add()</code> drains the job before returning.</td>
+<td>Direct API callers that explicitly want the request to block until indexing is done.</td>
+</tr>
+<tr>
+<td>Queued all-in-one</td>
+<td><code>process=false</code> enqueues a job; FastAPI lifespan can start one in-process worker when <code>worker.in_process</code> is true and metadata is SQLite.</td>
+<td>Local source, Docker, or Compose all-in-one runs where the API process also drains queued jobs.</td>
+</tr>
+<tr>
+<td>Dedicated worker</td>
+<td><code>mfs-server worker --concurrency auto</code> starts an Engine and polls queued jobs from metadata.</td>
+<td>Client/server or Postgres deployments where API replicas should serve HTTP and a separate worker should do indexing.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">API replicas and workers</p>
+<p>The FastAPI lifespan starts an in-process worker only for SQLite all-in-one
+runs when <code>worker.in_process</code> is enabled. Client/server deployments that use
+shared Postgres metadata should run <code>mfs-server worker</code> separately instead
+of letting API replicas also perform indexing work.</p>
+</div>
+<p>Queued jobs are stored in the metadata backend. The worker atomically claims
+queued jobs, processes object tasks, updates job counts, and commits deferred
+connector state only after a job succeeds.</p>
+<h2 id="storage-and-cache-boundary">Storage and Cache Boundary<a class="headerlink" href="#storage-and-cache-boundary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Constructor or module</th>
+<th>Backends</th>
+<th>Local default</th>
+<th>Stores</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Metadata</td>
+<td><code>make_metadata_store(cfg)</code> in <code>storage/metadata/</code></td>
+<td>SQLite or Postgres</td>
+<td><code>$MFS_HOME/metadata.db</code></td>
+<td>Connectors, objects, jobs, object tasks, connector state, file state, and related metadata.</td>
+</tr>
+<tr>
+<td>Transformation cache</td>
+<td><code>make_transformation_cache(cfg)</code> in <code>storage/transformation_cache/</code></td>
+<td>SQLite or Postgres</td>
+<td><code>$MFS_HOME/transformation_cache.db</code></td>
+<td>Content-addressed lookup data for embedding, conversion, VLM, and summary work.</td>
+</tr>
+<tr>
+<td>Artifact cache</td>
+<td><code>make_artifact_cache(cfg)</code> in <code>storage/artifact_cache.py</code></td>
+<td>Local filesystem or S3-compatible storage</td>
+<td><code>$MFS_HOME/cache</code></td>
+<td>Derived per-object blobs such as converted markdown and image descriptions. Upload/file staging directories stay local even when artifact bytes use S3-compatible storage.</td>
+</tr>
+<tr>
+<td>Vector index</td>
+<td><code>MilvusStore(cfg)</code> in <code>storage/milvus.py</code></td>
+<td>Milvus Lite file or remote Milvus/Zilliz URI</td>
+<td><code>$MFS_HOME/milvus.db</code></td>
+<td>Indexed chunks with dense vectors, BM25 sparse vectors, locators, content, chunk kinds, and metadata.</td>
+</tr>
+</tbody>
+</table>
+<p>The Engine constructs all four stores during initialization. During startup it
+loads built-in connectors, connects and initializes metadata, connects the
+transformation cache, connects Milvus, and ensures the namespace collection.</p>
+<h2 id="what-to-open-next">What To Open Next<a class="headerlink" href="#what-to-open-next" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Page</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identifiers, locators, chunk kinds, artifacts, and object search status</td>
+<td><a href="../content-model/">Content Model</a></td>
+</tr>
+<tr>
+<td>Exact <code>/v1</code> endpoint paths, request fields, response models, and error envelope</td>
+<td><a href="../api/">HTTP API</a></td>
+</tr>
+<tr>
+<td>Config lookup, <code>MFS_HOME</code>, auth modes, backend defaults, and environment overrides</td>
+<td><a href="../configuration/">Configuration</a></td>
+</tr>
+<tr>
+<td>State components, backup targets, restore order, and reset boundaries</td>
+<td><a href="../storage-and-backup/">Storage and Backup</a></td>
+</tr>
+<tr>
+<td>Process token boundaries, connector credential references, and first auth recovery commands</td>
+<td><a href="../auth-and-secrets/">Auth and Secrets</a></td>
+</tr>
+<tr>
+<td>Embedding, summary, VLM, converter setup, and provider runtime requirements</td>
+<td><a href="../providers/">Providers and Processing</a></td>
+</tr>
+<tr>
+<td>Source, Docker, Compose, and rendered Helm runtime shapes</td>
+<td><a href="../deployment/">Deployment</a></td>
+</tr>
+<tr>
+<td>CLI commands, endpoint resolution, token precedence, and upload behavior</td>
+<td><a href="../cli/">CLI Reference</a></td>
+</tr>
+<tr>
+<td>Connector schemes, TOML config, credentials, and lifecycle commands</td>
+<td><a href="../connectors/">Connectors</a></td>
+</tr>
+<tr>
+<td>Search, browse, and exact-content verification workflow</td>
+<td><a href="../search-and-browse/">Search and Browse</a></td>
+</tr>
+<tr>
+<td>Endpoint, auth, job, indexing, search, and browse failures</td>
+<td><a href="../troubleshooting/">Troubleshooting</a></td>
+</tr>
+<tr>
+<td>Generated Python and TypeScript clients</td>
+<td><a href="../sdks/">SDKs</a></td>
+</tr>
+<tr>
+<td>Local package setup, checks, and OpenAPI-to-SDK regeneration</td>
+<td><a href="../development/">Development</a></td>
+</tr>
+<tr>
+<td>System-wide component map</td>
+<td><a href="../architecture/">Architecture</a></td>
+</tr>
+</tbody>
+</table>
 
 
 

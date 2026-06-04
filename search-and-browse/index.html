@@ -16,7 +16,7 @@
         <link rel="prev" href="../troubleshooting/">
       
       
-        <link rel="next" href="../cli/">
+        <link rel="next" href="../jobs/">
       
       
         
@@ -257,7 +257,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../server/" class="md-tabs__link">
+        <a href="../content-model/" class="md-tabs__link">
           
   
   
@@ -277,7 +277,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../faq/" class="md-tabs__link">
+        <a href="../errors/" class="md-tabs__link">
           
   
   
@@ -490,7 +490,7 @@
   <span class="md-ellipsis">
     
   
-    Roadmap
+    Status and Limits
   
 
     
@@ -598,6 +598,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../configuration/" class="md-nav__link">
         
   
@@ -626,6 +654,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../auth-and-secrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Auth and Secrets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers and Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../deployment/" class="md-nav__link">
         
   
@@ -634,6 +718,34 @@
     
   
     Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-and-backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage and Backup
   
 
     
@@ -806,6 +918,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#mental-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mental Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-decision-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command Decision Table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#search" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -817,10 +951,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#grep" class="md-nav__link">
+  <a href="#locate-exact-hits" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Grep
+        Locate Exact Hits
       
     </span>
   </a>
@@ -828,10 +962,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#browse" class="md-nav__link">
+  <a href="#reopen-file-like-hits" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Browse
+        Reopen File-Like Hits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reopen-structured-hits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reopen Structured Hits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#browse-when-search-is-weak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browse When Search Is Weak
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#weak-result-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weak-Result Recovery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Recovery
       
     </span>
   </a>
@@ -842,6 +1020,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs and Indexing Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -890,6 +1096,62 @@
     
   
     Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-config-recipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Configuration Recipes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Reference
   
 
     
@@ -989,6 +1251,62 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1168,6 +1486,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../faq/" class="md-nav__link">
         
   
@@ -1223,6 +1597,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#mental-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mental Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-decision-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command Decision Table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#search" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1234,10 +1630,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#grep" class="md-nav__link">
+  <a href="#locate-exact-hits" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Grep
+        Locate Exact Hits
       
     </span>
   </a>
@@ -1245,10 +1641,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#browse" class="md-nav__link">
+  <a href="#reopen-file-like-hits" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Browse
+        Reopen File-Like Hits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reopen-structured-hits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reopen Structured Hits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#browse-when-search-is-weak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browse When Search Is Weak
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#weak-result-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weak-Result Recovery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Recovery
       
     </span>
   </a>
@@ -1276,30 +1716,499 @@
 
 
 <h1 id="search-and-browse">Search and Browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h1>
-<p>MFS is designed around a simple agent loop:</p>
-<ol>
-<li>Search broadly for candidates.</li>
-<li>Browse the candidate neighborhood.</li>
-<li>Read exact content before answering or editing.</li>
-</ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;where is connector auth configured&quot;</span><span class="w"> </span>.<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>ls<span class="w"> </span>./server/python/src/mfs_server/connectors
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./server/python/src/mfs_server/server/connector_schemas.py<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:120
+<p>Use MFS as a daily search-to-read loop:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>search candidates -&gt; locate exact evidence -&gt; browse/read narrowly
 </code></pre></div>
+<p>The important rule is that search results are starting points, not evidence.
+Always reopen the result with <code>cat</code>, <code>head</code>, <code>tail</code>, or <code>export</code> before you
+quote, summarize, edit, or make a decision.</p>
+<p>Related references:</p>
+<ul>
+<li><a href="../cli/">CLI</a> for the full command surface.</li>
+<li><a href="../api/">HTTP API</a> for direct <code>/v1</code> integration.</li>
+<li><a href="../connectors/">Connectors</a> for source-specific reference pages.</li>
+<li><a href="../content-model/">Content Model</a> for <code>source</code>, <code>locator</code>,
+  <code>metadata.fields</code>, chunk kinds, and search status vocabulary.</li>
+<li><a href="../providers/">Providers and Processing</a> for embedding, summary, VLM, and
+  converter behavior behind indexing and semantic search.</li>
+<li><a href="../troubleshooting/">Troubleshooting</a> for ingest and indexing failures.</li>
+<li><a href="../errors/">Error Codes</a> for the full code-to-recovery matrix.</li>
+</ul>
+<h2 id="mental-model">Mental Model<a class="headerlink" href="#mental-model" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Goal</th>
+<th>Primary command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Search</td>
+<td>Find likely files, rows, threads, or records from indexed content.</td>
+<td><code>mfs search</code></td>
+</tr>
+<tr>
+<td>Locate</td>
+<td>Capture <code>source</code> plus <code>locator</code> from JSON results so you can reopen the exact hit.</td>
+<td><code>mfs search --json</code> or <code>mfs grep --json</code></td>
+</tr>
+<tr>
+<td>Browse</td>
+<td>Read only the relevant object, range, record, or neighborhood.</td>
+<td><code>mfs cat</code>, <code>mfs head</code>, <code>mfs tail</code>, <code>mfs ls</code>, <code>mfs tree</code></td>
+</tr>
+</tbody>
+</table>
+<p>Use paths exactly as MFS returns them. A <code>source</code> from search is an object URI
+that can be fed back to <code>cat</code>, <code>head</code>, <code>tail</code>, or <code>export</code>.</p>
+<h2 id="command-decision-table">Command Decision Table<a class="headerlink" href="#command-decision-table" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Command</th>
+<th>Flags that matter</th>
+<th>Use it when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Find candidates by meaning or mixed semantic/keyword signal</td>
+<td><code>mfs search QUERY PATH</code></td>
+<td><code>--mode hybrid</code>, <code>--mode semantic</code>, <code>--mode keyword</code>, <code>--top-k N</code>, <code>--kind kind1,kind2</code>, <code>--collapse</code></td>
+<td>You know what you need, but not the exact file, row, or wording.</td>
+</tr>
+<tr>
+<td>Search every registered source</td>
+<td><code>mfs search QUERY --all</code></td>
+<td>Same search flags</td>
+<td>You do not know which source contains the answer. Use this sparingly; scoped paths are easier to verify.</td>
+</tr>
+<tr>
+<td>Find an exact literal pattern</td>
+<td><code>mfs grep PATTERN PATH</code></td>
+<td><code>--json</code></td>
+<td>The spelling matters, or search results are weak while browse still works.</td>
+</tr>
+<tr>
+<td>List one directory/object container</td>
+<td><code>mfs ls PATH</code></td>
+<td><code>--json</code></td>
+<td>You need child paths, object types, media hints, and per-entry index state.</td>
+</tr>
+<tr>
+<td>Walk a subtree</td>
+<td><code>mfs tree PATH -L N</code></td>
+<td><code>-L N</code>, <code>--depth N</code></td>
+<td>You need orientation before narrowing to one object.</td>
+</tr>
+<tr>
+<td>Read an object</td>
+<td><code>mfs cat PATH</code></td>
+<td><code>--range A:B</code>, <code>--locator JSON</code>, <code>--meta</code>, <code>--peek</code>, <code>--skim</code></td>
+<td>You have a candidate source and need exact evidence.</td>
+</tr>
+<tr>
+<td>Reopen text/code hits</td>
+<td><code>mfs cat SOURCE --range A:B</code></td>
+<td><code>--locator '{"lines":[A,B]}'</code> also works</td>
+<td>Search or grep returned a line locator.</td>
+</tr>
+<tr>
+<td>Reopen structured hits</td>
+<td><code>mfs cat SOURCE --locator JSON</code></td>
+<td>Pass the locator JSON back verbatim</td>
+<td>Search returned a database row, issue, message, or other structured-record locator.</td>
+</tr>
+<tr>
+<td>Read only the start or end</td>
+<td><code>mfs head PATH -n N</code>, <code>mfs tail PATH -n N</code></td>
+<td><code>-n N</code>, <code>--lines N</code></td>
+<td>The object is large, or you need a quick shape check.</td>
+</tr>
+<tr>
+<td>Save full content outside the prompt</td>
+<td><code>mfs export PATH OUT</code></td>
+<td>none</td>
+<td><code>cat</code> is too large, or you need the whole object in a local file.</td>
+</tr>
+<tr>
+<td>Keep machine-readable output</td>
+<td><code>mfs --json &lt;command&gt; ...</code></td>
+<td>global <code>--json</code></td>
+<td>You need <code>source</code>, <code>locator</code>, <code>metadata</code>, <code>via</code>, <code>search_status</code>, or raw API fields.</td>
+</tr>
+</tbody>
+</table>
+<p><code>--json</code> is global. Current search, grep, <code>ls</code>, tree, cat, head, tail, and
+<code>mfs job list</code> commands print raw JSON when it is present. <code>mfs status</code> already
+prints JSON. <code>mfs export PATH OUT</code> writes the full object to <code>OUT</code> and prints a
+short confirmation.</p>
 <h2 id="search">Search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h2>
-<p>Use search when the user's wording may not match exact filenames or tokens.
-The server can combine semantic retrieval, keyword retrieval, and metadata
-filters depending on the source and query.</p>
-<h2 id="grep">Grep<a class="headerlink" href="#grep" title="Permanent link">&para;</a></h2>
-<p>Use grep when the literal term matters:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;MFS_API_TOKEN&quot;</span><span class="w"> </span>.
+<p><code>mfs search</code> queries indexed chunks. The CLI requires either a scoped <code>PATH</code> or
+<code>--all</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;rate limit handler&quot;</span><span class="w"> </span>./server<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;where is the retry budget documented&quot;</span><span class="w"> </span>--all<span class="w"> </span>--top-k<span class="w"> </span><span class="m">20</span>
 </code></pre></div>
-<p>For local code editing, <code>rg</code> is still the best first tool when you already know
-the exact token. MFS grep matters most when the search spans indexed sources or
-remote connectors.</p>
-<h2 id="browse">Browse<a class="headerlink" href="#browse" title="Permanent link">&para;</a></h2>
-<p><code>ls</code>, <code>tree</code>, and <code>cat</code> are verification tools. They let an agent inspect
-context without reading whole corpora into its prompt.</p>
+<p>Search modes:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Command</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hybrid</td>
+<td><code>mfs search "query" PATH --mode hybrid</code></td>
+<td>Default. Combines semantic and keyword retrieval.</td>
+</tr>
+<tr>
+<td>Semantic</td>
+<td><code>mfs search "query" PATH --mode semantic</code></td>
+<td>Uses embedding similarity for wording that may not match exactly.</td>
+</tr>
+<tr>
+<td>Keyword</td>
+<td><code>mfs search "query" PATH --mode keyword</code></td>
+<td>Uses the sparse/BM25 path for exact terms, identifiers, and names.</td>
+</tr>
+</tbody>
+</table>
+<p>Useful search flags:</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Example</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--top-k</code></td>
+<td><code>--top-k 25</code></td>
+<td>Ask for more candidates before giving up on the query.</td>
+</tr>
+<tr>
+<td><code>--kind</code></td>
+<td><code>--kind row_text,schema_summary</code></td>
+<td>Restrict search to comma-separated chunk kinds.</td>
+</tr>
+<tr>
+<td><code>--collapse</code></td>
+<td><code>--collapse</code></td>
+<td>Keep only the first hit per <code>source</code> object when many chunks from one object dominate results.</td>
+</tr>
+<tr>
+<td><code>--all</code></td>
+<td><code>mfs search "quota" --all</code></td>
+<td>Search the whole namespace instead of one path.</td>
+</tr>
+</tbody>
+</table>
+<p>Start scoped whenever possible. A good daily loop is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;connector auth config&quot;</span><span class="w"> </span>./server<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span><span class="w"> </span>--json
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>file://local/path/to/repo/server/python/src/mfs_server/server/connector_schemas.py<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:120
+</code></pre></div>
+<h2 id="locate-exact-hits">Locate Exact Hits<a class="headerlink" href="#locate-exact-hits" title="Permanent link">&para;</a></h2>
+<p>Use <code>--json</code> when you intend to reopen evidence. Search returns:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;results&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">      </span><span class="nt">&quot;source&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;file://local/path/to/repo/src/throttle.go&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="nt">&quot;content&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;func retryWithBudget(ctx context.Context, budget Budget) { ...&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="nt">&quot;score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.82</span><span class="p">,</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">&quot;locator&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;lines&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="mi">78</span><span class="p">]},</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">      </span><span class="nt">&quot;metadata&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;search&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="nt">&quot;chunk_kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;body&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="nt">&quot;fields&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">  </span><span class="p">]</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+<th>What to do with it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source</code></td>
+<td>Object URI.</td>
+<td>Feed it to <code>cat</code>, <code>head</code>, <code>tail</code>, or <code>export</code>.</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td>Snippet from the hit.</td>
+<td>Use only as a preview; reopen before relying on it.</td>
+</tr>
+<tr>
+<td><code>score</code></td>
+<td>Ranking score, when available.</td>
+<td>Treat very low scores as weak candidates.</td>
+</tr>
+<tr>
+<td><code>locator</code></td>
+<td>Per-hit identity.</td>
+<td>Reopen with <code>cat --range</code> or <code>cat --locator</code>.</td>
+</tr>
+<tr>
+<td><code>metadata.chunk_kind</code></td>
+<td>Chunk type such as <code>body</code>, <code>row_text</code>, <code>schema_summary</code>, <code>thread_aggregate</code>, or other indexed kinds.</td>
+<td>Use with <code>--kind</code> to narrow later searches.</td>
+</tr>
+<tr>
+<td><code>metadata.fields</code></td>
+<td>Connector-provided business fields.</td>
+<td>Use for quick filtering before opening the object.</td>
+</tr>
+</tbody>
+</table>
+<p>Grep JSON is smaller:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;results&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">      </span><span class="nt">&quot;source&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;file://local/path/to/repo/src/throttle.go&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">      </span><span class="nt">&quot;locator&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;lines&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">44</span><span class="p">,</span><span class="w"> </span><span class="mi">44</span><span class="p">]},</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="nt">&quot;content&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;retryWithBudget(ctx, budget)&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">      </span><span class="nt">&quot;via&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;linear&quot;</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="p">]</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>via</code> can identify how grep found the match, for example pushdown, BM25, linear
+scan, or a notice.</p>
+<h2 id="reopen-file-like-hits">Reopen File-Like Hits<a class="headerlink" href="#reopen-file-like-hits" title="Permanent link">&para;</a></h2>
+<p>Text, code, and document chunks use a line locator:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span><span class="nt">&quot;lines&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="mi">78</span><span class="p">]}</span>
+</code></pre></div>
+<p>Reopen with either form:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mfs<span class="w"> </span>cat<span class="w"> </span>file://local/path/to/repo/src/throttle.go<span class="w"> </span>--range<span class="w"> </span><span class="m">42</span>:78
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>file://local/path/to/repo/src/throttle.go<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;lines&quot;:[42,78]}&#39;</span>
+</code></pre></div>
+<p><code>cat --range</code> also accepts open-ended forms:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./logs/app.log<span class="w"> </span>--range<span class="w"> </span><span class="m">200</span>:
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./logs/app.log<span class="w"> </span>--range<span class="w"> </span>:80
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./logs/app.log<span class="w"> </span>--range<span class="w"> </span><span class="m">120</span>
+</code></pre></div>
+<p>A lone start value such as <code>120</code> is treated like <code>120:</code>.</p>
+<p>For large objects, avoid bare <code>cat</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mfs<span class="w"> </span>head<span class="w"> </span>./logs/app.log<span class="w"> </span>-n<span class="w"> </span><span class="m">40</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mfs<span class="w"> </span>tail<span class="w"> </span>./logs/app.log<span class="w"> </span>--lines<span class="w"> </span><span class="m">80</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>./logs/app.log<span class="w"> </span>/tmp/app.log
+</code></pre></div>
+<h2 id="reopen-structured-hits">Reopen Structured Hits<a class="headerlink" href="#reopen-structured-hits" title="Permanent link">&para;</a></h2>
+<p>Structured connectors return locator dictionaries instead of line ranges. Do
+not infer the key names. Copy the <code>locator</code> JSON from the hit and pass it back
+to <code>cat</code>.</p>
+<p>Example structured search hit:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="p">{</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">&quot;source&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;postgres://prod/public/tickets/rows.jsonl&quot;</span><span class="p">,</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">&quot;content&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;title: Login broken after SSO migration\nstatus: open&quot;</span><span class="p">,</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">&quot;score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.84</span><span class="p">,</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">  </span><span class="nt">&quot;locator&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">12345</span><span class="p">},</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="nt">&quot;metadata&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;search&quot;</span><span class="p">,</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">    </span><span class="nt">&quot;chunk_kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;row_text&quot;</span><span class="p">,</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="nt">&quot;fields&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;open&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;priority&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;high&quot;</span><span class="p">}</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="p">}</span>
+</code></pre></div>
+<p>Reopen the exact row:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod/public/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
+</code></pre></div>
+<p>Composite locators are also passed verbatim:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod/public/memberships/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;org_id&quot;:7,&quot;user_id&quot;:999}&#39;</span>
+</code></pre></div>
+<p>Other structured locator shapes can include issue numbers, message IDs, or
+thread keys, depending on the connector and object. The daily rule is the same:
+copy <code>locator</code> from the JSON hit; do not rewrite it from memory.</p>
+<h2 id="browse-when-search-is-weak">Browse When Search Is Weak<a class="headerlink" href="#browse-when-search-is-weak" title="Permanent link">&para;</a></h2>
+<p>Search depends on indexed chunks. Browse commands do not. Grep sits between
+them: it can use connector pushdown when available, BM25 over indexed content,
+and a bounded linear scan over <code>not_indexed</code> objects in scope.</p>
+<p>Use <code>mfs ls PATH --json</code> to inspect per-entry state:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mfs<span class="w"> </span>ls<span class="w"> </span>./server<span class="w"> </span>--json
+</code></pre></div>
+<p>Current <code>ls</code> entries expose <code>search_status</code> as <code>indexed</code>, <code>partial</code>,
+<code>not_indexed</code>, or <code>null</code> when the object has not been recorded. The error
+references also define source-level search availability values: <code>available</code>,
+<code>partial</code>, <code>building</code>, and <code>unavailable</code>. Treat those as source-level
+availability when a status surface reports them, not as <code>ls</code> entry values.</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>What it means for search</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>available</code> or <code>indexed</code></td>
+<td>Search should be usable for that source/object.</td>
+<td>Use <code>mfs search</code>, then reopen with <code>cat --range</code> or <code>cat --locator</code>.</td>
+</tr>
+<tr>
+<td><code>partial</code></td>
+<td>Search can return results, but recall may be incomplete.</td>
+<td>Increase <code>--top-k</code>, use <code>--collapse</code>, verify with <code>grep</code>, and browse exact paths.</td>
+</tr>
+<tr>
+<td><code>building</code></td>
+<td>Indexing is in progress. Results may be missing or changing.</td>
+<td>Use <code>mfs grep PATTERN PATH</code>, <code>mfs ls</code>, <code>mfs tree</code>, <code>mfs cat</code>, and check <code>mfs job list</code>.</td>
+</tr>
+<tr>
+<td><code>unavailable</code></td>
+<td>No searchable index is available for that source.</td>
+<td>Use <code>grep</code>, <code>ls</code>, <code>tree</code>, <code>cat</code>, <code>head</code>, <code>tail</code>, or <code>export</code>; fix ingest separately.</td>
+</tr>
+<tr>
+<td><code>not_indexed</code></td>
+<td>The object is known but has no chunks. Search will not find it.</td>
+<td>Use <code>grep</code> for exact terms and <code>cat</code>/<code>head</code>/<code>tail</code> for direct reading. Narrow the path if grep returns a linear-scan notice.</td>
+</tr>
+<tr>
+<td><code>null</code></td>
+<td>The entry is visible from the source but has no object metadata row.</td>
+<td>Browse it directly, then check ingest or path scope if it should be searchable.</td>
+</tr>
+</tbody>
+</table>
+<p>Check indexing work:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mfs<span class="w"> </span>status
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>mfs<span class="w"> </span>job<span class="w"> </span>list
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>&lt;job_id&gt;
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>mfs<span class="w"> </span>job<span class="w"> </span>cancel<span class="w"> </span>&lt;job_id&gt;
+</code></pre></div>
+<h2 id="weak-result-recovery">Weak-Result Recovery<a class="headerlink" href="#weak-result-recovery" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Try this</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No candidates</td>
+<td><code>mfs search "query" PATH --top-k 25</code></td>
+<td>The right hit may be below the default top 10.</td>
+</tr>
+<tr>
+<td>Search is too fuzzy</td>
+<td><code>mfs search "exact identifier" PATH --mode keyword</code></td>
+<td>Keyword mode favors literal terms.</td>
+</tr>
+<tr>
+<td>Exact token missing</td>
+<td><code>mfs grep "ExactToken" PATH --json</code></td>
+<td>Grep is the right tool for exact strings.</td>
+</tr>
+<tr>
+<td>One file/object dominates results</td>
+<td><code>mfs search "query" PATH --collapse</code></td>
+<td>Collapse keeps one hit per source object.</td>
+</tr>
+<tr>
+<td>Wrong chunk type</td>
+<td><code>mfs search "query" PATH --kind schema_summary</code></td>
+<td>Kind filters remove irrelevant chunks. Use the chunk kinds shown in prior JSON hits or connector docs.</td>
+</tr>
+<tr>
+<td>Scope is too broad</td>
+<td><code>mfs tree PATH -L 3</code>, then search a child path</td>
+<td>Narrow paths reduce noise and make verification faster.</td>
+</tr>
+<tr>
+<td>Hit preview looks right but evidence is unclear</td>
+<td><code>mfs search "query" PATH --json</code>, then <code>mfs cat SOURCE --locator JSON</code></td>
+<td>Locator reopens the exact text range or structured record.</td>
+</tr>
+<tr>
+<td>Bare <code>cat</code> fails on size</td>
+<td><code>mfs head PATH -n 40</code>, <code>mfs cat PATH --range A:B</code>, or <code>mfs export PATH OUT</code></td>
+<td>These avoid reading a huge object into the prompt.</td>
+</tr>
+<tr>
+<td><code>cat --locator</code> returns <code>locator_not_found</code></td>
+<td>Re-run search and use the new locator.</td>
+<td>Structured records can change after indexing.</td>
+</tr>
+<tr>
+<td><code>ls --json</code> shows <code>not_indexed</code></td>
+<td><code>mfs grep "term" PATH</code>, <code>mfs head PATH -n 20</code>, or <code>mfs cat PATH --range A:B</code></td>
+<td>Search cannot find chunks that do not exist.</td>
+</tr>
+<tr>
+<td>Status is <code>building</code></td>
+<td><code>mfs job list</code>, <code>mfs job show &lt;job_id&gt;</code>, and browse with <code>grep</code>/<code>cat</code> meanwhile</td>
+<td>The index is still changing.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="error-recovery">Error Recovery<a class="headerlink" href="#error-recovery" title="Permanent link">&para;</a></h2>
+<p>When commands fail, JSON errors use a stable <code>code</code>, human <code>detail</code>, and
+optional <code>suggestions</code>. Act on <code>code</code> first. See
+<a href="../errors/">Error Codes</a> for the full matrix.</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Usually means</th>
+<th>Recovery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>object_too_large_for_cat</code></td>
+<td>Bare <code>cat</code> would read too much.</td>
+<td>Use <code>head</code>, <code>cat --range</code>, or <code>export</code>.</td>
+</tr>
+<tr>
+<td><code>is_directory</code></td>
+<td>You tried to <code>cat</code> a directory/container.</td>
+<td>Use <code>ls</code> or <code>tree</code>.</td>
+</tr>
+<tr>
+<td><code>range_unsupported</code></td>
+<td>The object cannot serve that range.</td>
+<td>Use <code>cat --meta</code> or <code>export</code>.</td>
+</tr>
+<tr>
+<td><code>density_unsupported</code></td>
+<td><code>--peek</code> or <code>--skim</code> was used on a structured object.</td>
+<td>Use <code>head</code> or <code>cat --range</code>.</td>
+</tr>
+<tr>
+<td><code>locator_not_found</code></td>
+<td>The structured record key is not present now.</td>
+<td>Re-search and pass the fresh locator.</td>
+</tr>
+<tr>
+<td><code>not_found</code></td>
+<td>Path, object, or job was not found.</td>
+<td>Check the URI from <code>source</code>, <code>path</code>, or the job ID.</td>
+</tr>
+</tbody>
+</table>
+<p><code>--peek</code> and <code>--skim</code> are density views for document/code-style objects:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./docs/architecture.md<span class="w"> </span>--peek
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./docs/architecture.md<span class="w"> </span>--skim
+</code></pre></div>
+<p>For structured records, prefer <code>head</code>, <code>cat --range</code>, or <code>cat --locator</code>.</p>
 
 
 

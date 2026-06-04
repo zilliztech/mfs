@@ -13,10 +13,10 @@
         <link rel="canonical" href="https://zilliztech.github.io/mfs/configuration/">
       
       
-        <link rel="prev" href="../getting-started/">
+        <link rel="prev" href="../examples/">
       
       
-        <link rel="next" href="../deployment/">
+        <link rel="next" href="../auth-and-secrets/">
       
       
         
@@ -257,7 +257,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../server/" class="md-tabs__link">
+        <a href="../content-model/" class="md-tabs__link">
           
   
   
@@ -277,7 +277,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../faq/" class="md-tabs__link">
+        <a href="../errors/" class="md-tabs__link">
           
   
   
@@ -490,7 +490,7 @@
   <span class="md-ellipsis">
     
   
-    Roadmap
+    Status and Limits
   
 
     
@@ -600,6 +600,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -611,6 +639,24 @@
       
         
       
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -629,6 +675,180 @@
 
       </a>
       
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#server-config-lookup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server Config Lookup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files-under-mfs_home" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files Under MFS_HOME
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setup-wizard-sections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup Wizard Sections
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#default-local-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default Local Backends
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auth-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auth Modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-overrides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Overrides
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-endpoint-and-token-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Endpoint and Token Resolution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimal-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimal Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-guides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Guides
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth-and-secrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Auth and Secrets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers and Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -649,6 +869,34 @@
     
   
     Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-and-backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage and Backup
   
 
     
@@ -784,6 +1032,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs and Indexing Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cli/" class="md-nav__link">
         
   
@@ -820,6 +1096,62 @@
     
   
     Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-config-recipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Configuration Recipes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Reference
   
 
     
@@ -919,6 +1251,62 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1098,6 +1486,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../faq/" class="md-nav__link">
         
   
@@ -1146,6 +1590,113 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#server-config-lookup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server Config Lookup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files-under-mfs_home" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files Under MFS_HOME
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setup-wizard-sections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup Wizard Sections
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#default-local-backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default Local Backends
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auth-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auth Modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-overrides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Overrides
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli-endpoint-and-token-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI Endpoint and Token Resolution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#minimal-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Minimal Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-guides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Guides
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1165,51 +1716,617 @@
 
 
 <h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
-<p>MFS has separate configuration concerns for the CLI and the server.</p>
-<p>The server configuration is written by:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup
-</code></pre></div>
-<p>The setup wizard covers the main backend choices:</p>
+<p>MFS has two configuration surfaces:</p>
 <ul>
-<li>embedding provider</li>
-<li>vision model provider</li>
-<li>Milvus or Zilliz Cloud connection</li>
-<li>metadata database</li>
-<li>cache and object storage</li>
-<li>API auth</li>
-<li>connector defaults</li>
+<li>the Python server configures storage, embeddings, auth, indexing, and cache
+  backends;</li>
+<li>the Rust CLI configures the target endpoint, client identity, profiles, and
+  bearer token source.</li>
 </ul>
-<p>By default, the development server can run with local components: ONNX
-embeddings, Milvus Lite, SQLite, local cache storage, and an auto-generated
-bearer token.</p>
-<p>Common environment variables:</p>
+<p>Use this page when you need to answer "which value wins?" before changing a
+deployment. For first-run commands, start with <a href="../getting-started/">Quickstart</a>.
+For a compact process-to-token map and first auth recovery commands, see
+<a href="../auth-and-secrets/">Auth and Secrets</a>.
+For container and Helm topology details, see <a href="../deployment/">Deployment</a>.
+For embedding, summary, VLM, and conversion provider choices, see
+<a href="../providers/">Providers and Processing</a>.
+For backup, restore, and safe reset boundaries, see
+<a href="../storage-and-backup/">Storage and Backup</a>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs CLI
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  endpoint: MFS_API_URL -&gt; active profile -&gt; http://127.0.0.1:13619
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  token:    MFS_API_TOKEN -&gt; active profile token -&gt; $MFS_HOME/server.token
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>      |
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>      v
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>mfs-server /v1
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  config: --config -&gt; MFS_SERVER_CONFIG -&gt; ./server.toml
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>          -&gt; $MFS_HOME/server.toml -&gt; ~/.mfs/server.toml
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>          -&gt; /etc/mfs/server.toml -&gt; built-in defaults
+</code></pre></div>
+<h2 id="server-config-lookup">Server Config Lookup<a class="headerlink" href="#server-config-lookup" title="Permanent link">&para;</a></h2>
+<p><code>mfs-server run</code>, <code>mfs-server api</code>, <code>mfs-server worker</code>, and <code>mfs-server reload</code>
+load server settings through <code>load_server_config</code>. The first existing file in
+this chain wins:</p>
 <table>
 <thead>
 <tr>
-<th>Variable</th>
+<th>Priority</th>
+<th>Source</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>--config PATH</code></td>
+<td>Supported by <code>mfs-server run</code>, <code>api</code>, <code>worker</code>, and <code>reload</code>.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>MFS_SERVER_CONFIG</code></td>
+<td>Server-side environment override for the config file path.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>./server.toml</code></td>
+<td>Relative to the current working directory of the server process.</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>$MFS_HOME/server.toml</code></td>
+<td>Checked when <code>MFS_HOME</code> is set. This is the wizard's default write target.</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>~/.mfs/server.toml</code></td>
+<td>Default user-level server config when <code>MFS_HOME</code> is not set.</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>/etc/mfs/server.toml</code></td>
+<td>System-level fallback.</td>
+</tr>
+<tr>
+<td>7</td>
+<td>built-in defaults</td>
+<td>Local ONNX, Milvus Lite, SQLite, local artifact cache, auth token bootstrap.</td>
+</tr>
+</tbody>
+</table>
+<p><code>MFS_HOME</code> defaults to <code>~/.mfs</code>. The server creates that directory when it
+resolves config defaults.</p>
+<div class="admonition note">
+<p class="admonition-title">Environment overrides still apply</p>
+<p>After the server loads TOML and resolves default paths, selected environment
+variables can override runtime fields. See <a href="#environment-overrides">Environment Overrides</a>.</p>
+</div>
+<h2 id="files-under-mfs_home">Files Under <code>MFS_HOME</code><a class="headerlink" href="#files-under-mfs_home" title="Permanent link">&para;</a></h2>
+<p>The same root is used by the local server and local CLI defaults. In a source
+run it defaults to <code>~/.mfs</code>; the Docker image and Compose setup use <code>/data</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Owner</th>
+<th>Created by</th>
 <th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>MFS_HOME</code></td>
-<td>Server or client state root.</td>
+<td><code>$MFS_HOME/server.toml</code></td>
+<td>Server</td>
+<td><code>mfs-server setup</code> by default</td>
+<td>Server backend, auth, cache, embedding, and search settings.</td>
 </tr>
 <tr>
-<td><code>MFS_API_URL</code></td>
-<td>CLI target server URL.</td>
+<td><code>$MFS_HOME/server.token</code></td>
+<td>Server and local CLI</td>
+<td><code>mfs-server setup</code> in auto auth mode, or <code>mfs-server run</code> / <code>api</code> when no token exists</td>
+<td>Bearer token for local CLI fallback and direct HTTP clients that can read it.</td>
+</tr>
+<tr>
+<td><code>$MFS_HOME/client.toml</code></td>
+<td>CLI</td>
+<td><code>mfs profile add</code>, <code>mfs profile use</code>, or first <code>client_id</code> generation</td>
+<td>Active profile, profile endpoints, profile tokens, and stable client id.</td>
+</tr>
+<tr>
+<td><code>$MFS_HOME/metadata.db</code></td>
+<td>Server</td>
+<td>Server defaults when SQLite is used</td>
+<td>Connector registry, object metadata, jobs, and related metadata.</td>
+</tr>
+<tr>
+<td><code>$MFS_HOME/transformation_cache.db</code></td>
+<td>Server</td>
+<td>Server defaults when SQLite transformation cache is used</td>
+<td>Transformation-cache lookup table.</td>
+</tr>
+<tr>
+<td><code>$MFS_HOME/cache</code></td>
+<td>Server</td>
+<td>Server defaults when local artifact cache is used</td>
+<td>Derived artifact blobs such as converted document text or image descriptions.</td>
+</tr>
+<tr>
+<td><code>$MFS_HOME/milvus.db</code></td>
+<td>Server</td>
+<td>Server defaults when no remote Milvus URI is configured</td>
+<td>Milvus Lite vector database.</td>
+</tr>
+<tr>
+<td><code>$MFS_HOME/onnx-cache/</code></td>
+<td>Server embedding provider</td>
+<td>First local ONNX embedding run</td>
+<td>Cached ONNX model files for <code>gpahal/bge-m3-onnx-int8</code>.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Persist this directory</p>
+<p>In containers, mount <code>/data</code> to a durable volume. Otherwise the server
+loses SQLite state, Milvus Lite data, caches, and the generated bearer
+token when the container is removed.</p>
+</div>
+<h2 id="setup-wizard-sections">Setup Wizard Sections<a class="headerlink" href="#setup-wizard-sections" title="Permanent link">&para;</a></h2>
+<p>Run the full server wizard:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup
+</code></pre></div>
+<p>Run a single section later:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>embedding
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>auth
+</code></pre></div>
+<p>Write and run a specific config file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--config<span class="w"> </span>/tmp/mfs-server.toml
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run<span class="w"> </span>--config<span class="w"> </span>/tmp/mfs-server.toml
+</code></pre></div>
+<p>The wizard walks these sections in order:</p>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>TOML fields</th>
+<th>Default behavior</th>
+<th>When to change it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>embedding</code></td>
+<td><code>[embedding] provider</code>, <code>model</code>, <code>dim</code></td>
+<td>Local ONNX provider, <code>gpahal/bge-m3-onnx-int8</code>, 1024 dimensions.</td>
+<td>Use hosted or local alternatives when you have the required extra dependencies and credentials.</td>
+</tr>
+<tr>
+<td><code>vlm</code></td>
+<td><code>[summary] enabled</code>, <code>include_image_desc</code>, <code>provider</code>, <code>model</code>; <code>[vlm] provider</code>, <code>model</code></td>
+<td>Off by default. Image objects can be listed without generating image summaries.</td>
+<td>Enable when you need image descriptions in the searchable index and accept the provider cost.</td>
+</tr>
+<tr>
+<td><code>milvus</code></td>
+<td><code>[milvus] uri</code>, <code>token</code></td>
+<td>Milvus Lite under <code>$MFS_HOME/milvus.db</code>.</td>
+<td>Set an HTTP(S) URI for Milvus or Zilliz Cloud.</td>
+</tr>
+<tr>
+<td><code>database</code></td>
+<td><code>[database] backend</code>, <code>dsn</code></td>
+<td>SQLite. The same backend feeds metadata and the transformation-cache lookup table.</td>
+<td>Use Postgres when multiple server processes need shared relational state.</td>
+</tr>
+<tr>
+<td><code>cache</code></td>
+<td><code>[artifact_cache] backend</code>, <code>root</code>, S3-compatible fields</td>
+<td>Local filesystem under <code>$MFS_HOME/cache</code>.</td>
+<td>Use S3, MinIO, R2, or GCS-compatible storage for shared artifact blobs.</td>
+</tr>
+<tr>
+<td><code>auth</code></td>
+<td>top-level <code>auth_token</code></td>
+<td>Auto mode omits <code>auth_token</code> in TOML and creates or reuses <code>server.token</code>.</td>
+<td>Provide a known token, or set <code>-</code> only for an intentionally open trusted network.</td>
+</tr>
+</tbody>
+</table>
+<details class="note">
+<summary>Advanced and legacy TOML blocks</summary>
+<p><code>metadata.backend</code> / <code>metadata.dsn</code> and <code>transformation_cache.backend</code> /
+<code>transformation_cache.dsn</code> can override the unified <code>[database]</code> block for
+power users. Existing legacy TOML that used older <code>[metadata]</code>,
+<code>[transformation_cache]</code>, or <code>[object_store]</code> blocks is migrated in memory
+when the server loads config.</p>
+</details>
+<h2 id="default-local-backends">Default Local Backends<a class="headerlink" href="#default-local-backends" title="Permanent link">&para;</a></h2>
+<p>With no TOML file and no runtime overrides, the server resolves to local
+backends:</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Home</td>
+<td><code>~/.mfs</code>, unless <code>MFS_HOME</code> is set.</td>
+</tr>
+<tr>
+<td>API bind address</td>
+<td><code>127.0.0.1:13619</code> for <code>mfs-server run</code> and <code>api</code>.</td>
+</tr>
+<tr>
+<td>Namespace</td>
+<td><code>default</code>.</td>
+</tr>
+<tr>
+<td>Embedding</td>
+<td>ONNX provider, <code>gpahal/bge-m3-onnx-int8</code>, 1024 dimensions, batch size 100.</td>
+</tr>
+<tr>
+<td>VLM and summaries</td>
+<td>Directory summaries and image descriptions are off by default.</td>
+</tr>
+<tr>
+<td>Vector database</td>
+<td>Milvus Lite at <code>$MFS_HOME/milvus.db</code>.</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>SQLite for metadata and the transformation-cache lookup table.</td>
+</tr>
+<tr>
+<td>Metadata SQLite path</td>
+<td><code>$MFS_HOME/metadata.db</code>.</td>
+</tr>
+<tr>
+<td>Transformation cache SQLite path</td>
+<td><code>$MFS_HOME/transformation_cache.db</code>.</td>
+</tr>
+<tr>
+<td>Artifact cache</td>
+<td>Local filesystem at <code>$MFS_HOME/cache</code>, <code>max_size_gb = 10.0</code>, <code>eviction = "lru"</code>.</td>
+</tr>
+<tr>
+<td>Worker</td>
+<td><code>in_process = true</code>, <code>concurrency = "auto"</code>, <code>max_retries = 3</code>.</td>
+</tr>
+<tr>
+<td>Chunking</td>
+<td><code>default_chunk_max = 1000000</code>, <code>chunk_size = 2048</code>.</td>
+</tr>
+<tr>
+<td>Search</td>
+<td><code>over_fetch_ratio = 3</code>, <code>max_partitions_per_query = 32</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="auth-modes">Auth Modes<a class="headerlink" href="#auth-modes" title="Permanent link">&para;</a></h2>
+<p><code>/v1</code> endpoints require <code>Authorization: Bearer &lt;token&gt;</code> when <code>auth_token</code> is
+configured. <code>GET /healthz</code> is exempt so health probes work without secrets.</p>
+<table>
+<thead>
+<tr>
+<th>Server-side mode</th>
+<th>How to configure</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Auto token</td>
+<td>Omit <code>auth_token</code> in <code>server.toml</code>, or choose auto in the wizard.</td>
+<td><code>mfs-server setup</code> or <code>mfs-server run</code> / <code>api</code> creates or reuses <code>$MFS_HOME/server.token</code>.</td>
+</tr>
+<tr>
+<td>Known token</td>
+<td>Set <code>auth_token = "..."</code> in TOML, or set <code>MFS_API_TOKEN</code> in the server environment.</td>
+<td>The server expects that token on <code>/v1</code> requests.</td>
+</tr>
+<tr>
+<td>Explicitly open</td>
+<td>Set <code>auth_token = "-"</code> in TOML.</td>
+<td><code>mfs-server run</code> / <code>api</code> converts it to no auth. Use only for trusted or isolated networks.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Token names have client and server meanings</p>
+<p><code>MFS_API_TOKEN</code> is both a server-side runtime override for <code>auth_token</code> and
+the CLI's highest-priority bearer token source. For remote or container
+servers, set the same value on the server and on every client that should
+call <code>/v1</code>.</p>
+</div>
+<h2 id="environment-overrides">Environment Overrides<a class="headerlink" href="#environment-overrides" title="Permanent link">&para;</a></h2>
+<p>These variables are read by the current server or CLI code. Runtime overrides
+apply after TOML is loaded and default paths are resolved.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Read by</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MFS_HOME</code></td>
+<td>Server and CLI</td>
+<td>Sets the root for <code>server.toml</code>, <code>server.token</code>, <code>client.toml</code>, SQLite files, local cache, Milvus Lite, and ONNX cache.</td>
+</tr>
+<tr>
+<td><code>MFS_SERVER_CONFIG</code></td>
+<td>Server</td>
+<td>Adds a config-file lookup path after <code>--config</code>.</td>
 </tr>
 <tr>
 <td><code>MFS_API_TOKEN</code></td>
-<td>Bearer token used by the CLI and SDKs.</td>
+<td>Server and CLI</td>
+<td>Server: overrides <code>auth_token</code>. CLI: highest-priority bearer token source.</td>
 </tr>
 <tr>
-<td><code>ZILLIZ_URI</code> / <code>ZILLIZ_TOKEN</code></td>
-<td>Managed Milvus backend.</td>
+<td><code>MFS_API_URL</code></td>
+<td>CLI</td>
+<td>Highest-priority endpoint source.</td>
+</tr>
+<tr>
+<td><code>MFS_SUMMARY_ENABLED</code></td>
+<td>Server</td>
+<td>Sets <code>summary.enabled</code>. Truthy values are <code>1</code>, <code>true</code>, <code>yes</code>, and <code>on</code>.</td>
+</tr>
+<tr>
+<td><code>MILVUS_URI</code></td>
+<td>Server</td>
+<td>Primary Milvus or Zilliz Cloud URI override.</td>
+</tr>
+<tr>
+<td><code>MILVUS_TOKEN</code></td>
+<td>Server</td>
+<td>Primary Milvus or Zilliz token override.</td>
+</tr>
+<tr>
+<td><code>ZILLIZ_URI</code></td>
+<td>Server</td>
+<td>Fallback URI when <code>MILVUS_URI</code> is unset.</td>
+</tr>
+<tr>
+<td><code>ZILLIZ_TOKEN</code></td>
+<td>Server</td>
+<td>Fallback token when <code>MILVUS_TOKEN</code> is unset.</td>
+</tr>
+<tr>
+<td><code>ZILLIZ_API_KEY</code></td>
+<td>Server</td>
+<td>Additional fallback token when <code>MILVUS_TOKEN</code> and <code>ZILLIZ_TOKEN</code> are unset.</td>
+</tr>
+<tr>
+<td><code>MFS_METADATA_DSN</code></td>
+<td>Server</td>
+<td>Switches the unified database backend to Postgres and applies the DSN to metadata.</td>
+</tr>
+<tr>
+<td><code>MFS_TX_CACHE_DSN</code></td>
+<td>Server</td>
+<td>Optional transformation-cache Postgres DSN.</td>
+</tr>
+<tr>
+<td><code>MFS_TX_CACHE_PG</code></td>
+<td>Server</td>
+<td>Enables Postgres for transformation cache when paired with <code>MFS_TX_CACHE_DSN</code> or <code>MFS_METADATA_DSN</code>.</td>
+</tr>
+<tr>
+<td><code>MFS_OBJECT_STORE_BUCKET</code></td>
+<td>Server</td>
+<td>Switches artifact cache to S3-compatible storage and sets the bucket.</td>
+</tr>
+<tr>
+<td><code>MFS_OBJECT_STORE_ENDPOINT</code></td>
+<td>Server</td>
+<td>Sets S3-compatible endpoint URL when object-store bucket is configured.</td>
+</tr>
+<tr>
+<td><code>MFS_OBJECT_STORE_REGION</code></td>
+<td>Server</td>
+<td>Sets S3-compatible region when object-store bucket is configured.</td>
+</tr>
+<tr>
+<td><code>MFS_OBJECT_STORE_PREFIX</code></td>
+<td>Server</td>
+<td>Sets S3-compatible prefix when object-store bucket is configured.</td>
+</tr>
+<tr>
+<td><code>MFS_OBJECT_STORE_ACCESS_KEY</code></td>
+<td>Server</td>
+<td>Sets S3-compatible access key when object-store bucket is configured.</td>
+</tr>
+<tr>
+<td><code>MFS_OBJECT_STORE_SECRET_KEY</code></td>
+<td>Server</td>
+<td>Sets S3-compatible secret key when object-store bucket is configured.</td>
 </tr>
 <tr>
 <td><code>OPENAI_API_KEY</code></td>
-<td>Optional remote embedding or LLM provider.</td>
+<td>OpenAI provider SDK</td>
+<td>Needed only when OpenAI-backed embedding, summary, or VLM settings are selected. The default ONNX path does not require it.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Do not use <code>MFS_MILVUS_*</code> as runtime overrides</p>
+<p>Some deployment assets mention <code>MFS_MILVUS_URI</code> and <code>MFS_MILVUS_TOKEN</code>.
+The current server configuration code does not read those names. Use
+<code>MILVUS_URI</code> / <code>MILVUS_TOKEN</code>, <code>ZILLIZ_URI</code> / <code>ZILLIZ_TOKEN</code>, or
+<code>server.toml</code> until the deployment assets and runtime config are aligned.</p>
+</div>
+<h2 id="cli-endpoint-and-token-resolution">CLI Endpoint and Token Resolution<a class="headerlink" href="#cli-endpoint-and-token-resolution" title="Permanent link">&para;</a></h2>
+<p>The CLI stores profiles in <code>$MFS_HOME/client.toml</code>.</p>
+<p>Endpoint precedence:</p>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Source</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>MFS_API_URL</code></td>
+<td>Use for one-off shells, containers, CI, or scripts.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>active profile URL in <code>$MFS_HOME/client.toml</code></td>
+<td>Managed by <code>mfs profile add</code> and <code>mfs profile use</code>.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>http://127.0.0.1:13619</code></td>
+<td>Default local server endpoint.</td>
+</tr>
+</tbody>
+</table>
+<p>Bearer token precedence:</p>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Source</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>non-empty <code>MFS_API_TOKEN</code></td>
+<td>Wins over profile tokens and local token files.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>active profile token</td>
+<td>May be a literal token or <code>env:VAR</code>; if <code>env:VAR</code> resolves empty, no token is sent from that profile.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>$MFS_HOME/server.token</code></td>
+<td>Local same-host fallback for the auto-generated server token.</td>
+</tr>
+</tbody>
+</table>
+<p>Create a persistent remote profile:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>profile<span class="w"> </span>add<span class="w"> </span>prod<span class="w"> </span>https://mfs.example.com<span class="w"> </span>--token<span class="w"> </span>env:MFS_API_TOKEN
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>profile<span class="w"> </span>use<span class="w"> </span>prod
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mfs<span class="w"> </span>config<span class="w"> </span>show
+</code></pre></div>
+<p>A generated client config uses TOML tables like this:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">active</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">client_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;generated-on-first-use&quot;</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="k">[profiles.prod]</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://mfs.example.com&quot;</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:MFS_API_TOKEN&quot;</span>
+</code></pre></div>
+<p><code>mfs config show</code> prints the resolved endpoint, active profile, stable
+<code>client_id</code>, and whether <code>/v1/server/info</code> is reachable.</p>
+<div class="admonition note">
+<p class="admonition-title">Remote paths and upload mode</p>
+<p>The CLI treats non-loopback endpoints as remote. For local paths, it may
+rewrite browse/search paths to the uploaded connector identity. For
+practical host-versus-container examples, see <a href="../deployment/">Deployment</a>
+and <a href="../troubleshooting/">Troubleshooting</a>.</p>
+</div>
+<h2 id="minimal-examples">Minimal Examples<a class="headerlink" href="#minimal-examples" title="Permanent link">&para;</a></h2>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:5"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><input id="__tabbed_1_5" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Local defaults</label><label for="__tabbed_1_2">Known token</label><label for="__tabbed_1_3">Remote Milvus</label><label for="__tabbed_1_4">Postgres metadata</label><label for="__tabbed_1_5">S3-compatible artifact cache</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>mfs/server/python
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>uv<span class="w"> </span>sync
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+</code></pre></div>
+<p>In another terminal:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>status
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs<span class="w"> </span>config<span class="w"> </span>show
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_TOKEN</span><span class="o">=</span><span class="s2">&quot;replace-with-a-shared-token&quot;</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+</code></pre></div>
+<p>On clients:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_URL</span><span class="o">=</span>http://127.0.0.1:13619
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_TOKEN</span><span class="o">=</span><span class="s2">&quot;replace-with-a-shared-token&quot;</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>mfs<span class="w"> </span>status
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MILVUS_URI</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$ZILLIZ_URI</span><span class="s2">&quot;</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MILVUS_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$ZILLIZ_TOKEN</span><span class="s2">&quot;</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_METADATA_DSN</span><span class="o">=</span><span class="s2">&quot;postgresql://user:pass@host:5432/mfs&quot;</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_OBJECT_STORE_BUCKET</span><span class="o">=</span><span class="s2">&quot;mfs-artifacts&quot;</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_OBJECT_STORE_ENDPOINT</span><span class="o">=</span><span class="s2">&quot;https://s3.example.com&quot;</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_OBJECT_STORE_REGION</span><span class="o">=</span><span class="s2">&quot;us-east-1&quot;</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_OBJECT_STORE_ACCESS_KEY</span><span class="o">=</span><span class="s2">&quot;...&quot;</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_OBJECT_STORE_SECRET_KEY</span><span class="o">=</span><span class="s2">&quot;...&quot;</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+</code></pre></div>
+</div>
+</div>
+</div>
+<h2 id="related-guides">Related Guides<a class="headerlink" href="#related-guides" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Guide</th>
+<th>Use it for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../getting-started/">Quickstart</a></td>
+<td>First local source run and search/read checkpoint.</td>
+</tr>
+<tr>
+<td><a href="../auth-and-secrets/">Auth and Secrets</a></td>
+<td>Process boundaries, token precedence, connector credentials, and first auth recovery commands.</td>
+</tr>
+<tr>
+<td><a href="../providers/">Providers and Processing</a></td>
+<td>Embedding, summary, VLM, converter setup, provider extras, and provider error surfaces.</td>
+</tr>
+<tr>
+<td><a href="../deployment/">Deployment</a></td>
+<td>Source, Docker, Compose, and Helm topology notes.</td>
+</tr>
+<tr>
+<td><a href="../storage-and-backup/">Storage and Backup</a></td>
+<td>State components, backup targets, restore order, and reset boundaries.</td>
+</tr>
+<tr>
+<td><a href="../connectors/">Connectors</a></td>
+<td>Connector catalog, config files, credentials, and lifecycle commands.</td>
+</tr>
+<tr>
+<td><a href="../cli/">CLI Reference</a></td>
+<td>Command flags, profiles, upload mode, jobs, and browse commands.</td>
+</tr>
+<tr>
+<td><a href="../api/">HTTP API</a></td>
+<td>Direct <code>/v1</code> requests, bearer auth, response envelopes, and schema fields.</td>
+</tr>
+<tr>
+<td><a href="../troubleshooting/">Troubleshooting</a></td>
+<td>Endpoint, auth, upload, indexing, and search failure recovery.</td>
 </tr>
 </tbody>
 </table>

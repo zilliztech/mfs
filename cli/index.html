@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://zilliztech.github.io/mfs/cli/">
       
       
-        <link rel="prev" href="../search-and-browse/">
+        <link rel="prev" href="../jobs/">
       
       
         <link rel="next" href="../connectors/">
@@ -257,7 +257,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../server/" class="md-tabs__link">
+        <a href="../content-model/" class="md-tabs__link">
           
   
   
@@ -277,7 +277,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../faq/" class="md-tabs__link">
+        <a href="../errors/" class="md-tabs__link">
           
   
   
@@ -490,7 +490,7 @@
   <span class="md-ellipsis">
     
   
-    Roadmap
+    Status and Limits
   
 
     
@@ -598,6 +598,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../configuration/" class="md-nav__link">
         
   
@@ -626,6 +654,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../auth-and-secrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Auth and Secrets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers and Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../deployment/" class="md-nav__link">
         
   
@@ -634,6 +718,34 @@
     
   
     Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-and-backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage and Backup
   
 
     
@@ -771,6 +883,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs and Indexing Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -782,6 +922,24 @@
       
         
       
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
         
@@ -799,6 +957,185 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#global-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global Behavior
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#status-and-client-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status and Client Config
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-and-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add and Sync
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Add and Sync">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#add-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#grep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grep
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#browse-and-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browse and Read
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connectors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-server-wrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local Server Wrapper
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#json-and-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON and Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-guides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Guides
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -820,6 +1157,62 @@
     
   
     Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-config-recipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Configuration Recipes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Reference
   
 
     
@@ -919,6 +1312,62 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1098,6 +1547,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../faq/" class="md-nav__link">
         
   
@@ -1146,6 +1651,174 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#global-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global Behavior
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#status-and-client-config" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status and Client Config
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#add-and-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add and Sync
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Add and Sync">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#add-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#grep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grep
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#browse-and-read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browse and Read
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connectors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-server-wrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local Server Wrapper
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#json-and-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JSON and Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related-guides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related Guides
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1165,56 +1838,601 @@
 
 
 <h1 id="cli-reference">CLI Reference<a class="headerlink" href="#cli-reference" title="Permanent link">&para;</a></h1>
-<p>The Rust CLI is distributed as the <code>mfs</code> binary. It talks to the HTTP API and
-renders human-readable or structured output.</p>
-<p>Common commands:</p>
+<p>The Rust CLI is distributed as the <code>mfs</code> binary. It is a thin HTTP client over
+the server's <code>/v1</code> API: parsing, upload packaging, output formatting, and
+profile selection happen in the CLI; connectors, indexing, retrieval, storage,
+and auth enforcement happen on the server.</p>
+<p>Use this page when you know the task but need the exact command shape. For a
+first local run, start with <a href="../getting-started/">Quickstart</a>. For the
+search-to-read workflow, see <a href="../search-and-browse/">Search and Browse</a>.</p>
+<h2 id="global-behavior">Global Behavior<a class="headerlink" href="#global-behavior" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Command</th>
-<th>Purpose</th>
+<th>Concern</th>
+<th>Current behavior</th>
 </tr>
 </thead>
 <tbody>
 <tr>
+<td>Binary name</td>
+<td><code>mfs</code></td>
+</tr>
+<tr>
+<td>Global JSON flag</td>
+<td><code>mfs --json &lt;command&gt; ...</code></td>
+</tr>
+<tr>
+<td>Default endpoint</td>
+<td><code>http://127.0.0.1:13619</code></td>
+</tr>
+<tr>
+<td>Client config</td>
+<td><code>$MFS_HOME/client.toml</code>, defaulting to <code>~/.mfs/client.toml</code> when <code>MFS_HOME</code> is unset</td>
+</tr>
+<tr>
+<td>Local token fallback</td>
+<td><code>$MFS_HOME/server.token</code></td>
+</tr>
+<tr>
+<td>Error output</td>
+<td>Non-2xx API responses print <code>error: &lt;status&gt; [&lt;code&gt;]: &lt;detail&gt;</code> and any server suggestions as <code>try: ...</code></td>
+</tr>
+</tbody>
+</table>
+<p>Endpoint precedence:</p>
+<ol>
+<li><code>MFS_API_URL</code></li>
+<li>the active profile URL in <code>$MFS_HOME/client.toml</code></li>
+<li><code>http://127.0.0.1:13619</code></li>
+</ol>
+<p>Bearer token precedence:</p>
+<ol>
+<li>non-empty <code>MFS_API_TOKEN</code></li>
+<li>active profile token from <code>$MFS_HOME/client.toml</code></li>
+<li><code>$MFS_HOME/server.token</code></li>
+</ol>
+<p>Profile tokens may be literal values or <code>env:VAR</code> references. If an <code>env:VAR</code>
+profile token resolves to an empty value, the CLI sends no bearer token from
+that profile.</p>
+<p>For the server-side auth modes, CLI token precedence, and first <code>401</code> recovery
+commands, see <a href="../auth-and-secrets/">Auth and Secrets</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">HTTP API mapping</p>
+<p>The CLI uses the same <code>/v1</code> endpoints documented in <a href="../api/">HTTP API</a>.
+Use <code>--json</code> when you need the raw response fields for automation.</p>
+</div>
+<h2 id="command-matrix">Command Matrix<a class="headerlink" href="#command-matrix" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Command</th>
+<th>Primary API path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Check server, connectors, and jobs</td>
 <td><code>mfs status</code></td>
-<td>Check server health and registered sources.</td>
+<td><code>GET /v1/status</code></td>
 </tr>
 <tr>
-<td><code>mfs add</code></td>
-<td>Register or upload a source for indexing.</td>
+<td>Add or sync a source</td>
+<td><code>mfs add TARGET</code></td>
+<td><code>POST /v1/add</code>, or upload manifest endpoints for client-side upload</td>
 </tr>
 <tr>
-<td><code>mfs search</code></td>
-<td>Search indexed sources.</td>
+<td>Search indexed content</td>
+<td><code>mfs search QUERY PATH</code> or <code>mfs search QUERY --all</code></td>
+<td><code>GET /v1/search</code></td>
 </tr>
 <tr>
-<td><code>mfs grep</code></td>
-<td>Search for literal terms.</td>
+<td>Search exact text</td>
+<td><code>mfs grep PATTERN PATH</code></td>
+<td><code>GET /v1/grep</code></td>
 </tr>
 <tr>
-<td><code>mfs ls</code></td>
-<td>List a source path.</td>
+<td>List children</td>
+<td><code>mfs ls PATH</code></td>
+<td><code>GET /v1/ls</code></td>
 </tr>
 <tr>
-<td><code>mfs cat</code></td>
-<td>Read a source object or range.</td>
+<td>Walk a tree</td>
+<td><code>mfs tree PATH</code></td>
+<td>Repeated <code>GET /v1/ls</code> calls</td>
 </tr>
 <tr>
-<td><code>mfs connector</code></td>
-<td>Inspect connector catalog and configured sources.</td>
+<td>Read content</td>
+<td><code>mfs cat PATH</code></td>
+<td><code>GET /v1/cat</code></td>
+</tr>
+<tr>
+<td>Read starts or ends</td>
+<td><code>mfs head PATH</code>, <code>mfs tail PATH</code></td>
+<td><code>GET /v1/head</code>, <code>GET /v1/tail</code></td>
+</tr>
+<tr>
+<td>Export full content</td>
+<td><code>mfs export PATH OUT</code></td>
+<td><code>GET /v1/export</code></td>
+</tr>
+<tr>
+<td>Inspect jobs</td>
+<td><code>mfs job list</code>, <code>show</code>, <code>cancel</code></td>
+<td><code>/v1/jobs</code> endpoints</td>
+</tr>
+<tr>
+<td>Manage connectors</td>
+<td><code>mfs connector ...</code></td>
+<td><code>/v1/connectors</code> plus <code>/v1/add</code></td>
+</tr>
+<tr>
+<td>Remove a connector</td>
+<td><code>mfs remove TARGET</code></td>
+<td><code>DELETE /v1/connectors</code></td>
+</tr>
+<tr>
+<td>Manage endpoint profiles</td>
+<td><code>mfs profile ...</code></td>
+<td>Local <code>$MFS_HOME/client.toml</code> only</td>
+</tr>
+<tr>
+<td>Show resolved client config</td>
+<td><code>mfs config show</code></td>
+<td>Local config plus <code>GET /v1/server/info</code></td>
+</tr>
+<tr>
+<td>Manage a local server process</td>
+<td><code>mfs serve ...</code></td>
+<td>Local process wrapper around <code>mfs-server run</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="status-and-client-config">Status and Client Config<a class="headerlink" href="#status-and-client-config" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>status
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>config<span class="w"> </span>show
+</code></pre></div>
+<p><code>mfs status</code> prints the server status JSON envelope. It does not accept a path
+or connector URI.</p>
+<p><code>mfs config show</code> prints:</p>
+<ul>
+<li>resolved endpoint;</li>
+<li>active profile name, or <code>(none)</code>;</li>
+<li>stable <code>client_id</code>;</li>
+<li><code>server: ...</code> with <code>/v1/server/info</code>, or an unreachable message.</li>
+</ul>
+<p>Use <code>mfs config show</code> before debugging auth or endpoint issues. For recovery
+steps, see <a href="../troubleshooting/">Troubleshooting</a>.</p>
+<h2 id="add-and-sync">Add and Sync<a class="headerlink" href="#add-and-sync" title="Permanent link">&para;</a></h2>
+<p><code>mfs add TARGET</code> registers or syncs a local path or connector URI. The command
+queues a job by default and returns immediately unless <code>--wait</code> is set.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--config FILE</code></td>
+<td>Load connector configuration TOML and send it as the API <code>config</code> object.</td>
+</tr>
+<tr>
+<td><code>--since VALUE</code></td>
+<td>Send an incremental cursor or date for connectors with a time cursor.</td>
+</tr>
+<tr>
+<td><code>--force-index</code></td>
+<td>Force a full re-index by ignoring caches and fingerprints.</td>
+</tr>
+<tr>
+<td><code>--full</code></td>
+<td>Visible alias for <code>--force-index</code>.</td>
+</tr>
+<tr>
+<td><code>--wait</code></td>
+<td>Poll the returned job until it succeeds, fails, or is cancelled.</td>
+</tr>
+<tr>
+<td><code>--upload</code></td>
+<td>Bundle and upload a local tree even when the endpoint is loopback.</td>
+</tr>
+<tr>
+<td><code>--force-upload</code></td>
+<td>Re-upload every file and force a full re-index.</td>
+</tr>
+<tr>
+<td><code>--no-upload</code></td>
+<td>Never upload; ask the server to read the target path directly.</td>
+</tr>
+<tr>
+<td><code>-y</code>, <code>--yes</code></td>
+<td>Skip the pre-flight estimate confirmation for external connectors.</td>
+</tr>
+</tbody>
+</table>
+<p>Local same-host example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--wait<span class="w"> </span>./repo
+</code></pre></div>
+<p>Container or remote server example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_URL</span><span class="o">=</span>http://127.0.0.1:13619
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>cat<span class="w"> </span>/path/to/server.token<span class="k">)</span><span class="s2">&quot;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>--wait<span class="w"> </span>./repo
+</code></pre></div>
+<p>External connector example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p>When <code>TARGET</code> is not an existing local path and <code>--yes</code> is not set, <code>mfs add</code>
+first calls <code>/v1/connectors/estimate</code>, prints discovered objects plus estimated
+chunks and tokens, and asks <code>Continue? [y/N]</code>. The estimate uses metadata plus
+a local chunker/tokenizer dry run and does not make embedding API calls.</p>
+<div class="admonition note">
+<p class="admonition-title">Upload selection</p>
+<p>For existing local paths, the CLI compares the server <code>machine_id</code> with the
+client hostname. If they differ, it uploads by default. <code>--upload</code> and
+<code>--no-upload</code> override that decision. See <a href="../deployment/">Deployment</a> for
+Docker and Compose examples.</p>
+</div>
+<h3 id="add-output">Add Output<a class="headerlink" href="#add-output" title="Permanent link">&para;</a></h3>
+<p>Without <code>--wait</code>, human output is a queued job line:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
+</code></pre></div>
+<p>With <code>--json</code>, the queued output is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span><span class="nt">&quot;job_id&quot;</span><span class="p">:</span><span class="s2">&quot;JOB_ID&quot;</span><span class="p">}</span>
+</code></pre></div>
+<p>With <code>--wait</code>, successful human output is:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>done: 2 of 2 objects indexed, 0 failed
+</code></pre></div>
+<p>For job status meanings, worker behavior, and recovery steps, see
+<a href="../jobs/">Jobs and Indexing Progress</a>.</p>
+<h2 id="search">Search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h2>
+<p><code>mfs search</code> requires either a scoped <code>PATH</code> or <code>--all</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;rate limit handler&quot;</span><span class="w"> </span>./repo<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;where is the retry budget documented&quot;</span><span class="w"> </span>--all<span class="w"> </span>--top-k<span class="w"> </span><span class="m">20</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--all</code></td>
+<td>off</td>
+<td>Search the whole namespace instead of one scoped path.</td>
+</tr>
+<tr>
+<td><code>--mode MODE</code></td>
+<td><code>hybrid</code></td>
+<td>Search mode sent to the server, commonly <code>hybrid</code>, <code>semantic</code>, or <code>keyword</code>.</td>
+</tr>
+<tr>
+<td><code>--top-k N</code></td>
+<td><code>10</code></td>
+<td>Number of ranked candidates to request.</td>
+</tr>
+<tr>
+<td><code>--kind KINDS</code></td>
+<td>unset</td>
+<td>Comma-separated chunk-kind filter such as <code>body,row_text</code>.</td>
+</tr>
+<tr>
+<td><code>--collapse</code></td>
+<td>off</td>
+<td>Collapse multiple hits from the same source object.</td>
+</tr>
+</tbody>
+</table>
+<p>Human output prints one line per hit with source and score, followed by the
+first 100 characters of snippet content when present.</p>
+<p>Use JSON when you need locators:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mfs<span class="w"> </span>--json<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;connector auth config&quot;</span><span class="w"> </span>./server<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
+</code></pre></div>
+<p>Search JSON includes fields such as <code>source</code>, <code>content</code>, <code>score</code>, <code>locator</code>,
+and <code>metadata</code>. Feed <code>source</code> and <code>locator</code> back to <code>cat</code> before quoting or
+editing behavior.</p>
+<h2 id="grep">Grep<a class="headerlink" href="#grep" title="Permanent link">&para;</a></h2>
+<p><code>mfs grep PATTERN PATH</code> performs keyword/full-text search through the server.
+The CLI sends <code>pattern</code> and <code>path</code> to <code>/v1/grep</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mfs<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;MFS_API_TOKEN&quot;</span><span class="w"> </span>./server
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>mfs<span class="w"> </span>--json<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;Authorization: Bearer&quot;</span><span class="w"> </span>./docs
+</code></pre></div>
+<p>Human output prints:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>SOURCE: matching content preview
+</code></pre></div>
+<p>JSON output exposes match locators and the server's <code>via</code> field when present.</p>
+<h2 id="browse-and-read">Browse and Read<a class="headerlink" href="#browse-and-read" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Options</th>
+<th>Use it when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mfs ls PATH</code></td>
+<td>global <code>--json</code></td>
+<td>You need children and per-entry metadata.</td>
+</tr>
+<tr>
+<td><code>mfs tree PATH</code></td>
+<td><code>-L N</code>, <code>--depth N</code> default <code>2</code></td>
+<td>You need a bounded directory-style view.</td>
+</tr>
+<tr>
+<td><code>mfs cat PATH</code></td>
+<td><code>--range</code>, <code>--meta</code>, <code>--locator</code>, <code>--peek</code>, <code>--skim</code></td>
+<td>You need exact content or metadata for one object.</td>
+</tr>
+<tr>
+<td><code>mfs head PATH</code></td>
+<td><code>-n N</code>, <code>--lines N</code> default <code>20</code></td>
+<td>You need the first lines or entries.</td>
+</tr>
+<tr>
+<td><code>mfs tail PATH</code></td>
+<td><code>-n N</code>, <code>--lines N</code> default <code>20</code></td>
+<td>You need the last lines or entries.</td>
+</tr>
+<tr>
+<td><code>mfs export PATH OUT</code></td>
+<td>none</td>
+<td>You need full content written to a local file.</td>
 </tr>
 </tbody>
 </table>
 <p>Examples:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>status
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>--wait<span class="w"> </span>./repo
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>--wait<span class="w"> </span>./repo
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;release installer script&quot;</span><span class="w"> </span>./repo<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./repo/README.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mfs<span class="w"> </span>ls<span class="w"> </span>./repo
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mfs<span class="w"> </span>tree<span class="w"> </span>./repo<span class="w"> </span>-L<span class="w"> </span><span class="m">3</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./repo/README.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod/public/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>mfs<span class="w"> </span>head<span class="w"> </span>./repo/README.md<span class="w"> </span>-n<span class="w"> </span><span class="m">20</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>mfs<span class="w"> </span>tail<span class="w"> </span>./repo/logs/app.log<span class="w"> </span>--lines<span class="w"> </span><span class="m">80</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>./repo/logs/app.log<span class="w"> </span>/tmp/app.log
 </code></pre></div>
-<p>This page is intentionally only a scaffold for now. The next pass should
-generate or verify option tables from <code>mfs --help</code> so the docs do not drift.</p>
+<p><code>mfs cat --meta</code> prints the raw JSON response instead of only <code>content</code>.
+<code>mfs cat --peek</code> sends <code>density=peek</code>; <code>mfs cat --skim</code> sends <code>density=skim</code>.</p>
+<p>For large objects, prefer <code>head</code>, <code>tail</code>, <code>cat --range</code>, or <code>export</code> over bare
+<code>cat</code>. See <a href="../search-and-browse/">Search and Browse</a> for locator reopening
+patterns.</p>
+<h2 id="jobs">Jobs<a class="headerlink" href="#jobs" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mfs<span class="w"> </span>job<span class="w"> </span>list
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>mfs<span class="w"> </span>job<span class="w"> </span>cancel<span class="w"> </span>JOB_ID
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mfs job list</code></td>
+<td>Human rows: status, operation kind, job id. With <code>--json</code>, raw job array.</td>
+</tr>
+<tr>
+<td><code>mfs job show JOB_ID</code></td>
+<td>Pretty JSON for one job.</td>
+</tr>
+<tr>
+<td><code>mfs job cancel JOB_ID</code></td>
+<td><code>cancelled: true</code> or <code>cancelled: false</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Use job ids returned by <code>mfs add</code>, <code>mfs connector add</code>, or <code>mfs connector
+update</code>.</p>
+<h2 id="connectors">Connectors<a class="headerlink" href="#connectors" title="Permanent link">&para;</a></h2>
+<p>Connector commands are the CLI entry point for source lifecycle tasks. For the
+catalog and connector-specific TOML guidance, see <a href="../connectors/">Connectors</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mfs connector probe TARGET --config FILE</code></td>
+<td>Try a connector without registering it.</td>
+</tr>
+<tr>
+<td><code>mfs connector add TARGET --config FILE</code></td>
+<td>Register and sync a connector through <code>/v1/add</code>.</td>
+</tr>
+<tr>
+<td><code>mfs connector update TARGET --config FILE</code></td>
+<td>Queue a sync with <code>update: true</code> and the new config.</td>
+</tr>
+<tr>
+<td><code>mfs connector list</code></td>
+<td>Print registered connector rows from <code>/v1/status</code>.</td>
+</tr>
+<tr>
+<td><code>mfs connector inspect TARGET</code></td>
+<td>Print the connector inspection JSON summary.</td>
+</tr>
+<tr>
+<td><code>mfs connector remove TARGET</code></td>
+<td>Remove a connector after confirmation.</td>
+</tr>
+<tr>
+<td><code>mfs connector remove TARGET --yes</code></td>
+<td>Remove without confirmation.</td>
+</tr>
+<tr>
+<td><code>mfs remove TARGET</code></td>
+<td>Alias for <code>mfs connector remove TARGET</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Examples:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>mfs<span class="w"> </span>connector<span class="w"> </span>add<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>mfs<span class="w"> </span>connector<span class="w"> </span>update<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>mfs<span class="w"> </span>connector<span class="w"> </span>inspect<span class="w"> </span>web://docs
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>mfs<span class="w"> </span>connector<span class="w"> </span>remove<span class="w"> </span>web://docs
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Connector removal</p>
+<p>Removal deletes the connector's MFS-owned metadata, artifacts, and index
+entries. It does not delete data in the source system.</p>
+</div>
+<h2 id="profiles">Profiles<a class="headerlink" href="#profiles" title="Permanent link">&para;</a></h2>
+<p>Profiles are local CLI endpoint records in <code>$MFS_HOME/client.toml</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>mfs<span class="w"> </span>profile<span class="w"> </span>list
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>mfs<span class="w"> </span>profile<span class="w"> </span>add<span class="w"> </span>prod<span class="w"> </span>https://mfs.example.com<span class="w"> </span>--token<span class="w"> </span>env:MFS_API_TOKEN
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>mfs<span class="w"> </span>profile<span class="w"> </span>use<span class="w"> </span>prod
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>mfs<span class="w"> </span>config<span class="w"> </span>show
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mfs profile list</code></td>
+<td>List profiles and mark the active one with <code>*</code>.</td>
+</tr>
+<tr>
+<td><code>mfs profile add NAME URL</code></td>
+<td>Add or update a profile. The first profile becomes active automatically.</td>
+</tr>
+<tr>
+<td><code>mfs profile add NAME URL --token TOKEN</code></td>
+<td>Store a literal bearer token or an <code>env:VAR</code> reference.</td>
+</tr>
+<tr>
+<td><code>mfs profile use NAME</code></td>
+<td>Set the active profile.</td>
+</tr>
+</tbody>
+</table>
+<p>If there are no profiles, <code>mfs profile list</code> prints the endpoint currently
+resolved from <code>MFS_API_URL</code> or the default local endpoint.</p>
+<h2 id="local-server-wrapper">Local Server Wrapper<a class="headerlink" href="#local-server-wrapper" title="Permanent link">&para;</a></h2>
+<p><code>mfs serve</code> manages a local <code>mfs-server run</code> process through a pid file and log
+file under <code>$MFS_HOME</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mfs serve start</code></td>
+<td>Spawn <code>mfs-server run --bind 127.0.0.1:13619</code>.</td>
+</tr>
+<tr>
+<td><code>mfs serve start --bind HOST:PORT</code></td>
+<td>Spawn the local server with a custom bind address.</td>
+</tr>
+<tr>
+<td><code>mfs serve stop</code></td>
+<td>Kill the pid recorded in <code>$MFS_HOME/server.pid</code>.</td>
+</tr>
+<tr>
+<td><code>mfs serve restart</code></td>
+<td>Stop then start.</td>
+</tr>
+<tr>
+<td><code>mfs serve restart --bind HOST:PORT</code></td>
+<td>Restart with a custom bind address.</td>
+</tr>
+<tr>
+<td><code>mfs serve status</code></td>
+<td>Report whether the recorded pid is alive.</td>
+</tr>
+<tr>
+<td><code>mfs serve logs</code></td>
+<td>Print the last 40 lines from <code>$MFS_HOME/server.log</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Use the source-run commands in <a href="../getting-started/">Quickstart</a> or
+<a href="../deployment/">Deployment</a> when you need explicit <code>uv run mfs-server setup</code>
+and <code>uv run mfs-server run</code> control.</p>
+<h2 id="json-and-errors">JSON and Errors<a class="headerlink" href="#json-and-errors" title="Permanent link">&para;</a></h2>
+<p><code>--json</code> is global, but commands differ in how much custom formatting they do.
+Use it for search, grep, list/tree, cat/head/tail, add queueing, and job lists
+when another program needs raw fields.</p>
+<p>The CLI parses server error envelopes:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="p">{</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">&quot;code&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;object_too_large_for_cat&quot;</span><span class="p">,</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span><span class="nt">&quot;suggestions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;head&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;cat --range&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;export&quot;</span><span class="p">]</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="p">}</span>
+</code></pre></div>
+<p>Human error output includes recovery hints:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>error: 400 Bad Request [object_too_large_for_cat]: ...
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>  try: head, cat --range, export
+</code></pre></div>
+<p>Clients should switch on <code>code</code>, not <code>detail</code>. See
+<a href="../troubleshooting/">Troubleshooting</a> and <a href="../api/">HTTP API</a> for the canonical
+error envelope and common recovery paths.</p>
+<h2 id="related-guides">Related Guides<a class="headerlink" href="#related-guides" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Guide</th>
+<th>Use it for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../getting-started/">Quickstart</a></td>
+<td>First local run and success checkpoints.</td>
+</tr>
+<tr>
+<td><a href="../configuration/">Configuration</a></td>
+<td>Endpoint, token, profile, and server config precedence.</td>
+</tr>
+<tr>
+<td><a href="../auth-and-secrets/">Auth and Secrets</a></td>
+<td>Server auth modes, CLI token precedence, connector credentials, and first auth recovery commands.</td>
+</tr>
+<tr>
+<td><a href="../jobs/">Jobs and Indexing Progress</a></td>
+<td>Job ids, <code>--wait</code>, status counts, workers, and recovery.</td>
+</tr>
+<tr>
+<td><a href="../search-and-browse/">Search and Browse</a></td>
+<td>Search, locate, and reopen exact evidence.</td>
+</tr>
+<tr>
+<td><a href="../connectors/">Connectors</a></td>
+<td>Connector catalog, TOML config, credentials, and lifecycle.</td>
+</tr>
+<tr>
+<td><a href="../deployment/">Deployment</a></td>
+<td>Source, Docker, Compose, and client/server upload mode.</td>
+</tr>
+<tr>
+<td><a href="../api/">HTTP API</a></td>
+<td>Direct <code>/v1</code> requests and schema fields.</td>
+</tr>
+<tr>
+<td><a href="../troubleshooting/">Troubleshooting</a></td>
+<td>Endpoint, auth, upload, indexing, and browse failures.</td>
+</tr>
+</tbody>
+</table>
 
 
 

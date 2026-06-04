@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/architecture/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/errors/">
       
       
-        <link rel="prev" href="../why/">
+        <link rel="prev" href="../evaluation/">
       
       
-        <link rel="next" href="../roadmap/">
+        <link rel="next" href="../glossary/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Architecture - MFS</title>
+        <title>Error Codes - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture" class="md-skip">
+        <a href="#error-codes" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture
+              Error Codes
             
           </span>
         </div>
@@ -191,12 +191,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href=".." class="md-tabs__link">
           
   
@@ -273,11 +271,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../errors/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -344,31 +344,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
         
           
-          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
             
   
   
@@ -386,7 +381,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -457,37 +452,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
@@ -503,92 +471,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#runtime-and-data-flow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Runtime and data flow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#component-responsibilities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Component responsibilities
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#api-surface-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        API surface map
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#runtime-modes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Runtime modes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration-boundaries" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration boundaries
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-runbooks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related runbooks
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1398,26 +1280,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   
@@ -1435,7 +1322,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1450,10 +1337,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../errors/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1469,6 +1383,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#triage-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Triage Map
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#runtime-and-request-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runtime and Request Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-and-browse-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read and Browse Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sync-connector-and-upload-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sync, Connector, and Upload Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provider-and-job-failure-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provider and Job Failure Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#partial-search-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partial Search Status
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1564,10 +1564,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#runtime-and-data-flow" class="md-nav__link">
+  <a href="#triage-map" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Runtime and data flow
+        Triage Map
       
     </span>
   </a>
@@ -1575,10 +1575,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#component-responsibilities" class="md-nav__link">
+  <a href="#runtime-and-request-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Component responsibilities
+        Runtime and Request Codes
       
     </span>
   </a>
@@ -1586,10 +1586,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#api-surface-map" class="md-nav__link">
+  <a href="#read-and-browse-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        API surface map
+        Read and Browse Codes
       
     </span>
   </a>
@@ -1597,10 +1597,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#runtime-modes" class="md-nav__link">
+  <a href="#sync-connector-and-upload-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Runtime modes
+        Sync, Connector, and Upload Codes
       
     </span>
   </a>
@@ -1608,10 +1608,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration-boundaries" class="md-nav__link">
+  <a href="#provider-and-job-failure-codes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration boundaries
+        Provider and Job Failure Codes
       
     </span>
   </a>
@@ -1619,10 +1619,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#related-runbooks" class="md-nav__link">
+  <a href="#partial-search-status" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Related runbooks
+        Partial Search Status
       
     </span>
   </a>
@@ -1649,199 +1649,318 @@
   
 
 
-<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>MFS v0.4 is a client/server system. The Rust CLI and generated SDKs are client
-surfaces over the <code>/v1</code> HTTP control plane. The Python FastAPI server owns
-connector execution, ingest jobs, retrieval, browsing, metadata, cache, and
-Milvus/Zilliz integration.</p>
-<p>Use this page for the system map. For runnable steps, start with
-<a href="../getting-started/">Quickstart</a>. For exact commands, use
-<a href="../cli/">CLI Reference</a>. For direct integration, use <a href="../api/">HTTP API</a> and
-<a href="../sdks/">SDKs</a>.</p>
-<h2 id="runtime-and-data-flow">Runtime and data flow<a class="headerlink" href="#runtime-and-data-flow" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>flowchart TB
-  subgraph Clients
-    cli["Rust CLI&lt;br/&gt;mfs"]
-    sdk["Generated SDKs&lt;br/&gt;Python / TypeScript"]
-    http["Direct HTTP clients"]
-  end
-
-  cli --&gt;|HTTP /v1 + bearer token| api["Python FastAPI server&lt;br/&gt;mfs-server"]
-  sdk --&gt;|HTTP /v1 + bearer token| api
-  http --&gt;|HTTP /v1 + bearer token| api
-  api -.-&gt; health["GET /healthz&lt;br/&gt;no bearer token"]
-
-  api --&gt; engine["Engine&lt;br/&gt;registry, ingest, search, browse"]
-  engine --&gt; jobs["Jobs&lt;br/&gt;inline, queued, worker-drained"]
-  jobs --&gt; connectors["Connector plugins&lt;br/&gt;file + optional built-ins"]
-  connectors --&gt; sources["Source systems&lt;br/&gt;folders, object stores, databases, SaaS, docs"]
-
-  jobs --&gt; transform["Conversion, embedding,&lt;br/&gt;optional VLM and summaries"]
-  transform --&gt; txcache["Transformation cache&lt;br/&gt;embedding / summary lookup"]
-  transform --&gt; artifacts["Artifact cache&lt;br/&gt;converted blobs"]
-  transform --&gt; milvus["Milvus / Zilliz / Milvus Lite&lt;br/&gt;indexed chunks"]
-
-  engine --&gt; metadata["Metadata database&lt;br/&gt;connectors, objects, jobs"]
-  engine --&gt; milvus
-  engine --&gt; connectors</code></pre>
-<p><code>search</code> reads indexed chunks. <code>grep</code>, <code>ls</code>, <code>tree</code>, <code>cat</code>, <code>head</code>, <code>tail</code>, and
-<code>export</code> are browse/read operations: <code>tree</code> is implemented by repeated <code>ls</code>
-calls, and search hits should be reopened with <code>cat</code> or a bounded read before
-being used as evidence.</p>
-<h2 id="component-responsibilities">Component responsibilities<a class="headerlink" href="#component-responsibilities" title="Permanent link">&para;</a></h2>
-<p>| Component | Repository area | Responsibility | Go deeper |
-|---|---|
-| Rust CLI | <code>cli/</code> | Parses commands, resolves endpoint and token sources, packages uploads when needed, calls <code>/v1</code>, and renders JSON or text output. | <a href="../cli/">CLI Reference</a> |
-| OpenAPI protocol | <code>protocol/openapi.yaml</code> | Source of truth for <code>/v1</code> endpoint paths, operation IDs, and typed schemas used by docs and SDK generation. | <a href="../api/">HTTP API</a> |
-| Generated SDKs | <code>sdks/python/</code>, <code>sdks/typescript/</code> | Generated Python and TypeScript clients for programmatic callers. | <a href="../sdks/">SDKs</a> |
-| FastAPI server | <code>server/python/src/mfs_server/api/</code> | Wires the <code>/v1</code> API, bearer-token middleware, <code>/healthz</code>, error envelopes, and request/response models. | <a href="../server/">Server</a>, <a href="../api/">HTTP API</a> |
-| Engine | <code>server/python/src/mfs_server/engine/</code> | Orchestrates add/sync jobs, connector registration, upload staging, object processing, search, grep, browse, and connector removal. | <a href="../server/">Server</a> |
-| Connectors | <code>server/python/src/mfs_server/connectors/</code> | Expose local and external sources as URI trees; <code>file</code> is always imported and other built-in schemes are loaded lazily when optional dependencies exist. | <a href="../connectors/">Connectors</a> |
-| Metadata database | <code>server/python/src/mfs_server/storage/</code> | Stores connector registry rows, object state, jobs, and related metadata. SQLite is the local default; Postgres is configured through server settings. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Transformation cache | <code>server/python/src/mfs_server/storage/</code> | Stores transformation lookups such as embedding and summary bytes. It defaults under <code>$MFS_HOME</code> and can share Postgres when configured. | <a href="../configuration/">Configuration</a> |
-| Artifact cache | <code>server/python/src/mfs_server/storage/</code> | Stores derived blobs such as converted document text and image descriptions. Local filesystem is the default; S3-compatible storage is configured through server settings. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Vector database | <code>server/python/src/mfs_server/storage/</code> | Stores indexed chunks in Milvus Lite by default, or a configured Milvus/Zilliz endpoint. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Workers | <code>server/python/src/mfs_server/engine/</code>, <code>mfs-server worker</code> | Drain queued jobs. SQLite all-in-one runs can use an in-process worker; api/worker deployments use a standalone worker process. | <a href="../deployment/">Deployment</a>, <a href="../troubleshooting/">Troubleshooting</a> |
-| Optional Rust acceleration | <code>server-rs/</code> | Optional PyO3 extension for server hot paths such as directory walks, hashing, grep, and tail; the server falls back to Python when it is not installed. | <a href="../server/">Server</a> |</p>
-<h2 id="api-surface-map">API surface map<a class="headerlink" href="#api-surface-map" title="Permanent link">&para;</a></h2>
+<h1 id="error-codes">Error Codes<a class="headerlink" href="#error-codes" title="Permanent link">&para;</a></h1>
+<p>Use this page when the CLI prints an HTTP error such as
+<code>400 [object_too_large_for_cat]</code>, when an HTTP client receives an error
+envelope, or when a job reports a canonical failure code.</p>
+<div class="admonition note">
+<p class="admonition-title">Switch on <code>code</code>, not <code>detail</code></p>
+<p>The runtime envelope has a stable <code>code</code>, human <code>detail</code>, and optional
+<code>suggestions</code>. Client code and SDK integrations should branch on <code>code</code>.
+Treat <code>detail</code> and <code>suggestions</code> as display text and recovery hints.</p>
+</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;code&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;object_too_large_for_cat&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">&quot;suggestions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;head&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;cat --range&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;export&quot;</span><span class="p">]</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">}</span>
+</code></pre></div>
+<p>The Rust CLI surfaces this envelope on non-2xx responses as:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>400 Bad Request [object_too_large_for_cat]: object_too_large_for_cat
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  try: head, cat --range, export
+</code></pre></div>
+<p><code>chunk_max_exceeded</code> is the exception to the normal HTTP-error pattern: it is
+reported as partial search availability or <code>search_status: partial</code>, not as a
+hard failed request.</p>
+<h2 id="triage-map">Triage Map<a class="headerlink" href="#triage-map" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Group</th>
-<th>Endpoints</th>
-<th>Used by</th>
+<th>If the code or status is about</th>
+<th>Start with</th>
+<th>Then open</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Server</td>
-<td><code>GET /v1/server/info</code>, <code>GET /v1/status</code>, <code>GET /healthz</code></td>
-<td><code>mfs status</code>, <code>mfs config show</code>, liveness checks, direct clients</td>
+<td>Authentication or request shape</td>
+<td><code>mfs status</code>, <code>mfs config show</code>, or inspect the HTTP request body</td>
+<td><a href="../troubleshooting/#endpoint-and-auth">Troubleshooting</a>, <a href="../auth-and-secrets/">Auth and Secrets</a>, <a href="../api/#errors">HTTP API</a></td>
 </tr>
 <tr>
-<td>Ingest and jobs</td>
-<td><code>POST /v1/add</code>, <code>POST /v1/upload</code>, <code>POST /v1/files/manifest</code>, <code>PUT /v1/files/upload</code>, <code>GET /v1/jobs</code>, <code>GET /v1/jobs/{job_id}</code>, <code>POST /v1/jobs/{job_id}/cancel</code></td>
-<td><code>mfs add</code>, upload mode, <code>mfs job ...</code>, SDK/API integrations</td>
+<td>A path, object, locator, or read operation</td>
+<td><code>mfs ls PATH --json</code>, <code>mfs head PATH -n 20</code>, or <code>mfs cat PATH --range A:B</code></td>
+<td><a href="../search-and-browse/#error-recovery">Search and Browse</a>, <a href="../troubleshooting/#read-and-browse-errors">Troubleshooting</a></td>
 </tr>
 <tr>
-<td>Connectors</td>
-<td><code>POST /v1/connectors/probe</code>, <code>POST /v1/connectors/estimate</code>, <code>GET /v1/connectors/inspect</code>, <code>DELETE /v1/connectors</code></td>
-<td><code>mfs connector ...</code>, <code>mfs remove</code>, pre-flight checks</td>
+<td>A queued or running ingest job</td>
+<td><code>mfs job list</code>, then <code>mfs job show JOB_ID</code></td>
+<td><a href="../jobs/">Jobs and Indexing Progress</a>, <a href="../troubleshooting/#jobs-and-indexing">Troubleshooting</a></td>
 </tr>
 <tr>
-<td>Retrieval</td>
-<td><code>GET /v1/search</code>, <code>GET /v1/grep</code></td>
-<td><code>mfs search</code>, <code>mfs grep</code>, search integrations</td>
+<td>A connector source or credentials</td>
+<td><code>mfs connector inspect TARGET</code>, then <code>mfs connector probe TARGET --config FILE</code></td>
+<td><a href="../connectors/">Connectors</a>, <a href="../connector-reference/">Connector Reference</a></td>
 </tr>
 <tr>
-<td>Browse/read</td>
-<td><code>GET /v1/ls</code>, <code>GET /v1/cat</code>, <code>GET /v1/head</code>, <code>GET /v1/tail</code>, <code>GET /v1/export</code></td>
-<td><code>mfs ls</code>, <code>mfs tree</code>, <code>mfs cat</code>, <code>mfs head</code>, <code>mfs tail</code>, <code>mfs export</code></td>
+<td>Search availability is partial, building, or unavailable</td>
+<td><code>mfs ls PATH --json</code>, <code>mfs job list</code>, and bounded browse commands</td>
+<td><a href="../search-and-browse/#browse-when-search-is-weak">Search and Browse</a>, <a href="../troubleshooting/#empty-search-results">Troubleshooting</a></td>
 </tr>
 </tbody>
 </table>
-<p>Every <code>/v1</code> request requires <code>Authorization: Bearer &lt;token&gt;</code> when the server has
-<code>auth_token</code> configured. <code>GET /healthz</code> is intentionally outside <code>/v1</code> and is
-not bearer-token gated.</p>
-<h2 id="runtime-modes">Runtime modes<a class="headerlink" href="#runtime-modes" title="Permanent link">&para;</a></h2>
+<h2 id="runtime-and-request-codes">Runtime and Request Codes<a class="headerlink" href="#runtime-and-request-codes" title="Permanent link">&para;</a></h2>
+<p>These codes come from the API error wrapper, request validation handler, auth
+middleware, and the canonical protocol table.</p>
 <table>
 <thead>
 <tr>
-<th>Mode</th>
-<th>What runs</th>
-<th>Worker and state notes</th>
-<th>Use this when</th>
+<th>Code</th>
+<th style="text-align: right;">HTTP</th>
+<th>Usually means</th>
+<th>First action</th>
+<th>Deeper guide</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Source all-in-one</td>
-<td>Host <code>mfs-server run</code> plus one or more <code>mfs</code> clients.</td>
-<td>Defaults to <code>127.0.0.1:13619</code>; <code>$MFS_HOME</code> defaults to <code>~/.mfs</code>; local defaults are ONNX embeddings, Milvus Lite, SQLite, local artifact cache, and a generated server token. SQLite all-in-one runs can drain queued jobs in-process.</td>
-<td>You are doing the first local run, evaluation, or connector development. Start with <a href="../getting-started/">Quickstart</a>.</td>
+<td><code>unauthorized</code></td>
+<td style="text-align: right;">401</td>
+<td>Server auth is enabled and the bearer token is missing or wrong.</td>
+<td>Check <code>MFS_API_TOKEN</code>, the active profile, or the local <code>server.token</code> fallback.</td>
+<td><a href="../auth-and-secrets/#first-failure-recovery">Auth and Secrets</a></td>
 </tr>
 <tr>
-<td>Docker or Compose all-in-one</td>
-<td>One container runs <code>mfs-server run</code> with persistent <code>/data</code>.</td>
-<td>The container uses <code>/data</code> for config, token, SQLite, caches, ONNX cache, and Milvus Lite. Use <code>mfs add --upload</code> from the host unless the target path is mounted into the container and passed as a server-visible path.</td>
-<td>You want an isolated local server or repeatable container startup. See <a href="../deployment/">Deployment</a>.</td>
+<td><code>validation_error</code></td>
+<td style="text-align: right;">422</td>
+<td>FastAPI or Pydantic rejected the request shape.</td>
+<td>Fix the JSON body, query parameter, or field type.</td>
+<td><a href="../api/#errors">HTTP API: Errors</a></td>
 </tr>
 <tr>
-<td>Direct client/server</td>
-<td>CLI, SDK, or HTTP client talks to a server it cannot assume shares local paths with the client.</td>
-<td>Set endpoint and token explicitly, and use upload mode for client-local folders. The CLI chooses upload for local paths when it detects a different server machine unless <code>--no-upload</code> is set.</td>
-<td>You are integrating from another host, VM, container, or automation process. See <a href="../cli/">CLI Reference</a>, <a href="../api/">HTTP API</a>, and <a href="../sdks/">SDKs</a>.</td>
-</tr>
-<tr>
-<td>Helm-rendered api/worker</td>
-<td>The chart renders an API Deployment, Worker Deployment, and API Service.</td>
-<td>The repository documents this as the post-v0.4 scalable direction, not the runnable v0.4 operations path. The rendered shape expects externalized state such as Postgres, object storage, and remote Milvus/Zilliz.</td>
-<td>You are validating the chart or planning the future split. See <a href="../deployment/">Deployment</a>.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="configuration-boundaries">Configuration boundaries<a class="headerlink" href="#configuration-boundaries" title="Permanent link">&para;</a></h2>
-<p>The CLI configures client concerns: endpoint selection, profile selection,
-client identity, upload decisions, and bearer-token source. The server configures
-runtime concerns: namespace, auth, database, metadata, transformation cache,
-artifact cache, Milvus, embeddings, summaries, VLM, conversion, workers,
-chunking, and search behavior.</p>
-<p>Key local defaults are shared through <code>$MFS_HOME</code>: the CLI can read
-<code>$MFS_HOME/server.token</code> for same-host local auth, while the server stores
-<code>server.toml</code>, SQLite files, local caches, Milvus Lite, and the ONNX model cache
-under the same root. For precedence rules and environment overrides, see
-<a href="../configuration/">Configuration</a>.</p>
-<h2 id="related-runbooks">Related runbooks<a class="headerlink" href="#related-runbooks" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Need</th>
-<th>Page</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>First local run</td>
-<td><a href="../getting-started/">Quickstart</a></td>
-</tr>
-<tr>
-<td>Search, browse, and evidence verification</td>
-<td><a href="../search-and-browse/">Search and Browse</a></td>
-</tr>
-<tr>
-<td>Connector selection and TOML setup</td>
-<td><a href="../connectors/">Connectors</a></td>
-</tr>
-<tr>
-<td>Exact CLI command surface</td>
-<td><a href="../cli/">CLI Reference</a></td>
-</tr>
-<tr>
-<td>Server package map</td>
-<td><a href="../server/">Server</a></td>
-</tr>
-<tr>
-<td>Direct <code>/v1</code> integration</td>
+<td><code>bad_request</code></td>
+<td style="text-align: right;">400</td>
+<td>A non-canonical 400 detail reached the runtime wrapper, such as malformed locator JSON or an empty upload body.</td>
+<td>Re-check the command flags or HTTP request parameters.</td>
 <td><a href="../api/">HTTP API</a></td>
 </tr>
 <tr>
-<td>Generated clients</td>
-<td><a href="../sdks/">SDKs</a></td>
+<td><code>not_found</code></td>
+<td style="text-align: right;">404</td>
+<td>Path, object, connector, or job id does not match current server state.</td>
+<td>Use <code>mfs connector list</code>, <code>mfs ls PATH --json</code>, or <code>mfs job list</code> to find the current identifier.</td>
+<td><a href="../troubleshooting/#first-commands">Troubleshooting</a></td>
 </tr>
 <tr>
-<td>Source, Docker, Compose, and Helm shapes</td>
-<td><a href="../deployment/">Deployment</a></td>
+<td><code>conflict</code></td>
+<td style="text-align: right;">409</td>
+<td>A non-canonical conflict reached the runtime wrapper.</td>
+<td>Inspect the in-flight job or retry after the conflicting operation finishes.</td>
+<td><a href="../jobs/">Jobs and Indexing Progress</a></td>
 </tr>
 <tr>
-<td>Config files, env vars, and persisted state</td>
-<td><a href="../configuration/">Configuration</a></td>
-</tr>
-<tr>
-<td>Endpoint, auth, job, ingest, search, and browse failures</td>
-<td><a href="../troubleshooting/">Troubleshooting</a></td>
+<td><code>internal_error</code></td>
+<td style="text-align: right;">500</td>
+<td>An uncaught server exception reached the fallback handler.</td>
+<td>Capture the request, server logs, and current job or connector state before retrying.</td>
+<td><a href="../server/">Server</a>, <a href="../troubleshooting/">Troubleshooting</a></td>
 </tr>
 </tbody>
 </table>
+<h2 id="read-and-browse-codes">Read and Browse Codes<a class="headerlink" href="#read-and-browse-codes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th style="text-align: right;">HTTP</th>
+<th>Usually means</th>
+<th>First action</th>
+<th>Deeper guide</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>object_too_large_for_cat</code></td>
+<td style="text-align: right;">400</td>
+<td>Full <code>cat</code> would read too much into one response.</td>
+<td>Use <code>mfs head PATH -n 20</code>, <code>mfs cat PATH --range A:B</code>, or <code>mfs export PATH OUT</code>.</td>
+<td><a href="../search-and-browse/#error-recovery">Search and Browse: Error Recovery</a></td>
+</tr>
+<tr>
+<td><code>is_directory</code></td>
+<td style="text-align: right;">400</td>
+<td><code>cat</code>, <code>head</code>, <code>tail</code>, or <code>export</code> was requested for a directory/container.</td>
+<td>Use <code>mfs ls PATH --json</code> or <code>mfs tree PATH -L 2</code>, then read a child object.</td>
+<td><a href="../troubleshooting/#read-and-browse-errors">Troubleshooting: Read and Browse Errors</a></td>
+</tr>
+<tr>
+<td><code>range_unsupported</code></td>
+<td style="text-align: right;">400</td>
+<td>The object type cannot serve the requested range.</td>
+<td>Use <code>mfs cat PATH --meta</code> or <code>mfs export PATH OUT</code>.</td>
+<td><a href="../search-and-browse/">Search and Browse</a></td>
+</tr>
+<tr>
+<td><code>density_unsupported</code></td>
+<td style="text-align: right;">400</td>
+<td><code>--peek</code>, <code>--skim</code>, or a density view was requested for an unsupported object.</td>
+<td>Use <code>mfs head PATH -n 20</code> or <code>mfs cat PATH --range A:B</code>.</td>
+<td><a href="../search-and-browse/#error-recovery">Search and Browse: Error Recovery</a></td>
+</tr>
+<tr>
+<td><code>tail_unsupported</code></td>
+<td style="text-align: right;">400</td>
+<td>The object has no stable ordering for tail reads.</td>
+<td>Use <code>mfs head PATH -n 20</code> or a bounded <code>mfs cat PATH --range A:B</code>.</td>
+<td><a href="../troubleshooting/#read-and-browse-errors">Troubleshooting: Read and Browse Errors</a></td>
+</tr>
+<tr>
+<td><code>locator_not_found</code></td>
+<td style="text-align: right;">404</td>
+<td>The structured record or text range locator is no longer present.</td>
+<td>Re-run search with <code>--json</code>, copy the current locator, then retry <code>cat --locator</code>.</td>
+<td><a href="../search-and-browse/#locate-exact-hits">Search and Browse: Locate Exact Hits</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="sync-connector-and-upload-codes">Sync, Connector, and Upload Codes<a class="headerlink" href="#sync-connector-and-upload-codes" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th style="text-align: right;">HTTP</th>
+<th>Usually means</th>
+<th>First action</th>
+<th>Deeper guide</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>since_unsupported</code></td>
+<td style="text-align: right;">400</td>
+<td><code>--since</code> was used with a connector that does not support a time cursor.</td>
+<td>Drop <code>--since</code> or use a connector-specific cursor only where documented.</td>
+<td><a href="../connectors/">Connectors</a></td>
+</tr>
+<tr>
+<td><code>sync_already_running</code></td>
+<td style="text-align: right;">409</td>
+<td>A sync job is already in flight for that connector.</td>
+<td>Run <code>mfs job list</code>, then wait or run <code>mfs job cancel JOB_ID</code> if the job should stop.</td>
+<td><a href="../jobs/">Jobs and Indexing Progress</a></td>
+</tr>
+<tr>
+<td><code>connector_removing</code></td>
+<td style="text-align: right;">409</td>
+<td>The connector is being removed and cannot start new work.</td>
+<td>Wait for removal to finish, then retry.</td>
+<td><a href="../connectors/">Connectors</a></td>
+</tr>
+<tr>
+<td><code>connector_unhealthy</code></td>
+<td style="text-align: right;">502</td>
+<td>The source is unreachable or credentials/connectivity failed.</td>
+<td>Check server-side credentials and network reachability, then probe the connector.</td>
+<td><a href="../connectors/">Connectors</a>, <a href="../troubleshooting/#connector-failures">Troubleshooting: Connector Failures</a></td>
+</tr>
+<tr>
+<td><code>field_missing</code></td>
+<td style="text-align: right;">400</td>
+<td>A configured structured-source text field is absent.</td>
+<td>Fix the connector <code>[[objects]]</code> config, then re-run add or update.</td>
+<td><a href="../connector-reference/">Connector Reference</a></td>
+</tr>
+<tr>
+<td><code>upload_rejected</code></td>
+<td style="text-align: right;">400</td>
+<td>Upload was required by topology, but upload was disabled.</td>
+<td>Adjust the path mode or profile; for isolated servers use <code>mfs add --upload --wait PATH</code>.</td>
+<td><a href="../troubleshooting/#upload-or-shared-filesystem">Troubleshooting: Upload or Shared Filesystem</a></td>
+</tr>
+<tr>
+<td><code>upload_not_applicable</code></td>
+<td style="text-align: right;">400</td>
+<td>Upload was forced where shared-filesystem mode applies.</td>
+<td>Adjust upload flags or profile for the current topology.</td>
+<td><a href="../troubleshooting/#upload-or-shared-filesystem">Troubleshooting: Upload or Shared Filesystem</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="provider-and-job-failure-codes">Provider and Job Failure Codes<a class="headerlink" href="#provider-and-job-failure-codes" title="Permanent link">&para;</a></h2>
+<p>These codes may appear as immediate API errors, CLI errors, or job error fields
+depending on when the failure is detected.</p>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th style="text-align: right;">HTTP</th>
+<th>Usually means</th>
+<th>First action</th>
+<th>Deeper guide</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>embedding_quota_exceeded</code></td>
+<td style="text-align: right;">502</td>
+<td>The embedding provider is out of quota.</td>
+<td>Fix quota or billing, then re-run <code>mfs add ...</code>.</td>
+<td><a href="../providers/">Providers and Processing</a>, <a href="../jobs/">Jobs and Indexing Progress</a></td>
+</tr>
+<tr>
+<td><code>embedding_auth_failed</code></td>
+<td style="text-align: right;">502</td>
+<td>The embedding provider key is missing or invalid.</td>
+<td>Fix the provider key in the server environment or config, then re-run <code>mfs add ...</code>.</td>
+<td><a href="../providers/">Providers and Processing</a></td>
+</tr>
+<tr>
+<td><code>circuit_breaker_tripped</code></td>
+<td style="text-align: right;">502</td>
+<td>Too many consecutive fatal or exhausted object failures caused the job to abort.</td>
+<td>Fix the root cause shown by <code>mfs job show JOB_ID</code>, then re-run add.</td>
+<td><a href="../troubleshooting/#jobs-and-indexing">Troubleshooting: Jobs and Indexing</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="partial-search-status">Partial Search Status<a class="headerlink" href="#partial-search-status" title="Permanent link">&para;</a></h2>
+<p><code>chunk_max_exceeded</code> is recorded as incomplete indexing rather than a normal
+HTTP error. Search can still return results, but recall may be incomplete.</p>
+<table>
+<thead>
+<tr>
+<th>Status surface</th>
+<th>Values</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source-level availability</td>
+<td><code>available</code>, <code>partial</code>, <code>building</code>, <code>unavailable</code></td>
+<td>Use search when available, verify more carefully when partial, browse while building, and use browse/grep when unavailable.</td>
+</tr>
+<tr>
+<td><code>mfs ls PATH --json</code> entry status</td>
+<td><code>indexed</code>, <code>partial</code>, <code>not_indexed</code>, or <code>null</code></td>
+<td>Treat <code>partial</code> as searchable but incomplete; treat <code>not_indexed</code> or <code>null</code> as browse-first.</td>
+</tr>
+<tr>
+<td>Canonical partial code</td>
+<td><code>chunk_max_exceeded</code></td>
+<td>Narrow the source or adjust verified connector object settings such as <code>chunk_max</code>, then re-run add.</td>
+</tr>
+</tbody>
+</table>
+<p>When search availability is partial, verify with exact browse commands before
+using a result:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;release checklist&quot;</span><span class="w"> </span>PATH<span class="w"> </span>--top-k<span class="w"> </span><span class="m">25</span><span class="w"> </span>--json
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;release checklist&quot;</span><span class="w"> </span>PATH<span class="w"> </span>--json
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>SOURCE<span class="w"> </span>--range<span class="w"> </span>A:B
+</code></pre></div>
+<p>Use <a href="../search-and-browse/#browse-when-search-is-weak">Search and Browse</a>
+for the mental model and <a href="../troubleshooting/#empty-search-results">Troubleshooting</a>
+for recovery steps.</p>
 
 
 

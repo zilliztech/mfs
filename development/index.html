@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/architecture/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/development/">
       
       
-        <link rel="prev" href="../why/">
+        <link rel="prev" href="../content-model/">
       
       
-        <link rel="next" href="../roadmap/">
+        <link rel="next" href="../server/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Architecture - MFS</title>
+        <title>Development - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture" class="md-skip">
+        <a href="#development" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture
+              Development
             
           </span>
         </div>
@@ -191,12 +191,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href=".." class="md-tabs__link">
           
   
@@ -253,10 +251,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../content-model/" class="md-tabs__link">
           
   
@@ -344,31 +344,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
         
           
-          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
             
   
   
@@ -386,7 +381,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_1">
             <span class="md-nav__icon md-icon"></span>
             
@@ -457,37 +452,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
@@ -503,92 +471,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#runtime-and-data-flow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Runtime and data flow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#component-responsibilities" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Component responsibilities
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#api-surface-map" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        API surface map
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#runtime-modes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Runtime modes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration-boundaries" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration boundaries
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-runbooks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related runbooks
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1171,26 +1053,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -1208,7 +1095,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1251,10 +1138,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../development/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1270,6 +1184,81 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#package-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Package Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#local-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local Environment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#checks-by-change-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checks by Change Type
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#openapi-to-sdks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenAPI to SDKs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-to-open-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What To Open Next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1564,10 +1553,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#runtime-and-data-flow" class="md-nav__link">
+  <a href="#package-boundaries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Runtime and data flow
+        Package Boundaries
       
     </span>
   </a>
@@ -1575,10 +1564,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#component-responsibilities" class="md-nav__link">
+  <a href="#local-environment" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Component responsibilities
+        Local Environment
       
     </span>
   </a>
@@ -1586,10 +1575,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#api-surface-map" class="md-nav__link">
+  <a href="#checks-by-change-type" class="md-nav__link">
     <span class="md-ellipsis">
       
-        API surface map
+        Checks by Change Type
       
     </span>
   </a>
@@ -1597,10 +1586,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#runtime-modes" class="md-nav__link">
+  <a href="#openapi-to-sdks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Runtime modes
+        OpenAPI to SDKs
       
     </span>
   </a>
@@ -1608,21 +1597,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration-boundaries" class="md-nav__link">
+  <a href="#what-to-open-next" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration boundaries
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-runbooks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related runbooks
+        What To Open Next
       
     </span>
   </a>
@@ -1649,149 +1627,257 @@
   
 
 
-<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>MFS v0.4 is a client/server system. The Rust CLI and generated SDKs are client
-surfaces over the <code>/v1</code> HTTP control plane. The Python FastAPI server owns
-connector execution, ingest jobs, retrieval, browsing, metadata, cache, and
-Milvus/Zilliz integration.</p>
-<p>Use this page for the system map. For runnable steps, start with
-<a href="../getting-started/">Quickstart</a>. For exact commands, use
-<a href="../cli/">CLI Reference</a>. For direct integration, use <a href="../api/">HTTP API</a> and
-<a href="../sdks/">SDKs</a>.</p>
-<h2 id="runtime-and-data-flow">Runtime and data flow<a class="headerlink" href="#runtime-and-data-flow" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>flowchart TB
-  subgraph Clients
-    cli["Rust CLI&lt;br/&gt;mfs"]
-    sdk["Generated SDKs&lt;br/&gt;Python / TypeScript"]
-    http["Direct HTTP clients"]
-  end
-
-  cli --&gt;|HTTP /v1 + bearer token| api["Python FastAPI server&lt;br/&gt;mfs-server"]
-  sdk --&gt;|HTTP /v1 + bearer token| api
-  http --&gt;|HTTP /v1 + bearer token| api
-  api -.-&gt; health["GET /healthz&lt;br/&gt;no bearer token"]
-
-  api --&gt; engine["Engine&lt;br/&gt;registry, ingest, search, browse"]
-  engine --&gt; jobs["Jobs&lt;br/&gt;inline, queued, worker-drained"]
-  jobs --&gt; connectors["Connector plugins&lt;br/&gt;file + optional built-ins"]
-  connectors --&gt; sources["Source systems&lt;br/&gt;folders, object stores, databases, SaaS, docs"]
-
-  jobs --&gt; transform["Conversion, embedding,&lt;br/&gt;optional VLM and summaries"]
-  transform --&gt; txcache["Transformation cache&lt;br/&gt;embedding / summary lookup"]
-  transform --&gt; artifacts["Artifact cache&lt;br/&gt;converted blobs"]
-  transform --&gt; milvus["Milvus / Zilliz / Milvus Lite&lt;br/&gt;indexed chunks"]
-
-  engine --&gt; metadata["Metadata database&lt;br/&gt;connectors, objects, jobs"]
-  engine --&gt; milvus
-  engine --&gt; connectors</code></pre>
-<p><code>search</code> reads indexed chunks. <code>grep</code>, <code>ls</code>, <code>tree</code>, <code>cat</code>, <code>head</code>, <code>tail</code>, and
-<code>export</code> are browse/read operations: <code>tree</code> is implemented by repeated <code>ls</code>
-calls, and search hits should be reopened with <code>cat</code> or a bounded read before
-being used as evidence.</p>
-<h2 id="component-responsibilities">Component responsibilities<a class="headerlink" href="#component-responsibilities" title="Permanent link">&para;</a></h2>
-<p>| Component | Repository area | Responsibility | Go deeper |
-|---|---|
-| Rust CLI | <code>cli/</code> | Parses commands, resolves endpoint and token sources, packages uploads when needed, calls <code>/v1</code>, and renders JSON or text output. | <a href="../cli/">CLI Reference</a> |
-| OpenAPI protocol | <code>protocol/openapi.yaml</code> | Source of truth for <code>/v1</code> endpoint paths, operation IDs, and typed schemas used by docs and SDK generation. | <a href="../api/">HTTP API</a> |
-| Generated SDKs | <code>sdks/python/</code>, <code>sdks/typescript/</code> | Generated Python and TypeScript clients for programmatic callers. | <a href="../sdks/">SDKs</a> |
-| FastAPI server | <code>server/python/src/mfs_server/api/</code> | Wires the <code>/v1</code> API, bearer-token middleware, <code>/healthz</code>, error envelopes, and request/response models. | <a href="../server/">Server</a>, <a href="../api/">HTTP API</a> |
-| Engine | <code>server/python/src/mfs_server/engine/</code> | Orchestrates add/sync jobs, connector registration, upload staging, object processing, search, grep, browse, and connector removal. | <a href="../server/">Server</a> |
-| Connectors | <code>server/python/src/mfs_server/connectors/</code> | Expose local and external sources as URI trees; <code>file</code> is always imported and other built-in schemes are loaded lazily when optional dependencies exist. | <a href="../connectors/">Connectors</a> |
-| Metadata database | <code>server/python/src/mfs_server/storage/</code> | Stores connector registry rows, object state, jobs, and related metadata. SQLite is the local default; Postgres is configured through server settings. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Transformation cache | <code>server/python/src/mfs_server/storage/</code> | Stores transformation lookups such as embedding and summary bytes. It defaults under <code>$MFS_HOME</code> and can share Postgres when configured. | <a href="../configuration/">Configuration</a> |
-| Artifact cache | <code>server/python/src/mfs_server/storage/</code> | Stores derived blobs such as converted document text and image descriptions. Local filesystem is the default; S3-compatible storage is configured through server settings. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Vector database | <code>server/python/src/mfs_server/storage/</code> | Stores indexed chunks in Milvus Lite by default, or a configured Milvus/Zilliz endpoint. | <a href="../configuration/">Configuration</a>, <a href="../deployment/">Deployment</a> |
-| Workers | <code>server/python/src/mfs_server/engine/</code>, <code>mfs-server worker</code> | Drain queued jobs. SQLite all-in-one runs can use an in-process worker; api/worker deployments use a standalone worker process. | <a href="../deployment/">Deployment</a>, <a href="../troubleshooting/">Troubleshooting</a> |
-| Optional Rust acceleration | <code>server-rs/</code> | Optional PyO3 extension for server hot paths such as directory walks, hashing, grep, and tail; the server falls back to Python when it is not installed. | <a href="../server/">Server</a> |</p>
-<h2 id="api-surface-map">API surface map<a class="headerlink" href="#api-surface-map" title="Permanent link">&para;</a></h2>
+<h1 id="development">Development<a class="headerlink" href="#development" title="Permanent link">&para;</a></h1>
+<p>Use this page as a compact contributor runbook. It points to the package that
+owns each surface, the local setup command to start with, and the checks to run
+before you update docs, server code, CLI code, protocol files, generated SDKs,
+or the optional Rust acceleration module.</p>
+<p>For product usage, start with <a href="../getting-started/">Quickstart</a>. For server
+runtime behavior, use <a href="../server/">Server</a>. For exact <code>/v1</code> shapes, use
+<a href="../api/">HTTP API</a>. For generated clients, use <a href="../sdks/">SDKs</a>.</p>
+<h2 id="package-boundaries">Package Boundaries<a class="headerlink" href="#package-boundaries" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Group</th>
-<th>Endpoints</th>
-<th>Used by</th>
+<th>Area</th>
+<th>Owns</th>
+<th>Primary files</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Server</td>
-<td><code>GET /v1/server/info</code>, <code>GET /v1/status</code>, <code>GET /healthz</code></td>
-<td><code>mfs status</code>, <code>mfs config show</code>, liveness checks, direct clients</td>
+<td>Docs site</td>
+<td>Public MkDocs pages, navigation, theme config, and docs-only dependencies.</td>
+<td><code>docs/</code>, <code>mkdocs.yml</code>, root <code>pyproject.toml</code></td>
 </tr>
 <tr>
-<td>Ingest and jobs</td>
-<td><code>POST /v1/add</code>, <code>POST /v1/upload</code>, <code>POST /v1/files/manifest</code>, <code>PUT /v1/files/upload</code>, <code>GET /v1/jobs</code>, <code>GET /v1/jobs/{job_id}</code>, <code>POST /v1/jobs/{job_id}/cancel</code></td>
-<td><code>mfs add</code>, upload mode, <code>mfs job ...</code>, SDK/API integrations</td>
+<td>Rust CLI</td>
+<td>The <code>mfs</code> binary, endpoint/profile/token resolution, upload packaging, terminal output, and HTTP calls to the server.</td>
+<td><code>cli/</code>, <code>cli/Cargo.toml</code>, <code>cli/src/main.rs</code></td>
 </tr>
 <tr>
-<td>Connectors</td>
-<td><code>POST /v1/connectors/probe</code>, <code>POST /v1/connectors/estimate</code>, <code>GET /v1/connectors/inspect</code>, <code>DELETE /v1/connectors</code></td>
-<td><code>mfs connector ...</code>, <code>mfs remove</code>, pre-flight checks</td>
+<td>Python server</td>
+<td>FastAPI <code>/v1</code>, connector execution, ingest jobs, upload staging, object processing, search, browse/read, metadata, caches, and Milvus integration.</td>
+<td><code>server/python/</code>, <code>server/python/pyproject.toml</code></td>
 </tr>
 <tr>
-<td>Retrieval</td>
-<td><code>GET /v1/search</code>, <code>GET /v1/grep</code></td>
-<td><code>mfs search</code>, <code>mfs grep</code>, search integrations</td>
+<td>Rust server acceleration</td>
+<td>Optional PyO3 extension for server hot paths. The Python server falls back when the wheel is not installed.</td>
+<td><code>server-rs/</code>, <code>server-rs/Cargo.toml</code>, <code>server-rs/pyproject.toml</code></td>
 </tr>
 <tr>
-<td>Browse/read</td>
-<td><code>GET /v1/ls</code>, <code>GET /v1/cat</code>, <code>GET /v1/head</code>, <code>GET /v1/tail</code>, <code>GET /v1/export</code></td>
-<td><code>mfs ls</code>, <code>mfs tree</code>, <code>mfs cat</code>, <code>mfs head</code>, <code>mfs tail</code>, <code>mfs export</code></td>
+<td>Protocol</td>
+<td>Source OpenAPI contract for endpoint paths, operation IDs, tags, and schemas.</td>
+<td><code>protocol/openapi.yaml</code></td>
+</tr>
+<tr>
+<td>Generated SDKs</td>
+<td>Checked-in Python and TypeScript clients generated from the OpenAPI contract.</td>
+<td><code>sdks/python/</code>, <code>sdks/typescript/</code>, <code>sdks/generate.sh</code></td>
+</tr>
+<tr>
+<td>SDK smoke harness</td>
+<td>Live-server checks for generated clients. These are test harnesses, not shipped SDK artifacts.</td>
+<td><code>sdks/smoke/</code></td>
+</tr>
+<tr>
+<td>Deployment assets</td>
+<td>Docker, Compose, and Helm-rendered runtime shapes.</td>
+<td><code>deployments/</code></td>
 </tr>
 </tbody>
 </table>
-<p>Every <code>/v1</code> request requires <code>Authorization: Bearer &lt;token&gt;</code> when the server has
-<code>auth_token</code> configured. <code>GET /healthz</code> is intentionally outside <code>/v1</code> and is
-not bearer-token gated.</p>
-<h2 id="runtime-modes">Runtime modes<a class="headerlink" href="#runtime-modes" title="Permanent link">&para;</a></h2>
+<h2 id="local-environment">Local Environment<a class="headerlink" href="#local-environment" title="Permanent link">&para;</a></h2>
+<p>From the repository root, docs use the root <code>pyproject.toml</code> docs dependency
+group:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>docs<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
+</code></pre></div>
+<p>The Python server package requires Python 3.10 or newer. Use the server package
+directory for server dependencies and checks:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>server/python
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>uv<span class="w"> </span>sync
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>all-connectors
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+</code></pre></div>
+<p><code>all-connectors</code> installs the optional connector SDKs. The <code>dev</code> extra includes
+server test and formatting tools such as <code>pytest</code>, <code>pytest-asyncio</code>, and
+<code>ruff</code>.</p>
+<p>Build and test the Rust CLI from <code>cli/</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>cli
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cargo<span class="w"> </span>build<span class="w"> </span>--release
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>cargo<span class="w"> </span><span class="nb">test</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>cargo<span class="w"> </span>fmt<span class="w"> </span>--all<span class="w"> </span>--<span class="w"> </span>--check
+</code></pre></div>
+<p>Install the optional Rust acceleration wheel from <code>server-rs/</code> when you need to
+exercise the server with native hot paths enabled:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>server-rs
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>uv<span class="w"> </span>run<span class="w"> </span>--project<span class="w"> </span>../server/python<span class="w"> </span>maturin<span class="w"> </span>develop<span class="w"> </span>--release
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Verify old snippets before reusing them</p>
+<p>Broad setup prose can lag the detailed reference pages. Before copying job
+commands or state paths, check <a href="../cli/">CLI Reference</a>,
+<a href="../troubleshooting/">Troubleshooting</a>, and <a href="../configuration/">Configuration</a>.
+Current job commands use <code>mfs job list</code>, <code>mfs job show JOB_ID</code>, and
+<code>mfs job cancel JOB_ID</code>. <code>MFS_HOME</code> defaults to <code>~/.mfs</code>, and local server
+files such as <code>server.token</code>, <code>metadata.db</code>, <code>transformation_cache.db</code>,
+<code>cache/</code>, and <code>milvus.db</code> live under that root unless <code>MFS_HOME</code> is set.</p>
+</div>
+<h2 id="checks-by-change-type">Checks by Change Type<a class="headerlink" href="#checks-by-change-type" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Mode</th>
-<th>What runs</th>
-<th>Worker and state notes</th>
-<th>Use this when</th>
+<th>Change</th>
+<th>Run</th>
+<th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Source all-in-one</td>
-<td>Host <code>mfs-server run</code> plus one or more <code>mfs</code> clients.</td>
-<td>Defaults to <code>127.0.0.1:13619</code>; <code>$MFS_HOME</code> defaults to <code>~/.mfs</code>; local defaults are ONNX embeddings, Milvus Lite, SQLite, local artifact cache, and a generated server token. SQLite all-in-one runs can drain queued jobs in-process.</td>
-<td>You are doing the first local run, evaluation, or connector development. Start with <a href="../getting-started/">Quickstart</a>.</td>
+<td>Docs page, nav, or docs dependency</td>
+<td><code>uv run --group docs mkdocs build --strict</code></td>
+<td>Matches the docs build workflow. Run from the repository root.</td>
 </tr>
 <tr>
-<td>Docker or Compose all-in-one</td>
-<td>One container runs <code>mfs-server run</code> with persistent <code>/data</code>.</td>
-<td>The container uses <code>/data</code> for config, token, SQLite, caches, ONNX cache, and Milvus Lite. Use <code>mfs add --upload</code> from the host unless the target path is mounted into the container and passed as a server-visible path.</td>
-<td>You want an isolated local server or repeatable container startup. See <a href="../deployment/">Deployment</a>.</td>
+<td>Python server formatting</td>
+<td><code>cd server/python &amp;&amp; uv sync --extra dev &amp;&amp; uv run ruff format --check src/ tests/</code></td>
+<td>Matches the Python formatting job. Use <code>uv run ruff format src/ tests/</code> to apply formatting.</td>
 </tr>
 <tr>
-<td>Direct client/server</td>
-<td>CLI, SDK, or HTTP client talks to a server it cannot assume shares local paths with the client.</td>
-<td>Set endpoint and token explicitly, and use upload mode for client-local folders. The CLI chooses upload for local paths when it detects a different server machine unless <code>--no-upload</code> is set.</td>
-<td>You are integrating from another host, VM, container, or automation process. See <a href="../cli/">CLI Reference</a>, <a href="../api/">HTTP API</a>, and <a href="../sdks/">SDKs</a>.</td>
+<td>Python server tests</td>
+<td><code>cd server/python &amp;&amp; uv run pytest</code></td>
+<td>Default test path is <code>tests/</code>. Live connector tests are marked separately, for example <code>uv run pytest -m live -k slack</code>.</td>
 </tr>
 <tr>
-<td>Helm-rendered api/worker</td>
-<td>The chart renders an API Deployment, Worker Deployment, and API Service.</td>
-<td>The repository documents this as the post-v0.4 scalable direction, not the runnable v0.4 operations path. The rendered shape expects externalized state such as Postgres, object storage, and remote Milvus/Zilliz.</td>
-<td>You are validating the chart or planning the future split. See <a href="../deployment/">Deployment</a>.</td>
+<td>Rust CLI formatting</td>
+<td><code>cd cli &amp;&amp; cargo fmt --all -- --check</code></td>
+<td>Matches the CLI rustfmt job.</td>
+</tr>
+<tr>
+<td>Rust CLI behavior</td>
+<td><code>cd cli &amp;&amp; cargo test</code></td>
+<td>Use with <code>cargo build --release</code> when you need to verify the local <code>mfs</code> binary.</td>
+</tr>
+<tr>
+<td>Rust server acceleration formatting</td>
+<td><code>cd server-rs &amp;&amp; cargo fmt --all -- --check</code></td>
+<td>Matches the server-rs rustfmt job.</td>
+</tr>
+<tr>
+<td>Rust server acceleration behavior</td>
+<td><code>cd server-rs &amp;&amp; cargo test</code> plus <code>uv run --project ../server/python maturin develop --release</code></td>
+<td><code>maturin develop</code> installs the PyO3 module into the server environment for integration checks.</td>
+</tr>
+<tr>
+<td>OpenAPI contract</td>
+<td>Regenerate SDKs, then review generated API classes and docs</td>
+<td><code>protocol/openapi.yaml</code> is the contract source. See <a href="#openapi-to-sdks">OpenAPI to SDKs</a>.</td>
+</tr>
+<tr>
+<td>Generated SDKs</td>
+<td>Run generator and inspect <code>sdks/python/</code> and <code>sdks/typescript/</code></td>
+<td>Generated README files and package internals can contain scaffold defaults. Confirm before documenting method names, auth text, versions, or base URLs.</td>
+</tr>
+<tr>
+<td>SDK smoke harness</td>
+<td>Run the smoke commands against a prepared live server</td>
+<td>The smoke README uses <code>127.0.0.1:8765</code>; that is a harness target, not the default <code>mfs-server run</code> address.</td>
+</tr>
+<tr>
+<td>Deployment docs or assets</td>
+<td>Run the docs build; for asset changes, render or lint the asset you changed</td>
+<td>The docs build is the public-docs gate. Deployment topology details live in <a href="../deployment/">Deployment</a>.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="configuration-boundaries">Configuration boundaries<a class="headerlink" href="#configuration-boundaries" title="Permanent link">&para;</a></h2>
-<p>The CLI configures client concerns: endpoint selection, profile selection,
-client identity, upload decisions, and bearer-token source. The server configures
-runtime concerns: namespace, auth, database, metadata, transformation cache,
-artifact cache, Milvus, embeddings, summaries, VLM, conversion, workers,
-chunking, and search behavior.</p>
-<p>Key local defaults are shared through <code>$MFS_HOME</code>: the CLI can read
-<code>$MFS_HOME/server.token</code> for same-host local auth, while the server stores
-<code>server.toml</code>, SQLite files, local caches, Milvus Lite, and the ONNX model cache
-under the same root. For precedence rules and environment overrides, see
-<a href="../configuration/">Configuration</a>.</p>
-<h2 id="related-runbooks">Related runbooks<a class="headerlink" href="#related-runbooks" title="Permanent link">&para;</a></h2>
+<p>The checked workflows currently enforce:</p>
+<table>
+<thead>
+<tr>
+<th>Workflow</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.github/workflows/docs.yml</code></td>
+<td><code>uv run --group docs mkdocs build --strict</code></td>
+</tr>
+<tr>
+<td><code>.github/workflows/lint.yml</code></td>
+<td><code>uv run ruff format --check src/ tests/</code> from <code>server/python</code></td>
+</tr>
+<tr>
+<td><code>.github/workflows/lint.yml</code></td>
+<td><code>cargo fmt --all -- --check</code> from <code>cli</code></td>
+</tr>
+<tr>
+<td><code>.github/workflows/lint.yml</code></td>
+<td><code>cargo fmt --all -- --check</code> from <code>server-rs</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="openapi-to-sdks">OpenAPI to SDKs<a class="headerlink" href="#openapi-to-sdks" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>protocol/openapi.yaml
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>        |
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>        v
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>sdks/generate.sh
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>        |
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>        +--&gt; sdks/python/      package: mfs_sdk
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>        +--&gt; sdks/typescript/  package: @mfs/sdk
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>        |
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>        v
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>sdks/smoke/ live-server harness
+</code></pre></div>
+<p>Regenerate clients after changing <code>protocol/openapi.yaml</code>. The generator script
+requires Java 11 or newer and <code>openapi-generator-cli</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>npm<span class="w"> </span>install<span class="w"> </span>-g<span class="w"> </span>@openapitools/openapi-generator-cli
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">cd</span><span class="w"> </span>sdks
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>./generate.sh
+</code></pre></div>
+<p>Then inspect the generated SDKs before documenting a method name or field:</p>
+<table>
+<thead>
+<tr>
+<th>Inspect</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sdks/python/mfs_sdk/api/</code> and <code>sdks/typescript/src/apis/</code></td>
+<td>Confirms which operation groups became generated client classes.</td>
+</tr>
+<tr>
+<td><code>sdks/python/pyproject.toml</code> and <code>sdks/typescript/package.json</code></td>
+<td>Confirms checked-in package metadata.</td>
+</tr>
+<tr>
+<td><code>sdks/python/README.md</code> and <code>sdks/typescript/README.md</code></td>
+<td>Generated docs can contain scaffold authorization, version, or default-host text. Treat them as generated output to verify, not as runtime authority.</td>
+</tr>
+<tr>
+<td><a href="../api/">HTTP API</a> and <a href="../sdks/">SDKs</a></td>
+<td>Keep public integration docs aligned with the regenerated sources.</td>
+</tr>
+</tbody>
+</table>
+<p>The smoke harnesses run against a live server after a small fixture has been
+added. They cover search-to-envelope, <code>ls</code>, <code>cat</code>, <code>status</code>, and error mapping.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>sdks/smoke
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">cd</span><span class="w"> </span>python<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>../../python<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>python<span class="w"> </span>smoke_test.py
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">cd</span><span class="w"> </span>sdks/smoke
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="o">(</span><span class="nb">cd</span><span class="w"> </span>../typescript<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>npm<span class="w"> </span>i<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>npm<span class="w"> </span>run<span class="w"> </span>build<span class="o">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>node<span class="w"> </span>typescript/smoke_test.cjs
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Smoke harness address</p>
+<p>The smoke README and smoke scripts target <code>127.0.0.1:8765</code>. The default
+<code>mfs-server run</code> and <code>mfs-server api</code> bind address is <code>127.0.0.1:13619</code>.
+Set up the live test server deliberately before running the harness.</p>
+</div>
+<h2 id="what-to-open-next">What To Open Next<a class="headerlink" href="#what-to-open-next" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1801,43 +1887,27 @@ under the same root. For precedence rules and environment overrides, see
 </thead>
 <tbody>
 <tr>
-<td>First local run</td>
-<td><a href="../getting-started/">Quickstart</a></td>
-</tr>
-<tr>
-<td>Search, browse, and evidence verification</td>
-<td><a href="../search-and-browse/">Search and Browse</a></td>
-</tr>
-<tr>
-<td>Connector selection and TOML setup</td>
-<td><a href="../connectors/">Connectors</a></td>
-</tr>
-<tr>
-<td>Exact CLI command surface</td>
-<td><a href="../cli/">CLI Reference</a></td>
-</tr>
-<tr>
-<td>Server package map</td>
+<td>Runtime module map and server entrypoints</td>
 <td><a href="../server/">Server</a></td>
 </tr>
 <tr>
-<td>Direct <code>/v1</code> integration</td>
+<td>Exact endpoint paths, request fields, and response schemas</td>
 <td><a href="../api/">HTTP API</a></td>
 </tr>
 <tr>
-<td>Generated clients</td>
+<td>Generated client coverage, examples, and SDK caveats</td>
 <td><a href="../sdks/">SDKs</a></td>
 </tr>
 <tr>
-<td>Source, Docker, Compose, and Helm shapes</td>
-<td><a href="../deployment/">Deployment</a></td>
-</tr>
-<tr>
-<td>Config files, env vars, and persisted state</td>
+<td>Config lookup, <code>MFS_HOME</code>, auth modes, and backend defaults</td>
 <td><a href="../configuration/">Configuration</a></td>
 </tr>
 <tr>
-<td>Endpoint, auth, job, ingest, search, and browse failures</td>
+<td>Source, Docker, Compose, and rendered Helm runtime shapes</td>
+<td><a href="../deployment/">Deployment</a></td>
+</tr>
+<tr>
+<td>Endpoint, auth, upload, indexing, search, and browse failures</td>
 <td><a href="../troubleshooting/">Troubleshooting</a></td>
 </tr>
 </tbody>

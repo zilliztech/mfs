@@ -1,0 +1,2791 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-source File-like Search for agents and developers, powered by Milvus">
+      
+      
+      
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/connector-reference/">
+      
+      
+        <link rel="prev" href="../connector-config-recipes/">
+      
+      
+        <link rel="next" href="../skills/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Connector Reference - MFS</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=JetBrains+Mono:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"JetBrains Mono";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/terminal.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#connector-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="MFS" class="md-header__button md-logo" aria-label="MFS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MFS
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Connector Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/zilliztech/mfs" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    zilliztech/mfs
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href=".." class="md-tabs__link">
+          
+  
+  
+  Overview
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Get Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../search-and-browse/" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../content-model/" class="md-tabs__link">
+          
+  
+  
+  Developer Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../errors/" class="md-tabs__link">
+          
+  
+  
+  Help
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="MFS" class="md-nav__button md-logo" aria-label="MFS" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MFS
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/zilliztech/mfs" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    zilliztech/mfs
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../why/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Why MFS
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Status and Limits
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Get Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth-and-secrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Auth and Secrets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers and Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-and-backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage and Backup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../search-and-browse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search and Browse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs and Indexing Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-config-recipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Configuration Recipes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-scheme-index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Scheme Index
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#web" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        web
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#github" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        github
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#postgres" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        postgres
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mysql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mysql
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mongo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mongo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#slack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        slack
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#discord" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        discord
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gmail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gmail
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        notion
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jira" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        jira
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#linear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        linear
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#zendesk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        zendesk
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#salesforce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        salesforce
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hubspot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hubspot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bigquery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bigquery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snowflake" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snowflake
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#s3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        s3
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gdrive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gdrive
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feishu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        feishu
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skills
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sdks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SDKs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Help
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Help
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#built-in-scheme-index" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Scheme Index
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        file
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#web" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        web
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#github" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        github
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#postgres" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        postgres
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mysql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mysql
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mongo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mongo
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#slack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        slack
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#discord" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        discord
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gmail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gmail
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        notion
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jira" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        jira
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#linear" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        linear
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#zendesk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        zendesk
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#salesforce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        salesforce
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hubspot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        hubspot
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bigquery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        bigquery
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snowflake" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snowflake
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#s3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        s3
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gdrive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        gdrive
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feishu" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        feishu
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="connector-reference">Connector Reference<a class="headerlink" href="#connector-reference" title="Permanent link">&para;</a></h1>
+<p>This page keeps connector-specific details searchable inside the MkDocs site.
+Use <a href="../connectors/">Connectors</a> for choosing a source and managing its
+lifecycle. Use <a href="../connector-config-recipes/">Connector Configuration Recipes</a>
+when you already chose a scheme and need to author, probe, update, and validate
+TOML. Use this page when you need a concrete URI shape, minimum TOML,
+probe/add command, browse path, locator, or pitfall for one built-in scheme.</p>
+<p>The built-in scheme list below is taken from the server registry. <code>file</code> is
+always imported. The other built-ins are imported lazily and may be skipped in a
+server environment that does not have that connector's optional dependencies.
+Always probe the connector on the target server before queueing a large sync.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>&lt;scheme://alias&gt;<span class="w"> </span>--config<span class="w"> </span>./connector.toml
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>&lt;scheme://alias&gt;<span class="w"> </span>--config<span class="w"> </span>./connector.toml<span class="w"> </span>--wait
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Config and secret references</p>
+<p>Connector TOML is loaded by the CLI and sent as the API <code>config</code> object.
+Top-level <code>env:VAR</code> and <code>file:/abs/path</code> string values are resolved by the
+server before the plugin is built. Use <code>credential_ref</code> when a connector
+explicitly consumes the resolved <code>credential</code> fallback, such as Snowflake's
+private key.</p>
+</div>
+<p>For a cross-scheme decision table, credential matrix, <code>[[objects]]</code> field
+guide, recipe tabs, and readback validation examples, see
+<a href="../connector-config-recipes/">Connector Configuration Recipes</a>.</p>
+<h2 id="built-in-scheme-index">Built-in Scheme Index<a class="headerlink" href="#built-in-scheme-index" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Scheme</th>
+<th>Primary tree shape</th>
+<th>Use it for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#file"><code>file</code></a></td>
+<td><code>file://local/abs/path/...</code></td>
+<td>Local directory trees and uploaded local paths.</td>
+</tr>
+<tr>
+<td><a href="#web"><code>web</code></a></td>
+<td><code>web://alias/pages/&lt;host&gt;/&lt;path&gt;.md</code></td>
+<td>HTTP pages converted to markdown.</td>
+</tr>
+<tr>
+<td><a href="#github"><code>github</code></a></td>
+<td><code>github://owner/repo/&lt;repo-path&gt;</code></td>
+<td>GitHub repository files, optionally issues and PRs.</td>
+</tr>
+<tr>
+<td><a href="#postgres"><code>postgres</code></a></td>
+<td><code>postgres://alias/&lt;schema&gt;/&lt;table&gt;/rows.jsonl</code></td>
+<td>Postgres rows and table schemas.</td>
+</tr>
+<tr>
+<td><a href="#mysql"><code>mysql</code></a></td>
+<td><code>mysql://alias/&lt;table&gt;/rows.jsonl</code></td>
+<td>MySQL rows in one database.</td>
+</tr>
+<tr>
+<td><a href="#mongo"><code>mongo</code></a></td>
+<td><code>mongo://alias/&lt;collection&gt;/documents.jsonl</code></td>
+<td>MongoDB documents in one database.</td>
+</tr>
+<tr>
+<td><a href="#slack"><code>slack</code></a></td>
+<td><code>slack://alias/channels/&lt;name&gt;__&lt;id&gt;/messages.jsonl</code></td>
+<td>Slack channel threads and workspace users.</td>
+</tr>
+<tr>
+<td><a href="#discord"><code>discord</code></a></td>
+<td><code>discord://alias/channels/&lt;name&gt;__&lt;id&gt;/messages.jsonl</code></td>
+<td>Discord text channel messages and active threads.</td>
+</tr>
+<tr>
+<td><a href="#gmail"><code>gmail</code></a></td>
+<td><code>gmail://alias/labels/&lt;label&gt;__&lt;id&gt;/messages.jsonl</code></td>
+<td>Gmail label streams grouped by <code>threadId</code>.</td>
+</tr>
+<tr>
+<td><a href="#notion"><code>notion</code></a></td>
+<td><code>notion://alias/pages/&lt;id&gt;.md</code></td>
+<td>Notion pages and data source records.</td>
+</tr>
+<tr>
+<td><a href="#jira"><code>jira</code></a></td>
+<td><code>jira://alias/projects/&lt;key&gt;/issues.jsonl</code></td>
+<td>Jira issue records by project.</td>
+</tr>
+<tr>
+<td><a href="#linear"><code>linear</code></a></td>
+<td><code>linear://alias/teams/&lt;key&gt;/issues.jsonl</code></td>
+<td>Linear issue records by team.</td>
+</tr>
+<tr>
+<td><a href="#zendesk"><code>zendesk</code></a></td>
+<td><code>zendesk://alias/tickets/records.jsonl</code></td>
+<td>Zendesk tickets, comments, users, and organizations.</td>
+</tr>
+<tr>
+<td><a href="#salesforce"><code>salesforce</code></a></td>
+<td><code>salesforce://alias/&lt;SObject&gt;/records.jsonl</code></td>
+<td>Salesforce sObject records.</td>
+</tr>
+<tr>
+<td><a href="#hubspot"><code>hubspot</code></a></td>
+<td><code>hubspot://alias/&lt;object&gt;/records.jsonl</code></td>
+<td>HubSpot CRM object records.</td>
+</tr>
+<tr>
+<td><a href="#bigquery"><code>bigquery</code></a></td>
+<td><code>bigquery://alias/&lt;dataset&gt;/tables/&lt;table&gt;/rows.jsonl</code></td>
+<td>BigQuery table rows and schemas.</td>
+</tr>
+<tr>
+<td><a href="#snowflake"><code>snowflake</code></a></td>
+<td><code>snowflake://alias/&lt;DB&gt;/&lt;SCHEMA&gt;/tables/&lt;TABLE&gt;/rows.jsonl</code></td>
+<td>Snowflake table rows and schemas.</td>
+</tr>
+<tr>
+<td><a href="#s3"><code>s3</code></a></td>
+<td><code>s3://alias/&lt;object-key&gt;</code></td>
+<td>S3-compatible object-key trees.</td>
+</tr>
+<tr>
+<td><a href="#gdrive"><code>gdrive</code></a></td>
+<td><code>gdrive://alias/&lt;folder&gt;/&lt;file&gt;</code></td>
+<td>Google Drive file trees.</td>
+</tr>
+<tr>
+<td><a href="#feishu"><code>feishu</code></a></td>
+<td><code>feishu://alias/chats/&lt;name&gt;__&lt;id&gt;/messages.jsonl</code></td>
+<td>Feishu/Lark chats and docx documents.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="file"><code>file</code><a class="headerlink" href="#file" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> bare local paths are accepted by the CLI. The server identity for
+same-host paths is <code>file://local/abs/path</code>. Uploaded remote paths use
+<code>file://&lt;client_id&gt;&lt;abs-root&gt;</code>.</p>
+<p><strong>Minimum config:</strong> no TOML for the simple case. Optional TOML can set
+<code>max_file_bytes</code> and <code>[[objects]]</code> rules such as <code>indexable = false</code>.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>./docs<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;release checklist&quot;</span><span class="w"> </span>./docs<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./docs/README.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li><code>.gitignore</code>, <code>.mfsignore</code>, and built-in ignore patterns remove files from
+  the visible tree.</li>
+<li>Large files can be skipped by <code>max_file_bytes</code>.</li>
+<li><code>indexable = false</code> keeps an object browsable but prevents embedding chunks.</li>
+<li>Symlinks are resolved under the connector root; paths that escape the root
+  are rejected.</li>
+</ul>
+<h2 id="web"><code>web</code><a class="headerlink" href="#web" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>web://&lt;alias&gt;/pages/&lt;host&gt;/&lt;url-path&gt;.md</code>. URLs are fetched,
+converted to markdown, and exposed under <code>pages/</code>.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">start_urls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;https://docs.example.com/&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">allowed_domains</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;docs.example.com&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">max_pages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span>
+</code></pre></div>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;installation&quot;</span><span class="w"> </span>web://docs
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mfs<span class="w"> </span>ls<span class="w"> </span>web://docs/pages/docs.example.com
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>web://docs/pages/docs.example.com/index.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>The connector fetches HTTP responses; it does not execute client-side
+  JavaScript.</li>
+<li><code>allowed_domains</code> limits traversal. External links may appear in markdown but
+  are not indexed unless they match the allowed domain set.</li>
+<li><code>max_pages</code> is a crawl cap; raise it and re-sync if pages are missing.</li>
+<li>Authentication is not modeled by the current plugin.</li>
+</ul>
+<h2 id="github"><code>github</code><a class="headerlink" href="#github" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>github://&lt;owner&gt;/&lt;repo&gt;/...</code>. Repository files are exposed at
+their repo paths, for example <code>github://zilliztech/mfs/server/python/...</code>.
+When <code>index_meta = true</code>, <code>_meta/issues.jsonl</code>, <code>_meta/pulls.jsonl</code>, and PR
+diff documents are also exposed.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">repo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;zilliztech/mfs&quot;</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;main&quot;</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">index_meta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5000</span>
+</code></pre></div>
+<p>Set <code>GITHUB_TOKEN</code> in the server environment for authenticated requests. The
+current plugin reads that environment variable directly when building GitHub
+API headers.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>github://zilliztech/mfs<span class="w"> </span>--config<span class="w"> </span>./github.toml
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>github://zilliztech/mfs<span class="w"> </span>--config<span class="w"> </span>./github.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;connector registry&quot;</span><span class="w"> </span>github://zilliztech/mfs/server/python
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>github://zilliztech/mfs/server/python/src/mfs_server/connectors/registry.py<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>github://zilliztech/mfs/_meta/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;number&quot;:42}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>Set <code>repo</code> explicitly in TOML. The current plugin reads <code>repo</code> from config
+  instead of deriving it from the URI.</li>
+<li>Issues, pulls, and PR diffs are opt-in through <code>index_meta = true</code>.</li>
+<li>Private repositories need <code>GITHUB_TOKEN</code> in the server process environment.</li>
+<li>Submodules are not followed as separate repository trees.</li>
+</ul>
+<h2 id="postgres"><code>postgres</code><a class="headerlink" href="#postgres" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>postgres://&lt;alias&gt;/&lt;schema&gt;/&lt;table&gt;/rows.jsonl</code> for rows and
+<code>postgres://&lt;alias&gt;/&lt;schema&gt;/&lt;table&gt;/schema.json</code> for schema summaries.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">dsn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:PG_DSN&quot;</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">schemas</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;public&quot;</span><span class="p">]</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/public/tickets&quot;</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updated_at&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO migration&quot;</span><span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>postgres://prod-db<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>Missing <code>[[objects]].text_fields</code> means rows enumerate but produce no
+  searchable row chunks.</li>
+<li><code>match</code> should target the connector-relative object path, such as
+  <code>/public/tickets</code>, so it matches <code>/public/tickets/rows.jsonl</code>.</li>
+<li>Use read-only database credentials; the connector only needs <code>SELECT</code>.</li>
+<li><code>max_read_rows</code> caps large tables and can mark recall as partial.</li>
+</ul>
+<h2 id="mysql"><code>mysql</code><a class="headerlink" href="#mysql" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>mysql://&lt;alias&gt;/&lt;table&gt;/rows.jsonl</code> for rows and
+<code>mysql://&lt;alias&gt;/&lt;table&gt;/schema.json</code> for schema summaries. The configured
+database is the connector scope.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">host</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;db.example.com&quot;</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3306</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader&quot;</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:MYSQL_PASSWORD&quot;</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/tickets&quot;</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>mysql://prod-db<span class="w"> </span>--config<span class="w"> </span>./mysql.toml
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mysql://prod-db<span class="w"> </span>--config<span class="w"> </span>./mysql.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing bug&quot;</span><span class="w"> </span>mysql://prod-db/tickets/rows.jsonl
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>mysql://prod-db<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>mysql://prod-db/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>A single connector covers one database; register another connector for
+  another database.</li>
+<li>Missing <code>[[objects]]</code> text fields gives you browsable rows but no row search.</li>
+<li>Legacy <code>utf8</code> collations can return mojibake for 4-byte characters.</li>
+<li>Long table scans can hit MySQL server timeouts; lower <code>max_read_rows</code> while
+  testing.</li>
+</ul>
+<h2 id="mongo"><code>mongo</code><a class="headerlink" href="#mongo" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>mongo://&lt;alias&gt;/&lt;collection&gt;/documents.jsonl</code> for documents and
+<code>mongo://&lt;alias&gt;/&lt;collection&gt;/schema.json</code> for a sampled schema preview.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">uri</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:MONGO_URI&quot;</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">cursor_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;updatedAt&quot;</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/support_threads&quot;</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;messages[].body&quot;</span><span class="p">]</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;_id&quot;</span><span class="p">]</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund escalation&quot;</span><span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;_id&quot;:&quot;65a3...&quot;}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>Mongo documents are heterogeneous; fields absent from a document are skipped
+  during text rendering.</li>
+<li><code>_id</code> locators use the serialized string form, not <code>ObjectId(...)</code>.</li>
+<li><code>max_read_docs</code> can cap a large collection.</li>
+<li>The current plugin exposes <code>documents.jsonl</code>; older references may say
+  <code>docs.jsonl</code>.</li>
+</ul>
+<h2 id="slack"><code>slack</code><a class="headerlink" href="#slack" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>slack://&lt;alias&gt;/channels/&lt;name&gt;__&lt;id&gt;/messages.jsonl</code> for
+channel messages and <code>slack://&lt;alias&gt;/users.jsonl</code> for workspace users.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SLACK_BOT_TOKEN&quot;</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">channel_types</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;public_channel&quot;</span><span class="p">]</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+</code></pre></div>
+<p>No <code>[[objects]]</code> is required for messages or users because built-in presets
+apply <code>text_fields</code>, grouping, and locators.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>slack://acme/channels/eng-backend__C012345/messages.jsonl
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;Alice Wang&quot;</span><span class="w"> </span>slack://acme/users.jsonl
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>slack://acme/channels/eng-backend__C012345/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;thread_ts&quot;:&quot;1717123456.001200&quot;}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>Private channels require both scopes and bot membership.</li>
+<li>Search hits are thread aggregates, so a short query can reopen a long thread.</li>
+<li><code>user</code> values in messages are Slack user IDs; use <code>/users.jsonl</code> to resolve
+  names.</li>
+<li><code>max_read_rows</code> applies per channel and can make recall partial.</li>
+</ul>
+<h2 id="discord"><code>discord</code><a class="headerlink" href="#discord" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>discord://&lt;alias&gt;/channels/&lt;name&gt;__&lt;id&gt;/messages.jsonl</code> for
+top-level channel messages. Active thread channels appear under
+<code>/channels/&lt;parent&gt;__&lt;id&gt;/threads/&lt;thread&gt;__&lt;id&gt;/messages.jsonl</code>.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:DISCORD_BOT_TOKEN&quot;</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">guild_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;987654321098765432&quot;</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+</code></pre></div>
+<p>No <code>[[objects]]</code> is required because the <code>discord.messages</code> preset applies.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>discord://community<span class="w"> </span>--config<span class="w"> </span>./discord.toml
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>discord://community<span class="w"> </span>--config<span class="w"> </span>./discord.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>discord://community
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>mfs<span class="w"> </span>ls<span class="w"> </span>discord://community/channels/general__987654321
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>discord://community/channels/general__987654321/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;1234567890123456789&quot;}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>The bot needs Message Content Intent, or message <code>content</code> can be empty.</li>
+<li>Only text and announcement channels are enumerated.</li>
+<li>Only active threads are listed by the current plugin; archived threads are
+  not included.</li>
+<li>Discord messages are indexed one message per row, not one thread aggregate.</li>
+</ul>
+<h2 id="gmail"><code>gmail</code><a class="headerlink" href="#gmail" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>gmail://&lt;alias&gt;/labels/&lt;label&gt;__&lt;id&gt;/messages.jsonl</code>. Message
+records are grouped by Gmail <code>threadId</code> by the framework preset.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:GMAIL_ACCESS_TOKEN&quot;</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="n">labels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;INBOX&quot;</span><span class="p">]</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5000</span>
+</code></pre></div>
+<p>The current plugin builds <code>google.oauth2.credentials.Credentials</code> from the
+configured <code>token</code> value when it is a string, or from
+<code>Credentials.from_authorized_user_info</code> when the parsed TOML value is an object.
+Probe the connector in the target server before syncing.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;contract renewal&quot;</span><span class="w"> </span>gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;threadId&quot;:&quot;THREAD_ID&quot;,&quot;id&quot;:&quot;MESSAGE_ID&quot;}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>The current path leaf is <code>messages.jsonl</code>; older references may say
+  <code>threads.jsonl</code>.</li>
+<li>Label matching uses Gmail label names or IDs returned by the API.</li>
+<li>Attachments are not indexed by the current connector.</li>
+<li>Large labels can hit <code>max_read_rows</code> and produce partial recall.</li>
+</ul>
+<h2 id="notion"><code>notion</code><a class="headerlink" href="#notion" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> pages are <code>notion://&lt;alias&gt;/pages/&lt;page-id&gt;.md</code>. Data source
+records are <code>notion://&lt;alias&gt;/data_sources/&lt;data-source-id&gt;/records.jsonl</code> with
+<code>schema.json</code> next to them.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:NOTION_TOKEN&quot;</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data_sources/&lt;data-source-id&gt;&quot;</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Description&quot;</span><span class="p">]</span>
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p>The <code>[[objects]]</code> block is only needed for searchable data source records.
+Pages render as markdown documents without per-record config.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>notion://workspace<span class="w"> </span>--config<span class="w"> </span>./notion.toml
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>notion://workspace<span class="w"> </span>--config<span class="w"> </span>./notion.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;launch checklist&quot;</span><span class="w"> </span>notion://workspace/pages
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>notion://workspace/pages/&lt;page-id&gt;.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>notion://workspace/data_sources/&lt;data-source-id&gt;/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;&lt;page-id&gt;&quot;}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>The integration only sees pages and data sources that were shared with it.</li>
+<li>The current plugin uses Notion <code>data_source</code> APIs and paths under
+  <code>data_sources/</code>; older references may say <code>databases/</code>.</li>
+<li>Data source records need <code>[[objects]].text_fields</code> to become searchable.</li>
+<li>Notion typed properties are flattened before record rendering.</li>
+</ul>
+<h2 id="jira"><code>jira</code><a class="headerlink" href="#jira" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>jira://&lt;alias&gt;/projects/&lt;project-key&gt;/issues.jsonl</code> plus
+<code>jira://&lt;alias&gt;/users.jsonl</code>.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://acme.atlassian.net&quot;</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="n">cloud</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;alice@acme.com&quot;</span>
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="n">api_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:JIRA_API_TOKEN&quot;</span>
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="n">projects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ENG&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;OPS&quot;</span><span class="p">]</span>
+<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a>
+<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/projects/ENG&quot;</span>
+<a id="__codelineno-30-10" name="__codelineno-30-10" href="#__codelineno-30-10"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;summary&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
+<a id="__codelineno-30-11" name="__codelineno-30-11" href="#__codelineno-30-11"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;key&quot;</span><span class="p">]</span>
+<a id="__codelineno-30-12" name="__codelineno-30-12" href="#__codelineno-30-12"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;priority&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updated&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO regression&quot;</span><span class="w"> </span>jira://acme/projects/ENG/issues.jsonl
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>jira://acme/projects/ENG/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;key&quot;:&quot;ENG-1234&quot;}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>Without <code>projects</code>, the connector enumerates all visible projects.</li>
+<li>The current flattened record uses <code>key</code> as the issue key field.</li>
+<li>Add <code>[[objects]]</code> text fields for issue rows unless your deployment has a
+  generated config that already did this.</li>
+<li>API token permissions are the user's permissions; restricted projects can
+  appear empty.</li>
+</ul>
+<h2 id="linear"><code>linear</code><a class="headerlink" href="#linear" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>linear://&lt;alias&gt;/teams/&lt;team-key&gt;/issues.jsonl</code> plus
+<code>linear://&lt;alias&gt;/users.jsonl</code>.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="n">api_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:LINEAR_API_KEY&quot;</span>
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="n">teams</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ENG&quot;</span><span class="p">]</span>
+<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a>
+<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/teams/ENG&quot;</span>
+<a id="__codelineno-33-6" name="__codelineno-33-6" href="#__codelineno-33-6"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
+<a id="__codelineno-33-7" name="__codelineno-33-7" href="#__codelineno-33-7"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;identifier&quot;</span><span class="p">]</span>
+<a id="__codelineno-33-8" name="__codelineno-33-8" href="#__codelineno-33-8"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;priority&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updatedAt&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing migration&quot;</span><span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;identifier&quot;:&quot;ENG-42&quot;}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>The GraphQL API key is sent as the raw <code>Authorization</code> header value, not
+  <code>Bearer &lt;token&gt;</code>.</li>
+<li>If <code>teams</code> is omitted, all visible teams are enumerated.</li>
+<li>Add <code>[[objects]]</code>; the current plugin has no built-in Linear preset.</li>
+<li>The current flattened issue record contains <code>identifier</code>, not an <code>id</code> field.</li>
+</ul>
+<h2 id="zendesk"><code>zendesk</code><a class="headerlink" href="#zendesk" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> tickets are <code>zendesk://&lt;alias&gt;/tickets/records.jsonl</code>, ticket
+comments are <code>/tickets/comments.jsonl</code>, users are <code>/users/records.jsonl</code>, and
+organizations are <code>/organizations/records.jsonl</code>.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="n">subdomain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;acme&quot;</span>
+<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a><span class="n">email</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;alice@acme.com&quot;</span>
+<a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a><span class="n">api_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:ZENDESK_API_TOKEN&quot;</span>
+<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+</code></pre></div>
+<p>The connector schema in the wizard labels the email field as <code>username</code>, while
+the current plugin reads <code>email</code> when building Zendesk Basic auth. Probe the
+target config before syncing.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>zendesk://acme<span class="w"> </span>--config<span class="w"> </span>./zendesk.toml
+<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>zendesk://acme<span class="w"> </span>--config<span class="w"> </span>./zendesk.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing dispute&quot;</span><span class="w"> </span>zendesk://acme/tickets/records.jsonl
+<a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund policy&quot;</span><span class="w"> </span>zendesk://acme/tickets/comments.jsonl
+<a id="__codelineno-38-3" name="__codelineno-38-3" href="#__codelineno-38-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>zendesk://acme/tickets/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>The built-in preset applies only to ticket records. Add <code>[[objects]]</code> if you
+  need searchable comments, users, or organizations.</li>
+<li>Ticket comments are fetched per ticket and can be expensive on large tenants.</li>
+<li>Internal comments can be indexed if the API user can see them.</li>
+<li><code>max_read_rows</code> caps each resource path.</li>
+</ul>
+<h2 id="salesforce"><code>salesforce</code><a class="headerlink" href="#salesforce" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>salesforce://&lt;alias&gt;/&lt;SObject&gt;/records.jsonl</code> and
+<code>salesforce://&lt;alias&gt;/&lt;SObject&gt;/schema.json</code>.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;alice@acme.com&quot;</span>
+<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SF_PASSWORD&quot;</span>
+<a id="__codelineno-39-3" name="__codelineno-39-3" href="#__codelineno-39-3"></a><span class="n">security_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SF_SECURITY_TOKEN&quot;</span>
+<a id="__codelineno-39-4" name="__codelineno-39-4" href="#__codelineno-39-4"></a><span class="n">domain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;login&quot;</span>
+<a id="__codelineno-39-5" name="__codelineno-39-5" href="#__codelineno-39-5"></a><span class="n">objects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Account&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Contact&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Opportunity&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Case&quot;</span><span class="p">]</span>
+<a id="__codelineno-39-6" name="__codelineno-39-6" href="#__codelineno-39-6"></a>
+<a id="__codelineno-39-7" name="__codelineno-39-7" href="#__codelineno-39-7"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-39-8" name="__codelineno-39-8" href="#__codelineno-39-8"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/Account&quot;</span>
+<a id="__codelineno-39-9" name="__codelineno-39-9" href="#__codelineno-39-9"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Description&quot;</span><span class="p">]</span>
+<a id="__codelineno-39-10" name="__codelineno-39-10" href="#__codelineno-39-10"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Id&quot;</span><span class="p">]</span>
+<a id="__codelineno-39-11" name="__codelineno-39-11" href="#__codelineno-39-11"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;LastModifiedDate&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p>If <code>session_id</code> is set, the plugin uses <code>instance_url</code> plus <code>session_id</code>
+instead of username/password/security-token login.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml
+<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;renewal risk&quot;</span><span class="w"> </span>salesforce://acme/Account/records.jsonl
+<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>salesforce://acme/Account/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;Id&quot;:&quot;001AB...&quot;}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>Add <code>[[objects]]</code> text fields; Salesforce has no built-in row preset.</li>
+<li>Field-level security controls which fields the API user can read.</li>
+<li>Custom object names usually end in <code>__c</code> and must be included in <code>objects</code>.</li>
+<li>Use <code>domain = "test"</code> for sandboxes.</li>
+</ul>
+<h2 id="hubspot"><code>hubspot</code><a class="headerlink" href="#hubspot" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>hubspot://&lt;alias&gt;/&lt;object&gt;/records.jsonl</code>, for example
+<code>hubspot://acme/contacts/records.jsonl</code>.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="n">access_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:HUBSPOT_ACCESS_TOKEN&quot;</span>
+<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a><span class="n">object_types</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;contacts&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;companies&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;deals&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tickets&quot;</span><span class="p">]</span>
+<a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<a id="__codelineno-42-4" name="__codelineno-42-4" href="#__codelineno-42-4"></a>
+<a id="__codelineno-42-5" name="__codelineno-42-5" href="#__codelineno-42-5"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-42-6" name="__codelineno-42-6" href="#__codelineno-42-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/contacts&quot;</span>
+<a id="__codelineno-42-7" name="__codelineno-42-7" href="#__codelineno-42-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;firstname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;lastname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;email&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;jobtitle&quot;</span><span class="p">]</span>
+<a id="__codelineno-42-8" name="__codelineno-42-8" href="#__codelineno-42-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
+<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;customer health&quot;</span><span class="w"> </span>hubspot://acme/contacts/records.jsonl
+<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>hubspot://acme/contacts/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;12345&quot;}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>Add <code>[[objects]]</code>; HubSpot has no built-in row preset.</li>
+<li>If <code>object_types</code> is omitted, the plugin probes common default objects and
+  skips objects the portal rejects.</li>
+<li>HubSpot properties are flattened from the <code>properties</code> envelope to top-level
+  fields.</li>
+<li>Engagement records such as calls, notes, and emails are not included by this
+  connector.</li>
+</ul>
+<h2 id="bigquery"><code>bigquery</code><a class="headerlink" href="#bigquery" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>bigquery://&lt;alias&gt;/&lt;dataset&gt;/tables/&lt;table&gt;/rows.jsonl</code> for
+rows and <code>schema.json</code> for table schemas.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a><span class="n">project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;analytics-prod&quot;</span>
+<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a><span class="n">datasets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;events&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;kb&quot;</span><span class="p">]</span>
+<a id="__codelineno-45-3" name="__codelineno-45-3" href="#__codelineno-45-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span>
+<a id="__codelineno-45-4" name="__codelineno-45-4" href="#__codelineno-45-4"></a>
+<a id="__codelineno-45-5" name="__codelineno-45-5" href="#__codelineno-45-5"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-45-6" name="__codelineno-45-6" href="#__codelineno-45-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/kb/tables/articles&quot;</span>
+<a id="__codelineno-45-7" name="__codelineno-45-7" href="#__codelineno-45-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span>
+<a id="__codelineno-45-8" name="__codelineno-45-8" href="#__codelineno-45-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;article_id&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p>BigQuery credentials come from Application Default Credentials in the server
+environment, such as <code>GOOGLE_APPLICATION_CREDENTIALS</code>.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
+<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund event&quot;</span><span class="w"> </span>bigquery://analytics/events/tables/user_events/rows.jsonl
+<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>bigquery://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>bigquery://analytics/kb/tables/articles/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;article_id&quot;:&quot;a-123&quot;}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>Add <code>[[objects]]</code>; BigQuery table rows need text fields and locator fields.</li>
+<li>ADC must be available to the server process, not only the CLI shell.</li>
+<li>The connector uses <code>list_rows</code>; <code>max_read_rows</code> caps large tables.</li>
+<li>BigQuery has no primary-key concept for most tables, so choose stable
+  locator fields explicitly.</li>
+</ul>
+<h2 id="snowflake"><code>snowflake</code><a class="headerlink" href="#snowflake" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>snowflake://&lt;alias&gt;/&lt;DATABASE&gt;/&lt;SCHEMA&gt;/tables/&lt;TABLE&gt;/rows.jsonl</code>
+and <code>schema.json</code>.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="n">account</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;abcdefg-xy12345&quot;</span>
+<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader&quot;</span>
+<a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a><span class="n">warehouse</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_wh&quot;</span>
+<a id="__codelineno-48-4" name="__codelineno-48-4" href="#__codelineno-48-4"></a><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader_role&quot;</span>
+<a id="__codelineno-48-5" name="__codelineno-48-5" href="#__codelineno-48-5"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PROD&quot;</span>
+<a id="__codelineno-48-6" name="__codelineno-48-6" href="#__codelineno-48-6"></a><span class="n">credential_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file:/etc/mfs/snowflake/rsa_key.p8&quot;</span>
+<a id="__codelineno-48-7" name="__codelineno-48-7" href="#__codelineno-48-7"></a>
+<a id="__codelineno-48-8" name="__codelineno-48-8" href="#__codelineno-48-8"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-48-9" name="__codelineno-48-9" href="#__codelineno-48-9"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/PROD/PUBLIC/tables/TICKETS&quot;</span>
+<a id="__codelineno-48-10" name="__codelineno-48-10" href="#__codelineno-48-10"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;TITLE&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;DESCRIPTION&quot;</span><span class="p">]</span>
+<a id="__codelineno-48-11" name="__codelineno-48-11" href="#__codelineno-48-11"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p><code>credential_ref</code> must resolve to a PEM PKCS#8 RSA private key. If the key is
+encrypted, set <code>private_key_passphrase_ref</code>.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
+<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing event&quot;</span><span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
+<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;EMAIL column&quot;</span><span class="w"> </span>snowflake://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;ID&quot;:12345}&#39;</span>
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>The connector supports key-pair JWT auth only.</li>
+<li>Snowflake folds unquoted identifiers to uppercase; paths and locators must
+  match actual returned casing.</li>
+<li>Warehouses may auto-resume on first query, adding startup latency.</li>
+<li>Add <code>[[objects]]</code>; table rows need text fields and locator fields.</li>
+</ul>
+<h2 id="s3"><code>s3</code><a class="headerlink" href="#s3" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>s3://&lt;alias&gt;/&lt;object-key&gt;</code>. The tree mirrors object keys in the
+configured bucket and prefix.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;acme-docs&quot;</span>
+<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a><span class="n">prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;engineering/rfc/&quot;</span>
+<a id="__codelineno-51-3" name="__codelineno-51-3" href="#__codelineno-51-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;us-west-2&quot;</span>
+<a id="__codelineno-51-4" name="__codelineno-51-4" href="#__codelineno-51-4"></a><span class="n">access_key_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_ACCESS_KEY_ID&quot;</span>
+<a id="__codelineno-51-5" name="__codelineno-51-5" href="#__codelineno-51-5"></a><span class="n">secret_access_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_SECRET_ACCESS_KEY&quot;</span>
+</code></pre></div>
+<p>Set <code>endpoint_url</code> for R2, GCS S3 interop, MinIO, or another compatible
+endpoint.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
+<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;retention policy&quot;</span><span class="w"> </span>s3://acme-docs/engineering/rfc/
+<a id="__codelineno-53-2" name="__codelineno-53-2" href="#__codelineno-53-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-53-3" name="__codelineno-53-3" href="#__codelineno-53-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.pdf<span class="w"> </span>/tmp/rfc-001.pdf
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li><code>prefix</code> is exact. Use a trailing slash when you mean a directory-like
+  prefix.</li>
+<li>Versioned buckets expose only the latest version.</li>
+<li>Very large PDFs or Office documents can be expensive to convert.</li>
+<li>IAM must allow both <code>ListBucket</code> and <code>GetObject</code> for the scoped bucket/prefix.</li>
+</ul>
+<h2 id="gdrive"><code>gdrive</code><a class="headerlink" href="#gdrive" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> <code>gdrive://&lt;alias&gt;/&lt;folder&gt;/&lt;file&gt;</code>. Google-native Docs, Sheets,
+and Slides are exported to text or CSV-like content by the plugin.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:GDRIVE_ACCESS_TOKEN&quot;</span>
+</code></pre></div>
+<p>The current plugin builds <code>google.oauth2.credentials.Credentials</code> from the
+configured <code>token</code> value when it is a string, or from
+<code>Credentials.from_authorized_user_info</code> when the parsed TOML value is an object.
+Probe the connector in the target server before syncing.</p>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
+<a id="__codelineno-55-2" name="__codelineno-55-2" href="#__codelineno-55-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;roadmap&quot;</span><span class="w"> </span>gdrive://engineering/Product/
+<a id="__codelineno-56-2" name="__codelineno-56-2" href="#__codelineno-56-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>gdrive://engineering/Product/Roadmap.txt<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-56-3" name="__codelineno-56-3" href="#__codelineno-56-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>gdrive://engineering/Product/Design.pdf<span class="w"> </span>/tmp/design.pdf
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>The credential can only see files shared with it.</li>
+<li>Google-native files are exported; comments are not indexed.</li>
+<li>The current plugin does not expose a folder-token scope field; it walks files
+  visible to the credential.</li>
+</ul>
+<h2 id="feishu"><code>feishu</code><a class="headerlink" href="#feishu" title="Permanent link">&para;</a></h2>
+<p><strong>URI shape:</strong> chats are
+<code>feishu://&lt;alias&gt;/chats/&lt;name&gt;__&lt;chat-id&gt;/messages.jsonl</code>. Docx documents are
+<code>feishu://&lt;alias&gt;/docs/&lt;title&gt;__&lt;doc-token&gt;.md</code>.</p>
+<p><strong>Minimum config for tenant/bot mode:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a><span class="n">app_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cli_a1b2c3d4&quot;</span>
+<a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a><span class="n">app_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:FEISHU_APP_SECRET&quot;</span>
+<a id="__codelineno-57-3" name="__codelineno-57-3" href="#__codelineno-57-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;feishu&quot;</span>
+<a id="__codelineno-57-4" name="__codelineno-57-4" href="#__codelineno-57-4"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tenant&quot;</span>
+<a id="__codelineno-57-5" name="__codelineno-57-5" href="#__codelineno-57-5"></a><span class="n">docs_folder_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fldcn...&quot;</span>
+<a id="__codelineno-57-6" name="__codelineno-57-6" href="#__codelineno-57-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+</code></pre></div>
+<p><strong>Minimum config for user OAuth mode:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;user&quot;</span>
+<a id="__codelineno-58-2" name="__codelineno-58-2" href="#__codelineno-58-2"></a><span class="n">oauth_state_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/home/mfs/feishu.oauth.json&quot;</span>
+</code></pre></div>
+<p>Create the OAuth state file with the bundled helper:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a>python<span class="w"> </span>-m<span class="w"> </span>mfs_server.connectors.feishu.auth_login<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a><span class="w">  </span>--app-id<span class="w"> </span>cli_a1b2c3d4<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-59-3" name="__codelineno-59-3" href="#__codelineno-59-3"></a><span class="w">  </span>--app-secret-env<span class="w"> </span>FEISHU_APP_SECRET<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-59-4" name="__codelineno-59-4" href="#__codelineno-59-4"></a><span class="w">  </span>--region<span class="w"> </span>feishu<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-59-5" name="__codelineno-59-5" href="#__codelineno-59-5"></a><span class="w">  </span>--output<span class="w"> </span>/home/mfs/feishu.oauth.json
+</code></pre></div>
+<p><strong>Start:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
+<a id="__codelineno-60-2" name="__codelineno-60-2" href="#__codelineno-60-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p><strong>Search or browse:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>feishu://workspace/chats/
+<a id="__codelineno-61-2" name="__codelineno-61-2" href="#__codelineno-61-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;quarterly roadmap&quot;</span><span class="w"> </span>feishu://workspace/docs/
+<a id="__codelineno-61-3" name="__codelineno-61-3" href="#__codelineno-61-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/chats/eng__oc_xxx/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;message_id&quot;:&quot;om_abc123&quot;}&#39;</span>
+<a id="__codelineno-61-4" name="__codelineno-61-4" href="#__codelineno-61-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/docs/Roadmap__doccnxxx.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+</code></pre></div>
+<p><strong>Common pitfalls:</strong></p>
+<ul>
+<li>Current code uses <code>auth = "tenant"</code> or <code>auth = "user"</code> and region values
+  <code>feishu</code> or <code>lark</code>.</li>
+<li>Tenant mode only sees chats the bot is in and docs shared with the app.</li>
+<li>User mode refresh tokens rotate; <code>oauth_state_file</code> must be writable by the
+  server process.</li>
+<li>Only docx documents are exposed under <code>docs/</code> by the current plugin.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

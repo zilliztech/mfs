@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://zilliztech.github.io/mfs/troubleshooting/">
       
       
-        <link rel="prev" href="../deployment/">
+        <link rel="prev" href="../storage-and-backup/">
       
       
         <link rel="next" href="../search-and-browse/">
@@ -257,7 +257,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../server/" class="md-tabs__link">
+        <a href="../content-model/" class="md-tabs__link">
           
   
   
@@ -277,7 +277,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../faq/" class="md-tabs__link">
+        <a href="../errors/" class="md-tabs__link">
           
   
   
@@ -490,7 +490,7 @@
   <span class="md-ellipsis">
     
   
-    Roadmap
+    Status and Limits
   
 
     
@@ -603,6 +603,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../configuration/" class="md-nav__link">
         
   
@@ -631,6 +659,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../auth-and-secrets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Auth and Secrets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Providers and Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../deployment/" class="md-nav__link">
         
   
@@ -639,6 +723,34 @@
     
   
     Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-and-backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage and Backup
   
 
     
@@ -719,10 +831,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-cli-cannot-reach-the-server" class="md-nav__link">
+  <a href="#first-commands" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The CLI cannot reach the server
+        First Commands
       
     </span>
   </a>
@@ -730,10 +842,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#local-paths-work-but-clientserver-upload-does-not" class="md-nav__link">
+  <a href="#endpoint-and-auth" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Local paths work but client/server upload does not
+        Endpoint and Auth
       
     </span>
   </a>
@@ -741,10 +853,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#first-indexing-run-is-slow" class="md-nav__link">
+  <a href="#upload-or-shared-filesystem" class="md-nav__link">
     <span class="md-ellipsis">
       
-        First indexing run is slow
+        Upload or Shared Filesystem
       
     </span>
   </a>
@@ -752,10 +864,76 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#documentation-build-fails" class="md-nav__link">
+  <a href="#docker-clientserver-networking" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Documentation build fails
+        Docker Client/Server Networking
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs-and-indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs and Indexing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#empty-search-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Empty Search Results
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-and-browse-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read and Browse Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connector-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connector Failures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canonical-error-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canonical Error Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docs-build-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docs Build Failures
       
     </span>
   </a>
@@ -865,6 +1043,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs and Indexing Progress
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../cli/" class="md-nav__link">
         
   
@@ -901,6 +1107,62 @@
     
   
     Connectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-config-recipes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Configuration Recipes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connector-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connector Reference
   
 
     
@@ -1000,6 +1262,62 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1179,6 +1497,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Error Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../faq/" class="md-nav__link">
         
   
@@ -1234,10 +1608,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-cli-cannot-reach-the-server" class="md-nav__link">
+  <a href="#first-commands" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The CLI cannot reach the server
+        First Commands
       
     </span>
   </a>
@@ -1245,10 +1619,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#local-paths-work-but-clientserver-upload-does-not" class="md-nav__link">
+  <a href="#endpoint-and-auth" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Local paths work but client/server upload does not
+        Endpoint and Auth
       
     </span>
   </a>
@@ -1256,10 +1630,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#first-indexing-run-is-slow" class="md-nav__link">
+  <a href="#upload-or-shared-filesystem" class="md-nav__link">
     <span class="md-ellipsis">
       
-        First indexing run is slow
+        Upload or Shared Filesystem
       
     </span>
   </a>
@@ -1267,10 +1641,76 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#documentation-build-fails" class="md-nav__link">
+  <a href="#docker-clientserver-networking" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Documentation build fails
+        Docker Client/Server Networking
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs-and-indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs and Indexing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#empty-search-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Empty Search Results
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-and-browse-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read and Browse Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connector-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connector Failures
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canonical-error-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canonical Error Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#docs-build-failures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Docs Build Failures
       
     </span>
   </a>
@@ -1298,25 +1738,552 @@
 
 
 <h1 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h1>
-<h2 id="the-cli-cannot-reach-the-server">The CLI cannot reach the server<a class="headerlink" href="#the-cli-cannot-reach-the-server" title="Permanent link">&para;</a></h2>
-<p>Check that the server is running and that the CLI has the right endpoint:</p>
+<p>Use this page as a v0.4 runbook when MFS is reachable but a source does not
+index, search, browse, or read the way you expect. The CLI commands here match
+the current Rust <code>mfs</code> binary.</p>
+<h2 id="first-commands">First Commands<a class="headerlink" href="#first-commands" title="Permanent link">&para;</a></h2>
+<p>Start with the smallest ladder that separates endpoint, auth, job, indexing,
+search, and browse failures:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>status
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$MFS_API_URL</span><span class="s2">&quot;</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$MFS_API_TOKEN</span><span class="s2">&quot;</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>config<span class="w"> </span>show
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>mfs<span class="w"> </span>job<span class="w"> </span>list
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
 </code></pre></div>
-<h2 id="local-paths-work-but-clientserver-upload-does-not">Local paths work but client/server upload does not<a class="headerlink" href="#local-paths-work-but-clientserver-upload-does-not" title="Permanent link">&para;</a></h2>
-<p>If the server runs in Docker or on another host, it cannot read the client's
-local filesystem directly. Use upload mode:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>--wait<span class="w"> </span>./some-folder
+<table>
+<thead>
+<tr>
+<th>If you see</th>
+<th>Run next</th>
+<th>What it tells you</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mfs status</code> cannot connect</td>
+<td><code>mfs config show</code></td>
+<td>Shows the resolved endpoint, active profile, client id, and whether server info is reachable.</td>
+</tr>
+<tr>
+<td><code>mfs status</code> returns <code>401 [unauthorized]</code></td>
+<td><code>mfs config show</code> and check the token source</td>
+<td>The endpoint is reachable, but the bearer token sent by the CLI is missing or wrong.</td>
+</tr>
+<tr>
+<td><code>mfs add ...</code> returned a job id</td>
+<td><code>mfs job show JOB_ID</code></td>
+<td>Shows the current job status, error text, and object counts.</td>
+</tr>
+<tr>
+<td>A job is stuck or should stop</td>
+<td><code>mfs job cancel JOB_ID</code></td>
+<td>Requests cancellation for a running or queued job.</td>
+</tr>
+<tr>
+<td>A connector exists but indexing looks wrong</td>
+<td><code>mfs connector inspect TARGET</code></td>
+<td>Shows connector metadata plus object counts grouped by <code>search_status</code> and job counts grouped by status.</td>
+</tr>
+<tr>
+<td>Search returns nothing</td>
+<td><code>mfs ls PATH --json</code></td>
+<td>Shows child paths plus <code>indexable</code> and per-entry <code>search_status</code>.</td>
+</tr>
+<tr>
+<td>A search hit looks suspicious</td>
+<td><code>mfs head PATH -n 3</code> then <code>mfs cat PATH --range RANGE</code></td>
+<td>Verifies exact source content before trusting ranking.</td>
+</tr>
+<tr>
+<td>You need a literal check</td>
+<td><code>mfs search QUERY PATH --mode keyword</code></td>
+<td>Removes semantic matching from the first pass.</td>
+</tr>
+<tr>
+<td>The docs site fails</td>
+<td><code>uv run --group docs mkdocs build --strict</code></td>
+<td>Runs the verified MkDocs strict build from the repository root.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Useful links</p>
+<p>For setup and upload basics, see <a href="../getting-started/">Quickstart</a>. For the
+search loop, see <a href="../search-and-browse/">Search and Browse</a>. For command
+names, see <a href="../cli/">CLI Reference</a>. For source setup, see
+<a href="../connectors/">Connectors</a>, <a href="../deployment/">Deployment</a>,
+<a href="../configuration/">Configuration</a>, and <a href="../api/">HTTP API</a>.
+For token and secret source lookup, see
+<a href="../auth-and-secrets/">Auth and Secrets</a>.
+For state backup, restore, and reset boundaries, see
+<a href="../storage-and-backup/">Storage and Backup</a>.
+For embedding, VLM, summary, and converter setup, see
+<a href="../providers/">Providers and Processing</a>. For local package setup and checks,
+see <a href="../development/">Development</a>. For a compact code matrix, see
+<a href="../errors/">Error Codes</a>.</p>
+</div>
+<h2 id="endpoint-and-auth">Endpoint and Auth<a class="headerlink" href="#endpoint-and-auth" title="Permanent link">&para;</a></h2>
+<p>The CLI resolves its server endpoint in this order:</p>
+<ol>
+<li><code>MFS_API_URL</code></li>
+<li>the active profile in <code>$MFS_HOME/client.toml</code></li>
+<li><code>http://127.0.0.1:13619</code></li>
+</ol>
+<p>The CLI resolves the bearer token in this order:</p>
+<ol>
+<li>non-empty <code>MFS_API_TOKEN</code></li>
+<li>the active profile token in <code>$MFS_HOME/client.toml</code></li>
+<li><code>$MFS_HOME/server.token</code>, for same-host local servers</li>
+</ol>
+<p>Profile tokens may be literal values or <code>env:VAR</code> references. If an <code>env:VAR</code>
+profile token resolves to an empty value, the CLI sends no bearer token from
+that profile.</p>
+<p>The server protects <code>/v1</code> with <code>Authorization: Bearer &lt;token&gt;</code> when
+<code>auth_token</code> is configured. <code>mfs-server run</code> and <code>mfs-server api</code> ensure auth is
+enabled by default: if no token is configured, the server reuses or creates
+<code>$MFS_HOME/server.token</code>. Setting the server token to <code>-</code> is the explicit
+opt-out for trusted or isolated networks. <code>GET /healthz</code> is exempt from bearer
+auth.</p>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+<th>Recovery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>connection refused</code>, timeout, or DNS error</td>
+<td><code>mfs config show</code></td>
+<td>Fix <code>MFS_API_URL</code>, choose the intended profile, or start the server.</td>
+</tr>
+<tr>
+<td><code>401 [unauthorized]</code></td>
+<td>Confirm which token source should win</td>
+<td>Export the intended <code>MFS_API_TOKEN</code>, update the active profile token, or read the local <code>server.token</code> on the server host.</td>
+</tr>
+<tr>
+<td>Local CLI works but remote client fails</td>
+<td>Compare <code>$MFS_HOME/server.token</code> on the server with the client token</td>
+<td>Direct HTTP clients and remote CLIs must send <code>Authorization: Bearer &lt;token&gt;</code>; the local file fallback is CLI behavior only.</td>
+</tr>
+<tr>
+<td><code>mfs config show</code> says server unreachable</td>
+<td>Check whether the endpoint is loopback, Docker, or a remote host</td>
+<td>Use an endpoint reachable from the client process, not from the server process.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Do not debug auth by pasting tokens into tickets</p>
+<p>Use <code>mfs config show</code> for endpoint/profile visibility, but treat
+<code>MFS_API_TOKEN</code>, profile token values, and <code>server.token</code> as secrets.</p>
+</div>
+<p>For the same auth path as compact process and precedence tables, see
+<a href="../auth-and-secrets/">Auth and Secrets</a>.</p>
+<p>For direct HTTP integrations, the error envelope has this shape:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;code&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;object_too_large_for_cat&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;object_too_large_for_cat&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">&quot;suggestions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;head&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;cat --range&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;export&quot;</span><span class="p">]</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">}</span>
 </code></pre></div>
-<h2 id="first-indexing-run-is-slow">First indexing run is slow<a class="headerlink" href="#first-indexing-run-is-slow" title="Permanent link">&para;</a></h2>
-<p>The default local embedding backend may download an ONNX model on first use.
-Keep the server cache or Docker volume if you want later runs to reuse it.</p>
-<h2 id="documentation-build-fails">Documentation build fails<a class="headerlink" href="#documentation-build-fails" title="Permanent link">&para;</a></h2>
-<p>Run the docs build from the repo root:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>docs<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
+<p>Clients should switch on <code>code</code>, not <code>detail</code>. The CLI prints the server
+suggestions on non-2xx responses as a <code>try:</code> hint, so read the whole CLI error,
+not only the first line. For the grouped code-to-recovery matrix, see
+<a href="../errors/">Error Codes</a>.</p>
+<h2 id="upload-or-shared-filesystem">Upload or Shared Filesystem<a class="headerlink" href="#upload-or-shared-filesystem" title="Permanent link">&para;</a></h2>
+<p>For local paths, decide whether the server can read the same path directly.</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Command</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CLI and server share the same filesystem path</td>
+<td><code>mfs add --no-upload --wait PATH</code></td>
+<td>Forces the server to read <code>PATH</code> directly. Use this for a real shared mount.</td>
+</tr>
+<tr>
+<td>Server is in Docker, on another VM, or cannot read the client path</td>
+<td><code>mfs add --upload --wait PATH</code></td>
+<td>Scans the client tree, uploads changed files, and indexes the server-side staged copy.</td>
+</tr>
+<tr>
+<td>You want to force upload even on the same host</td>
+<td><code>mfs add --upload --wait PATH</code></td>
+<td>Useful when the endpoint is local but the server process is isolated from the client path.</td>
+</tr>
+<tr>
+<td>You need to resend every file</td>
+<td><code>mfs add --force-upload --wait PATH</code></td>
+<td>Resends all file bytes and forces a full re-index.</td>
+</tr>
+<tr>
+<td>Bytes are already staged but you need a full re-index</td>
+<td><code>mfs add --force-index --wait PATH</code></td>
+<td>Re-indexes without forcing every file to be re-uploaded.</td>
+</tr>
+</tbody>
+</table>
+<p>The CLI auto-selects upload for an existing local path when it can compare the
+server <code>machine_id</code> with the client hostname and they differ. <code>--upload</code> and
+<code>--no-upload</code> override that decision.</p>
+<p>After an upload, the connector identity is based on the stable client id and the
+absolute client root. If a Docker server is exposed at <code>127.0.0.1:13619</code> and a
+bare local path does not resolve for <code>search</code>, <code>ls</code>, or <code>cat</code>, list the
+registered connector URI and use that URI directly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>connector<span class="w"> </span>inspect<span class="w"> </span>TARGET
 </code></pre></div>
-<p>Strict mode is intentional. Broken links and missing pages should fail early.</p>
+<p>Then scope search or browse to the displayed connector path.</p>
+<h2 id="docker-clientserver-networking">Docker Client/Server Networking<a class="headerlink" href="#docker-clientserver-networking" title="Permanent link">&para;</a></h2>
+<p>The provided compose file runs <code>mfs-server</code> bound to <code>0.0.0.0:13619</code>, exposes
+host port <code>13619</code>, sets <code>MFS_HOME=/data</code>, and persists <code>/data</code> in the
+<code>mfs-data</code> volume.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_URL</span><span class="o">=</span>http://127.0.0.1:13619
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>deployments/compose/docker-compose.yml<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>mfs-server<span class="w"> </span>cat<span class="w"> </span>/data/server.token<span class="k">)</span><span class="s2">&quot;</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>mfs<span class="w"> </span>status
+</code></pre></div>
+<p>If you set <code>MFS_API_TOKEN</code> before <code>docker compose up</code>, the container uses that
+known token instead of relying on the auto-generated <code>/data/server.token</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Recovery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mfs add --no-upload --wait ./repo</code> fails in Docker</td>
+<td>The container cannot read the host path <code>./repo</code>.</td>
+<td>Use <code>mfs add --upload --wait ./repo</code>, or mount a shared path into the container and pass the server-visible path.</td>
+</tr>
+<tr>
+<td>Connector config uses <code>localhost</code> but the source is on the host</td>
+<td>Inside the container, <code>localhost</code> is the container itself.</td>
+<td>Use a hostname or address reachable from the server container.</td>
+</tr>
+<tr>
+<td>Host CLI gets <code>401</code> against compose</td>
+<td>The host token does not match the server token.</td>
+<td>Set <code>MFS_API_TOKEN</code> to the compose token or restart compose with the intended <code>MFS_API_TOKEN</code>.</td>
+</tr>
+<tr>
+<td>Search after upload cannot find the bare host path</td>
+<td>The endpoint is loopback, so the CLI may not rewrite the path to the upload connector identity.</td>
+<td>Use the connector URI shown by <code>mfs connector list</code> or <code>mfs connector inspect TARGET</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="jobs-and-indexing">Jobs and Indexing<a class="headerlink" href="#jobs-and-indexing" title="Permanent link">&para;</a></h2>
+<p><code>mfs add</code> queues work and returns a job id unless <code>--wait</code> is used. <code>--wait</code>
+polls the job until it succeeds, fails, or is cancelled.
+For the focused lifecycle guide, see <a href="../jobs/">Jobs and Indexing Progress</a>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>--wait<span class="w"> </span>PATH
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>--no-upload<span class="w"> </span>--wait<span class="w"> </span>PATH
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mfs<span class="w"> </span>job<span class="w"> </span>list
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>mfs<span class="w"> </span>job<span class="w"> </span>cancel<span class="w"> </span>JOB_ID
+</code></pre></div>
+<p><code>mfs status</code> returns the current status envelope:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">&quot;connectors&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="p">{</span><span class="nt">&quot;root_uri&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;file://local/tmp/mfs-quickstart&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;file&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;active&quot;</span><span class="p">}</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">&quot;jobs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;queued&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;running&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">}</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">}</span>
+</code></pre></div>
+<p>The <code>jobs</code> object is a count grouped by job status. The connector <code>status</code> is a
+connector-row state such as <code>active</code> or <code>removing</code>; do not read it as per-object
+search readiness.</p>
+<p><code>mfs job show JOB_ID</code> prints the full job object. The fields most useful for
+triage are:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;JOB_ID&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;failed&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span><span class="nt">&quot;error&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;circuit_breaker_tripped&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="nt">&quot;total_objects&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">120</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">  </span><span class="nt">&quot;succeeded_objects&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">34</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">  </span><span class="nt">&quot;failed_objects&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">  </span><span class="nt">&quot;cancelled_objects&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">81</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Job result</th>
+<th>What to check</th>
+<th>Recovery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>queued</code> or <code>running</code> for longer than expected</td>
+<td><code>mfs job show JOB_ID</code></td>
+<td>If the work should stop, run <code>mfs job cancel JOB_ID</code>; otherwise keep polling.</td>
+</tr>
+<tr>
+<td><code>failed</code> with a canonical error code</td>
+<td>Error table below</td>
+<td>Fix the root cause, then re-run <code>mfs add ...</code>.</td>
+</tr>
+<tr>
+<td><code>succeeded</code> but <code>succeeded_objects</code> is <code>0</code></td>
+<td><code>mfs connector inspect TARGET</code> and <code>mfs ls PATH --json</code></td>
+<td>The connector found nothing indexable, the scope is wrong, or <code>[[objects]]</code> rules did not select text.</td>
+</tr>
+<tr>
+<td><code>failed_objects</code> is non-zero</td>
+<td><code>mfs job show JOB_ID</code></td>
+<td>Read <code>error</code>, then inspect the connector and a sample path.</td>
+</tr>
+<tr>
+<td><code>cancelled_objects</code> is non-zero</td>
+<td>Confirm whether someone cancelled or removed the connector</td>
+<td>Re-run add only after the operation that caused cancellation is finished.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="empty-search-results">Empty Search Results<a class="headerlink" href="#empty-search-results" title="Permanent link">&para;</a></h2>
+<p>Use keyword search and browse commands to separate ranking issues from indexing
+or path-scope issues.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>inspect<span class="w"> </span>TARGET
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs<span class="w"> </span>ls<span class="w"> </span>PATH<span class="w"> </span>--json
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>mfs<span class="w"> </span>head<span class="w"> </span>PATH<span class="w"> </span>-n<span class="w"> </span><span class="m">3</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>mfs<span class="w"> </span>search<span class="w"> </span>QUERY<span class="w"> </span>PATH<span class="w"> </span>--mode<span class="w"> </span>keyword
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th>Meaning</th>
+<th>Next step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mfs connector inspect TARGET</code> shows <code>object_count: 0</code></td>
+<td>The connector has no recorded objects.</td>
+<td>Re-check the target URI, connector config, and latest job error.</td>
+</tr>
+<tr>
+<td><code>chunk_count: 0</code> but objects exist</td>
+<td>Objects were recorded but no searchable chunks were produced.</td>
+<td>Check <code>indexable</code>, file/media type, and <code>[[objects]] text_fields</code> for structured sources.</td>
+</tr>
+<tr>
+<td><code>mfs ls PATH --json</code> shows <code>search_status: null</code></td>
+<td>The entry is visible from the source but not present in MFS object metadata.</td>
+<td>Re-run add, or confirm you are browsing the same path/connector that was indexed.</td>
+</tr>
+<tr>
+<td><code>search_status: not_indexed</code></td>
+<td>The object is known but has no chunks.</td>
+<td>Use <code>mfs head PATH -n 3</code> or <code>mfs cat PATH --range RANGE</code> to see whether the object has readable text.</td>
+</tr>
+<tr>
+<td><code>search_status: partial</code></td>
+<td>Search can work, but recall may be incomplete.</td>
+<td>Narrow the source, adjust verified connector object settings such as <code>chunk_max</code>, then re-run add.</td>
+</tr>
+<tr>
+<td><code>search_status: indexed</code> but keyword search misses an exact visible phrase</td>
+<td>The query path may not match the connector identity, or the visible text is not in indexed content.</td>
+<td>Search the connector URI shown by <code>mfs connector list</code>, then verify with <code>mfs cat PATH --range RANGE</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Protocol-level search availability values and current browse statuses are not
+the same thing:</p>
+<table>
+<thead>
+<tr>
+<th>Value set</th>
+<th>Values</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Protocol search availability</td>
+<td><code>available</code>, <code>partial</code>, <code>building</code>, <code>unavailable</code></td>
+<td>Describes whether search should be used for a source: ready, incomplete, still indexing, or unavailable.</td>
+</tr>
+<tr>
+<td>Current <code>mfs ls PATH --json</code> entry status</td>
+<td><code>indexed</code>, <code>partial</code>, <code>not_indexed</code>, or <code>null</code></td>
+<td>Describes one listed entry from the objects table; <code>null</code> means the entry was seen by <code>ls</code> but has no object row.</td>
+</tr>
+</tbody>
+</table>
+<p>In the current v0.4 CLI, use <code>mfs status</code> for connector rows and job counts,
+<code>mfs connector inspect TARGET</code> for object/job summaries for one connector, and
+<code>mfs ls PATH --json</code> for per-entry search state.
+For the identifier, locator, chunk-kind, and status vocabulary behind these
+fields, see <a href="../content-model/">Content Model</a>.</p>
+<h2 id="read-and-browse-errors">Read and Browse Errors<a class="headerlink" href="#read-and-browse-errors" title="Permanent link">&para;</a></h2>
+<p>When search returns a source, verify exact content before using it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mfs<span class="w"> </span>ls<span class="w"> </span>PATH<span class="w"> </span>--json
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mfs<span class="w"> </span>head<span class="w"> </span>PATH<span class="w"> </span>-n<span class="w"> </span><span class="m">3</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>PATH<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Recovery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cat</code> returns <code>is_directory</code></td>
+<td>The path is a directory.</td>
+<td>Use <code>mfs ls PATH --json</code> or <code>mfs tree PATH -L 2</code>, then read a child object.</td>
+</tr>
+<tr>
+<td><code>cat</code> returns <code>object_too_large_for_cat</code></td>
+<td>Full read is guarded for a large object.</td>
+<td>Use <code>mfs head PATH -n 20</code>, <code>mfs cat PATH --range 1:120</code>, or <code>mfs export PATH OUT</code>.</td>
+</tr>
+<tr>
+<td><code>cat --range</code> returns <code>range_unsupported</code></td>
+<td>The object type does not support ranged text reads.</td>
+<td>Use <code>mfs cat PATH --meta</code> or <code>mfs export PATH OUT</code>.</td>
+</tr>
+<tr>
+<td><code>cat --peek</code> or <code>cat --skim</code> returns <code>density_unsupported</code></td>
+<td>Density views are unsupported for that object.</td>
+<td>Use <code>mfs head PATH -n 20</code> or <code>mfs cat PATH --range 1:120</code>.</td>
+</tr>
+<tr>
+<td><code>tail</code> returns <code>tail_unsupported</code></td>
+<td>The object has no stable ordering for tail.</td>
+<td>Use <code>mfs head PATH -n 20</code> or a bounded <code>cat --range</code>.</td>
+</tr>
+<tr>
+<td><code>cat --locator</code> returns <code>locator_not_found</code></td>
+<td>The structured record changed or the locator is stale.</td>
+<td>Re-run search with <code>--json</code>, copy the current locator, then retry.</td>
+</tr>
+<tr>
+<td><code>not_found</code></td>
+<td>Path, object, connector, or job id does not match current server state.</td>
+<td>Use <code>mfs connector list</code>, <code>mfs ls PATH --json</code>, or <code>mfs job list</code> to find the current identifier.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="connector-failures">Connector Failures<a class="headerlink" href="#connector-failures" title="Permanent link">&para;</a></h2>
+<p>Use the connector commands when the endpoint works but the source system does
+not.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>mfs<span class="w"> </span>connector<span class="w"> </span>inspect<span class="w"> </span>TARGET
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>TARGET<span class="w"> </span>--config<span class="w"> </span>./connector.toml
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET<span class="w"> </span>--config<span class="w"> </span>./connector.toml<span class="w"> </span>--wait
+</code></pre></div>
+<p>For non-local targets, <code>mfs add</code> runs a zero-billing estimate unless <code>--yes</code> is
+set. The estimate reads metadata and uses a local chunker/tokenizer dry run; it
+does not call the embedding API.</p>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+<th>Recovery</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Probe fails</td>
+<td>The server could not construct or connect the connector.</td>
+<td>Fix connector credentials, config shape, optional server dependencies, or server-side network reachability.</td>
+</tr>
+<tr>
+<td>Add fails with <code>since_unsupported</code></td>
+<td>The connector has no time cursor.</td>
+<td>Drop <code>--since</code> and run a normal add.</td>
+</tr>
+<tr>
+<td>Add fails with <code>field_missing</code></td>
+<td>A configured <code>text_field</code> is absent.</td>
+<td>Fix the connector <code>[[objects]]</code> configuration, then re-run add.</td>
+</tr>
+<tr>
+<td>Structured source indexes no text</td>
+<td><code>mfs ls PATH --json</code> and <code>mfs head PATH -n 3</code></td>
+<td>Ensure <code>[[objects]] text_fields</code> selects actual prose-like fields for that source.</td>
+</tr>
+<tr>
+<td>Credentials use <code>env:VAR</code> but fail in Docker or service mode</td>
+<td>The variable is not set in the server process environment.</td>
+<td>Set the variable where <code>mfs-server</code> runs, not only in the client shell.</td>
+</tr>
+<tr>
+<td>Credentials use <code>file:/abs/path</code> but fail</td>
+<td>The server cannot read that absolute path.</td>
+<td>Mount or place the secret file where the server process can read it.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Connector config is server-side</p>
+<p>The CLI parses TOML and sends it to the server, but credential references are
+resolved by the server when it constructs the connector. Make sure env vars,
+files, source network routes, and optional connector dependencies exist in
+the server environment.</p>
+</div>
+<h2 id="canonical-error-codes">Canonical Error Codes<a class="headerlink" href="#canonical-error-codes" title="Permanent link">&para;</a></h2>
+<p>The complete code-to-recovery matrix lives in <a href="../errors/">Error Codes</a>. Keep
+this page open for the runbooks that explain the next diagnostic step:</p>
+<table>
+<thead>
+<tr>
+<th>Code family</th>
+<th>Runbook here</th>
+<th>Reference matrix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Endpoint, auth, malformed requests</td>
+<td><a href="#endpoint-and-auth">Endpoint and Auth</a></td>
+<td><a href="../errors/#runtime-and-request-codes">Runtime and Request Codes</a></td>
+</tr>
+<tr>
+<td>Read, browse, range, density, locator failures</td>
+<td><a href="#read-and-browse-errors">Read and Browse Errors</a></td>
+<td><a href="../errors/#read-and-browse-codes">Read and Browse Codes</a></td>
+</tr>
+<tr>
+<td>Jobs, sync conflicts, connector removal</td>
+<td><a href="#jobs-and-indexing">Jobs and Indexing</a></td>
+<td><a href="../errors/#sync-connector-and-upload-codes">Sync, Connector, and Upload Codes</a></td>
+</tr>
+<tr>
+<td>Connector credentials and source reachability</td>
+<td><a href="#connector-failures">Connector Failures</a></td>
+<td><a href="../errors/#sync-connector-and-upload-codes">Sync, Connector, and Upload Codes</a></td>
+</tr>
+<tr>
+<td>Embedding/provider failures and partial indexing</td>
+<td><a href="#empty-search-results">Empty Search Results</a> plus <a href="../providers/">Providers and Processing</a></td>
+<td><a href="../errors/#provider-and-job-failure-codes">Provider and Job Failure Codes</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="docs-build-failures">Docs Build Failures<a class="headerlink" href="#docs-build-failures" title="Permanent link">&para;</a></h2>
+<p>Run the docs build from the repository root:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>docs<span class="w"> </span>mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
+</code></pre></div>
+<p>Strict mode is intentional. Broken links, missing pages, invalid admonitions, or
+other MkDocs warnings should fail before publication.</p>
 
 
 
