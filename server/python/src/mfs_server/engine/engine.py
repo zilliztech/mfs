@@ -42,6 +42,18 @@ _HEARTBEAT_INTERVAL_S = 10  # worker refreshes its job heartbeat this often (<< 
 _WORKER_CONNECT_TIMEOUT_S = 30  # bound plugin.connect() in the worker so a hanging/unreachable
 # connector fails its job cleanly instead of blocking the single in-process worker forever
 
+# Local, per-object events that aren't systemic failures: the source disappeared
+# (file deleted mid-sync), or its path type changed (file <-> dir under us). These
+# happen normally when a user edits / git-checkouts / cleans up while `mfs add` runs,
+# so they must NOT retry and must NOT count toward consecutive_fatal_threshold. The
+# circuit breaker exists to stop on "the source is systemically broken" (auth/rate
+# limit/network), not on "I lost a few files".
+_PER_OBJECT_SKIP_ERRORS: tuple = (
+    FileNotFoundError,
+    NotADirectoryError,
+    IsADirectoryError,
+)
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -1122,7 +1134,9 @@ class Engine:
                 (cutoff,),
             )
         except Exception as e:  # noqa: BLE001
-            print(f"mfs-server: WARNING reclaim: listing stale preparing jobs failed: {e}", flush=True)
+            print(
+                f"mfs-server: WARNING reclaim: listing stale preparing jobs failed: {e}", flush=True
+            )
             stale_prep = []
         for j in stale_prep:
             try:
@@ -1144,7 +1158,9 @@ class Engine:
                 (cutoff,),
             )
         except Exception as e:  # noqa: BLE001
-            print(f"mfs-server: WARNING reclaim: listing stale running jobs failed: {e}", flush=True)
+            print(
+                f"mfs-server: WARNING reclaim: listing stale running jobs failed: {e}", flush=True
+            )
             return
         for j in stale:
             try:
@@ -1257,7 +1273,9 @@ class Engine:
         return "retryable"
 
     async def _process_with_retry(self, plugin, connector_uri: str, task: dict) -> str | None:
-        """Returns None on success, 'fatal', or 'retryable_exhausted'."""
+        """Returns None on success, 'fatal', 'retryable_exhausted', or 'skipped'.
+        'skipped' means a local per-object event (source disappeared, path type changed)
+        — the object is recorded as status='skipped' and the breaker is left alone."""
         import asyncio as _a
 
         max_r = self.cfg.worker.max_retries
@@ -1265,6 +1283,23 @@ class Engine:
             try:
                 await self._index_object(plugin, connector_uri, task)
                 return None
+            except _PER_OBJECT_SKIP_ERRORS as e:
+                # Source vanished / type changed mid-sync. No point retrying (the file
+                # really is gone), and counting this toward the consecutive-fatal breaker
+                # would let a `git checkout` / cleanup of 5+ files nuke a 500-file job
+                # (D53). Record as 'skipped' so it's visible in object_tasks without
+                # inflating failed_objects.
+                await self.meta.execute(
+                    "UPDATE object_tasks SET status='skipped', finished_at=?, last_error=? "
+                    "WHERE id=?",
+                    (_now(), f"{type(e).__name__}: source disappeared mid-sync", task["id"]),
+                )
+                uri = f"{connector_uri}{task.get('object_uri', '')}"
+                print(
+                    f"mfs-server: object {uri} skipped (source disappeared mid-sync)",
+                    flush=True,
+                )
+                return "skipped"
             except Exception as e:  # noqa: BLE001
                 kind = self._classify_error(e)
                 if kind in ("auth", "quota"):
@@ -1396,6 +1431,13 @@ class Engine:
                         "WHERE id=? AND status='running'",
                         (_now(), t["id"]),
                     )
+                    consec_fail = 0
+                elif r == "skipped":
+                    # Per-object local event (source vanished / type changed); the row was
+                    # already marked status='skipped' inside _process_with_retry. We DID
+                    # make forward progress on the job (this object is no longer pending),
+                    # so reset the breaker — otherwise a bursty wave of `rm`s would slowly
+                    # accumulate consec_fail across many objects and still trip it later.
                     consec_fail = 0
                 elif r in ("embedding_auth_failed", "embedding_quota_exceeded"):
                     # Global, non-retryable failure (bad key / no quota): abort the whole job
