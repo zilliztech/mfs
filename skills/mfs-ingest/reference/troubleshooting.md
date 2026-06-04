@@ -166,6 +166,39 @@ For chat connectors specifically (slack/discord/feishu): chunks are
 find the thread but not as the top hit. Search the topic or surrounding
 context instead.
 
+### CJK / multilingual: keyword search misses Chinese / Japanese terms
+
+If literal Chinese / Japanese / Korean strings find nothing via
+`--mode keyword` or `mfs grep` but `--mode semantic` works, the BM25
+analyzer is the wrong shape for the corpus. Default is `standard`,
+which splits on whitespace + punctuation — CJK has neither, so every
+character ends up its own token and ranking collapses.
+
+Which backend the server is on changes what you can do:
+
+| Backend | Available tokenizers | Pick |
+|---|---|---|
+| Milvus Lite (default for local dev) | `standard`, `jieba` | `jieba` for Chinese-heavy; nothing for Japanese / Korean today |
+| Milvus Standalone / Cluster / Cloud | `standard`, `jieba`, `icu`, language presets | `icu` for mixed multilingual; language preset for single-language |
+
+Edit `[milvus].analyzer_params` in the server toml:
+
+```toml
+# Chinese-heavy on Lite (install jieba first: `uv pip install jieba`)
+[milvus]
+analyzer_params = { type = "jieba" }
+
+# multilingual on Standalone / Cloud
+[milvus]
+analyzer_params = { tokenizer = "icu" }
+```
+
+Restart `mfs-server` after editing. The analyzer is captured at
+**collection creation** — an existing collection keeps its old
+analyzer until you drop it and re-add the connectors (the agent
+warning surfaces 'analyzer params changed but collection already
+exists' on a no-op restart).
+
 ## E0. `mfs add` returns "0 changed" but the source clearly did change
 
 The file connector's fast path skips re-reading bytes when an object's

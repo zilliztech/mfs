@@ -121,14 +121,26 @@ class MilvusConfig(BaseModel):
     # tune staleness vs. latency further.
     consistency_level: str = ""
     # Optional BM25 analyzer config — passes through to Milvus `enable_analyzer`
-    # on the `content` field. Empty = Milvus default (standard tokenizer, English-
-    # leaning whitespace + lowercase) — note this cannot segment space-less CJK, so
-    # keyword/grep miss Chinese/Japanese terms (dense/semantic still works).
-    # Supported tokenizer types are 'standard' and 'jieba'. For Chinese-heavy corpora
-    # set {"type": "jieba"} — jieba is NOT a default dependency, install it first
-    # (`uv pip install jieba`). The analyzer is applied only at COLLECTION CREATION,
-    # so changing it on an existing index has no effect until the collection is
-    # dropped and re-indexed (it is not encoded in the collection name).
+    # on the `content` field. Empty = Milvus default (standard tokenizer,
+    # English-leaning whitespace + lowercase) — note this cannot segment
+    # space-less CJK, so keyword/grep miss Chinese/Japanese terms
+    # (dense/semantic still works).
+    #
+    # Per-backend tokenizer matrix:
+    #   * Milvus Lite (embedded, pure-Python rewrite at v3.0+): `standard` +
+    #     optional `jieba`. NO `icu`. For Chinese-heavy corpora set
+    #     {"type": "jieba"} and install jieba first (`uv pip install jieba`).
+    #   * Milvus Standalone / Cluster / Cloud: `standard`, `jieba`, `icu`,
+    #     plus language presets (`english`, `chinese`, `japanese`, …). `icu`
+    #     is the multilingual default — segments CJK + still handles
+    #     whitespace-tokenized languages, at higher index cost than
+    #     `standard`.
+    #
+    # The analyzer is applied only at COLLECTION CREATION, so changing it on
+    # an existing index has no effect until the collection is dropped and
+    # re-indexed (it is not encoded in the collection name). V5 config-
+    # profile is the planned long-term shape for this; for now, drop +
+    # re-add the collection to switch.
     # Docs: https://milvus.io/docs/analyzer-overview.md
     analyzer_params: dict = {}
     collection_strategy: str = "shared"  # shared | per_namespace
