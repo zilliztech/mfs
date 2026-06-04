@@ -161,6 +161,11 @@ class SummaryConfig(BaseModel):
 
 
 class VlmConfig(BaseModel):
+    # Independent kill switch for image VLM description (opt-in by default —
+    # without an explicit toml or wizard yes, we don't fire vision API calls
+    # on every image in an ingest, even when a [vlm] provider is configured).
+    # Symmetric with [summary].enabled for the directory-summary path.
+    enabled: bool = False
     provider: str = "openai"
     model: str = "gpt-4o-mini"
     prompt: str = "Describe this image in detail for search indexing."

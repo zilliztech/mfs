@@ -1843,7 +1843,7 @@ class Engine:
                 chunk_count = len(rows)
                 search_status = "partial" if (partial or content_truncated) else "indexed"
 
-        elif okind == "image":
+        elif okind == "image" and self.cfg.vlm.enabled:
             ext = os.path.splitext(relpath)[1].lower()
             raw = await self._read_bytes(plugin, relpath)
             desc = await self.vlm.describe(raw, ext)
@@ -1866,6 +1866,12 @@ class Engine:
                 await asyncio.to_thread(self.milvus.upsert, ns, [row])
                 chunk_count = 1
                 search_status = "indexed"
+        # image kind with vlm.enabled=False falls through: object is recorded as
+        # metadata-only (ls/cat list it), no vision API call, no vlm_description
+        # chunk in Milvus. Symmetric with summary.enabled gating the directory
+        # summary pipeline — avoids the surprise bill where every image in a big
+        # ingest fired a vision call just because [vlm] provider happened to be
+        # configured.
 
         elif okind == "message_stream":
             ocfg = plugin.ctx.object_config_for(relpath)
