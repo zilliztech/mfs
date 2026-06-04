@@ -2169,6 +2169,28 @@ converted to markdown, and exposed under <code>pages/</code>.</p>
 their repo paths, for example <code>github://zilliztech/mfs/server/python/...</code>.
 When <code>index_meta = true</code>, <code>_meta/issues.jsonl</code>, <code>_meta/pulls.jsonl</code>, and PR
 diff documents are also exposed.</p>
+<p><strong>Obtain credentials:</strong> you need a <strong>GitHub Personal Access Token (PAT)</strong> with
+read scopes. Fine-grained PAT is the recommended path for org-owned repos.</p>
+<p>Fine-grained PAT:</p>
+<ol>
+<li>Open <a href="https://github.com/settings/tokens?type=beta">https://github.com/settings/tokens?type=beta</a> → <strong>Generate new
+   token</strong>. Pick a name and expiration (90-day default; set a reminder to
+   rotate).</li>
+<li>Repository access: <strong>Only select repositories</strong> → pick the ones to index.</li>
+<li>Repository permissions:<ul>
+<li><strong>Contents</strong> → Read-only</li>
+<li><strong>Issues</strong> → Read-only</li>
+<li><strong>Pull requests</strong> → Read-only</li>
+<li><strong>Metadata</strong> → Read-only (always required)</li>
+</ul>
+</li>
+<li>Generate the token and copy the <code>github_pat_...</code> value. That goes into
+   <code>GITHUB_TOKEN</code>.</li>
+</ol>
+<p>Classic PAT works too (<a href="https://github.com/settings/tokens/new">https://github.com/settings/tokens/new</a>, scope
+<code>repo</code> for private or <code>public_repo</code> for public-only). If the target org
+enforces SSO, click <strong>Configure SSO</strong> on the generated token and authorize
+it for the org.</p>
 <p><strong>Minimum config:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">repo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;zilliztech/mfs&quot;</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;main&quot;</span>
@@ -2198,25 +2220,45 @@ API headers.</p>
 <h2 id="postgres"><code>postgres</code><a class="headerlink" href="#postgres" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>postgres://&lt;alias&gt;/&lt;schema&gt;/&lt;table&gt;/rows.jsonl</code> for rows and
 <code>postgres://&lt;alias&gt;/&lt;schema&gt;/&lt;table&gt;/schema.json</code> for schema summaries.</p>
+<p><strong>Obtain credentials:</strong> you already have a database; what you need is a DSN
+in the form <code>postgresql://user:pass@host:5432/dbname</code> and a role with
+<code>SELECT</code> on the schemas you want indexed.</p>
+<ul>
+<li>Cloud Postgres (AWS RDS / Aurora, GCP Cloud SQL, Azure): copy the
+  connection string from the cloud console. Replace any <code>{{password}}</code>
+  placeholder with the real password (or use IAM auth — it still resolves
+  to a DSN).</li>
+<li>Self-hosted: run <code>\conninfo</code> inside <code>psql</code> to see host / port / database /
+  user, then compose the DSN.</li>
+<li>Docker compose: the same DSN your other services use works here.</li>
+</ul>
+<p>Confirm connectivity from the same machine that will run mfs-server before
+handing the DSN to MFS — if <code>psql</code> can't see the tables, neither can the
+connector:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>psql<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DSN</span><span class="s2">&quot;</span><span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT 1&quot;</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>psql<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DSN</span><span class="s2">&quot;</span><span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;\\dt&quot;</span>
+</code></pre></div>
+<p>Use a read-only role. The minimum grant is <code>USAGE</code> on each in-scope schema
+plus <code>SELECT</code> on its tables.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">dsn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:PG_DSN&quot;</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">schemas</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;public&quot;</span><span class="p">]</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/public/tickets&quot;</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updated_at&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">dsn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:PG_DSN&quot;</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">schemas</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;public&quot;</span><span class="p">]</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/public/tickets&quot;</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updated_at&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO migration&quot;</span><span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>postgres://prod-db<span class="w"> </span>--kind<span class="w"> </span>schema_summary
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO migration&quot;</span><span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>postgres://prod-db<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2231,26 +2273,37 @@ API headers.</p>
 <p><strong>URI shape:</strong> <code>mysql://&lt;alias&gt;/&lt;table&gt;/rows.jsonl</code> for rows and
 <code>mysql://&lt;alias&gt;/&lt;table&gt;/schema.json</code> for schema summaries. The configured
 database is the connector scope.</p>
+<p><strong>Obtain credentials:</strong> four fields — <code>host</code>, <code>port</code>, <code>database</code>, <code>user</code>,
+<code>password</code>. Pull them from your existing app config / <code>~/.my.cnf</code>, or
+create a dedicated read-only user:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">CREATE</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="s1">&#39;mfs_reader&#39;</span><span class="o">@</span><span class="s1">&#39;%&#39;</span><span class="w"> </span><span class="n">IDENTIFIED</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="s1">&#39;&lt;password&gt;&#39;</span><span class="p">;</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">GRANT</span><span class="w"> </span><span class="k">SELECT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">prod</span><span class="p">.</span><span class="o">*</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="s1">&#39;mfs_reader&#39;</span><span class="o">@</span><span class="s1">&#39;%&#39;</span><span class="p">;</span>
+</code></pre></div>
+<p>Confirm connectivity before handing the credentials to MFS:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>mysql<span class="w"> </span>-h<span class="w"> </span>&lt;host&gt;<span class="w"> </span>-P<span class="w"> </span>&lt;port&gt;<span class="w"> </span>-u<span class="w"> </span>&lt;user&gt;<span class="w"> </span>-p&lt;pw&gt;<span class="w"> </span>&lt;database&gt;<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;SELECT 1&quot;</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>mysql<span class="w"> </span>-h<span class="w"> </span>&lt;host&gt;<span class="w"> </span>-P<span class="w"> </span>&lt;port&gt;<span class="w"> </span>-u<span class="w"> </span>&lt;user&gt;<span class="w"> </span>-p&lt;pw&gt;<span class="w"> </span>&lt;database&gt;<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;SHOW TABLES&quot;</span>
+</code></pre></div>
+<p>The password goes into <code>MYSQL_PASSWORD</code> (or whichever env var you reference).</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">host</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;db.example.com&quot;</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3306</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader&quot;</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:MYSQL_PASSWORD&quot;</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/tickets&quot;</span>
-<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
-<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">host</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;db.example.com&quot;</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">port</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3306</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader&quot;</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:MYSQL_PASSWORD&quot;</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/tickets&quot;</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>mysql://prod-db<span class="w"> </span>--config<span class="w"> </span>./mysql.toml
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mysql://prod-db<span class="w"> </span>--config<span class="w"> </span>./mysql.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>mysql://prod-db<span class="w"> </span>--config<span class="w"> </span>./mysql.toml
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mysql://prod-db<span class="w"> </span>--config<span class="w"> </span>./mysql.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing bug&quot;</span><span class="w"> </span>mysql://prod-db/tickets/rows.jsonl
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>mysql://prod-db<span class="w"> </span>--kind<span class="w"> </span>schema_summary
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>mysql://prod-db/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing bug&quot;</span><span class="w"> </span>mysql://prod-db/tickets/rows.jsonl
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>mysql://prod-db<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>mysql://prod-db/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2264,24 +2317,35 @@ database is the connector scope.</p>
 <h2 id="mongo"><code>mongo</code><a class="headerlink" href="#mongo" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>mongo://&lt;alias&gt;/&lt;collection&gt;/documents.jsonl</code> for documents and
 <code>mongo://&lt;alias&gt;/&lt;collection&gt;/schema.json</code> for a sampled schema preview.</p>
+<p><strong>Obtain credentials:</strong> a MongoDB connection URI, in either form:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>mongodb://user:pass@host:27017/?authSource=admin
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true
+</code></pre></div>
+<p>For Atlas, copy the SRV URI from <strong>Database → Connect → Drivers</strong> and
+replace <code>&lt;password&gt;</code> with the real password. Use a read-only user — the
+connector only needs <code>find()</code> over the in-scope collections.</p>
+<p>Probe it before MFS sees it:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>mongosh<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$MONGO_URI</span><span class="s2">&quot;</span><span class="w"> </span>--eval<span class="w"> </span><span class="s2">&quot;db.adminCommand({ping: 1})&quot;</span>
+</code></pre></div>
+<p>The URI goes into <code>MONGO_URI</code>.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">uri</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:MONGO_URI&quot;</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">cursor_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;updatedAt&quot;</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/support_threads&quot;</span>
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;messages[].body&quot;</span><span class="p">]</span>
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;_id&quot;</span><span class="p">]</span>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">uri</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:MONGO_URI&quot;</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">cursor_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;updatedAt&quot;</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/support_threads&quot;</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;messages[].body&quot;</span><span class="p">]</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;_id&quot;</span><span class="p">]</span>
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund escalation&quot;</span><span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;_id&quot;:&quot;65a3...&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund escalation&quot;</span><span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;_id&quot;:&quot;65a3...&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2295,21 +2359,47 @@ database is the connector scope.</p>
 <h2 id="slack"><code>slack</code><a class="headerlink" href="#slack" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>slack://&lt;alias&gt;/channels/&lt;name&gt;__&lt;id&gt;/messages.jsonl</code> for
 channel messages and <code>slack://&lt;alias&gt;/users.jsonl</code> for workspace users.</p>
+<p><strong>Obtain credentials:</strong> you need a <strong>Bot token</strong> (<code>xoxb-...</code>, recommended) or
+a <strong>User token</strong> (<code>xoxp-...</code>, when the bot can't see what the user can).</p>
+<p>For a bot token:</p>
+<ol>
+<li>Open <a href="https://api.slack.com/apps">https://api.slack.com/apps</a> and click <strong>Create New App</strong> → "From
+   scratch". Pick a name and the target workspace.</li>
+<li>Left sidebar → <strong>OAuth &amp; Permissions</strong> → scroll to "Bot Token Scopes" and
+   add:<ul>
+<li><code>channels:read</code> — list public channels</li>
+<li><code>channels:history</code> — read messages in public channels</li>
+<li><code>users:read</code> — list workspace users (for <code>/users.jsonl</code>)</li>
+<li><code>groups:read</code> + <code>groups:history</code> — only if you want private channels</li>
+<li><code>mpim:read</code> + <code>mpim:history</code> — only if you want group DMs</li>
+</ul>
+</li>
+<li>Scroll back up and click <strong>Install to Workspace</strong> → authorize.</li>
+<li>Copy the <strong>Bot User OAuth Token</strong> (<code>xoxb-...</code>). This is the value that
+   goes into <code>SLACK_BOT_TOKEN</code>.</li>
+<li>For each <strong>private</strong> channel you want indexed, invite the bot from
+   inside the channel: <code>/invite @your-bot-name</code>. Public channels work
+   without invites once the scopes are granted.</li>
+</ol>
+<p>A user token (<code>xoxp-...</code>) is obtained the same way under "User Token
+Scopes" instead of "Bot Token Scopes"; use it when the bot identity can't
+see what you need (DMs, channels the bot wasn't invited to). It rotates
+when the user revokes access.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SLACK_BOT_TOKEN&quot;</span>
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">channel_types</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;public_channel&quot;</span><span class="p">]</span>
-<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SLACK_BOT_TOKEN&quot;</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="n">channel_types</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;public_channel&quot;</span><span class="p">]</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
 </code></pre></div>
 <p>No <code>[[objects]]</code> is required for messages or users because built-in presets
 apply <code>text_fields</code>, grouping, and locators.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>slack://acme/channels/eng-backend__C012345/messages.jsonl
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;Alice Wang&quot;</span><span class="w"> </span>slack://acme/users.jsonl
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>slack://acme/channels/eng-backend__C012345/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;thread_ts&quot;:&quot;1717123456.001200&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>slack://acme/channels/eng-backend__C012345/messages.jsonl
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;Alice Wang&quot;</span><span class="w"> </span>slack://acme/users.jsonl
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>slack://acme/channels/eng-backend__C012345/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;thread_ts&quot;:&quot;1717123456.001200&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2323,20 +2413,46 @@ apply <code>text_fields</code>, grouping, and locators.</p>
 <p><strong>URI shape:</strong> <code>discord://&lt;alias&gt;/channels/&lt;name&gt;__&lt;id&gt;/messages.jsonl</code> for
 top-level channel messages. Active thread channels appear under
 <code>/channels/&lt;parent&gt;__&lt;id&gt;/threads/&lt;thread&gt;__&lt;id&gt;/messages.jsonl</code>.</p>
+<p><strong>Obtain credentials:</strong> you need a <strong>Bot token</strong> and the <strong>Guild ID</strong> (your
+server's numeric ID).</p>
+<p>Bot token:</p>
+<ol>
+<li>Open <a href="https://discord.com/developers/applications">https://discord.com/developers/applications</a> and click <strong>New
+   Application</strong>. Name it.</li>
+<li>Left sidebar → <strong>Bot</strong> → click <strong>Add Bot</strong> → <strong>Reset Token</strong> → copy the
+   token. This is the value that goes into <code>DISCORD_BOT_TOKEN</code>.</li>
+<li>On the same Bot page, scroll down to <strong>Privileged Gateway Intents</strong> and
+   enable <strong>Message Content Intent</strong>. Without this the bot connects fine
+   but every message comes back with empty <code>content</code>.</li>
+<li>Left sidebar → <strong>OAuth2</strong> → <strong>URL Generator</strong>:<ul>
+<li>Scopes: <code>bot</code></li>
+<li>Bot Permissions: <code>View Channels</code>, <code>Read Message History</code></li>
+<li>Copy the generated URL, open it in a browser, and pick the server
+  (guild) to add the bot to. You must be the guild owner or have
+  Manage Server permission.</li>
+</ul>
+</li>
+</ol>
+<p>Guild ID:</p>
+<ol>
+<li>In the Discord client, enable <strong>Settings → Advanced → Developer Mode</strong>.</li>
+<li>Right-click the server name in the left sidebar → <strong>Copy Server ID</strong>.
+   That 17–19 digit numeric string is the <code>guild_id</code> value.</li>
+</ol>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:DISCORD_BOT_TOKEN&quot;</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">guild_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;987654321098765432&quot;</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:DISCORD_BOT_TOKEN&quot;</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="n">guild_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;987654321098765432&quot;</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
 </code></pre></div>
 <p>No <code>[[objects]]</code> is required because the <code>discord.messages</code> preset applies.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>discord://community<span class="w"> </span>--config<span class="w"> </span>./discord.toml
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>discord://community<span class="w"> </span>--config<span class="w"> </span>./discord.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>discord://community<span class="w"> </span>--config<span class="w"> </span>./discord.toml
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>discord://community<span class="w"> </span>--config<span class="w"> </span>./discord.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>discord://community
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>mfs<span class="w"> </span>ls<span class="w"> </span>discord://community/channels/general__987654321
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>discord://community/channels/general__987654321/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;1234567890123456789&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>discord://community
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>mfs<span class="w"> </span>ls<span class="w"> </span>discord://community/channels/general__987654321
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>discord://community/channels/general__987654321/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;1234567890123456789&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2349,22 +2465,37 @@ top-level channel messages. Active thread channels appear under
 <h2 id="gmail"><code>gmail</code><a class="headerlink" href="#gmail" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>gmail://&lt;alias&gt;/labels/&lt;label&gt;__&lt;id&gt;/messages.jsonl</code>. Message
 records are grouped by Gmail <code>threadId</code> by the framework preset.</p>
+<p><strong>Obtain credentials:</strong> Gmail uses <strong>Google OAuth 2.0</strong> with a downloaded
+credentials JSON:</p>
+<ol>
+<li>Open <a href="https://console.cloud.google.com">https://console.cloud.google.com</a> → create or pick a project.</li>
+<li><strong>APIs &amp; Services → Library → Gmail API</strong> → click <strong>Enable</strong>.</li>
+<li><strong>APIs &amp; Services → Credentials → Create Credentials → OAuth client
+   ID</strong> → Application type: <strong>Desktop app</strong> → name it → <strong>Download JSON</strong>.</li>
+<li>Save the file somewhere the server can read it
+   (e.g. <code>~/.mfs/gmail-credentials.json</code>).</li>
+<li>The first <code>mfs add</code> opens a browser to authorize; the resulting
+   <code>token.json</code> is cached next to the credentials file.</li>
+</ol>
+<p>Required OAuth scope: <code>https://www.googleapis.com/auth/gmail.readonly</code>. The
+connector only calls <code>messages.list</code> + <code>messages.get</code>; it doesn't send or
+modify mail.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:GMAIL_ACCESS_TOKEN&quot;</span>
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="n">labels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;INBOX&quot;</span><span class="p">]</span>
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5000</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:GMAIL_ACCESS_TOKEN&quot;</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="n">labels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;INBOX&quot;</span><span class="p">]</span>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5000</span>
 </code></pre></div>
 <p>The current plugin builds <code>google.oauth2.credentials.Credentials</code> from the
 configured <code>token</code> value when it is a string, or from
 <code>Credentials.from_authorized_user_info</code> when the parsed TOML value is an object.
 Probe the connector in the target server before syncing.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;contract renewal&quot;</span><span class="w"> </span>gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;threadId&quot;:&quot;THREAD_ID&quot;,&quot;id&quot;:&quot;MESSAGE_ID&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;contract renewal&quot;</span><span class="w"> </span>gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;threadId&quot;:&quot;THREAD_ID&quot;,&quot;id&quot;:&quot;MESSAGE_ID&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2378,24 +2509,43 @@ Probe the connector in the target server before syncing.</p>
 <p><strong>URI shape:</strong> pages are <code>notion://&lt;alias&gt;/pages/&lt;page-id&gt;.md</code>. Data source
 records are <code>notion://&lt;alias&gt;/data_sources/&lt;data-source-id&gt;/records.jsonl</code> with
 <code>schema.json</code> next to them.</p>
+<p><strong>Obtain credentials:</strong> you need a <strong>Notion Internal Integration token</strong>
+plus explicit page-level sharing.</p>
+<ol>
+<li>Open <a href="https://www.notion.so/profile/integrations">https://www.notion.so/profile/integrations</a> → <strong>New integration</strong>.</li>
+<li>Pick a name and the target workspace.</li>
+<li>Under <strong>Capabilities</strong>, tick <code>Read content</code> (the other capabilities are
+   not needed for MFS).</li>
+<li>Submit, then copy the <strong>Internal Integration Token</strong> (<code>secret_...</code>).
+   That goes into <code>NOTION_TOKEN</code>.</li>
+</ol>
+<p>The token by itself doesn't grant access to any pages — you have to <strong>share</strong>
+each page or database with the integration:</p>
+<ul>
+<li>Open the top-level page → top-right <code>•••</code> → <strong>Connections</strong> →
+  <strong>Connect to</strong> → pick the integration.</li>
+<li>Sharing propagates to all sub-pages (Notion permissions are tree-rooted),
+  so sharing the workspace's home page is the workspace-wide path; sharing
+  just one section scopes the integration to that section.</li>
+</ul>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:NOTION_TOKEN&quot;</span>
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>
-<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data_sources/&lt;data-source-id&gt;&quot;</span>
-<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Description&quot;</span><span class="p">]</span>
-<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:NOTION_TOKEN&quot;</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data_sources/&lt;data-source-id&gt;&quot;</span>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Description&quot;</span><span class="p">]</span>
+<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p>The <code>[[objects]]</code> block is only needed for searchable data source records.
 Pages render as markdown documents without per-record config.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>notion://workspace<span class="w"> </span>--config<span class="w"> </span>./notion.toml
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>notion://workspace<span class="w"> </span>--config<span class="w"> </span>./notion.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>notion://workspace<span class="w"> </span>--config<span class="w"> </span>./notion.toml
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>notion://workspace<span class="w"> </span>--config<span class="w"> </span>./notion.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;launch checklist&quot;</span><span class="w"> </span>notion://workspace/pages
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>notion://workspace/pages/&lt;page-id&gt;.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>notion://workspace/data_sources/&lt;data-source-id&gt;/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;&lt;page-id&gt;&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;launch checklist&quot;</span><span class="w"> </span>notion://workspace/pages
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>notion://workspace/pages/&lt;page-id&gt;.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>notion://workspace/data_sources/&lt;data-source-id&gt;/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;&lt;page-id&gt;&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2408,27 +2558,50 @@ Pages render as markdown documents without per-record config.</p>
 <h2 id="jira"><code>jira</code><a class="headerlink" href="#jira" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>jira://&lt;alias&gt;/projects/&lt;project-key&gt;/issues.jsonl</code> plus
 <code>jira://&lt;alias&gt;/users.jsonl</code>.</p>
+<p><strong>Obtain credentials:</strong> three flavours, pick based on your Jira deployment:</p>
+<ul>
+<li><strong>Atlassian Cloud</strong> (most common):<ul>
+<li>URL: <code>https://acme.atlassian.net</code></li>
+<li>Username: your Atlassian account email</li>
+<li>API token: open
+  <a href="https://id.atlassian.com/manage-profile/security/api-tokens">https://id.atlassian.com/manage-profile/security/api-tokens</a> →
+  <strong>Create API token</strong> → label it <code>mfs</code> → copy. Goes into
+  <code>JIRA_API_TOKEN</code>.</li>
+</ul>
+</li>
+<li><strong>Atlassian Server / Data Center</strong> (self-hosted):<ul>
+<li>URL: <code>https://jira.acme.internal</code></li>
+<li>Username: leave empty</li>
+<li>API token: a Personal Access Token from your Jira profile →
+  <strong>Personal Access Tokens</strong> → Create.</li>
+</ul>
+</li>
+<li><strong>Older Server (no PAT support)</strong>: username + password basic auth.
+  Discouraged but supported.</li>
+</ul>
+<p>API token permissions inherit the issuing user's permissions — restricted
+projects look empty if the user can't see them.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://acme.atlassian.net&quot;</span>
-<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="n">cloud</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;alice@acme.com&quot;</span>
-<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="n">api_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:JIRA_API_TOKEN&quot;</span>
-<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a><span class="n">projects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ENG&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;OPS&quot;</span><span class="p">]</span>
-<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
-<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a>
-<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/projects/ENG&quot;</span>
-<a id="__codelineno-30-10" name="__codelineno-30-10" href="#__codelineno-30-10"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;summary&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
-<a id="__codelineno-30-11" name="__codelineno-30-11" href="#__codelineno-30-11"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;key&quot;</span><span class="p">]</span>
-<a id="__codelineno-30-12" name="__codelineno-30-12" href="#__codelineno-30-12"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;priority&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updated&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="n">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://acme.atlassian.net&quot;</span>
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a><span class="n">cloud</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;alice@acme.com&quot;</span>
+<a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a><span class="n">api_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:JIRA_API_TOKEN&quot;</span>
+<a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a><span class="n">projects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ENG&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;OPS&quot;</span><span class="p">]</span>
+<a id="__codelineno-35-6" name="__codelineno-35-6" href="#__codelineno-35-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<a id="__codelineno-35-7" name="__codelineno-35-7" href="#__codelineno-35-7"></a>
+<a id="__codelineno-35-8" name="__codelineno-35-8" href="#__codelineno-35-8"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-35-9" name="__codelineno-35-9" href="#__codelineno-35-9"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/projects/ENG&quot;</span>
+<a id="__codelineno-35-10" name="__codelineno-35-10" href="#__codelineno-35-10"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;summary&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
+<a id="__codelineno-35-11" name="__codelineno-35-11" href="#__codelineno-35-11"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;key&quot;</span><span class="p">]</span>
+<a id="__codelineno-35-12" name="__codelineno-35-12" href="#__codelineno-35-12"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;priority&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updated&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml
-<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml
+<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO regression&quot;</span><span class="w"> </span>jira://acme/projects/ENG/issues.jsonl
-<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>jira://acme/projects/ENG/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;key&quot;:&quot;ENG-1234&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO regression&quot;</span><span class="w"> </span>jira://acme/projects/ENG/issues.jsonl
+<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>jira://acme/projects/ENG/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;key&quot;:&quot;ENG-1234&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2442,23 +2615,32 @@ Pages render as markdown documents without per-record config.</p>
 <h2 id="linear"><code>linear</code><a class="headerlink" href="#linear" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>linear://&lt;alias&gt;/teams/&lt;team-key&gt;/issues.jsonl</code> plus
 <code>linear://&lt;alias&gt;/users.jsonl</code>.</p>
+<p><strong>Obtain credentials:</strong> a <strong>Personal API key</strong> from Linear:</p>
+<ol>
+<li>Open <a href="https://linear.app">https://linear.app</a> → <strong>Settings → Account → API → Personal
+   API keys</strong>.</li>
+<li>Click <strong>Create new key</strong>, name it <code>mfs</code>, copy the value (starts with
+   <code>lin_api_...</code>). That goes into <code>LINEAR_API_KEY</code>.</li>
+</ol>
+<p>The key inherits the issuing user's workspace access (all teams and
+projects visible to them in the Linear UI).</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="n">api_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:LINEAR_API_KEY&quot;</span>
-<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="n">teams</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ENG&quot;</span><span class="p">]</span>
-<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a>
-<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/teams/ENG&quot;</span>
-<a id="__codelineno-33-6" name="__codelineno-33-6" href="#__codelineno-33-6"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
-<a id="__codelineno-33-7" name="__codelineno-33-7" href="#__codelineno-33-7"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;identifier&quot;</span><span class="p">]</span>
-<a id="__codelineno-33-8" name="__codelineno-33-8" href="#__codelineno-33-8"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;priority&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updatedAt&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="n">api_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:LINEAR_API_KEY&quot;</span>
+<a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="n">teams</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ENG&quot;</span><span class="p">]</span>
+<a id="__codelineno-38-3" name="__codelineno-38-3" href="#__codelineno-38-3"></a>
+<a id="__codelineno-38-4" name="__codelineno-38-4" href="#__codelineno-38-4"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-38-5" name="__codelineno-38-5" href="#__codelineno-38-5"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/teams/ENG&quot;</span>
+<a id="__codelineno-38-6" name="__codelineno-38-6" href="#__codelineno-38-6"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
+<a id="__codelineno-38-7" name="__codelineno-38-7" href="#__codelineno-38-7"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;identifier&quot;</span><span class="p">]</span>
+<a id="__codelineno-38-8" name="__codelineno-38-8" href="#__codelineno-38-8"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;priority&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updatedAt&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml
-<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml
+<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing migration&quot;</span><span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl
-<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;identifier&quot;:&quot;ENG-42&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing migration&quot;</span><span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl
+<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;identifier&quot;:&quot;ENG-42&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2472,23 +2654,34 @@ Pages render as markdown documents without per-record config.</p>
 <p><strong>URI shape:</strong> tickets are <code>zendesk://&lt;alias&gt;/tickets/records.jsonl</code>, ticket
 comments are <code>/tickets/comments.jsonl</code>, users are <code>/users/records.jsonl</code>, and
 organizations are <code>/organizations/records.jsonl</code>.</p>
+<p><strong>Obtain credentials:</strong> Zendesk uses <strong>email + API token</strong>. The auth layer
+appends the literal <code>/token</code> suffix to the email automatically.</p>
+<ol>
+<li>Open <code>https://&lt;your-subdomain&gt;.zendesk.com</code> → <strong>Admin Center → Apps and
+   integrations → APIs → Zendesk API</strong>.</li>
+<li>Toggle <strong>Token Access</strong> ON.</li>
+<li>Click <strong>Add API token</strong> → label it <code>mfs</code> → copy the value. That goes
+   into <code>ZENDESK_API_TOKEN</code>.</li>
+</ol>
+<p>The token is bound to your user account; it inherits your role's
+permissions.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="n">subdomain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;acme&quot;</span>
-<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a><span class="n">email</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;alice@acme.com&quot;</span>
-<a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a><span class="n">api_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:ZENDESK_API_TOKEN&quot;</span>
-<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a><span class="n">subdomain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;acme&quot;</span>
+<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a><span class="n">email</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;alice@acme.com&quot;</span>
+<a id="__codelineno-41-3" name="__codelineno-41-3" href="#__codelineno-41-3"></a><span class="n">api_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:ZENDESK_API_TOKEN&quot;</span>
+<a id="__codelineno-41-4" name="__codelineno-41-4" href="#__codelineno-41-4"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
 </code></pre></div>
 <p>The connector schema in the wizard labels the email field as <code>username</code>, while
 the current plugin reads <code>email</code> when building Zendesk Basic auth. Probe the
 target config before syncing.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>zendesk://acme<span class="w"> </span>--config<span class="w"> </span>./zendesk.toml
-<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>zendesk://acme<span class="w"> </span>--config<span class="w"> </span>./zendesk.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>zendesk://acme<span class="w"> </span>--config<span class="w"> </span>./zendesk.toml
+<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>zendesk://acme<span class="w"> </span>--config<span class="w"> </span>./zendesk.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing dispute&quot;</span><span class="w"> </span>zendesk://acme/tickets/records.jsonl
-<a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund policy&quot;</span><span class="w"> </span>zendesk://acme/tickets/comments.jsonl
-<a id="__codelineno-38-3" name="__codelineno-38-3" href="#__codelineno-38-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>zendesk://acme/tickets/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing dispute&quot;</span><span class="w"> </span>zendesk://acme/tickets/records.jsonl
+<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund policy&quot;</span><span class="w"> </span>zendesk://acme/tickets/comments.jsonl
+<a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>zendesk://acme/tickets/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2501,28 +2694,42 @@ target config before syncing.</p>
 <h2 id="salesforce"><code>salesforce</code><a class="headerlink" href="#salesforce" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>salesforce://&lt;alias&gt;/&lt;SObject&gt;/records.jsonl</code> and
 <code>salesforce://&lt;alias&gt;/&lt;SObject&gt;/schema.json</code>.</p>
+<p><strong>Obtain credentials:</strong> <strong>username + password + security token</strong> (SOAP
+login). OAuth flows aren't supported by this connector yet.</p>
+<ol>
+<li><strong>Username + Password</strong>: your normal Salesforce login.</li>
+<li><strong>Security token</strong>: log into Salesforce → <strong>Settings → My Personal
+   Information → Reset My Security Token</strong>. A new token is emailed to you.
+   Required whenever API access is from outside the org's trusted IP range.</li>
+<li><strong>Instance URL</strong>: visible in the URL bar after login (e.g.
+   <code>https://acme.my.salesforce.com</code>). Only needed when reusing a
+   <code>session_id</code>.</li>
+<li><strong>Domain</strong>: <code>login</code> for production, <code>test</code> for sandbox.</li>
+</ol>
+<p>If you already have a Salesforce session, set <code>session_id</code> + <code>instance_url</code>
+and the plugin skips the username/password/security-token login flow.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;alice@acme.com&quot;</span>
-<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SF_PASSWORD&quot;</span>
-<a id="__codelineno-39-3" name="__codelineno-39-3" href="#__codelineno-39-3"></a><span class="n">security_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SF_SECURITY_TOKEN&quot;</span>
-<a id="__codelineno-39-4" name="__codelineno-39-4" href="#__codelineno-39-4"></a><span class="n">domain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;login&quot;</span>
-<a id="__codelineno-39-5" name="__codelineno-39-5" href="#__codelineno-39-5"></a><span class="n">objects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Account&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Contact&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Opportunity&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Case&quot;</span><span class="p">]</span>
-<a id="__codelineno-39-6" name="__codelineno-39-6" href="#__codelineno-39-6"></a>
-<a id="__codelineno-39-7" name="__codelineno-39-7" href="#__codelineno-39-7"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-39-8" name="__codelineno-39-8" href="#__codelineno-39-8"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/Account&quot;</span>
-<a id="__codelineno-39-9" name="__codelineno-39-9" href="#__codelineno-39-9"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Description&quot;</span><span class="p">]</span>
-<a id="__codelineno-39-10" name="__codelineno-39-10" href="#__codelineno-39-10"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Id&quot;</span><span class="p">]</span>
-<a id="__codelineno-39-11" name="__codelineno-39-11" href="#__codelineno-39-11"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;LastModifiedDate&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;alice@acme.com&quot;</span>
+<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SF_PASSWORD&quot;</span>
+<a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="n">security_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SF_SECURITY_TOKEN&quot;</span>
+<a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a><span class="n">domain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;login&quot;</span>
+<a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="n">objects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Account&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Contact&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Opportunity&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Case&quot;</span><span class="p">]</span>
+<a id="__codelineno-44-6" name="__codelineno-44-6" href="#__codelineno-44-6"></a>
+<a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-44-8" name="__codelineno-44-8" href="#__codelineno-44-8"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/Account&quot;</span>
+<a id="__codelineno-44-9" name="__codelineno-44-9" href="#__codelineno-44-9"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Description&quot;</span><span class="p">]</span>
+<a id="__codelineno-44-10" name="__codelineno-44-10" href="#__codelineno-44-10"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Id&quot;</span><span class="p">]</span>
+<a id="__codelineno-44-11" name="__codelineno-44-11" href="#__codelineno-44-11"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;LastModifiedDate&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p>If <code>session_id</code> is set, the plugin uses <code>instance_url</code> plus <code>session_id</code>
 instead of username/password/security-token login.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml
-<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml
+<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;renewal risk&quot;</span><span class="w"> </span>salesforce://acme/Account/records.jsonl
-<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>salesforce://acme/Account/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;Id&quot;:&quot;001AB...&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;renewal risk&quot;</span><span class="w"> </span>salesforce://acme/Account/records.jsonl
+<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>salesforce://acme/Account/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;Id&quot;:&quot;001AB...&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2534,23 +2741,39 @@ instead of username/password/security-token login.</p>
 <h2 id="hubspot"><code>hubspot</code><a class="headerlink" href="#hubspot" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>hubspot://&lt;alias&gt;/&lt;object&gt;/records.jsonl</code>, for example
 <code>hubspot://acme/contacts/records.jsonl</code>.</p>
+<p><strong>Obtain credentials:</strong> HubSpot uses a <strong>Private App access token</strong>.</p>
+<ol>
+<li>Open <a href="https://app.hubspot.com">https://app.hubspot.com</a> → <strong>Settings</strong> (gear icon) →
+   <strong>Integrations → Private Apps</strong> → <strong>Create a private app</strong>.</li>
+<li>Pick a name and description.</li>
+<li>On the <strong>Scopes</strong> tab, enable the read scopes you need:<ul>
+<li><code>crm.objects.contacts.read</code></li>
+<li><code>crm.objects.companies.read</code></li>
+<li><code>crm.objects.deals.read</code></li>
+<li><code>tickets</code> (Service Hub only) — read tickets</li>
+</ul>
+</li>
+<li><strong>Create app</strong>. On the next screen copy the access token (<code>pat-na1-...</code>
+   for the NA1 region, <code>pat-eu1-...</code> for EU). <strong>The token is shown only
+   once.</strong> It goes into <code>HUBSPOT_ACCESS_TOKEN</code>.</li>
+</ol>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="n">access_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:HUBSPOT_ACCESS_TOKEN&quot;</span>
-<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a><span class="n">object_types</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;contacts&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;companies&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;deals&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tickets&quot;</span><span class="p">]</span>
-<a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
-<a id="__codelineno-42-4" name="__codelineno-42-4" href="#__codelineno-42-4"></a>
-<a id="__codelineno-42-5" name="__codelineno-42-5" href="#__codelineno-42-5"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-42-6" name="__codelineno-42-6" href="#__codelineno-42-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/contacts&quot;</span>
-<a id="__codelineno-42-7" name="__codelineno-42-7" href="#__codelineno-42-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;firstname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;lastname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;email&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;jobtitle&quot;</span><span class="p">]</span>
-<a id="__codelineno-42-8" name="__codelineno-42-8" href="#__codelineno-42-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="n">access_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:HUBSPOT_ACCESS_TOKEN&quot;</span>
+<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a><span class="n">object_types</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;contacts&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;companies&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;deals&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tickets&quot;</span><span class="p">]</span>
+<a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<a id="__codelineno-47-4" name="__codelineno-47-4" href="#__codelineno-47-4"></a>
+<a id="__codelineno-47-5" name="__codelineno-47-5" href="#__codelineno-47-5"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-47-6" name="__codelineno-47-6" href="#__codelineno-47-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/contacts&quot;</span>
+<a id="__codelineno-47-7" name="__codelineno-47-7" href="#__codelineno-47-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;firstname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;lastname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;email&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;jobtitle&quot;</span><span class="p">]</span>
+<a id="__codelineno-47-8" name="__codelineno-47-8" href="#__codelineno-47-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
-<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
+<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;customer health&quot;</span><span class="w"> </span>hubspot://acme/contacts/records.jsonl
-<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>hubspot://acme/contacts/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;12345&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;customer health&quot;</span><span class="w"> </span>hubspot://acme/contacts/records.jsonl
+<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>hubspot://acme/contacts/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;12345&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2565,26 +2788,47 @@ instead of username/password/security-token login.</p>
 <h2 id="bigquery"><code>bigquery</code><a class="headerlink" href="#bigquery" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>bigquery://&lt;alias&gt;/&lt;dataset&gt;/tables/&lt;table&gt;/rows.jsonl</code> for
 rows and <code>schema.json</code> for table schemas.</p>
+<p><strong>Obtain credentials:</strong> BigQuery uses <strong>Application Default Credentials
+(ADC)</strong> — there is no token in the connector TOML; the credentials must be
+visible to the server process. Three common ways:</p>
+<ol>
+<li>
+<p><strong>Service account JSON file</strong> (most common in production):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GOOGLE_APPLICATION_CREDENTIALS</span><span class="o">=</span>/path/to/sa.json
+<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>mfs-server<span class="w"> </span>run
+</code></pre></div>
+</li>
+<li>
+<p><strong><code>gcloud auth application-default login</code></strong> (dev / single-user
+   machines) — creates
+   <code>~/.config/gcloud/application_default_credentials.json</code>.</p>
+</li>
+<li>
+<p><strong>Workload Identity</strong> on GKE / Cloud Run — ADC is automatic.</p>
+</li>
+</ol>
+<p>The service account or user only needs <code>roles/bigquery.dataViewer</code> on the
+datasets to be indexed.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a><span class="n">project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;analytics-prod&quot;</span>
-<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a><span class="n">datasets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;events&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;kb&quot;</span><span class="p">]</span>
-<a id="__codelineno-45-3" name="__codelineno-45-3" href="#__codelineno-45-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span>
-<a id="__codelineno-45-4" name="__codelineno-45-4" href="#__codelineno-45-4"></a>
-<a id="__codelineno-45-5" name="__codelineno-45-5" href="#__codelineno-45-5"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-45-6" name="__codelineno-45-6" href="#__codelineno-45-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/kb/tables/articles&quot;</span>
-<a id="__codelineno-45-7" name="__codelineno-45-7" href="#__codelineno-45-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span>
-<a id="__codelineno-45-8" name="__codelineno-45-8" href="#__codelineno-45-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;article_id&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a><span class="n">project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;analytics-prod&quot;</span>
+<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a><span class="n">datasets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;events&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;kb&quot;</span><span class="p">]</span>
+<a id="__codelineno-51-3" name="__codelineno-51-3" href="#__codelineno-51-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span>
+<a id="__codelineno-51-4" name="__codelineno-51-4" href="#__codelineno-51-4"></a>
+<a id="__codelineno-51-5" name="__codelineno-51-5" href="#__codelineno-51-5"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-51-6" name="__codelineno-51-6" href="#__codelineno-51-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/kb/tables/articles&quot;</span>
+<a id="__codelineno-51-7" name="__codelineno-51-7" href="#__codelineno-51-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span>
+<a id="__codelineno-51-8" name="__codelineno-51-8" href="#__codelineno-51-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;article_id&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p>BigQuery credentials come from Application Default Credentials in the server
 environment, such as <code>GOOGLE_APPLICATION_CREDENTIALS</code>.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
-<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
+<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund event&quot;</span><span class="w"> </span>bigquery://analytics/events/tables/user_events/rows.jsonl
-<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>bigquery://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
-<a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>bigquery://analytics/kb/tables/articles/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;article_id&quot;:&quot;a-123&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund event&quot;</span><span class="w"> </span>bigquery://analytics/events/tables/user_events/rows.jsonl
+<a id="__codelineno-53-2" name="__codelineno-53-2" href="#__codelineno-53-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>bigquery://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-53-3" name="__codelineno-53-3" href="#__codelineno-53-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>bigquery://analytics/kb/tables/articles/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;article_id&quot;:&quot;a-123&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2597,33 +2841,58 @@ environment, such as <code>GOOGLE_APPLICATION_CREDENTIALS</code>.</p>
 <h2 id="snowflake"><code>snowflake</code><a class="headerlink" href="#snowflake" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>snowflake://&lt;alias&gt;/&lt;DATABASE&gt;/&lt;SCHEMA&gt;/tables/&lt;TABLE&gt;/rows.jsonl</code>
 and <code>schema.json</code>.</p>
-<p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="n">account</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;abcdefg-xy12345&quot;</span>
-<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader&quot;</span>
-<a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a><span class="n">warehouse</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_wh&quot;</span>
-<a id="__codelineno-48-4" name="__codelineno-48-4" href="#__codelineno-48-4"></a><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader_role&quot;</span>
-<a id="__codelineno-48-5" name="__codelineno-48-5" href="#__codelineno-48-5"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PROD&quot;</span>
-<a id="__codelineno-48-6" name="__codelineno-48-6" href="#__codelineno-48-6"></a><span class="n">credential_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file:/etc/mfs/snowflake/rsa_key.p8&quot;</span>
-<a id="__codelineno-48-7" name="__codelineno-48-7" href="#__codelineno-48-7"></a>
-<a id="__codelineno-48-8" name="__codelineno-48-8" href="#__codelineno-48-8"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-48-9" name="__codelineno-48-9" href="#__codelineno-48-9"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/PROD/PUBLIC/tables/TICKETS&quot;</span>
-<a id="__codelineno-48-10" name="__codelineno-48-10" href="#__codelineno-48-10"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;TITLE&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;DESCRIPTION&quot;</span><span class="p">]</span>
-<a id="__codelineno-48-11" name="__codelineno-48-11" href="#__codelineno-48-11"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span>
+<p><strong>Obtain credentials:</strong> three modes, selected via <code>auth_mode</code>. Key-pair is
+the default and recommended for production.</p>
+<p><strong>Key-pair</strong> (<code>auth_mode = "key-pair"</code>, default):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>openssl<span class="w"> </span>genrsa<span class="w"> </span><span class="m">2048</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>pkcs8<span class="w"> </span>-topk8<span class="w"> </span>-inform<span class="w"> </span>PEM<span class="w"> </span>-out<span class="w"> </span>rsa_key.p8<span class="w"> </span>-nocrypt
+<a id="__codelineno-54-2" name="__codelineno-54-2" href="#__codelineno-54-2"></a>openssl<span class="w"> </span>rsa<span class="w"> </span>-in<span class="w"> </span>rsa_key.p8<span class="w"> </span>-pubout<span class="w"> </span>-out<span class="w"> </span>rsa_key.pub
 </code></pre></div>
-<p><code>credential_ref</code> must resolve to a PEM PKCS#8 RSA private key. If the key is
-encrypted, set <code>private_key_passphrase_ref</code>.</p>
+<p>Register the public key on the Snowflake user:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a><span class="k">ALTER</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">mfs_reader</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">RSA_PUBLIC_KEY</span><span class="o">=</span><span class="s1">&#39;&lt;contents of rsa_key.pub minus header/footer&gt;&#39;</span><span class="p">;</span>
+</code></pre></div>
+<p>The private key file path goes into <code>credential_ref</code> (e.g.
+<code>credential_ref = "file:/etc/mfs/snowflake/rsa_key.p8"</code>). If the key has a
+passphrase, set <code>private_key_passphrase_ref</code> too.</p>
+<p><strong>Password</strong> (<code>auth_mode = "password"</code>): <code>credential_ref</code> carries the
+Snowflake password (prefer an <code>env:</code> or <code>file:</code> ref). Snowflake is
+progressively tightening password login — check your account's MFA policy
+before relying on this in production.</p>
+<p><strong>PAT</strong> (<code>auth_mode = "pat"</code>): issue a Programmatic Access Token for the
+user in the Snowflake UI, attach a network policy that includes your
+egress IPs, and put the token into <code>credential_ref</code>. Rotation is just
+"issue a new PAT, replace the secret" — no key-pair re-registration.</p>
+<p>The user should have a read-only role; grant <code>USAGE</code> on the warehouse,
+database, schemas, plus <code>SELECT</code> on the in-scope tables.</p>
+<p><strong>Minimum config:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a><span class="n">account</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;abcdefg-xy12345&quot;</span>
+<a id="__codelineno-56-2" name="__codelineno-56-2" href="#__codelineno-56-2"></a><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader&quot;</span>
+<a id="__codelineno-56-3" name="__codelineno-56-3" href="#__codelineno-56-3"></a><span class="n">warehouse</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_wh&quot;</span>
+<a id="__codelineno-56-4" name="__codelineno-56-4" href="#__codelineno-56-4"></a><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader_role&quot;</span>
+<a id="__codelineno-56-5" name="__codelineno-56-5" href="#__codelineno-56-5"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PROD&quot;</span>
+<a id="__codelineno-56-6" name="__codelineno-56-6" href="#__codelineno-56-6"></a><span class="n">credential_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file:/etc/mfs/snowflake/rsa_key.p8&quot;</span>
+<a id="__codelineno-56-7" name="__codelineno-56-7" href="#__codelineno-56-7"></a>
+<a id="__codelineno-56-8" name="__codelineno-56-8" href="#__codelineno-56-8"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-56-9" name="__codelineno-56-9" href="#__codelineno-56-9"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/PROD/PUBLIC/tables/TICKETS&quot;</span>
+<a id="__codelineno-56-10" name="__codelineno-56-10" href="#__codelineno-56-10"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;TITLE&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;DESCRIPTION&quot;</span><span class="p">]</span>
+<a id="__codelineno-56-11" name="__codelineno-56-11" href="#__codelineno-56-11"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p><code>credential_ref</code> must resolve to a PEM PKCS#8 RSA private key in the
+default key-pair mode. If the key is encrypted, set
+<code>private_key_passphrase_ref</code>.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
-<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
+<a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing event&quot;</span><span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
-<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;EMAIL column&quot;</span><span class="w"> </span>snowflake://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
-<a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;ID&quot;:12345}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing event&quot;</span><span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
+<a id="__codelineno-58-2" name="__codelineno-58-2" href="#__codelineno-58-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;EMAIL column&quot;</span><span class="w"> </span>snowflake://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-58-3" name="__codelineno-58-3" href="#__codelineno-58-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;ID&quot;:12345}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
-<li>The connector supports key-pair JWT auth only.</li>
+<li>The connector supports <code>auth_mode</code> of <code>key-pair</code> (default), <code>password</code>,
+  or <code>pat</code>. Key-pair is the recommended production path; password is
+  subject to Snowflake's tightening login policies.</li>
 <li>Snowflake folds unquoted identifiers to uppercase; paths and locators must
   match actual returned casing.</li>
 <li>Warehouses may auto-resume on first query, adding startup latency.</li>
@@ -2632,23 +2901,57 @@ encrypted, set <code>private_key_passphrase_ref</code>.</p>
 <h2 id="s3"><code>s3</code><a class="headerlink" href="#s3" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>s3://&lt;alias&gt;/&lt;object-key&gt;</code>. The tree mirrors object keys in the
 configured bucket and prefix.</p>
+<p><strong>Obtain credentials:</strong> S3-compatible — the same connector covers AWS S3,
+Cloudflare R2, GCS S3 interop, and MinIO via <code>endpoint_url</code>.</p>
+<ul>
+<li>
+<p><strong>AWS S3</strong>: create an IAM user under <strong>Security credentials → Access
+  keys → Create access key</strong>, or use STS temporary credentials. boto3
+  reads <code>AWS_ACCESS_KEY_ID</code> + <code>AWS_SECRET_ACCESS_KEY</code> automatically; if
+  those are set in the server environment, you can omit them from the
+  TOML. Minimum IAM policy:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a><span class="p">{</span>
+<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a><span class="w">  </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
+<a id="__codelineno-59-3" name="__codelineno-59-3" href="#__codelineno-59-3"></a><span class="w">  </span><span class="nt">&quot;Statement&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span>
+<a id="__codelineno-59-4" name="__codelineno-59-4" href="#__codelineno-59-4"></a><span class="w">    </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
+<a id="__codelineno-59-5" name="__codelineno-59-5" href="#__codelineno-59-5"></a><span class="w">    </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;s3:ListBucket&quot;</span><span class="p">],</span>
+<a id="__codelineno-59-6" name="__codelineno-59-6" href="#__codelineno-59-6"></a><span class="w">    </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;arn:aws:s3:::my-bucket&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;arn:aws:s3:::my-bucket/*&quot;</span><span class="p">]</span>
+<a id="__codelineno-59-7" name="__codelineno-59-7" href="#__codelineno-59-7"></a><span class="w">  </span><span class="p">}]</span>
+<a id="__codelineno-59-8" name="__codelineno-59-8" href="#__codelineno-59-8"></a><span class="p">}</span>
+</code></pre></div>
+</li>
+<li>
+<p><strong>Cloudflare R2</strong>: R2 dashboard → <strong>Manage R2 API Tokens → Create API
+  Token</strong> with Object Read scope. <code>endpoint_url =
+  "https://&lt;account-id&gt;.r2.cloudflarestorage.com"</code>, <code>region = "auto"</code>.</p>
+</li>
+<li>
+<p><strong>Google Cloud Storage (S3 interop)</strong>: IAM service-account HMAC key,
+  <code>endpoint_url = "https://storage.googleapis.com"</code>.</p>
+</li>
+<li>
+<p><strong>MinIO (self-hosted)</strong>: service's access key + secret key,
+  <code>endpoint_url = "https://minio.internal:9000"</code> (or whatever your MinIO
+  URL is).</p>
+</li>
+</ul>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;acme-docs&quot;</span>
-<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a><span class="n">prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;engineering/rfc/&quot;</span>
-<a id="__codelineno-51-3" name="__codelineno-51-3" href="#__codelineno-51-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;us-west-2&quot;</span>
-<a id="__codelineno-51-4" name="__codelineno-51-4" href="#__codelineno-51-4"></a><span class="n">access_key_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_ACCESS_KEY_ID&quot;</span>
-<a id="__codelineno-51-5" name="__codelineno-51-5" href="#__codelineno-51-5"></a><span class="n">secret_access_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_SECRET_ACCESS_KEY&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;acme-docs&quot;</span>
+<a id="__codelineno-60-2" name="__codelineno-60-2" href="#__codelineno-60-2"></a><span class="n">prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;engineering/rfc/&quot;</span>
+<a id="__codelineno-60-3" name="__codelineno-60-3" href="#__codelineno-60-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;us-west-2&quot;</span>
+<a id="__codelineno-60-4" name="__codelineno-60-4" href="#__codelineno-60-4"></a><span class="n">access_key_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_ACCESS_KEY_ID&quot;</span>
+<a id="__codelineno-60-5" name="__codelineno-60-5" href="#__codelineno-60-5"></a><span class="n">secret_access_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_SECRET_ACCESS_KEY&quot;</span>
 </code></pre></div>
 <p>Set <code>endpoint_url</code> for R2, GCS S3 interop, MinIO, or another compatible
 endpoint.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
-<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
+<a id="__codelineno-61-2" name="__codelineno-61-2" href="#__codelineno-61-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;retention policy&quot;</span><span class="w"> </span>s3://acme-docs/engineering/rfc/
-<a id="__codelineno-53-2" name="__codelineno-53-2" href="#__codelineno-53-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
-<a id="__codelineno-53-3" name="__codelineno-53-3" href="#__codelineno-53-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.pdf<span class="w"> </span>/tmp/rfc-001.pdf
+<div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;retention policy&quot;</span><span class="w"> </span>s3://acme-docs/engineering/rfc/
+<a id="__codelineno-62-2" name="__codelineno-62-2" href="#__codelineno-62-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-62-3" name="__codelineno-62-3" href="#__codelineno-62-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.pdf<span class="w"> </span>/tmp/rfc-001.pdf
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2661,21 +2964,40 @@ endpoint.</p>
 <h2 id="gdrive"><code>gdrive</code><a class="headerlink" href="#gdrive" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>gdrive://&lt;alias&gt;/&lt;folder&gt;/&lt;file&gt;</code>. Google-native Docs, Sheets,
 and Slides are exported to text or CSV-like content by the plugin.</p>
+<p><strong>Obtain credentials:</strong> Google Drive uses <strong>OAuth credentials</strong>. Two flows:</p>
+<p><strong>Service account</strong> (recommended for shared / production access):</p>
+<ol>
+<li>GCP Console → <strong>APIs &amp; Services → Library</strong> → enable <strong>Google Drive
+   API</strong>.</li>
+<li><strong>Credentials → Create Credentials → Service account</strong> → name + role
+   (<code>Viewer</code> is enough for drive read).</li>
+<li>On the service account → <strong>Keys → Add key → JSON</strong> → download.</li>
+<li><strong>Share</strong> each Drive folder you want indexed with the service account's
+   email (<code>&lt;account&gt;@&lt;project&gt;.iam.gserviceaccount.com</code>). Without that
+   share, the account can't see the folder.</li>
+</ol>
+<p><strong>User OAuth</strong> (a single user's visibility):</p>
+<ol>
+<li>Same GCP console: OAuth client ID, application type <strong>Desktop app</strong>,
+   download the JSON.</li>
+<li>First-run browser flow on a machine with a display; resulting
+   <code>token.json</code> is cached next to credentials.</li>
+</ol>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:GDRIVE_ACCESS_TOKEN&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:GDRIVE_ACCESS_TOKEN&quot;</span>
 </code></pre></div>
 <p>The current plugin builds <code>google.oauth2.credentials.Credentials</code> from the
 configured <code>token</code> value when it is a string, or from
 <code>Credentials.from_authorized_user_info</code> when the parsed TOML value is an object.
 Probe the connector in the target server before syncing.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
-<a id="__codelineno-55-2" name="__codelineno-55-2" href="#__codelineno-55-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
+<a id="__codelineno-64-2" name="__codelineno-64-2" href="#__codelineno-64-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;roadmap&quot;</span><span class="w"> </span>gdrive://engineering/Product/
-<a id="__codelineno-56-2" name="__codelineno-56-2" href="#__codelineno-56-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>gdrive://engineering/Product/Roadmap.txt<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
-<a id="__codelineno-56-3" name="__codelineno-56-3" href="#__codelineno-56-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>gdrive://engineering/Product/Design.pdf<span class="w"> </span>/tmp/design.pdf
+<div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;roadmap&quot;</span><span class="w"> </span>gdrive://engineering/Product/
+<a id="__codelineno-65-2" name="__codelineno-65-2" href="#__codelineno-65-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>gdrive://engineering/Product/Roadmap.txt<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-65-3" name="__codelineno-65-3" href="#__codelineno-65-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>gdrive://engineering/Product/Design.pdf<span class="w"> </span>/tmp/design.pdf
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2688,34 +3010,78 @@ Probe the connector in the target server before syncing.</p>
 <p><strong>URI shape:</strong> chats are
 <code>feishu://&lt;alias&gt;/chats/&lt;name&gt;__&lt;chat-id&gt;/messages.jsonl</code>. Docx documents are
 <code>feishu://&lt;alias&gt;/docs/&lt;title&gt;__&lt;doc-token&gt;.md</code>.</p>
+<p><strong>Obtain credentials:</strong> Feishu / Lark needs an <strong>App ID</strong> + <strong>App Secret</strong>
+from the Lark Developer Console, plus one of two auth modes.</p>
+<p>Create the app:</p>
+<ol>
+<li>Go to <a href="https://open.feishu.cn/app">https://open.feishu.cn/app</a> (CN) or
+   <a href="https://open.larksuite.com/app">https://open.larksuite.com/app</a> (US).</li>
+<li><strong>Create Custom App</strong> → name + icon.</li>
+<li>Note the <strong>App ID</strong> (<code>cli_...</code>) and <strong>App Secret</strong>.</li>
+</ol>
+<p>Then pick an auth mode:</p>
+<p><strong>Tenant / bot</strong> (<code>auth = "tenant"</code>): the app acts as itself. Easier to set
+up, but only sees chats and docs explicitly shared with it.</p>
+<ul>
+<li>Developer console → <strong>Permissions &amp; Scopes</strong>, add as <strong>Bot Scopes</strong>:<ul>
+<li><code>im:message:readonly</code> — read messages</li>
+<li><code>im:chat:readonly</code> — list chats</li>
+<li><code>docx:document:readonly</code> — read docx documents</li>
+<li><code>drive:drive:readonly</code> — list drive items</li>
+</ul>
+</li>
+<li><strong>Version Management &amp; Release</strong> → request approval from your tenant
+  admin.</li>
+<li>Add the bot to each chat by mentioning it (<code>@bot-name</code>) or pinning it
+  via group admin settings.</li>
+</ul>
+<p><strong>User OAuth</strong> (<code>auth = "user"</code>, recommended for full visibility): the app
+acts on behalf of a real user and sees everything that user sees.</p>
+<ul>
+<li>Same scopes as above but as <strong>User Scopes</strong>.</li>
+<li>
+<p>Run the bundled auth helper once on a machine with a browser:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>mfs_server.connectors.feishu.auth_login<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a><span class="w">  </span>--app-id<span class="w"> </span>cli_a1b2c3d4<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a><span class="w">  </span>--app-secret<span class="w"> </span>&lt;secret&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-66-4" name="__codelineno-66-4" href="#__codelineno-66-4"></a><span class="w">  </span>--region<span class="w"> </span>cn
+</code></pre></div>
+<p>It opens a browser for the user to authorize, then writes the
+resulting <code>oauth.json</code> to <code>$MFS_HOME/feishu.oauth.json</code> by default.
+- The plugin refreshes the token on every connect and atomically rotates
+  the refresh_token — Feishu refresh tokens are one-shot, so the plugin
+  must own R/W of that file. That's why <code>oauth_state_file</code> is a path, not
+  a <code>credential_ref</code>.</p>
+</li>
+</ul>
 <p><strong>Minimum config for tenant/bot mode:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a><span class="n">app_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cli_a1b2c3d4&quot;</span>
-<a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a><span class="n">app_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:FEISHU_APP_SECRET&quot;</span>
-<a id="__codelineno-57-3" name="__codelineno-57-3" href="#__codelineno-57-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;feishu&quot;</span>
-<a id="__codelineno-57-4" name="__codelineno-57-4" href="#__codelineno-57-4"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tenant&quot;</span>
-<a id="__codelineno-57-5" name="__codelineno-57-5" href="#__codelineno-57-5"></a><span class="n">docs_folder_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fldcn...&quot;</span>
-<a id="__codelineno-57-6" name="__codelineno-57-6" href="#__codelineno-57-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a><span class="n">app_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cli_a1b2c3d4&quot;</span>
+<a id="__codelineno-67-2" name="__codelineno-67-2" href="#__codelineno-67-2"></a><span class="n">app_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:FEISHU_APP_SECRET&quot;</span>
+<a id="__codelineno-67-3" name="__codelineno-67-3" href="#__codelineno-67-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;feishu&quot;</span>
+<a id="__codelineno-67-4" name="__codelineno-67-4" href="#__codelineno-67-4"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tenant&quot;</span>
+<a id="__codelineno-67-5" name="__codelineno-67-5" href="#__codelineno-67-5"></a><span class="n">docs_folder_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fldcn...&quot;</span>
+<a id="__codelineno-67-6" name="__codelineno-67-6" href="#__codelineno-67-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
 </code></pre></div>
 <p><strong>Minimum config for user OAuth mode:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;user&quot;</span>
-<a id="__codelineno-58-2" name="__codelineno-58-2" href="#__codelineno-58-2"></a><span class="n">oauth_state_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/home/mfs/feishu.oauth.json&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-68-1" name="__codelineno-68-1" href="#__codelineno-68-1"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;user&quot;</span>
+<a id="__codelineno-68-2" name="__codelineno-68-2" href="#__codelineno-68-2"></a><span class="n">oauth_state_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/home/mfs/feishu.oauth.json&quot;</span>
 </code></pre></div>
 <p>Create the OAuth state file with the bundled helper:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a>python<span class="w"> </span>-m<span class="w"> </span>mfs_server.connectors.feishu.auth_login<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a><span class="w">  </span>--app-id<span class="w"> </span>cli_a1b2c3d4<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-59-3" name="__codelineno-59-3" href="#__codelineno-59-3"></a><span class="w">  </span>--app-secret-env<span class="w"> </span>FEISHU_APP_SECRET<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-59-4" name="__codelineno-59-4" href="#__codelineno-59-4"></a><span class="w">  </span>--region<span class="w"> </span>feishu<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-59-5" name="__codelineno-59-5" href="#__codelineno-59-5"></a><span class="w">  </span>--output<span class="w"> </span>/home/mfs/feishu.oauth.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-69-1" name="__codelineno-69-1" href="#__codelineno-69-1"></a>python<span class="w"> </span>-m<span class="w"> </span>mfs_server.connectors.feishu.auth_login<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-69-2" name="__codelineno-69-2" href="#__codelineno-69-2"></a><span class="w">  </span>--app-id<span class="w"> </span>cli_a1b2c3d4<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-69-3" name="__codelineno-69-3" href="#__codelineno-69-3"></a><span class="w">  </span>--app-secret-env<span class="w"> </span>FEISHU_APP_SECRET<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-69-4" name="__codelineno-69-4" href="#__codelineno-69-4"></a><span class="w">  </span>--region<span class="w"> </span>feishu<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-69-5" name="__codelineno-69-5" href="#__codelineno-69-5"></a><span class="w">  </span>--output<span class="w"> </span>/home/mfs/feishu.oauth.json
 </code></pre></div>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
-<a id="__codelineno-60-2" name="__codelineno-60-2" href="#__codelineno-60-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
+<a id="__codelineno-70-2" name="__codelineno-70-2" href="#__codelineno-70-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml<span class="w"> </span>--wait
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>feishu://workspace/chats/
-<a id="__codelineno-61-2" name="__codelineno-61-2" href="#__codelineno-61-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;quarterly roadmap&quot;</span><span class="w"> </span>feishu://workspace/docs/
-<a id="__codelineno-61-3" name="__codelineno-61-3" href="#__codelineno-61-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/chats/eng__oc_xxx/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;message_id&quot;:&quot;om_abc123&quot;}&#39;</span>
-<a id="__codelineno-61-4" name="__codelineno-61-4" href="#__codelineno-61-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/docs/Roadmap__doccnxxx.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<div class="highlight"><pre><span></span><code><a id="__codelineno-71-1" name="__codelineno-71-1" href="#__codelineno-71-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>feishu://workspace/chats/
+<a id="__codelineno-71-2" name="__codelineno-71-2" href="#__codelineno-71-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;quarterly roadmap&quot;</span><span class="w"> </span>feishu://workspace/docs/
+<a id="__codelineno-71-3" name="__codelineno-71-3" href="#__codelineno-71-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/chats/eng__oc_xxx/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;message_id&quot;:&quot;om_abc123&quot;}&#39;</span>
+<a id="__codelineno-71-4" name="__codelineno-71-4" href="#__codelineno-71-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/docs/Roadmap__doccnxxx.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
