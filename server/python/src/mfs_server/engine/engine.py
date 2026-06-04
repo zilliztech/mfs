@@ -2695,10 +2695,12 @@ class Engine:
         finally:
             await plugin.close()
 
-    async def _read_full(self, path: str) -> str:
-        """Whole object content (no cap): all records for structured objects, converted
-        markdown / VLM text for artifact-backed ones, else the full byte stream. Backs
-        export and tail."""
+    async def _read_full(self, path: str) -> tuple[str, bool]:
+        """Whole object content for export / tail: returns (text, partial).
+        partial=True when the connector capped the read (structured objects
+        above max_read_rows). The bare-cat size guard is not applied. Backs
+        export and tail; tail discards the partial flag (just wants the last
+        N lines), export surfaces it."""
         import json as _json
 
         _, curi, rel, plugin = await self._open_path(path)
@@ -2713,25 +2715,54 @@ class Engine:
                     out = []
                     async for rec in records:
                         out.append(_json.dumps(rec, default=str, ensure_ascii=False))
-                    return "\n".join(out)
+                    text = "\n".join(out)
+                    # ctx.declare_partial is the channel structured connectors use
+                    # to flag "we capped at max_read_rows". Read it back here so
+                    # export tells the truth instead of silently returning a slice.
+                    partial = bool(getattr(plugin.ctx, "was_partial", lambda _r: False)(rel))
+                    self._warn_if_huge_export(curi + rel, text)
+                    return text, partial
             ext = os.path.splitext(rel)[1].lower()
             if ext in CONVERT_EXTS or curi.startswith(("web://", "github://")):
                 art = await self._read_artifact(self.ns, curi + rel, "converted_md")
                 if art is not None:
-                    return art.decode("utf-8", errors="replace")
+                    text = art.decode("utf-8", errors="replace")
+                    self._warn_if_huge_export(curi + rel, text)
+                    return text, False
             art_vlm = await self._read_artifact(self.ns, curi + rel, "vlm_text")
             if art_vlm is not None:
-                return art_vlm.decode("utf-8", errors="replace")
+                text = art_vlm.decode("utf-8", errors="replace")
+                self._warn_if_huge_export(curi + rel, text)
+                return text, False
             buf = bytearray()
             async for ch in plugin.read(rel):
                 buf += ch
-            return bytes(buf).decode("utf-8", errors="replace")
+            text = bytes(buf).decode("utf-8", errors="replace")
+            self._warn_if_huge_export(curi + rel, text)
+            return text, False
         finally:
             await plugin.close()
 
-    async def export(self, path: str) -> str:
-        """Full content for `mfs export`: the entire object, no row cap and no
-        bare-cat size guard."""
+    def _warn_if_huge_export(self, uri: str, text: str) -> None:
+        """Single-host export materializes the whole object in memory; warn on
+        anything over 100 MB so the operator sees the cost before the next OOM
+        rather than after. Streaming export is the proper fix — tracked in
+        TODO #10."""
+        size = len(text.encode("utf-8", errors="ignore")) if text else 0
+        if size > 100 * 1024 * 1024:
+            print(
+                f"mfs-server: WARNING export {uri} materialized "
+                f"{size // (1024 * 1024)} MB in memory "
+                f"(streaming export not yet implemented)",
+                flush=True,
+            )
+
+    async def export(self, path: str) -> tuple[str, bool]:
+        """Full content for `mfs export`: returns (text, partial). Honest
+        boundary — structured connectors with more rows than max_read_rows
+        return partial=True; the caller (API layer) surfaces it in the
+        CatResponse. The bare-cat size guard does not apply, but each
+        connector's own row cap does (true streaming export is deferred)."""
         return await self._read_full(path)
 
     async def head(self, path: str, n: int = 20) -> str:
@@ -2813,7 +2844,9 @@ class Engine:
             await plugin.close()
         if abs_file and os.path.isfile(abs_file):
             return "\n".join(await asyncio.to_thread(accel.tail_lines, abs_file, n))
-        text = await self._read_full(path)  # artifact-backed / structured / non-local
+        text, _partial = await self._read_full(
+            path
+        )  # artifact-backed / structured / non-local; tail ignores the partial flag
         return "\n".join(text.splitlines()[-n:])
 
     async def grep(

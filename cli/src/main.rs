@@ -629,15 +629,24 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             }
         }
         Cmd::Export { path, out } => {
-            // export returns the FULL object (no row cap / size guard), unlike cat
+            // export returns the FULL object (no bare-cat size guard), but each
+            // connector's own row cap still applies — surface partial=true so
+            // the caller knows the file on disk is not the complete object.
             let v = get(
                 client,
                 &format!("{base}/v1/export"),
                 &[("path", remote_path(base, path))],
             )?;
             let text = v["content"].as_str().unwrap_or("");
+            let partial = v["partial"].as_bool().unwrap_or(false);
             std::fs::write(out, text).map_err(|e| e.to_string())?;
             println!("exported {} bytes -> {}", text.len(), out);
+            if partial {
+                println!(
+                    "warning: partial export — connector capped at max_read_rows; \
+                     raise the cap or use `mfs cat --range` to page the rest"
+                );
+            }
         }
         Cmd::Status => {
             let v = get(client, &format!("{base}/v1/status"), &[])?;

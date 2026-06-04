@@ -461,8 +461,14 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.get("/v1/export", response_model=CatResponse, operation_id="export", tags=["browse"])
     async def export(path: str) -> CatResponse:
-        """Full object content (no row cap / size guard) for `mfs export`."""
-        return CatResponse(source=path, content=await _read_op(eng().export, path))
+        """Full object content for `mfs export`. Honest about completeness:
+        each connector's own row cap still applies (postgres `max_read_rows`,
+        BigQuery `max_read_rows`, etc.), so structured objects above that
+        threshold return `partial=true`. The bare-cat size guard
+        (object_too_large_for_cat) does NOT apply — export is the escape
+        hatch for that — but true streaming export is still TODO."""
+        text, partial = await _read_op(eng().export, path)
+        return CatResponse(source=path, content=text, partial=partial)
 
     @app.get("/healthz", tags=["server"])
     async def healthz() -> dict:
