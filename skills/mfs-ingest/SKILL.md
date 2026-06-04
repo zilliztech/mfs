@@ -329,6 +329,14 @@ chunks from Milvus. ALWAYS confirm with the user before running it.
   existing connector, doesn't create a duplicate. If the user really
   wants two postgres instances, give them different aliases
   (`postgres://prod-db` vs `postgres://staging-db`).
+- **Cosmetically-different URIs that point to the same source** — the
+  URI string IS the connector identity; MFS does NOT canonicalize
+  across the scheme-specific forms a host/database can take. So
+  `postgres://h:5432/db` and `postgres://h/db` register as two
+  separate connectors over the same physical DB, each with its own
+  job queue + collection state. Pick one form per source and stick
+  with it; if the user is mid-flow and you spot the drift, suggest
+  rolling back the duplicate with `mfs connector remove`.
 - **Pasting plaintext tokens into the toml when an env var exists** —
   suggest `env:VAR` form, especially when the user mentions docker /
   K8s / CI / shared host.
