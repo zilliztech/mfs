@@ -166,6 +166,33 @@ For chat connectors specifically (slack/discord/feishu): chunks are
 find the thread but not as the top hit. Search the topic or surrounding
 context instead.
 
+## E0. `mfs add` returns "0 changed" but the source clearly did change
+
+The file connector's fast path skips re-reading bytes when an object's
+`size + mtime` pair matches the last sync. Normally this is the right
+call (it's how `mfs add .` stays cheap on a repo with thousands of
+unchanged files), but a few cases produce a frozen mtime that no
+change-detection heuristic can see through:
+
+- restored a backup / tar / rsync without `--times` → every file's
+  mtime is "now", and a re-add against a previous index treats them
+  as "moved but content same" by sha1; OK.
+- `touch -r reference target` or build tooling that explicitly resets
+  mtimes back → same size, same mtime, different bytes; the fast path
+  treats it as unchanged. Stale chunks remain.
+- PDF/DOCX/HTML are even more sticky because `mfs cat` serves the
+  cached converted_md artifact from the previous index, so the file
+  *looks* fresh after re-adding even though it isn't.
+
+Fix: force a re-index of that connector:
+
+```bash
+mfs add <uri> --force-index
+```
+
+This drops the fingerprint shortcut and re-reads + re-embeds. The
+converted-md artifact is also rebuilt for documents.
+
 ## E. Server is up but tells me "no embedding provider available"
 
 ```bash
