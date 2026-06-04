@@ -181,6 +181,14 @@ class Capabilities:
     manual_sync: bool = True
     watch: bool = False
     cursor_kind: Optional[str] = None
+    # cursor_kind names the mod-time field the plugin USES for its own
+    # fingerprint/delta logic (e.g. "updatedAt"). It does NOT mean the
+    # connector honors a user-supplied --since <date>. since_pushdown is a
+    # separate, explicit opt-in: only set it to True when sync() actually
+    # filters records by opts.since. Connectors declared with cursor_kind but
+    # without since_pushdown still walk the whole source — --since is a no-op
+    # there, so we reject it at the engine boundary rather than lie silently.
+    since_pushdown: bool = False
     full_scan: bool = True
     delete_detection: DeleteDetection = "explicit"
     # object access
@@ -194,6 +202,7 @@ class Capabilities:
                 "manual": self.manual_sync,
                 "watch": self.watch,
                 "cursor": self.cursor_kind,
+                "since_pushdown": self.since_pushdown,
                 "full_scan": self.full_scan,
                 "delete_detection": self.delete_detection,
             },

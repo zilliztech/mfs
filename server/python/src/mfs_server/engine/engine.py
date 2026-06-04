@@ -576,10 +576,14 @@ class Engine:
         import json
 
         _, connector_uri, ctype, default_config = self._resolve_target(target)
-        # --since requires a time cursor; reject early on connectors without one
+        # --since requires the plugin to actually filter records by opts.since.
+        # cursor_kind only names which field the plugin's own delta logic uses;
+        # since_pushdown is the explicit "I honor opts.since" opt-in. Reject
+        # early on connectors that lack it — better than silently full-scanning
+        # and letting the user believe --since worked.
         if since:
             cls = get_plugin_cls(ctype)
-            if cls is not None and not getattr(cls.CAPABILITIES, "cursor_kind", None):
+            if cls is not None and not getattr(cls.CAPABILITIES, "since_pushdown", False):
                 raise ValueError("since_unsupported")
         # merge user config OVER the resolved defaults so a local path keeps its
         # auto {root, client_id} while still accepting [[objects]]/schemas/credential_ref.
