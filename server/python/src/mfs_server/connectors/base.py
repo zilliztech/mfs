@@ -489,6 +489,15 @@ class ConnectorPlugin(ABC):
         return None
 
     async def healthcheck(self) -> HealthStatus:
+        # Default is a best-effort no-op: connect() already happened by the
+        # time `mfs connector probe` calls us, so the connector has at least
+        # opened a client/pool. That's NOT the same as "credentials are
+        # valid and the remote actually answers" — a SaaS connector that
+        # only constructs an httpx.AsyncClient at connect() time will say
+        # ok=True even with a 401 token until the first real call. Override
+        # this with a cheap round-trip (GitHub /repos/{o}/{r}, Slack
+        # auth.test, etc.) when correctness matters for the probe UX. The
+        # github connector does; the rest currently inherit this default.
         return HealthStatus(ok=True)
 
     async def introspect_for_wizard(self) -> dict[str, dict]:
