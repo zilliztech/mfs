@@ -2656,10 +2656,16 @@ class Engine:
             okind = plugin.object_kind_of(rel)
             structured = okind in ("table_rows", "record_collection", "message_stream")
             if structured:
-                # fast path: pre-cached first rows
+                # fast path: pre-cached first rows. The cache is capped at _HEAD_CACHE_N, so
+                # it's authoritative ONLY when it holds the whole object (< the cap) OR n fits
+                # within it; for a larger n on a capped cache, fall through to the live bounded
+                # query below — otherwise `head -n 200` would silently return just the 100
+                # cached rows instead of 200 (head must give min(n, total), not min(n, cache)).
                 art = await self._read_artifact(self.ns, curi + rel, "head_cache")
                 if art is not None:
-                    return "\n".join(art.decode("utf-8", errors="replace").splitlines()[:n])
+                    cached = art.decode("utf-8", errors="replace").splitlines()
+                    if len(cached) < _HEAD_CACHE_N or n <= len(cached):
+                        return "\n".join(cached[:n])
             else:
                 ext = os.path.splitext(rel)[1].lower()
                 # plain text / code / logs: stream just the first n lines so a large file
