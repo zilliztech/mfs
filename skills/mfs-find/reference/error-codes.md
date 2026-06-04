@@ -7,7 +7,7 @@
 | `object_too_large_for_cat` | cat on a big object without `--range` | use `head` / `cat --range` / `export` |
 | `is_directory` | cat on a directory | use `ls` / `tree` |
 | `range_unsupported` | `--range` on binary/image | use `--meta` or `export` |
-| `density_unsupported` | `--peek/--skim/--deep` on structured object | use `head` / `cat --range` |
+| `density_unsupported` | `--peek/--skim` on structured object | use `head` / `cat --range` |
 | `tail_unsupported` | object has no stable ordering | use `head` / `cat --range` |
 | `locator_not_found` | `cat --locator` key not present | re-search; the record may be gone/changed |
 | `top_k_too_large` | `--top-k` exceeds the vector store's result limit (hybrid mode over-fetches, so its effective limit is higher than top_k) | lower `--top-k` |
