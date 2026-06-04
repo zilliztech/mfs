@@ -310,7 +310,21 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
     from their notebooks. Primary names are documented; fallbacks are
     silent-compat. OpenAI key is read by the openai SDK directly from
     OPENAI_API_KEY.
+
+    Precedence: env wins over toml (12-factor — docker/K8s/compose deploys
+    inject config via env, and the toml is the baked-in default to be
+    overridden). Set MFS_NO_ENV_OVERRIDE=1 to flip semantics: env then only
+    fills missing values (useful for dev shells where a stale ZILLIZ_URI
+    in `~/.bashrc` would otherwise silently redirect the toml's Lite
+    config).
     """
+    if os.environ.get("MFS_NO_ENV_OVERRIDE", "").strip().lower() in ("1", "true", "yes", "on"):
+        # Explicit-wins mode: don't override anything already set in toml.
+        # _resolve_defaults has not run yet for cfg.milvus.uri (still ""
+        # if toml didn't set it), so this is safe to gate on.
+        _apply_env_fills(cfg)
+        return
+
     api_token = os.environ.get("MFS_API_TOKEN")
     if api_token:
         cfg.auth_token = api_token
@@ -319,16 +333,35 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
     if summ is not None:
         cfg.summary.enabled = summ.strip().lower() in ("1", "true", "yes", "on")
 
-    uri = os.environ.get("MILVUS_URI") or os.environ.get("ZILLIZ_URI")
-    token = (
+    uri_env = os.environ.get("MILVUS_URI") or os.environ.get("ZILLIZ_URI")
+    token_env = (
         os.environ.get("MILVUS_TOKEN")
         or os.environ.get("ZILLIZ_TOKEN")
         or os.environ.get("ZILLIZ_API_KEY")
     )
-    if uri:
-        cfg.milvus.uri = uri
-    if token:
-        cfg.milvus.token = token
+    # Surface env-overrides-toml conflicts loudly so a user who set a
+    # specific [milvus] uri in their toml notices that a stray ZILLIZ_URI in
+    # the shell silently redirected the server. The most common production
+    # case is the override is intentional (docker/K8s injection), so this is
+    # an INFO/WARN line at startup, not a refusal — just visible provenance.
+    if uri_env and cfg.milvus.uri and uri_env != cfg.milvus.uri:
+        print(
+            f"mfs-server: WARNING [milvus] uri overridden by env: "
+            f"toml={_redact_uri(cfg.milvus.uri)} -> "
+            f"env={_redact_uri(uri_env)} "
+            f"(set MFS_NO_ENV_OVERRIDE=1 to disable env override)",
+            flush=True,
+        )
+    if token_env and cfg.milvus.token and token_env != cfg.milvus.token:
+        print(
+            "mfs-server: WARNING [milvus] token overridden by env "
+            "(set MFS_NO_ENV_OVERRIDE=1 to disable env override)",
+            flush=True,
+        )
+    if uri_env:
+        cfg.milvus.uri = uri_env
+    if token_env:
+        cfg.milvus.token = token_env
 
     # Database (Postgres) backend env override. Sets the unified [database]
     # block; resolve_defaults already ran by this point so we also push the
@@ -361,6 +394,36 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
                 setattr(cfg.artifact_cache, attr, v)
 
 
+def _redact_uri(uri: str) -> str:
+    """Hide any userinfo password before logging a connection URI.
+    `postgres://user:pw@host/db` -> `postgres://user:***@host/db`."""
+    import re as _re
+
+    return _re.sub(r"://([^:/@]+):([^@]+)@", r"://\1:***@", uri)
+
+
+def _apply_env_fills(cfg: ServerConfig) -> None:
+    """Explicit-wins mode (MFS_NO_ENV_OVERRIDE=1): env only fills toml gaps."""
+    api_token = os.environ.get("MFS_API_TOKEN")
+    if api_token and not cfg.auth_token:
+        cfg.auth_token = api_token
+    summ = os.environ.get("MFS_SUMMARY_ENABLED")
+    # explicit-wins still gates summary on env if toml left default — boolean
+    # default is False so any user that set summary.enabled=true in toml wins.
+    if summ is not None and not cfg.summary.enabled:
+        cfg.summary.enabled = summ.strip().lower() in ("1", "true", "yes", "on")
+    uri_env = os.environ.get("MILVUS_URI") or os.environ.get("ZILLIZ_URI")
+    token_env = (
+        os.environ.get("MILVUS_TOKEN")
+        or os.environ.get("ZILLIZ_TOKEN")
+        or os.environ.get("ZILLIZ_API_KEY")
+    )
+    if uri_env and not cfg.milvus.uri:
+        cfg.milvus.uri = uri_env
+    if token_env and not cfg.milvus.token:
+        cfg.milvus.token = token_env
+
+
 def load_server_config(explicit: str | None = None, apply_env: bool = True) -> ServerConfig:
     path = _find_config_path(explicit)
     data: dict = {}
@@ -369,7 +432,11 @@ def load_server_config(explicit: str | None = None, apply_env: bool = True) -> S
             data = tomllib.load(f)
     _migrate_legacy_blocks(data)
     cfg = ServerConfig(**data)
-    cfg.resolve_defaults()
     if apply_env:
+        # IMPORTANT: env override runs BEFORE resolve_defaults so the override
+        # can see "did the user explicitly set this in toml" (empty string ==
+        # not set) — once resolve_defaults fills the Lite path, that distinction
+        # is lost.
         _apply_env_overrides(cfg)
+    cfg.resolve_defaults()
     return cfg
