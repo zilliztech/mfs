@@ -23,6 +23,7 @@ from ..base import (
     Capabilities,
     ConnectorPlugin,
     Entry,
+    HealthStatus,
     ObjectChange,
     ObjectKind,
     PathStat,
@@ -160,7 +161,11 @@ class FilePlugin(ConnectorPlugin):
     )
     CAPABILITIES = Capabilities(
         manual_sync=True,
-        watch=True,
+        # No filesystem watcher / daemon is wired anywhere (nothing consumes
+        # CAPABILITIES.watch beyond serialization), so advertising watch=True
+        # claimed a capability the connector does not actually have. Declare it
+        # honestly until an inotify/poll watcher is implemented.
+        watch=False,
         cursor_kind=None,
         full_scan=True,
         delete_detection="full_scan",
@@ -176,6 +181,15 @@ class FilePlugin(ConnectorPlugin):
     @property
     def root(self) -> Path:
         return Path(self.config.root)
+
+    async def healthcheck(self) -> HealthStatus:
+        # The base default rubber-stamps ok=True; for a LOCAL connector "try-connect"
+        # means the root must actually be a readable directory. Without this, `probe`
+        # reports ok:true for a missing/non-directory root and lets a doomed `add`
+        # proceed (it would then 4xx as connector_unhealthy — keep probe consistent).
+        if not self.root.is_dir():
+            return HealthStatus(ok=False, detail="connector_unhealthy")
+        return HealthStatus(ok=True)
 
     def _real(self, path: str) -> Path:
         # Resolve and confine to the connector root. The control plane matches connector
@@ -355,12 +369,23 @@ class FilePlugin(ConnectorPlugin):
         pathspec) fallback. Raises on IO/permission error (enumerate completely or raise)."""
         from ...common import accel
 
-        return {
-            rel: (size, mtime_ns, inode)
-            for rel, size, mtime_ns, inode in accel.walk_tree(
-                str(self.root), self._ignore_patterns()
-            )
-        }
+        # A missing / non-directory root (never created, or deleted out from under a
+        # synchronous add/estimate enumerate) is a source-health problem, not an internal
+        # error. Surface it as a clean `connector_unhealthy` envelope instead of letting the
+        # raw OSError bubble up to the generic 500 handler. The upfront check is
+        # backend-agnostic (covers both the native and pure-Python walkers); the except guards
+        # the narrow TOCTOU race where the root vanishes between the check and the walk.
+        if not self.root.is_dir():
+            raise ValueError("connector_unhealthy")
+        try:
+            return {
+                rel: (size, mtime_ns, inode)
+                for rel, size, mtime_ns, inode in accel.walk_tree(
+                    str(self.root), self._ignore_patterns()
+                )
+            }
+        except OSError as e:
+            raise ValueError("connector_unhealthy") from e
 
     # --- sync (core: stat-first + rename pairing) ---
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:

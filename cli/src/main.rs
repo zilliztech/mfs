@@ -80,6 +80,9 @@ enum Cmd {
     /// Read an object
     Cat {
         path: String,
+        /// Line range, 1-based half-open: `start:end` returns lines start..end-1
+        /// (e.g. `--range 1:11` = first 10 lines). Matches `locator.lines` from
+        /// search hits.
         #[arg(long)]
         range: Option<String>,
         #[arg(long)]
@@ -381,6 +384,18 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             yes,
         } => {
             let is_local = std::path::Path::new(target).exists();
+            // Make a bare/relative local path absolute CLIENT-side before sending: a
+            // loopback server resolves a relative path against its OWN cwd (not the user's),
+            // so `mfs add ./repo` would 500 with a server-side FileNotFoundError. Canonicalizing
+            // to the stable file://local<abs> identity also keeps search/cat/remove consistent.
+            let canon_target: String = if is_local {
+                std::fs::canonicalize(target)
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .unwrap_or_else(|_| target.clone())
+            } else {
+                target.clone()
+            };
+            let target = &canon_target;
             // zero-billing estimate + confirm before indexing an external connector
             //: the user sees physical work before any embedding spend.
             if !is_local && !yes {
@@ -614,15 +629,24 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             }
         }
         Cmd::Export { path, out } => {
-            // export returns the FULL object (no row cap / size guard), unlike cat
+            // export returns the FULL object (no bare-cat size guard), but each
+            // connector's own row cap still applies — surface partial=true so
+            // the caller knows the file on disk is not the complete object.
             let v = get(
                 client,
                 &format!("{base}/v1/export"),
                 &[("path", remote_path(base, path))],
             )?;
             let text = v["content"].as_str().unwrap_or("");
+            let partial = v["partial"].as_bool().unwrap_or(false);
             std::fs::write(out, text).map_err(|e| e.to_string())?;
             println!("exported {} bytes -> {}", text.len(), out);
+            if partial {
+                println!(
+                    "warning: partial export — connector capped at max_read_rows; \
+                     raise the cap or use `mfs cat --range` to page the rest"
+                );
+            }
         }
         Cmd::Status => {
             let v = get(client, &format!("{base}/v1/status"), &[])?;
@@ -696,10 +720,12 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 }
                 for c in v["connectors"].as_array().unwrap_or(&vec![]) {
                     println!(
-                        "{:10}  {:8}  {}",
+                        "{:10}  {:8}  {}  ({} objects, {} chunks)",
                         c["type"].as_str().unwrap_or("?"),
                         c["status"].as_str().unwrap_or("?"),
-                        c["root_uri"].as_str().unwrap_or("?")
+                        c["root_uri"].as_str().unwrap_or("?"),
+                        c["object_count"].as_u64().unwrap_or(0),
+                        c["chunk_count"].as_u64().unwrap_or(0)
                     );
                 }
             }

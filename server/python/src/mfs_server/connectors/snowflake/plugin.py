@@ -1,11 +1,16 @@
 """Snowflake connector — structured, table_rows.
 
-Auth: key-pair (RSA JWT) ONLY. Password / PAT auth is intentionally not supported — PATs
-require a network policy on the bound user, password login is being phased out by Snowflake.
-`credential_ref` must resolve to a PEM PKCS#8 RSA private key (typically `file:` mounted
-from a k8s/docker secret). The matching public key is uploaded once to the Snowflake user
-via `ALTER USER <name> SET RSA_PUBLIC_KEY = '...'`. Encrypted keys are supported via the
-optional `private_key_passphrase_ref` config field (also env:/file: resolved).
+Auth: three modes selected via `auth_mode` config field.
+  * `key-pair` (default, RECOMMENDED for production): credential_ref points at a
+    PEM PKCS#8 RSA private key; matching public key installed on the Snowflake
+    user via `ALTER USER <name> SET RSA_PUBLIC_KEY = '...'`. Encrypted keys
+    supported via `private_key_passphrase_ref`.
+  * `password`: credential_ref carries the user password. Snowflake is phasing
+    password login out (MFA enforcement / deprecation timelines vary per
+    account) but the codepath is here for self-host dev and legacy accounts.
+  * `pat`: credential_ref carries a Programmatic Access Token. Account must
+    have PAT enabled and the bound user must be inside the PAT's network
+    policy. Simpler to rotate than key-pair, OK for single-host setups.
 
 snowflake-connector-python (sync; DictCursor + execute/fetchmany wrapped in
 asyncio.to_thread). Layout /<database>/<schema>/tables/<table>/{schema.json,rows.jsonl}.
@@ -75,40 +80,62 @@ class SnowflakePlugin(ConnectorPlugin):
         )
 
     async def connect(self) -> None:
-        # key-pair auth only — credential_ref must resolve to a PEM RSA private key.
-        # Snowflake driver takes the key as DER-encoded PKCS#8 bytes + authenticator JWT.
-        from cryptography.hazmat.primitives import serialization
-
+        # Dispatch on auth_mode; default = "key-pair" to keep the secure path
+        # the default. Any other value (or a typo) fails loud at connect time.
+        auth_mode = (self._cfg("auth_mode") or "key-pair").lower()
+        if auth_mode not in ("key-pair", "password", "pat"):
+            raise ValueError(
+                f"snowflake: unknown auth_mode {auth_mode!r}; "
+                "expected 'key-pair' (default), 'password', or 'pat'"
+            )
         if not self.credential:
             raise ValueError(
-                "snowflake connector requires credential_ref pointing to a PEM RSA private "
-                "key file (e.g. credential_ref='file:/etc/secrets/snowflake_rsa.p8'). The "
-                "matching public key must be installed on the Snowflake user via "
-                "ALTER USER <user> SET RSA_PUBLIC_KEY = '...'."
+                "snowflake connector requires credential_ref "
+                "(PEM RSA private key for key-pair, password for password, "
+                "PAT token for pat). Recommend a `file:` or `env:` ref."
             )
-        pem = self.credential.encode() if isinstance(self.credential, str) else self.credential
-        passphrase = _resolve_secret_ref(self._cfg("private_key_passphrase_ref"))
-        try:
-            pk_obj = serialization.load_pem_private_key(
-                pem, password=passphrase.encode() if passphrase else None
-            )
-        except Exception as e:
-            raise ValueError(
-                f"snowflake: failed to load PEM private key ({type(e).__name__}: {e}). "
-                "If the key is encrypted, set private_key_passphrase_ref."
-            ) from e
-        pk_der = pk_obj.private_bytes(
-            encoding=serialization.Encoding.DER,
-            format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption(),
-        )
         kw = {
             k: self._cfg(k)
             for k in ("account", "user", "role", "warehouse", "database", "schema")
             if self._cfg(k) is not None
         }
-        kw["authenticator"] = "SNOWFLAKE_JWT"
-        kw["private_key"] = pk_der
+        if auth_mode == "key-pair":
+            # credential_ref must resolve to a PEM RSA private key.
+            # Snowflake driver takes the key as DER-encoded PKCS#8 bytes +
+            # authenticator JWT.
+            from cryptography.hazmat.primitives import serialization
+
+            pem = self.credential.encode() if isinstance(self.credential, str) else self.credential
+            passphrase = _resolve_secret_ref(self._cfg("private_key_passphrase_ref"))
+            try:
+                pk_obj = serialization.load_pem_private_key(
+                    pem, password=passphrase.encode() if passphrase else None
+                )
+            except Exception as e:
+                raise ValueError(
+                    f"snowflake: failed to load PEM private key ({type(e).__name__}: {e}). "
+                    "If the key is encrypted, set private_key_passphrase_ref."
+                ) from e
+            pk_der = pk_obj.private_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+            kw["authenticator"] = "SNOWFLAKE_JWT"
+            kw["private_key"] = pk_der
+        elif auth_mode == "password":
+            # Snowflake username + password. `authenticator` left at the driver
+            # default ("SNOWFLAKE") so external IDP flows are NOT triggered.
+            kw["password"] = (
+                self.credential if isinstance(self.credential, str) else self.credential.decode()
+            )
+        else:  # pat
+            # Programmatic Access Token: passed as `password`, with the PAT
+            # authenticator so the driver doesn't try password fallbacks.
+            kw["password"] = (
+                self.credential if isinstance(self.credential, str) else self.credential.decode()
+            )
+            kw["authenticator"] = "programmatic_access_token"
         self._conn = await asyncio.to_thread(snowflake.connector.connect, **kw)
 
     async def close(self) -> None:

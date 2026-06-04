@@ -85,6 +85,12 @@ class JiraPlugin(ConnectorPlugin):
         projs = await asyncio.to_thread(self._jira.projects)
         return [p["key"] for p in (projs or [])]
 
+    def preset_for(self, path: str):
+        # issues.jsonl rows -> jira.issues preset (summary/description text). Without this
+        # the record_collection gets no text_fields and the per-row chunker emits 0 chunks,
+        # so issues index but never become searchable.
+        return "jira.issues" if path.endswith("/issues.jsonl") else None
+
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith(".jsonl"):
             return "record_collection"
@@ -116,11 +122,22 @@ class JiraPlugin(ConnectorPlugin):
 
     def _flatten_issue(self, issue: dict) -> dict:
         f = issue.get("fields", {}) or {}
+        # Comments are already in the fetched payload (fields="*all"). Cloud returns each
+        # body as a plain string; keep the {"body": ...} shape so the jira.issues preset can
+        # address them as "comments[].body" (mirrors github.issues). Defensive: drop
+        # non-string / empty bodies, and issues with no comments yield an empty list.
+        comments = (f.get("comment") or {}).get("comments", []) or []
+        comment_bodies = [
+            {"body": c["body"]}
+            for c in comments
+            if isinstance(c, dict) and isinstance(c.get("body"), str) and c["body"].strip()
+        ]
         return {
             "key": issue.get("key"),
             "id": issue.get("id"),
             "summary": f.get("summary"),
             "description": f.get("description"),
+            "comments": comment_bodies,
             "status": (f.get("status") or {}).get("name"),
             "priority": (f.get("priority") or {}).get("name"),
             "assignee": (f.get("assignee") or {}).get("displayName"),

@@ -119,7 +119,11 @@ Other useful flags:
 - `--all` — search every registered connector. Otherwise scope to a path/URI prefix.
 - `--kind <list>` — restrict chunk kinds (`row_text`, `thread_aggregate`,
   `chunk_body`, `summary`, `vlm_description`, …).
-- `--collapse` — fold multiple hits from the same object into one row.
+- `--collapse` — keep only the top-scoring chunk per object; later chunks
+  from the same source are dropped, not merged. Recall stays as-is (the
+  query still hits the same candidates), but the visible result count can
+  fall below `--top-k` — collapse is a post-filter, not a re-rank. If you
+  want N distinct objects, raise `--top-k` (e.g. `--top-k 30 --collapse`).
 
 ### `--all`: when yes, when no
 
@@ -159,7 +163,7 @@ mfs search "<query>" <path> --top-k 20         # more candidates
 mfs search "<query>" <path> --mode semantic    # dense-only
 mfs search "<query>" <path> --mode keyword     # BM25-only
 mfs search "<query>" <path> --kind row_text    # restrict chunk kinds
-mfs search "<query>" <path> --collapse         # dedup per object
+mfs search "<query>" <path> --collapse         # keep top hit per object (post-filter, may return < top-k)
 ```
 
 ### Grep
@@ -168,15 +172,33 @@ mfs search "<query>" <path> --collapse         # dedup per object
 mfs grep "<pattern>" <path>          # pushdown -> BM25 -> linear
 ```
 
-Pushdown is literal-exact but token-level (no regex on structured
-connectors). For exact-exhaustive on a huge structured object, `mfs
-export` then local `grep`.
+**`mfs grep` is not `grep`.** The three-tier dispatch is:
+
+1. **Pushdown** — for structured connectors (`postgres`, `mongo`,
+   `jira`, …) the pattern is shipped to the source as a LIKE / regex
+   filter. Literal-exact, token-level; no regex on most structured
+   connectors.
+2. **BM25** over indexed objects — for `body`/`code`/`document` chunks
+   already in Milvus, the pattern is fed through the same sparse
+   index `search --mode keyword` uses. That is a tokenized,
+   ranked lookup, **not** a literal substring scan: an analyzer split
+   like `getUserId` → `get`, `user`, `id` will rank
+   `userId` as a hit; a CJK pattern with no analyzer match returns
+   nothing even when the literal bytes are present. If you need
+   "does this exact byte string appear anywhere?", `mfs export` the
+   object and run `rg` locally — `mfs grep` has no "force linear over
+   indexed objects" flag.
+3. **Linear scan** — only for not-indexed files in scope (file
+   connector before `mfs add`). True substring / regex.
+
+For exact-exhaustive on a huge structured object, `mfs export` then
+local `grep` / `rg`.
 
 ### Read
 
 ```bash
 mfs cat <path>                                  # full content (refused if "lazy")
-mfs cat <path> --range A:B                      # byte/line range
+mfs cat <path> --range A:B                      # lines A..B-1 (1-based, end-exclusive)
 mfs cat <path> --locator '{"id":12}'            # reopen a structured record
 mfs cat <path> --peek                           # outline only
 mfs cat <path> --skim                           # peek + per-section summaries

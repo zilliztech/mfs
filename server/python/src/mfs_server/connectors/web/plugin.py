@@ -39,9 +39,28 @@ class WebPlugin(ConnectorPlugin):
         paged_cat=True,
     )
 
+    # Rendered page markdown, shared PROCESS-WIDE across plugin instances, keyed by
+    # (connector_id, path). The in-process worker runs the index pass on a FRESH plugin
+    # instance, and this job's connector state is staged (engine commits state_snapshot
+    # only after the job succeeds), so both a per-instance cache and a state lookup are
+    # empty at index time -> read() returns "" -> 0 chunks / empty cat. A process-wide
+    # cache bridges the sync instance and the worker instance within the same run; the
+    # markdown is ALSO persisted in `state` (see sync) so it survives a process restart.
+    # Bounded by max_pages (default 50) per connector.
+    _MD_CACHE: dict[tuple[str, str], str] = {}
+
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
-        self._md_cache: dict[str, str] = {}
+
+    def _cache_get(self, path: str) -> Optional[str]:
+        return self._MD_CACHE.get((self.ctx.connector_id, path))
+
+    def _cache_put(self, path: str, md: str) -> None:
+        self._MD_CACHE[(self.ctx.connector_id, path)] = md
+
+    def _cache_paths(self) -> set[str]:
+        cid = self.ctx.connector_id
+        return {p for (c, p) in self._MD_CACHE if c == cid}
 
     def _cfg(self, key, default=None):
         return (
@@ -68,7 +87,11 @@ class WebPlugin(ConnectorPlugin):
         return "document" if path.endswith(".md") else "directory"
 
     async def stat(self, path: str) -> PathStat:
-        md = self._md_cache.get(path)
+        # Resolve via the process-wide cache, then durable state, so size_hint is correct
+        # on a fresh instance (worker index pass / post-restart), not only within sync.
+        md = self._cache_get(path)
+        if not md:
+            md = await self._md_from_state(path)
         return PathStat(
             path=path,
             type="file" if path.endswith(".md") else "dir",
@@ -78,8 +101,11 @@ class WebPlugin(ConnectorPlugin):
 
     async def list(self, path: str) -> list[Entry]:
         prefix = path.rstrip("/") + "/"
+        # Enumerate page paths from the process cache AND durable state, so `ls`/`tree`
+        # work both within a sync and on a fresh instance (post-index / post-restart).
+        pages = await self.state.get("pages") or {}
         seen: dict[str, str] = {}
-        for p in self._md_cache:
+        for p in self._cache_paths() | set(pages):
             if p.startswith(prefix):
                 rest = p[len(prefix) :]
                 head = rest.split("/", 1)
@@ -92,8 +118,21 @@ class WebPlugin(ConnectorPlugin):
             for n, t in sorted(seen.items())
         ]
 
+    async def _md_from_state(self, path: str) -> str:
+        """Load a page's rendered markdown from durable connector state. Used on the
+        cold path — after a process restart the process-wide cache is empty, so content
+        must come from state (committed once the syncing job succeeded)."""
+        pages = await self.state.get("pages") or {}
+        entry = pages.get(path)
+        return entry.get("md", "") if isinstance(entry, dict) else ""
+
     async def read(self, path: str, range: Optional[Range] = None) -> AsyncIterator[bytes]:
-        md = self._md_cache.get(path, "")
+        # Warm path: process-wide cache (bridges the sync instance and the worker's
+        # index pass in the same run). Cold path: the markdown persisted in state
+        # (post-restart cat/search). Only a genuinely-unknown path yields "".
+        md = self._cache_get(path)
+        if not md:
+            md = await self._md_from_state(path)
         yield md.encode()
 
     async def fingerprint(self, path: str) -> Optional[str]:
@@ -183,12 +222,15 @@ class WebPlugin(ConnectorPlugin):
                 except Exception:  # noqa: BLE001
                     continue
                 md = self._html_to_md(html)
-                self._md_cache[path] = md
+                self._cache_put(path, md)
                 kind = "modified" if path in old_pages else "added"
                 links = self._extract_links(html, url)
-                # Persist both the etag (for next 304) AND the link list (so the
-                # 304 path above can still drive BFS).
-                pages[path] = {"etag": etag, "links": links}
+                # Persist the etag (for next 304), the link list (so the 304 path
+                # above can still drive BFS), AND the rendered markdown. State is the
+                # durable copy that survives a restart; without it a post-restart
+                # read() would return "" (empty cat / unsearchable page) once the
+                # process cache is gone. Bounded by max_pages (default 50).
+                pages[path] = {"etag": etag, "links": links, "md": md}
                 yield ObjectChange(uri=path, kind=kind)
                 for link in links:
                     if link not in visited:

@@ -84,6 +84,16 @@ class SalesforcePlugin(ConnectorPlugin):
     def _parts(self, path: str) -> list[str]:
         return [p for p in path.strip("/").split("/") if p]
 
+    def preset_for(self, path: str):
+        # <SObject>/records.jsonl -> salesforce.<SObject> preset for the standard objects.
+        # Without a preset the record_collection gets no text_fields and emits 0 chunks.
+        # Custom/non-standard objects resolve to a missing key (-> no preset) and still need
+        # an explicit [[objects]] block.
+        parts = self._parts(path)
+        if len(parts) == 2 and parts[1] == "records.jsonl":
+            return f"salesforce.{parts[0]}"
+        return None
+
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith("records.jsonl"):
             return "record_collection"

@@ -7,9 +7,11 @@
 | `object_too_large_for_cat` | cat on a big object without `--range` | use `head` / `cat --range` / `export` |
 | `is_directory` | cat on a directory | use `ls` / `tree` |
 | `range_unsupported` | `--range` on binary/image | use `--meta` or `export` |
-| `density_unsupported` | `--peek/--skim/--deep` on structured object | use `head` / `cat --range` |
+| `density_unsupported` | `--peek/--skim` on structured object | use `head` / `cat --range` |
 | `tail_unsupported` | object has no stable ordering | use `head` / `cat --range` |
 | `locator_not_found` | `cat --locator` key not present | re-search; the record may be gone/changed |
+| `top_k_too_large` | `--top-k` exceeds the vector store's result limit (hybrid mode over-fetches, so its effective limit is higher than top_k) | lower `--top-k` |
+| `embedding_dim_mismatch` | the embedding dim doesn't match the collection's vectors (usually a stale `embedding.dim` after a provider swap) | re-run `mfs-server setup --section embedding`, or re-index into a fresh collection |
 | `chunk_max_exceeded` | object partially indexed (too large) | `search` works but recall partial; add `index_filter`/`windowed` or raise `chunk_max` |
 | `since_unsupported` | `--since` on a connector without time cursor | drop `--since` |
 | `sync_already_running` | a sync is in flight | `mfs job list`, then wait or `mfs job cancel JOB_ID` |

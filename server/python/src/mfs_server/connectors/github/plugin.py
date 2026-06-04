@@ -24,6 +24,7 @@ from ..base import (
     Capabilities,
     ConnectorPlugin,
     Entry,
+    HealthStatus,
     ObjectChange,
     ObjectKind,
     PathStat,
@@ -58,7 +59,13 @@ class GitHubPlugin(ConnectorPlugin):
         )
 
     def _owner_repo(self) -> tuple[str, str]:
-        o, r = self._cfg("repo").split("/", 1)
+        # `repo` is normally derived from the github://owner/repo URI into config at add
+        # time (see Engine._resolve_target). Guard the genuinely-missing case with a clean
+        # client error instead of an AttributeError 500 on None.split().
+        repo = self._cfg("repo")
+        if not repo or "/" not in repo:
+            raise ValueError("github connector requires 'repo' as owner/name")
+        o, r = repo.split("/", 1)
         return o, r
 
     def _headers(self) -> dict:
@@ -67,6 +74,39 @@ class GitHubPlugin(ConnectorPlugin):
         if t:
             h["Authorization"] = f"Bearer {t}"
         return h
+
+    async def healthcheck(self) -> HealthStatus:
+        # Actually hit GitHub instead of trusting the base "ok=True" default —
+        # `mfs connector probe github://...` should fail loud on bad token /
+        # wrong repo / network, not lie. Strategy: GET /repos/{o}/{r} with the
+        # configured token. 200 = repo + auth ok; 401/403 = bad/missing token;
+        # 404 = repo not visible (private repo without token = 404, same as
+        # missing repo — surface the message so the operator can disambiguate);
+        # network exception = network/DNS. Keeps the request cheap (one HEAD-
+        # ish read), so probe stays well inside the API rate limit.
+        try:
+            o, r = self._owner_repo()
+        except ValueError as e:
+            return HealthStatus(ok=False, detail=str(e))
+        try:
+            async with httpx.AsyncClient(headers=self._headers(), timeout=10.0) as c:
+                resp = await c.get(f"{API}/repos/{o}/{r}")
+        except httpx.HTTPError as e:
+            return HealthStatus(ok=False, detail=f"network error: {e}")
+        if resp.status_code == 200:
+            return HealthStatus(ok=True, detail=f"authenticated, repo {o}/{r} reachable")
+        if resp.status_code in (401, 403):
+            return HealthStatus(
+                ok=False,
+                detail=f"auth failed (HTTP {resp.status_code}); check GITHUB_TOKEN",
+            )
+        if resp.status_code == 404:
+            return HealthStatus(
+                ok=False,
+                detail=f"repo {o}/{r} not visible (404) — private repo without token, "
+                "or repo does not exist",
+            )
+        return HealthStatus(ok=False, detail=f"GitHub returned HTTP {resp.status_code}")
 
     async def _branch(self, client: httpx.AsyncClient) -> str:
         b = self._cfg("branch")

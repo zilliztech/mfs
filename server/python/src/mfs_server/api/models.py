@@ -175,6 +175,12 @@ class LsResponse(BaseModel):
 class CatResponse(BaseModel):
     source: str
     content: str
+    # True when the returned content does not represent the entire object:
+    # - structured `export` capped at the connector's max_read_rows
+    # - any other path that decided to truncate at the source rather than fail
+    # Default False keeps the field optional for cat / head / tail / range,
+    # which never advertise completeness.
+    partial: bool = False
 
 
 class CatMeta(BaseModel):
@@ -188,6 +194,8 @@ class ConnectorRow(BaseModel):
     root_uri: str
     type: str
     status: str
+    object_count: int = Field(0, description="indexed objects for this connector")
+    chunk_count: int = Field(0, description="indexed vector chunks for this connector")
 
 
 class StatusResponse(BaseModel):

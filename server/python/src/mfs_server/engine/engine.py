@@ -28,7 +28,7 @@ from ..processors.text import chunk_body
 from ..storage.file_state import FileStateStore
 from ..storage.ids import chunk_id
 from ..storage.metadata import make_metadata_store
-from ..storage.milvus import MilvusStore
+from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW, MilvusStore
 from ..storage.artifact_cache import make_artifact_cache
 from ..storage.transformation_cache import make_transformation_cache
 from .state import ConnectorStateStore
@@ -39,6 +39,32 @@ _BARE_CAT_MAX_BYTES = 5 * 1024 * 1024  # bare `cat` (no range) rejects objects l
 _GREP_LINEAR_SCAN_MAX = 200  # cap on not-indexed files a single grep scans linearly
 _JOB_STALE_AFTER_S = 120  # no heartbeat for this long => worker presumed dead
 _HEARTBEAT_INTERVAL_S = 10  # worker refreshes its job heartbeat this often (<< stale)
+_WORKER_CONNECT_TIMEOUT_S = 30  # bound plugin.connect() in the worker so a hanging/unreachable
+# connector fails its job cleanly instead of blocking the single in-process worker forever
+
+# Local, per-object events that aren't systemic failures: the source disappeared
+# (file deleted mid-sync), or its path type changed (file <-> dir under us). These
+# happen normally when a user edits / git-checkouts / cleans up while `mfs add` runs,
+# so they must NOT retry and must NOT count toward consecutive_fatal_threshold. The
+# circuit breaker exists to stop on "the source is systemically broken" (auth/rate
+# limit/network), not on "I lost a few files".
+_PER_OBJECT_SKIP_ERRORS: tuple = (
+    FileNotFoundError,
+    NotADirectoryError,
+    IsADirectoryError,
+)
+
+
+def _normalize_json(s: str) -> str:
+    """Sort-key + strip-whitespace normalize a JSON object string so two configs
+    with identical contents but different key ordering / whitespace compare
+    equal. Used to detect real config drift vs cosmetic re-serialization."""
+    import json as _json
+
+    try:
+        return _json.dumps(_json.loads(s), sort_keys=True, separators=(",", ":"))
+    except (ValueError, TypeError):
+        return s
 
 
 def _now() -> str:
@@ -152,6 +178,24 @@ def _field_values(rec: dict, field: str) -> list[str]:
         return []
     items = v if isinstance(v, list) else [v]
     return [str(x) for x in items if x is not None and x != ""]
+
+
+def _field_top_key(field: str) -> str:
+    """First JSONPath-lite segment of a text_field — the record key whose PRESENCE (not value)
+    decides absent-vs-empty: 'comments[].body' -> 'comments', 'a.b' -> 'a', 'name' -> 'name'."""
+    return field.split(".", 1)[0].split("[", 1)[0]
+
+
+# Per-chunk content ceiling (Milvus VARCHAR / embedding input limit). Capping is unavoidable,
+# but a cap that actually cuts content means the tail is unsearchable, so callers OR the
+# was_truncated flag into the object's partial state (search_status='partial') instead of
+# silently reporting 'indexed'.
+_CONTENT_MAX = 65000
+
+
+def _cap_content(text: str) -> tuple[str, bool]:
+    """Return (text capped to _CONTENT_MAX, whether the cap actually removed any content)."""
+    return text[:_CONTENT_MAX], len(text) > _CONTENT_MAX
 
 
 def _render_record(rec: dict, text_fields: list[str], render_template: str | None = None) -> str:
@@ -269,6 +313,9 @@ class Engine:
         await self.tx_cache.connect()
         self.milvus.connect()
         self.milvus.ensure_collection(self.ns)
+        # NB: the embedding dim-mismatch warning is deferred to the first provider build
+        # (CachingEmbeddingClient._warn_dim_mismatch_once) so boot never downloads/loads the
+        # model just to read .dimension — the provider stays lazy and cold start is fast.
 
     async def shutdown(self) -> None:
         await self.meta.close()
@@ -279,6 +326,19 @@ class Engine:
         m = _SCHEME_RE.match(target)
         if m:
             sch = m.group(1)
+            if sch == "github":
+                # github://<owner>/<repo> (also tolerate github://github.com/<owner>/<repo>):
+                # derive `repo` from the URI into the connector config so the bare documented
+                # form works without an explicit `--config repo=…`. This mirrors how a local
+                # path injects {root}; the plugin has no access to its own connector URI, so
+                # the identity must be carried in config. Without it the github plugin's
+                # _owner_repo() has no repo and the sync/read path raises a 500.
+                rest = target[len("github://") :].strip("/")
+                if rest.startswith("github.com/"):
+                    rest = rest[len("github.com/") :]
+                parts = [p for p in rest.split("/") if p]
+                cfg = {"repo": f"{parts[0]}/{parts[1]}"} if len(parts) >= 2 else {}
+                return "github", target, "github", cfg
             if sch in (
                 "web",
                 "github",
@@ -308,6 +368,17 @@ class Engine:
         # `mfs add file:///abs/path` registers with a real root instead of failing.
         if target.startswith("file:///"):
             abs_path = os.path.abspath(target[len("file://") :])
+            return (
+                "file",
+                f"file://local{abs_path}",
+                "file",
+                {"root": abs_path, "client_id": "local"},
+            )
+        # canonical local URI: file://local<abs_path> — what `mfs connector list` prints.
+        # Map it back to the same (root, connector_uri) a bare path would resolve to,
+        # so inspect/remove/update accept the identifier `connector list` shows.
+        if target.startswith("file://local/"):
+            abs_path = target[len("file://local") :]
             return (
                 "file",
                 f"file://local{abs_path}",
@@ -386,17 +457,42 @@ class Engine:
 
         stored = self._redact_config(config)
         row = await self.meta.fetchone(
-            "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=?",
+            "SELECT id, config_json FROM connectors WHERE namespace_id=? AND root_uri=?",
             (self.ns, connector_uri),
         )
         if row:
             # `mfs connector update --config` re-registers an existing connector: refresh
             # its stored config so changed text_fields / scope / credential_ref take effect.
-            if overwrite_config:
+            # `mfs add --config` on an already-registered connector used to silently drop
+            # the new config; that's a documented footgun (#6) — now we persist it and
+            # WARN about the indexing implication. Existing chunks are NOT re-embedded
+            # under the new config until the user re-syncs with --force-index. The
+            # warning is suppressed when nothing actually changed (same config dict
+            # passed by the upload-mode staging shortcut on every call).
+            new_json = json.dumps(stored, sort_keys=True)
+            old_json = row["config_json"] or "{}"
+            drift = _normalize_json(new_json) != _normalize_json(old_json)
+            if overwrite_config or drift:
                 await self.meta.execute(
                     "UPDATE connectors SET config_json=? WHERE id=?",
                     (json.dumps(stored), row["id"]),
                 )
+                if drift and not overwrite_config:
+                    # Count what's actually at risk so the warning is concrete
+                    # rather than scary boilerplate.
+                    n = await self.meta.fetchone(
+                        "SELECT count(*) AS n FROM objects "
+                        "WHERE connector_id=? AND search_status='indexed'",
+                        (row["id"],),
+                    )
+                    indexed = (n or {}).get("n", 0)
+                    print(
+                        f"mfs-server: WARNING --config differs from stored config for "
+                        f"{connector_uri}; persisted, but {indexed} existing indexed "
+                        f"object(s) retain the OLD config until you re-sync with "
+                        f"`mfs add --force-index`.",
+                        flush=True,
+                    )
             return row["id"]
         cid = uuid.uuid4().hex
         await self.meta.execute(
@@ -517,10 +613,14 @@ class Engine:
         import json
 
         _, connector_uri, ctype, default_config = self._resolve_target(target)
-        # --since requires a time cursor; reject early on connectors without one
+        # --since requires the plugin to actually filter records by opts.since.
+        # cursor_kind only names which field the plugin's own delta logic uses;
+        # since_pushdown is the explicit "I honor opts.since" opt-in. Reject
+        # early on connectors that lack it — better than silently full-scanning
+        # and letting the user believe --since worked.
         if since:
             cls = get_plugin_cls(ctype)
-            if cls is not None and not getattr(cls.CAPABILITIES, "cursor_kind", None):
+            if cls is not None and not getattr(cls.CAPABILITIES, "since_pushdown", False):
                 raise ValueError("since_unsupported")
         # merge user config OVER the resolved defaults so a local path keeps its
         # auto {root, client_id} while still accepting [[objects]]/schemas/credential_ref.
@@ -701,6 +801,16 @@ class Engine:
         import io
         import tarfile
 
+        # Validate the body IS a readable, non-empty tar BEFORE registering a connector, so a
+        # garbage / empty bundle returns a clean 400 and leaves no residual connector behind
+        # (a non-tar throws tarfile.ReadError; an all-zero body parses as an empty archive).
+        try:
+            with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as _probe:
+                if not _probe.getmembers():
+                    raise ValueError("invalid or empty upload bundle")
+        except tarfile.TarError as e:
+            raise ValueError("invalid or empty upload bundle") from e
+
         staging, connector_uri, cid = await self._staging_connector(name, "")
         fs = FileStateStore(self.meta, self.ns, cid)
 
@@ -799,6 +909,16 @@ class Engine:
         import shutil
         import tarfile
         import tempfile
+
+        # Validate the bundle IS a readable, non-empty tar BEFORE registering a connector, so a
+        # garbage / empty bundle returns a clean 400 and leaves no residual connector behind
+        # (a non-tar throws tarfile.ReadError; an all-zero body parses as an empty archive).
+        try:
+            with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:*") as _probe:
+                if not _probe.getmembers():
+                    raise ValueError("invalid or empty upload bundle")
+        except tarfile.TarError as e:
+            raise ValueError("invalid or empty upload bundle") from e
 
         staging, connector_uri, cid = await self._staging_connector(client_id, root)
         fs = FileStateStore(self.meta, self.ns, cid)
@@ -976,22 +1096,54 @@ class Engine:
         )
         connector_uri, ctype = crow["root_uri"], crow["type"]
         stored_cfg = json.loads(crow["config_json"]) if crow["config_json"] else {}
-        plugin, _ = self._build_plugin(ctype, stored_cfg, cid)
-        await plugin.connect()
-        aborted: str | None = None
+        plugin = None
         try:
+            plugin, _ = self._build_plugin(ctype, stored_cfg, cid)
+            # Bound connect(): an unreachable/hanging connector (or one whose persisted creds
+            # no longer resolve) must fail THIS job cleanly, not block the single in-process
+            # sqlite worker forever — one bad connector cannot be allowed to wedge all ingest.
+            await asyncio.wait_for(plugin.connect(), timeout=_WORKER_CONNECT_TIMEOUT_S)
             aborted = await self._run_job(job["id"], cid, connector_uri, plugin)
-        finally:
-            await plugin.close()
-        await self._finalize_job(job["id"], aborted)
-        # commit the deferred connector state only now that the job succeeded:
-        # a failed/cancelled background job leaves the cursor where it was.
-        if aborted is None:
-            jrow = await self.meta.fetchone(
-                "SELECT state_snapshot, status FROM connector_jobs WHERE id=?", (job["id"],)
+            await self._finalize_job(job["id"], aborted)
+            # commit the deferred connector state only now that the job succeeded:
+            # a failed/cancelled background job leaves the cursor where it was.
+            if aborted is None:
+                jrow = await self.meta.fetchone(
+                    "SELECT state_snapshot, status FROM connector_jobs WHERE id=?", (job["id"],)
+                )
+                if jrow and jrow["status"] == "succeeded" and jrow["state_snapshot"]:
+                    await ConnectorStateStore(self.meta, cid).apply(
+                        json.loads(jrow["state_snapshot"])
+                    )
+        except Exception as e:  # noqa: BLE001
+            # Move the claimed job to a terminal 'failed' state and release the worker, so the
+            # queue keeps draining. Without this a connect timeout/exception would leave the
+            # job stuck 'running' and (with the single sqlite worker) wedge every later job.
+            reason = (
+                "connector_unhealthy: connect timed out"
+                if isinstance(e, asyncio.TimeoutError)
+                else f"sync_error: {e}"
             )
-            if jrow and jrow["status"] == "succeeded" and jrow["state_snapshot"]:
-                await ConnectorStateStore(self.meta, cid).apply(json.loads(jrow["state_snapshot"]))
+            await self.meta.execute(
+                "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? "
+                "WHERE connector_job_id=? AND status='running'",
+                (_now(), str(reason)[:300], job["id"]),
+            )
+            await self.meta.execute(
+                "UPDATE connector_jobs SET status='failed', finished_at=?, error=? "
+                "WHERE id=? AND status IN ('running', 'queued')",
+                (_now(), str(reason)[:300], job["id"]),
+            )
+            print(
+                f"mfs-server: WARNING sync job {job['id']} for {connector_uri} failed: {reason}",
+                flush=True,
+            )
+        finally:
+            if plugin is not None:
+                try:
+                    await plugin.close()
+                except Exception:  # noqa: BLE001
+                    pass
         return job["id"]
 
     def _resolve_concurrency(self, concurrency=None) -> int:
@@ -1004,35 +1156,74 @@ class Engine:
             return 1
 
     async def _reclaim_stale_jobs(self, stale_after_s: int = _JOB_STALE_AFTER_S) -> None:
-        """Housekeeping: a job whose worker died keeps status='running'
-        with a stale heartbeat forever. Reset such jobs to 'queued' so a live worker
-        re-claims them. Best-effort — tolerate the rare one-queued-per-connector clash."""
+        """Housekeeping: a job whose worker died keeps status='running' (or 'preparing')
+        with a stale heartbeat forever. Recover such jobs so a live worker resumes them.
+
+        Each job is recovered independently and any error is LOGGED, never silently swallowed
+        — a single un-recoverable job must not abort (and thus starve) the reclaim of every
+        other orphan, which is exactly how an unrecoverable orphan used to wedge crash-recovery
+        for all connectors."""
         cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
+
+        # Fail stale 'preparing' jobs FIRST: one whose process died mid-enumeration never
+        # started running, and while it lingers it holds the connector's ux_jobs_one_pending
+        # slot — which would make the running->queued reset below raise a UNIQUE violation.
+        try:
+            stale_prep = await self.meta.fetchall(
+                "SELECT id FROM connector_jobs WHERE status='preparing' "
+                "AND heartbeat IS NOT NULL AND heartbeat < ?",
+                (cutoff,),
+            )
+        except Exception as e:  # noqa: BLE001
+            print(
+                f"mfs-server: WARNING reclaim: listing stale preparing jobs failed: {e}", flush=True
+            )
+            stale_prep = []
+        for j in stale_prep:
+            try:
+                await self.meta.execute(
+                    "UPDATE connector_jobs SET status='failed', finished_at=?, "
+                    "error='reclaimed: enumeration abandoned' WHERE id=? AND status='preparing'",
+                    (_now(), j["id"]),
+                )
+            except Exception as e:  # noqa: BLE001
+                print(
+                    f"mfs-server: WARNING reclaim: failing stale preparing job {j['id']}: {e}",
+                    flush=True,
+                )
+
         try:
             stale = await self.meta.fetchall(
                 "SELECT id, connector_id FROM connector_jobs WHERE status='running' "
                 "AND heartbeat IS NOT NULL AND heartbeat < ?",
                 (cutoff,),
             )
-            for j in stale:
-                # If the connector already has a queued job (e.g. a sync was preempted),
-                # flipping this stale one to 'queued' would violate ux_jobs_one_queued and
-                # — silently swallowed — leave it stuck 'running' forever, never reclaimed.
-                # Instead hand its in-flight tasks to that queued job and fail the stale one.
-                existing_queued = await self.meta.fetchone(
-                    "SELECT id FROM connector_jobs WHERE connector_id=? AND status='queued' "
-                    "AND id<>? LIMIT 1",
+        except Exception as e:  # noqa: BLE001
+            print(
+                f"mfs-server: WARNING reclaim: listing stale running jobs failed: {e}", flush=True
+            )
+            return
+        for j in stale:
+            try:
+                # If the connector still has another in-flight enqueue (queued OR a non-stale
+                # 'preparing'), flipping this orphan to 'queued' would violate
+                # ux_jobs_one_pending. Hand its in-flight tasks to that job and fail the orphan
+                # instead — covers 'preparing' too (the guard used to only check 'queued', so a
+                # preparing sibling raised UNIQUE and silently aborted the whole reclaim pass).
+                sibling = await self.meta.fetchone(
+                    "SELECT id FROM connector_jobs WHERE connector_id=? "
+                    "AND status IN ('queued', 'preparing') AND id<>? LIMIT 1",
                     (j["connector_id"], j["id"]),
                 )
-                if existing_queued:
+                if sibling:
                     await self.meta.execute(
                         "UPDATE object_tasks SET status='pending', connector_job_id=? "
                         "WHERE connector_job_id=? AND status='running'",
-                        (existing_queued["id"], j["id"]),
+                        (sibling["id"], j["id"]),
                     )
                     await self.meta.execute(
                         "UPDATE connector_jobs SET status='failed', finished_at=?, "
-                        "error='reclaimed: superseded by queued job' WHERE id=? AND status='running'",
+                        "error='reclaimed: superseded by in-flight job' WHERE id=? AND status='running'",
                         (_now(), j["id"]),
                     )
                     continue
@@ -1048,23 +1239,11 @@ class Engine:
                     "UPDATE connector_jobs SET status='queued' WHERE id=? AND status='running'",
                     (j["id"],),
                 )
-            # A 'preparing' job whose process died mid-enumeration would otherwise hold the
-            # one-in-flight-enqueue slot forever (blocking future enqueues with
-            # sync_already_running). It never started running, so just fail it; any partially
-            # enqueued tasks are inherited by the next sync (pending/failed inheritance).
-            stale_prep = await self.meta.fetchall(
-                "SELECT id FROM connector_jobs WHERE status='preparing' "
-                "AND heartbeat IS NOT NULL AND heartbeat < ?",
-                (cutoff,),
-            )
-            for j in stale_prep:
-                await self.meta.execute(
-                    "UPDATE connector_jobs SET status='failed', finished_at=?, "
-                    "error='reclaimed: enumeration abandoned' WHERE id=? AND status='preparing'",
-                    (_now(), j["id"]),
+            except Exception as e:  # noqa: BLE001 — one un-recoverable orphan must not starve the rest
+                print(
+                    f"mfs-server: WARNING reclaim: recovering stale running job {j['id']}: {e}",
+                    flush=True,
                 )
-        except Exception:  # noqa: BLE001
-            pass
 
     async def run_worker_forever(self, poll_interval: float = 1.0, concurrency=None) -> None:
         """Drain the queued-job queue with `concurrency` parallel workers. Each worker
@@ -1075,7 +1254,11 @@ class Engine:
 
         async def _loop() -> None:
             while True:
-                jid = await self.run_worker_once()
+                try:
+                    jid = await self.run_worker_once()
+                except Exception:  # noqa: BLE001 — a single job must NEVER kill the worker
+                    # coroutine; with the sqlite single worker that would wedge all ingest.
+                    jid = None
                 if jid is None:
                     await self._reclaim_stale_jobs()
                     await asyncio.sleep(poll_interval)
@@ -1104,29 +1287,36 @@ class Engine:
 
     @staticmethod
     def _classify_error(e: Exception) -> str:
-        """retryable (transient: 429 rate-limit / 5xx / timeout) vs fatal (structural:
-        quota exhausted / auth)."""
+        """Classify an embedding/provider error:
+          'auth'      — bad/unauthorized key (OpenAI 401 / AuthenticationError)
+          'quota'     — billing/quota exhausted (insufficient_quota / 402)
+          'retryable' — transient (429 rate-limit / 5xx / timeout)
+        'auth' and 'quota' are GLOBAL and non-retryable: a known-bad key or empty balance
+        fails identically for every object, so the caller aborts the whole job with the
+        documented embedding_auth_failed / embedding_quota_exceeded code instead of grinding
+        each object (and masking the run as a 0-indexed 'succeeded')."""
         m = str(e).lower()
-        fatal_markers = (
-            "insufficient_quota",
-            "quota",
+        nm = type(e).__name__.lower()
+        auth_markers = (
             "invalid_api_key",
+            "invalid x-api-key",
             "authentication",
             "unauthorized",
-            "402",
-            "401",
             "permission denied",
-            "invalid x-api-key",
+            "401",
         )
-        if any(k in m for k in fatal_markers):
-            return "fatal"
-        nm = type(e).__name__.lower()
-        if "authentication" in nm or "permissiondenied" in nm:
-            return "fatal"
+        if any(k in m for k in auth_markers) or "authentication" in nm or "permissiondenied" in nm:
+            return "auth"
+        # quota exhausted is distinct from a transient 429 rate-limit (which stays retryable):
+        # OpenAI signals it with insufficient_quota; 402 is payment-required.
+        if "insufficient_quota" in m or "402" in m:
+            return "quota"
         return "retryable"
 
     async def _process_with_retry(self, plugin, connector_uri: str, task: dict) -> str | None:
-        """Returns None on success, 'fatal', or 'retryable_exhausted'."""
+        """Returns None on success, 'fatal', 'retryable_exhausted', or 'skipped'.
+        'skipped' means a local per-object event (source disappeared, path type changed)
+        — the object is recorded as status='skipped' and the breaker is left alone."""
         import asyncio as _a
 
         max_r = self.cfg.worker.max_retries
@@ -1134,14 +1324,46 @@ class Engine:
             try:
                 await self._index_object(plugin, connector_uri, task)
                 return None
+            except _PER_OBJECT_SKIP_ERRORS as e:
+                # Source vanished / type changed mid-sync. No point retrying (the file
+                # really is gone), and counting this toward the consecutive-fatal breaker
+                # would let a `git checkout` / cleanup of 5+ files nuke a 500-file job
+                # (D53). Record as 'skipped' so it's visible in object_tasks without
+                # inflating failed_objects.
+                await self.meta.execute(
+                    "UPDATE object_tasks SET status='skipped', finished_at=?, last_error=? "
+                    "WHERE id=?",
+                    (_now(), f"{type(e).__name__}: source disappeared mid-sync", task["id"]),
+                )
+                uri = f"{connector_uri}{task.get('object_uri', '')}"
+                print(
+                    f"mfs-server: object {uri} skipped (source disappeared mid-sync)",
+                    flush=True,
+                )
+                return "skipped"
             except Exception as e:  # noqa: BLE001
                 kind = self._classify_error(e)
-                if kind == "fatal":
+                if kind in ("auth", "quota"):
+                    # Global, non-retryable provider failure: return the documented code so
+                    # _run_job_loop aborts the whole job (status=failed, error=<code>) on the
+                    # first occurrence rather than retrying or marking the run 'succeeded'.
+                    code = "embedding_auth_failed" if kind == "auth" else "embedding_quota_exceeded"
                     await self.meta.execute(
                         "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
-                        (_now(), f"fatal: {e}", task["id"]),
+                        (_now(), f"{code}: {e}", task["id"]),
                     )
-                    return "fatal"
+                    self._warn_object_failed(connector_uri, task, e)
+                    return code
+                if str(e).startswith("field_missing"):
+                    # Deterministic [[objects]] config error (text_field key absent from the
+                    # records) — retrying re-reads the same records to no avail. Fail this
+                    # object immediately with the documented code so the user fixes the config.
+                    await self.meta.execute(
+                        "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
+                        (_now(), str(e), task["id"]),
+                    )
+                    self._warn_object_failed(connector_uri, task, e)
+                    return "retryable_exhausted"
                 if attempt < max_r:
                     # exponential backoff capped at backoff_max_ms: a flat
                     # initial-only sleep ignored backoff_max_ms entirely and hammered a
@@ -1156,8 +1378,21 @@ class Engine:
                     "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
                     (_now(), str(e), task["id"]),
                 )
+                self._warn_object_failed(connector_uri, task, e)
                 return "retryable_exhausted"
         return "retryable_exhausted"
+
+    @staticmethod
+    def _warn_object_failed(connector_uri: str, task: dict, e: Exception) -> None:
+        """One-line server-log WARNING when an object is finally marked failed. object_tasks
+        rows (and their last_error) are pruned after the job, so without this a user only sees
+        the aggregate `failed_objects: N` with no way to learn which object failed or why.
+        Pairs with the 'Milvus backend:' / dim-mismatch startup logs."""
+        uri = f"{connector_uri}{task.get('object_uri', '')}"
+        reason = f"{type(e).__name__}: {e}".replace("\n", " ").strip()
+        if len(reason) > 300:
+            reason = reason[:297] + "..."
+        print(f"mfs-server: WARNING object {uri} failed: {reason}", flush=True)
 
     async def _should_stop(self, job_id: str, cid: str) -> bool:
         """A task boundary must stop the job if it was cancelled OR its connector is being
@@ -1238,11 +1473,28 @@ class Engine:
                         (_now(), t["id"]),
                     )
                     consec_fail = 0
+                elif r == "skipped":
+                    # Per-object local event (source vanished / type changed); the row was
+                    # already marked status='skipped' inside _process_with_retry. We DID
+                    # make forward progress on the job (this object is no longer pending),
+                    # so reset the breaker — otherwise a bursty wave of `rm`s would slowly
+                    # accumulate consec_fail across many objects and still trip it later.
+                    consec_fail = 0
+                elif r in ("embedding_auth_failed", "embedding_quota_exceeded"):
+                    # Global, non-retryable failure (bad key / no quota): abort the whole job
+                    # at once with the documented code — every object would fail identically,
+                    # so grinding them (or finishing 'succeeded' with 0 indexed) just hides it.
+                    await self.meta.execute(
+                        "UPDATE object_tasks SET status='cancelled' "
+                        "WHERE connector_job_id=? AND status IN ('pending','running')",
+                        (job_id,),
+                    )
+                    return r
                 else:
-                    # both 'fatal' AND 'retryable_exhausted' count toward the breaker: a
-                    # provider that rate-limits (429) or times out on every object is
-                    # classified retryable, and without counting it the job would grind the
-                    # whole connector, burning (max_retries+1) calls per object.
+                    # retryable_exhausted counts toward the breaker: a provider that rate-limits
+                    # (429) or times out on every object is classified retryable, and without
+                    # counting it the job would grind the whole connector, burning
+                    # (max_retries+1) calls per object.
                     consec_fail += 1
                     if consec_fail >= threshold:
                         await self.meta.execute(
@@ -1603,11 +1855,14 @@ class Engine:
             if pairs:
                 vecs = await self.embed.batch_embed([p[0] for p in pairs])
                 now_ms = int(time.time() * 1000)
+                content_truncated = False
                 rows = []
                 for (ctext, lines), vec in zip(pairs, vecs):
                     # Body chunks: the per-chunk identity is the line range,
                     # stored as the reserved "lines" key inside locator.
                     loc = {"lines": lines}
+                    capped, was_trunc = _cap_content(ctext)
+                    content_truncated = content_truncated or was_trunc
                     rows.append(
                         {
                             "chunk_id": chunk_id(ns, connector_uri, full_uri, "body", loc),
@@ -1615,7 +1870,7 @@ class Engine:
                             "connector_uri": connector_uri,
                             "object_uri": full_uri,
                             "locator": loc,
-                            "content": ctext[:65000],
+                            "content": capped,
                             "dense_vec": vec,
                             "chunk_kind": "body",
                             "metadata": {},
@@ -1627,9 +1882,9 @@ class Engine:
                 await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
                 await asyncio.to_thread(self.milvus.upsert, ns, rows)
                 chunk_count = len(rows)
-                search_status = "partial" if partial else "indexed"
+                search_status = "partial" if (partial or content_truncated) else "indexed"
 
-        elif okind == "image":
+        elif okind == "image" and self.cfg.vlm.enabled:
             ext = os.path.splitext(relpath)[1].lower()
             raw = await self._read_bytes(plugin, relpath)
             desc = await self.vlm.describe(raw, ext)
@@ -1652,6 +1907,12 @@ class Engine:
                 await asyncio.to_thread(self.milvus.upsert, ns, [row])
                 chunk_count = 1
                 search_status = "indexed"
+        # image kind with vlm.enabled=False falls through: object is recorded as
+        # metadata-only (ls/cat list it), no vision API call, no vlm_description
+        # chunk in Milvus. Symmetric with summary.enabled gating the directory
+        # summary pipeline — avoids the surprise bill where every image in a big
+        # ingest fired a vision call just because [vlm] provider happened to be
+        # configured.
 
         elif okind == "message_stream":
             ocfg = plugin.ctx.object_config_for(relpath)
@@ -1681,6 +1942,7 @@ class Engine:
                     if len(order) >= ocfg.chunk_max:
                         break
                 pairs: list[tuple[str, dict | None]] = []
+                content_truncated = False
                 for gk in order:
                     rendered = [
                         _render_record(m, ocfg.text_fields, ocfg.render_template)
@@ -1691,14 +1953,18 @@ class Engine:
                     if len(sub) == 1:
                         # short thread: keep the existing single-chunk locator shape so
                         # existing search/cat semantics are preserved.
-                        pairs.append((sub[0][2][:65000], {group_key: gk}))
+                        capped, was_trunc = _cap_content(sub[0][2])
+                        content_truncated = content_truncated or was_trunc
+                        pairs.append((capped, {group_key: gk}))
                     else:
                         # long thread: tag each sub-chunk with its position WITHIN the
                         # thread (0..N-1) so callers can stitch / cite a specific window.
                         for sub_i, (s, e, text) in enumerate(sub):
+                            capped, was_trunc = _cap_content(text)
+                            content_truncated = content_truncated or was_trunc
                             pairs.append(
                                 (
-                                    text[:65000],
+                                    capped,
                                     {group_key: gk, "chunk_index": sub_i, "msg_range": [s, e]},
                                 )
                             )
@@ -1714,7 +1980,7 @@ class Engine:
                             "connector_uri": connector_uri,
                             "object_uri": full_uri,
                             "locator": loc,
-                            "content": ctext[:65000],
+                            "content": ctext,
                             "dense_vec": vec,
                             "chunk_kind": "thread_aggregate",
                             "metadata": {},
@@ -1727,7 +1993,7 @@ class Engine:
                     )
                     await asyncio.to_thread(self.milvus.upsert, ns, rows)
                     chunk_count = len(rows)
-                    search_status = "indexed"
+                    search_status = "partial" if content_truncated else "indexed"
 
         elif okind in ("table_rows", "record_collection"):
             ocfg = plugin.ctx.object_config_for(relpath)
@@ -1740,9 +2006,19 @@ class Engine:
                 head_buf: list[str] = []  # first N raw records -> head_cache artifact
                 partial = False
                 i = 0
+                # Track whether each configured text_field's KEY ever appears in a record, to
+                # tell a schema mismatch (key absent everywhere -> the documented field_missing)
+                # apart from a legitimately empty/null value (key present). Membership-only, so
+                # present-but-empty never trips it.
+                text_top_keys = {f: _field_top_key(f) for f in ocfg.text_fields}
+                seen_field_keys: set[str] = set()
                 async for rec in records:
                     if len(head_buf) < _HEAD_CACHE_N:
                         head_buf.append(json.dumps(rec, default=str, ensure_ascii=False))
+                    if isinstance(rec, dict):
+                        for f, tk in text_top_keys.items():
+                            if tk in rec:
+                                seen_field_keys.add(f)
                     loc = (
                         {f: _resolve_path(rec, f) for f in ocfg.locator_fields}
                         if ocfg.locator_fields
@@ -1763,6 +2039,15 @@ class Engine:
                 # release the record generator (cursor/connection) before the slow embed
                 # batch, and so a chunk_max break doesn't leak a held connection.
                 await records.aclose()
+                # Schema mismatch: records exist but NONE of the configured text_fields' keys
+                # are present in any of them -> would silently index 0 chunks. Surface the
+                # documented field_missing so the user fixes [[objects]] instead of guessing.
+                # (A partial config where at least one text_field key is present still indexes.)
+                if i > 0 and ocfg.text_fields and not seen_field_keys:
+                    raise ValueError(
+                        f"field_missing: configured text_fields "
+                        f"{list(ocfg.text_fields)} are absent from every record"
+                    )
                 if head_buf:  # pre-cache first rows so `head` is fast without re-querying
                     await self._put_artifact(
                         ns, full_uri, "head_cache", ("\n".join(head_buf)).encode()
@@ -1770,38 +2055,54 @@ class Engine:
                 if pairs:
                     vecs = await self.embed.batch_embed([p[0] for p in pairs])
                     now_ms = int(time.time() * 1000)
-                    rows = [
-                        {
-                            "chunk_id": chunk_id(ns, connector_uri, full_uri, "row_text", loc),
-                            "namespace_id": ns,
-                            "connector_uri": connector_uri,
-                            "object_uri": full_uri,
-                            "locator": loc,
-                            "content": ctext[:65000],
-                            "dense_vec": vec,
-                            "chunk_kind": "row_text",
-                            "metadata": meta,
-                            "indexed_at": now_ms,
-                        }
-                        for (ctext, loc, meta), vec in zip(pairs, vecs)
-                    ]
+                    content_truncated = False
+                    rows = []
+                    for (ctext, loc, meta), vec in zip(pairs, vecs):
+                        capped, was_trunc = _cap_content(ctext)
+                        content_truncated = content_truncated or was_trunc
+                        rows.append(
+                            {
+                                "chunk_id": chunk_id(ns, connector_uri, full_uri, "row_text", loc),
+                                "namespace_id": ns,
+                                "connector_uri": connector_uri,
+                                "object_uri": full_uri,
+                                "locator": loc,
+                                "content": capped,
+                                "dense_vec": vec,
+                                "chunk_kind": "row_text",
+                                "metadata": meta,
+                                "indexed_at": now_ms,
+                            }
+                        )
                     await asyncio.to_thread(
                         self.milvus.delete_by_object, ns, connector_uri, full_uri
                     )
                     await asyncio.to_thread(self.milvus.upsert, ns, rows)
                     chunk_count = len(rows)
-                    # partial if chunk_max truncated OR the connector capped the read
-                    capped = plugin.ctx.was_partial(relpath)
-                    search_status = "partial" if (partial or capped) else "indexed"
+                    # partial if chunk_max truncated, the connector capped the read, OR a field
+                    # was truncated to _CONTENT_MAX (its tail is unsearchable) — recall-incomplete.
+                    was_capped = plugin.ctx.was_partial(relpath)
+                    search_status = (
+                        "partial" if (partial or was_capped or content_truncated) else "indexed"
+                    )
 
         elif okind == "table_schema" and self.summary.enabled:
             # schema_summary chunk: an LLM description of the table/collection schema
             records = plugin.read_records(relpath)
             schema_obj = None
             if records is not None:
-                async for r in records:
-                    schema_obj = r
-                    break
+                try:
+                    async for r in records:
+                        schema_obj = r
+                        break
+                finally:
+                    # Mirror the record_collection (line ~1952), cat (~2526/2553/2567) and
+                    # estimate paths: breaking after the first record does NOT close the async
+                    # generator, so a table_schema connector that yields from inside
+                    # `async with pool.acquire()` would pin a pool connection; aclose() releases it.
+                    aclose = getattr(records, "aclose", None)
+                    if aclose is not None:
+                        await aclose()
             if schema_obj is not None:
                 import json as _json
 
@@ -1880,6 +2181,15 @@ class Engine:
     ) -> list[dict]:
         if top_k <= 0 or not query or not query.strip():
             return []  # nothing to ask for: skip the embed call and Milvus' limit>0 rule
+        # Coarse fast-path: reject an absurd top_k before embedding/querying. Hybrid
+        # over-fetches each sub-search by over_fetch_ratio, so the request Milvus sees is
+        # top_k * ratio; other modes send top_k directly. This only catches values above the
+        # hard window — the backend's real per-search cap is lower and backend-specific
+        # (Milvus Lite tops out far below Zilliz), so MilvusStore translates the actual
+        # MilvusException into the same `top_k_too_large` error as the authoritative guard.
+        effective = top_k * self.cfg.search.over_fetch_ratio if mode == "hybrid" else top_k
+        if effective > MILVUS_MAX_RESULT_WINDOW:
+            raise ValueError("top_k_too_large")
         expr = build_filter(self.ns, connector_uri, object_prefix, chunk_kinds)
         if mode == "keyword":
             hits = await asyncio.to_thread(self.milvus.sparse_search, self.ns, query, top_k, expr)
@@ -1923,18 +2233,27 @@ class Engine:
         """Try-connect a connector without registering or writing state."""
         _, connector_uri, ctype, default_config = self._resolve_target(target)
         cfg_dict = {**default_config, **config} if config is not None else default_config
-        plugin, _ = self._build_plugin(ctype, cfg_dict, "probe-" + uuid.uuid4().hex)
+        plugin = None
         try:
+            # Build inside the guard: _build_plugin resolves credential refs (_resolve_ref),
+            # and a missing/unresolvable env:/file: ref is a user config error — it must come
+            # back as ok=false like a failed connect/auth, not escape to the generic 500
+            # handler. NotImplementedError (an uninstalled connector extra) is intentionally
+            # NOT caught here so it still renders as the 501 not_available envelope.
+            plugin, _ = self._build_plugin(ctype, cfg_dict, "probe-" + uuid.uuid4().hex)
             await plugin.connect()
             hs = await plugin.healthcheck()
             return {"target": connector_uri, "type": ctype, "ok": hs.ok, "detail": hs.detail}
+        except NotImplementedError:
+            raise
         except Exception as e:  # noqa: BLE001
             return {"target": connector_uri, "type": ctype, "ok": False, "detail": str(e)}
         finally:
-            try:
-                await plugin.close()
-            except Exception:  # noqa: BLE001
-                pass
+            if plugin is not None:
+                try:
+                    await plugin.close()
+                except Exception:  # noqa: BLE001
+                    pass
 
     async def estimate(
         self,
@@ -1983,15 +2302,43 @@ class Engine:
                 elif okind in ("table_rows", "record_collection", "message_stream"):
                     ocfg = plugin.ctx.object_config_for(rel)
                     records = plugin.read_records(rel)
+                    sampled = 0  # records actually consumed (≤ sample_records)
                     if records is not None and ocfg.text_fields:
-                        n = 0
-                        async for rec in records:
-                            t = _render_record(rec, ocfg.text_fields, ocfg.render_template)
-                            if t.strip():
-                                texts.append(t)
-                            n += 1
-                            if n >= sample_records:
-                                break
+                        try:
+                            async for rec in records:
+                                t = _render_record(rec, ocfg.text_fields, ocfg.render_template)
+                                if t.strip():
+                                    texts.append(t)
+                                sampled += 1
+                                if sampled >= sample_records:
+                                    break
+                        finally:
+                            # Breaking out of `async for` does NOT close the async generator,
+                            # so a connector that yields from inside `async with pool.acquire()`
+                            # (mysql/postgres/mongo) keeps a DB connection pinned by the
+                            # suspended generator; the estimate's `plugin.close()` then deadlocks
+                            # in pool.wait_closed() waiting for that connection. Explicitly close
+                            # the generator after the capped sample so the connection is released.
+                            aclose = getattr(records, "aclose", None)
+                            if aclose is not None:
+                                await aclose()
+                    # Ask the plugin for the real record count; if cheap and known,
+                    # extrapolate per-record averages over the full count instead of
+                    # summing the truncated sample. Otherwise fall back to summing
+                    # what we sampled (matches the old behavior — a known
+                    # under-count when one object contains many records).
+                    rec_total: int | None = None
+                    if okind in ("table_rows", "record_collection", "message_stream"):
+                        try:
+                            rec_total = await plugin.record_count(rel)
+                        except Exception:  # noqa: BLE001 - estimate must never fail
+                            rec_total = None
+                    if rec_total is not None and rec_total > sampled > 0 and texts:
+                        per_rec_chunks = len(texts) / sampled
+                        per_rec_tokens = sum(ntok(t) for t in texts) / sampled
+                        s_chunks += per_rec_chunks * rec_total
+                        s_tokens += per_rec_tokens * rec_total
+                        texts = []  # already accounted for, don't re-count below
                 if texts:
                     s_chunks += len(texts)
                     s_tokens += sum(ntok(t) for t in texts)
@@ -2223,9 +2570,16 @@ class Engine:
         # dispatches body-chunk reads through plugin.read(range=...) before reaching
         # this helper, so seeing it here is a misconfiguration we just ignore.
         keys = [k for k in (ocfg.locator_fields or list(locator.keys())) if k != "lines"]
+        present = [k for k in keys if k in locator]
+        # Require at least one recognized locator key: a locator that's empty or whose keys
+        # don't correspond to this object's locator_fields matches nothing. Without this guard
+        # `all([])` is True, so a bogus/typo'd locator silently returns record #0 instead of
+        # the documented locator_not_found.
+        if not present:
+            return False
         # resolve with the SAME JSONPath-lite used to WRITE the locator (engine indexing:
         # {f: _resolve_path(rec, f)}); plain rec.get() couldn't reopen a nested locator key.
-        return all(str(_resolve_path(rec, k)) == str(locator.get(k)) for k in keys if k in locator)
+        return all(str(_resolve_path(rec, k)) == str(locator.get(k)) for k in present)
 
     async def cat(
         self,
@@ -2254,11 +2608,17 @@ class Engine:
                 }
             okind = plugin.object_kind_of(rel)
             structured = okind in ("table_rows", "record_collection", "message_stream")
+            # Binary objects have no line-based view — reading them with --range
+            # would return mojibake (UTF-8 errors="replace") under the guise of a
+            # text slice. Refuse cleanly so the caller falls back to `export`.
+            if range is not None and okind == "binary":
+                raise ValueError("range_unsupported")
 
             # --- locator with reserved "lines" key: route to the range path ---
             # Body / code / document chunks store identity as {"lines":[s,e]};
             # reopening one means slicing the file by line range, not iterating
-            # structured records.
+            # structured records. locator.lines is 1-based half-open (matches
+            # how cat --range is exposed); plugin.read takes 0-based half-open.
             if (
                 locator is not None
                 and isinstance(locator, dict)
@@ -2266,8 +2626,8 @@ class Engine:
                 and len(locator) == 1
                 and not structured
             ):
-                s, e = locator["lines"][0], locator["lines"][1]
-                rg = Range(int(s), int(e))
+                s, e = int(locator["lines"][0]), int(locator["lines"][1])
+                rg = Range(max(0, s - 1), max(0, e - 1))
                 buf = bytearray()
                 async for ch in plugin.read(rel, rg):
                     buf += ch
@@ -2319,9 +2679,18 @@ class Engine:
                             out.append(line)
                     return "\n".join(out)
                 start, end = range[0], range[1]
-                # hand the range to the connector so a pushdown-capable one can LIMIT/OFFSET
-                # at the source; the engine still slices defensively for connectors that ignore it.
-                records = plugin.read_records(rel, Range(start, end))
+                # Pass Range(0, end) — a LIMIT-only hint — and slice [start, end) HERE, in one
+                # place. Connectors disagree on whether they honor the Range: the DB ones
+                # (mysql/postgres/mongo/bigquery) push OFFSET start + LIMIT down, while the SaaS
+                # ones (jira/slack/notion/…) ignore it and return from row 0 — yet ALL declare
+                # paged_cat=True, so the engine can't tell them apart. Pushing OFFSET start AND
+                # then re-slicing `i >= start` double-applied the offset on the DB connectors, so
+                # `cat --range 100:200` returned an empty/wrong page. With offset=0 every
+                # connector returns rows from 0 and the single `i >= start` slice is correct for
+                # both. (Trade-off: the DB connectors lose OFFSET pushdown and read `end` rows for
+                # a deep page — still LIMIT-bounded; restoring true offset-pushdown needs an
+                # explicit "range honored" capability — see human_todo [dborder/D65].)
+                records = plugin.read_records(rel, Range(0, end))
                 if records is not None:
                     out, i = [], 0
                     async with aclosing(records):  # break-early must close the generator
@@ -2363,10 +2732,12 @@ class Engine:
         finally:
             await plugin.close()
 
-    async def _read_full(self, path: str) -> str:
-        """Whole object content (no cap): all records for structured objects, converted
-        markdown / VLM text for artifact-backed ones, else the full byte stream. Backs
-        export and tail."""
+    async def _read_full(self, path: str) -> tuple[str, bool]:
+        """Whole object content for export / tail: returns (text, partial).
+        partial=True when the connector capped the read (structured objects
+        above max_read_rows). The bare-cat size guard is not applied. Backs
+        export and tail; tail discards the partial flag (just wants the last
+        N lines), export surfaces it."""
         import json as _json
 
         _, curi, rel, plugin = await self._open_path(path)
@@ -2381,25 +2752,54 @@ class Engine:
                     out = []
                     async for rec in records:
                         out.append(_json.dumps(rec, default=str, ensure_ascii=False))
-                    return "\n".join(out)
+                    text = "\n".join(out)
+                    # ctx.declare_partial is the channel structured connectors use
+                    # to flag "we capped at max_read_rows". Read it back here so
+                    # export tells the truth instead of silently returning a slice.
+                    partial = bool(getattr(plugin.ctx, "was_partial", lambda _r: False)(rel))
+                    self._warn_if_huge_export(curi + rel, text)
+                    return text, partial
             ext = os.path.splitext(rel)[1].lower()
             if ext in CONVERT_EXTS or curi.startswith(("web://", "github://")):
                 art = await self._read_artifact(self.ns, curi + rel, "converted_md")
                 if art is not None:
-                    return art.decode("utf-8", errors="replace")
+                    text = art.decode("utf-8", errors="replace")
+                    self._warn_if_huge_export(curi + rel, text)
+                    return text, False
             art_vlm = await self._read_artifact(self.ns, curi + rel, "vlm_text")
             if art_vlm is not None:
-                return art_vlm.decode("utf-8", errors="replace")
+                text = art_vlm.decode("utf-8", errors="replace")
+                self._warn_if_huge_export(curi + rel, text)
+                return text, False
             buf = bytearray()
             async for ch in plugin.read(rel):
                 buf += ch
-            return bytes(buf).decode("utf-8", errors="replace")
+            text = bytes(buf).decode("utf-8", errors="replace")
+            self._warn_if_huge_export(curi + rel, text)
+            return text, False
         finally:
             await plugin.close()
 
-    async def export(self, path: str) -> str:
-        """Full content for `mfs export`: the entire object, no row cap and no
-        bare-cat size guard."""
+    def _warn_if_huge_export(self, uri: str, text: str) -> None:
+        """Single-host export materializes the whole object in memory; warn on
+        anything over 100 MB so the operator sees the cost before the next OOM
+        rather than after. Streaming export is the proper fix — tracked in
+        TODO #10."""
+        size = len(text.encode("utf-8", errors="ignore")) if text else 0
+        if size > 100 * 1024 * 1024:
+            print(
+                f"mfs-server: WARNING export {uri} materialized "
+                f"{size // (1024 * 1024)} MB in memory "
+                f"(streaming export not yet implemented)",
+                flush=True,
+            )
+
+    async def export(self, path: str) -> tuple[str, bool]:
+        """Full content for `mfs export`: returns (text, partial). Honest
+        boundary — structured connectors with more rows than max_read_rows
+        return partial=True; the caller (API layer) surfaces it in the
+        CatResponse. The bare-cat size guard does not apply, but each
+        connector's own row cap does (true streaming export is deferred)."""
         return await self._read_full(path)
 
     async def head(self, path: str, n: int = 20) -> str:
@@ -2408,10 +2808,16 @@ class Engine:
             okind = plugin.object_kind_of(rel)
             structured = okind in ("table_rows", "record_collection", "message_stream")
             if structured:
-                # fast path: pre-cached first rows
+                # fast path: pre-cached first rows. The cache is capped at _HEAD_CACHE_N, so
+                # it's authoritative ONLY when it holds the whole object (< the cap) OR n fits
+                # within it; for a larger n on a capped cache, fall through to the live bounded
+                # query below — otherwise `head -n 200` would silently return just the 100
+                # cached rows instead of 200 (head must give min(n, total), not min(n, cache)).
                 art = await self._read_artifact(self.ns, curi + rel, "head_cache")
                 if art is not None:
-                    return "\n".join(art.decode("utf-8", errors="replace").splitlines()[:n])
+                    cached = art.decode("utf-8", errors="replace").splitlines()
+                    if len(cached) < _HEAD_CACHE_N or n <= len(cached):
+                        return "\n".join(cached[:n])
             else:
                 ext = os.path.splitext(rel)[1].lower()
                 # plain text / code / logs: stream just the first n lines so a large file
@@ -2475,7 +2881,9 @@ class Engine:
             await plugin.close()
         if abs_file and os.path.isfile(abs_file):
             return "\n".join(await asyncio.to_thread(accel.tail_lines, abs_file, n))
-        text = await self._read_full(path)  # artifact-backed / structured / non-local
+        text, _partial = await self._read_full(
+            path
+        )  # artifact-backed / structured / non-local; tail ignores the partial flag
         return "\n".join(text.splitlines()[-n:])
 
     async def grep(
@@ -2510,11 +2918,13 @@ class Engine:
             if gen is not None:
                 async for gm in gen:
                     # Structured pushdown carries gm.locator (PK dict); text/code
-                    # pushdown carries gm.line_no (we wrap as {"lines":[n,n]}).
+                    # pushdown carries gm.line_no. locator.lines is 1-based
+                    # half-open [s,e), so a single line n is [n, n+1] — not
+                    # [n, n], which would round-trip as an empty slice.
                     loc = (
                         gm.locator
                         if gm.locator is not None
-                        else ({"lines": [gm.line_no, gm.line_no]} if gm.line_no else None)
+                        else ({"lines": [gm.line_no, gm.line_no + 1]} if gm.line_no else None)
                     )
                     results.append(
                         {
@@ -2542,12 +2952,22 @@ class Engine:
             root_abs = (
                 curi.replace("file://local", "", 1) if curi.startswith("file://local") else None
             )
-            like = (rel.rstrip("/") + "%") if rel != "/" else "%"
-            not_idx = await self.meta.fetchall(
-                "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed' "
-                "AND object_uri LIKE ?",
-                (cid, like),
-            )
+            # Path-component boundary, same fix as build_filter: scope `/src` must match the
+            # object itself OR `/src/...`, NOT a sibling `/src-old`. Escape SQL LIKE wildcards
+            # ('_'/'%') in the literal prefix so a path with '_' doesn't over-match either.
+            if rel == "/":
+                not_idx = await self.meta.fetchall(
+                    "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed'",
+                    (cid,),
+                )
+            else:
+                base = rel.rstrip("/")
+                esc = base.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                not_idx = await self.meta.fetchall(
+                    "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed' "
+                    "AND (object_uri = ? OR object_uri LIKE ? ESCAPE '\\')",
+                    (cid, base, esc + "/%"),
+                )
             if len(not_idx) > _GREP_LINEAR_SCAN_MAX:
                 # don't silently scan a subset and imply it was exhaustive — tell the agent
                 # so it can narrow the path or index first.
@@ -2573,7 +2993,7 @@ class Engine:
                             results.append(
                                 {
                                     "source": curi + relp,
-                                    "locator": {"lines": [ln, ln]},
+                                    "locator": {"lines": [ln, ln + 1]},
                                     "content": line,
                                     "via": "linear",
                                 }
@@ -2589,7 +3009,7 @@ class Engine:
                                 results.append(
                                     {
                                         "source": curi + relp,
-                                        "locator": {"lines": [i, i]},
+                                        "locator": {"lines": [i, i + 1]},
                                         "content": line,
                                         "via": "linear",
                                     }

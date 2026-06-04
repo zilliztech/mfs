@@ -49,7 +49,22 @@ _CODE_SUGGESTIONS = {
     "sync_already_running": ["mfs job list", "mfs job cancel JOB_ID"],
     "connector_removing": ["wait for removal to finish, then retry"],
     "connector_unhealthy": ["check credentials/connectivity"],
+    "embedding_auth_failed": ["fix the embedding provider API key, then `mfs add` again"],
+    "embedding_quota_exceeded": [
+        "top up the embedding provider quota/billing, then `mfs add` again"
+    ],
+    "field_missing": [
+        "fix the connector `[[objects]]` text_fields — a configured field is absent from the records"
+    ],
     "not_found": ["check the URI"],
+    "not_available": ["the connector may require an optional dependency; install its extra"],
+    "top_k_too_large": [
+        "lower --top-k: it exceeds the vector store's result limit (hybrid mode over-fetches, so its effective limit is higher than top_k)"
+    ],
+    "embedding_dim_mismatch": [
+        "the embedding dimension doesn't match this collection's vectors (the collection name encodes its dim)",
+        "re-run `mfs-server setup --section embedding` to set the correct dim, or re-index into a fresh collection",
+    ],
 }
 # HTTP status -> code when `detail` isn't already a canonical code (human strings).
 _STATUS_CODE = {
@@ -57,6 +72,7 @@ _STATUS_CODE = {
     404: "not_found",
     409: "conflict",
     422: "validation_error",
+    501: "not_available",
     502: "connector_unhealthy",
 }
 
@@ -133,13 +149,48 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.exception_handler(RequestValidationError)
     async def _val_exc(_request: Request, exc: RequestValidationError) -> JSONResponse:
+        # Build the detail from only each error's location + message — deliberately DROP
+        # pydantic's `input`/`url`/`ctx` fields. `input` echoes the submitted value (which
+        # for a config body can be a live secret) and `url` carries the server source path;
+        # `str(exc)` would leak both. Keep `detail` a plain string so the envelope shape is
+        # unchanged for SDK consumers.
+        parts = []
+        for err in exc.errors():
+            loc = ".".join(str(p) for p in err.get("loc", ()) if p != "body")
+            msg = err.get("msg", "invalid")
+            parts.append(f"{loc}: {msg}" if loc else msg)
         return JSONResponse(
             status_code=422,
             content={
                 "code": "validation_error",
-                "detail": str(exc),
+                "detail": "; ".join(parts) or "validation error",
                 "suggestions": ["fix request shape"],
             },
+        )
+
+    @app.exception_handler(NotImplementedError)
+    async def _not_impl_exc(_request: Request, exc: NotImplementedError) -> JSONResponse:
+        """A requested connector scheme has no registered plugin — usually because its
+        optional extra isn't installed (registry.load_builtin skips connectors whose
+        import fails). Return a clean 501 envelope instead of a 500 + traceback, with an
+        actionable hint to install the connector's extra."""
+        detail = str(exc) or "not implemented"
+        # message shape is "no plugin for <scheme>": surface an install hint for that extra.
+        # The extra name usually equals the URI scheme, but a few differ because the SDK is
+        # shared/renamed: postgres's extra is `pg` (asyncpg), and gdrive/gmail share `google`
+        # (google-api-python-client). Map those so the hint names a command that exists
+        # (`uv sync --extra postgres` would fail — the real extra is `pg`).
+        _SCHEME_TO_EXTRA = {"postgres": "pg", "gdrive": "google", "gmail": "google"}
+        scheme = detail.rsplit(" ", 1)[-1] if detail.startswith("no plugin for ") else None
+        extra = _SCHEME_TO_EXTRA.get(scheme, scheme) if scheme else None
+        suggestions = (
+            [f"install the connector extra: uv sync --extra {extra}"]
+            if scheme
+            else _CODE_SUGGESTIONS["not_available"]
+        )
+        return JSONResponse(
+            status_code=501,
+            content={"code": "not_available", "detail": detail, "suggestions": suggestions},
         )
 
     @app.exception_handler(Exception)
@@ -207,7 +258,12 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     async def estimate(body: ProbeRequest) -> EstimateResponse:
         """Zero-billing pre-flight estimate: object/chunk/token counts via
         metadata + a local chunker/tokenizer dry-run. No embedding API calls."""
-        return EstimateResponse(**await eng().estimate(body.target, body.config))
+        try:
+            return EstimateResponse(**await eng().estimate(body.target, body.config))
+        except ValueError as e:
+            # e.g. an unreachable / missing source root surfaces as connector_unhealthy;
+            # return the clean envelope instead of a raw 500.
+            raise HTTPException(400, str(e))
 
     @app.get("/v1/connectors/inspect", operation_id="inspectConnector", tags=["connectors"])
     async def inspect(target: str):
@@ -288,20 +344,30 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             connector_uri, object_prefix = await eng().resolve_connector_uri(path)
         # comma-separated chunk_kinds, e.g. ?kind=body,directory_summary
         chunk_kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
-        results = await eng().search(
-            q,
-            connector_uri=connector_uri,
-            object_prefix=object_prefix,
-            mode=mode,
-            top_k=top_k,
-            chunk_kinds=chunk_kinds,
-            collapse=collapse,
-        )
+        try:
+            results = await eng().search(
+                q,
+                connector_uri=connector_uri,
+                object_prefix=object_prefix,
+                mode=mode,
+                top_k=top_k,
+                chunk_kinds=chunk_kinds,
+                collapse=collapse,
+            )
+        except ValueError as e:
+            raise HTTPException(400, str(e))
         return SearchResponse(results=results)
 
     @app.get("/v1/grep", response_model=GrepResponse, operation_id="grep", tags=["retrieval"])
     async def grep(pattern: str, path: str) -> GrepResponse:
-        return GrepResponse(results=await eng().grep(pattern, path))
+        # A scope path that resolves under no connector raises ValueError ("path not under
+        # any registered connector") from _open_path — map it to a clean 404 like ls/cat
+        # instead of letting it escape as a raw 500 (search returns [] for the same case;
+        # grep follows the browse family's explicit not_found here).
+        try:
+            return GrepResponse(results=await eng().grep(pattern, path))
+        except (FileNotFoundError, NotADirectoryError, ValueError) as e:
+            raise HTTPException(404, str(e))
 
     @app.get("/v1/ls", response_model=LsResponse, operation_id="ls", tags=["browse"])
     async def ls(path: str) -> LsResponse:
@@ -328,10 +394,27 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
         rg = None
         if range:
-            a, _, b = range.partition(":")  # supports "a:b", "a:", ":b", "a"
-            start = int(a) if a.strip() else 0
-            end = int(b) if b.strip() else (2**63 - 1)
-            rg = (start, end)
+            # External --range is 1-based half-open [start, end) — matches
+            # locator.lines, head/tail line counts, and how humans cite ranges
+            # ("lines 100 to 200"). Require an explicit colon so a bare "100"
+            # doesn't silently degrade to a single line or an open end. Convert
+            # to 0-based half-open here; engine.cat + plugin.read stay 0-based
+            # internally.
+            if ":" not in range:
+                raise HTTPException(
+                    400, "invalid range: expected start:end (1-based, end-exclusive)"
+                )
+            a, _, b = range.partition(":")
+            try:
+                start_1 = int(a) if a.strip() else 1
+                end_1 = int(b) if b.strip() else (2**63 - 1)
+            except ValueError:
+                raise HTTPException(400, "invalid range")
+            if start_1 < 1:
+                raise HTTPException(400, "invalid range: start must be >= 1")
+            if end_1 < start_1:
+                raise HTTPException(400, "invalid range: end must be >= start")
+            rg = (start_1 - 1, end_1 - 1)
         loc = None
         if locator:
             try:
@@ -378,8 +461,14 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.get("/v1/export", response_model=CatResponse, operation_id="export", tags=["browse"])
     async def export(path: str) -> CatResponse:
-        """Full object content (no row cap / size guard) for `mfs export`."""
-        return CatResponse(source=path, content=await _read_op(eng().export, path))
+        """Full object content for `mfs export`. Honest about completeness:
+        each connector's own row cap still applies (postgres `max_read_rows`,
+        BigQuery `max_read_rows`, etc.), so structured objects above that
+        threshold return `partial=true`. The bare-cat size guard
+        (object_too_large_for_cat) does NOT apply — export is the escape
+        hatch for that — but true streaming export is still TODO."""
+        text, partial = await _read_op(eng().export, path)
+        return CatResponse(source=path, content=text, partial=partial)
 
     @app.get("/healthz", tags=["server"])
     async def healthz() -> dict:
@@ -389,8 +478,17 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.get("/v1/status", response_model=StatusResponse, operation_id="status", tags=["server"])
     async def status() -> StatusResponse:
+        # Per-connector object/chunk counts come from the metadata `objects` table
+        # (objects.chunk_count is already maintained per object). One grouped LEFT JOIN —
+        # connectors with nothing indexed yet still report 0/0 — so status surfaces store
+        # state without a full Milvus scan.
         conns = await eng().meta.fetchall(
-            "SELECT root_uri, type, status FROM connectors WHERE namespace_id=?", (cfg.namespace,)
+            "SELECT c.root_uri AS root_uri, c.type AS type, c.status AS status, "
+            "  COUNT(o.object_uri) AS object_count, "
+            "  COALESCE(SUM(o.chunk_count), 0) AS chunk_count "
+            "FROM connectors c LEFT JOIN objects o ON o.connector_id = c.id "
+            "WHERE c.namespace_id=? GROUP BY c.id, c.root_uri, c.type, c.status",
+            (cfg.namespace,),
         )
         jobs = await eng().meta.fetchall(
             "SELECT status, count(*) AS n FROM connector_jobs GROUP BY status"

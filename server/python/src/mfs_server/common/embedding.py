@@ -39,6 +39,7 @@ class CachingEmbeddingClient:
         # Lazy: built on first call so the server boots even without the
         # provider's SDK / credentials (browse / ls / cat / grep don't need it).
         self._provider: Any = None
+        self._dim_warned = False
         self.api_calls = 0
         self.cache_hits = 0
 
@@ -50,7 +51,32 @@ class CachingEmbeddingClient:
     def _ensure_provider(self) -> Any:
         if self._provider is None:
             self._provider = get_provider(self.provider_name, self.model)
+            self._warn_dim_mismatch_once()
         return self._provider
+
+    def _warn_dim_mismatch_once(self) -> None:
+        """Warn (once) if cfg.embedding.dim — which names the Milvus collection — doesn't
+        match the provider's actual output dim. Deferred to the first provider build (not
+        server boot) so a cold start never downloads the model just to read .dimension; the
+        provider stays lazy (browse / ls / cat need no embedding). A stale dim after a
+        provider swap still surfaces hard at search/index time via the embedding_dim_mismatch
+        envelope — this is the friendly early heads-up that fires once the model is loaded
+        anyway. Never fatal."""
+        if self._dim_warned:
+            return
+        self._dim_warned = True
+        try:
+            actual = int(self._provider.dimension)
+        except Exception:  # noqa: BLE001 — can't read dim: skip, don't break embedding
+            return
+        if actual != self.dim:
+            print(
+                f"mfs-server: WARNING embedding dim mismatch — configured dim={self.dim} "
+                f"but provider '{self.provider_name}'/'{self.model}' emits dim={actual}. "
+                f"Search/index will fail against the dim={self.dim} collection; re-run "
+                f"`mfs-server setup --section embedding` or re-index into a fresh collection.",
+                flush=True,
+            )
 
     def _key(self, text: str) -> str:
         return cache_key(

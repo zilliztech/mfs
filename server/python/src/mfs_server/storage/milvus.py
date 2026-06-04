@@ -10,9 +10,14 @@ asyncio.to_thread. Works against Milvus Lite (local file) and Zilliz Cloud.
 
 from __future__ import annotations
 
+import logging
+import os
+import sys
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 from pymilvus import AnnSearchRequest, DataType, Function, FunctionType, MilvusClient, RRFRanker
+from pymilvus.exceptions import MilvusException
 
 from ..config import ServerConfig
 
@@ -21,6 +26,40 @@ from ..config import ServerConfig
 # embedding dim, so a build always targets a collection built for ITS schema/model and never
 # silently reuses an incompatible one written by a different version (migrations out of scope).
 _COLLECTION_SCHEMA_VERSION = 1
+
+# Milvus rejects any search whose `offset + limit` exceeds this window with
+# `MilvusException(code=65535, "invalid max query result window")`. A user-supplied
+# top_k is validated against this before we touch Milvus so the limit surfaces as a
+# clean envelope instead of a leaked 500. Hybrid search over-fetches (limit * ratio),
+# so the effective window can exceed top_k — callers must account for that.
+MILVUS_MAX_RESULT_WINDOW = 16384
+
+
+def _is_analyzer_config_error(text: str) -> bool:
+    """True when a create_collection failure is really an analyzer/tokenizer misconfig
+    (unknown tokenizer type, or jieba configured but its package isn't installed) rather
+    than a transient/backend error — so the caller can fail clean instead of crash-looping."""
+    t = text.lower()
+    return any(k in t for k in ("tokenizer", "analyzer", "jieba"))
+
+
+def _reraise_known_milvus_error(exc: MilvusException) -> None:
+    """Translate Milvus errors that are really user/config problems into stable domain
+    errors (raised as ValueError) so the API renders a clean 4xx envelope instead of leaking
+    a raw MilvusException as a 500. Any other Milvus error is re-raised unchanged so genuine
+    internal failures still surface as such."""
+    msg = (exc.message or str(exc)).lower()
+    # Oversized top_k / result window (code=65535; backend-specific ceiling — Lite caps topk
+    # at 1024, full Milvus/Zilliz allow far more).
+    if exc.code == 65535 and ("topk" in msg or "result window" in msg):
+        raise ValueError("top_k_too_large") from exc
+    # Vector dimension mismatch: the query (or row) vector dim doesn't match the collection's
+    # dense_vec dim — usually a stale cfg.embedding.dim after an embedding-provider swap.
+    # Surfaces on Milvus Lite as a numpy matmul "core dimension ... different from" error and
+    # on remote Milvus as "expected dim N, got M".
+    if "dim" in msg and ("mismatch" in msg or "different from" in msg or "expected dim" in msg):
+        raise ValueError("embedding_dim_mismatch") from exc
+    raise exc
 
 
 def _lit(v: str) -> str:
@@ -67,6 +106,15 @@ class MilvusStore:
         if self.token:
             kwargs["token"] = self.token
         self.client = MilvusClient(**kwargs)
+        # One-line observability: state the FINAL resolved backend (after env overrides) so
+        # it's obvious whether this server is talking to Lite or a remote/Zilliz cluster — a
+        # silent env override (ZILLIZ_URI) had us mistake a Zilliz server for Lite. Token is
+        # never logged; only the host (remote) or db path (Lite).
+        if self.is_lite():
+            print(f"mfs-server: Milvus backend: Lite ({self.uri})", flush=True)
+        else:
+            host = urlparse(self.uri).netloc or self.uri
+            print(f"mfs-server: Milvus backend: Zilliz/remote {host}", flush=True)
 
     def is_lite(self) -> bool:
         return not self.uri.startswith("http")
@@ -172,7 +220,40 @@ class MilvusStore:
         }
         # num_partitions only meaningful with a partition_key field
         kwargs["num_partitions"] = self.num_partitions
-        self.client.create_collection(**kwargs)
+        try:
+            # pymilvus (and the embedded milvus-lite engine) log every failed RPC with a full
+            # traceback via the logging module before raising; mute all logging just around
+            # this call so an analyzer misconfig surfaces as our single clean actionable
+            # message rather than a scary double traceback.
+            logging.disable(logging.CRITICAL)
+            try:
+                self.client.create_collection(**kwargs)
+            finally:
+                logging.disable(logging.NOTSET)
+        except Exception as exc:  # noqa: BLE001 — translate analyzer misconfig into a clean exit
+            detail = getattr(exc, "message", None) or str(exc)
+            if self.analyzer_params and _is_analyzer_config_error(detail):
+                # A bad milvus.analyzer_params (unknown tokenizer, or jieba configured but not
+                # installed) otherwise crash-loops the server at startup with a raw
+                # MilvusException traceback. Fail clean + actionable instead — never silently
+                # fall back to 'standard', which would hide the misconfig. os._exit avoids the
+                # starlette lifespan re-wrapping a SystemExit into another "startup failed"
+                # traceback; nothing is initialized yet at this point, so there is no cleanup
+                # to skip.
+                print(
+                    f"mfs-server: FATAL invalid milvus.analyzer_params "
+                    f"{self.analyzer_params!r}: {detail}\n"
+                    f"  Supported BM25 tokenizers: 'standard' (default) and 'jieba' (Chinese "
+                    f"segmentation; requires the jieba package — `uv pip install jieba`).\n"
+                    f'  Fix milvus.analyzer_params in server.toml (e.g. {{type = "jieba"}}) and '
+                    f"recreate the collection: the analyzer is applied only at collection "
+                    f"creation, so an existing index must be dropped and re-indexed for the "
+                    f"change to take effect.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                os._exit(1)
+            raise
         self._add_scalar_indexes(name)
         self.client.load_collection(name)
         return name
@@ -267,17 +348,20 @@ class MilvusStore:
         if not self.client.has_collection(name):
             return []
         cl_kw = {"consistency_level": consistency_level} if consistency_level else self._cl_kw()
-        res = self.client.search(
-            collection_name=name,
-            data=[query_vec],
-            anns_field="dense_vec",
-            limit=limit,
-            filter=expr,
-            output_fields=output_fields
-            or ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "metadata"],
-            search_params={"metric_type": "COSINE"},
-            **cl_kw,
-        )
+        try:
+            res = self.client.search(
+                collection_name=name,
+                data=[query_vec],
+                anns_field="dense_vec",
+                limit=limit,
+                filter=expr,
+                output_fields=output_fields
+                or ["chunk_id", "object_uri", "content", "chunk_kind", "locator", "metadata"],
+                search_params={"metric_type": "COSINE"},
+                **cl_kw,
+            )
+        except MilvusException as e:
+            _reraise_known_milvus_error(e)
         return list(res[0]) if res else []
 
     # The collection has no top-level "lines" field — line ranges live INSIDE
@@ -310,15 +394,18 @@ class MilvusStore:
         if not self.client.has_collection(name):
             return []
         cl_kw = {"consistency_level": consistency_level} if consistency_level else self._cl_kw()
-        res = self.client.search(
-            collection_name=name,
-            data=[query_text],
-            anns_field="sparse_vec",
-            limit=limit,
-            filter=expr,
-            output_fields=output_fields or self._DEFAULT_OUT,
-            **cl_kw,
-        )
+        try:
+            res = self.client.search(
+                collection_name=name,
+                data=[query_text],
+                anns_field="sparse_vec",
+                limit=limit,
+                filter=expr,
+                output_fields=output_fields or self._DEFAULT_OUT,
+                **cl_kw,
+            )
+        except MilvusException as e:
+            _reraise_known_milvus_error(e)
         return list(res[0]) if res else []
 
     def hybrid_search(
@@ -349,12 +436,15 @@ class MilvusStore:
         rs = AnnSearchRequest(
             data=[query_text], anns_field="sparse_vec", param={}, limit=k, expr=expr or None
         )
-        res = self.client.hybrid_search(
-            collection_name=name,
-            reqs=[rd, rs],
-            ranker=RRFRanker(),
-            limit=limit,
-            output_fields=output_fields or self._DEFAULT_OUT,
-            **cl_kw,
-        )
+        try:
+            res = self.client.hybrid_search(
+                collection_name=name,
+                reqs=[rd, rs],
+                ranker=RRFRanker(),
+                limit=limit,
+                output_fields=output_fields or self._DEFAULT_OUT,
+                **cl_kw,
+            )
+        except MilvusException as e:
+            _reraise_known_milvus_error(e)
         return list(res[0]) if res else []

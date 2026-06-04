@@ -68,6 +68,11 @@ class LinearPlugin(ConnectorPlugin):
 
     def _headers(self) -> dict:
         key = self._cfg("api_key") or self.credential
+        # Validate before building the header: httpx rejects a None header value with a raw
+        # "Header value must be str or bytes, not NoneType", which leaks as the probe detail.
+        # A clean message lets probe report ok=false: missing credential instead.
+        if not key:
+            raise ValueError("missing credential: api_key (set LINEAR_API_KEY)")
         return {"Authorization": key, "Content-Type": "application/json"}
 
     async def _gql(self, query: str, variables: Optional[dict] = None) -> dict:
@@ -95,6 +100,16 @@ class LinearPlugin(ConnectorPlugin):
         if cfg:
             nodes = [t for t in nodes if t["key"] in cfg or t["id"] in cfg]
         return nodes
+
+    def preset_for(self, path: str):
+        # issues.jsonl / users.jsonl -> linear.* presets. Without this the record_collection
+        # gets no text_fields and the per-row chunker emits 0 chunks (records index but are
+        # not searchable).
+        if path.endswith("/issues.jsonl"):
+            return "linear.issues"
+        if path.endswith("users.jsonl"):
+            return "linear.users"
+        return None
 
     def object_kind_of(self, path: str) -> ObjectKind:
         if path.endswith(".jsonl"):

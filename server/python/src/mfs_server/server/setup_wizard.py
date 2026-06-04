@@ -385,16 +385,27 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
         }
     elif section == "vlm":
         # `vlm` toggles summary.enabled (master switch + LLM for text summary)
-        # and the vlm.* block (LLM for image descriptions). They share the same
-        # provider/model by default — multimodal LLMs handle both. Users who
-        # want different LLMs can hand-edit summary.* separately.
+        # and the vlm.enabled + vlm.* block (LLM for image descriptions). They
+        # share the same provider/model by default — multimodal LLMs handle
+        # both. Users who want different LLMs can hand-edit summary.* / vlm.*
+        # separately. The two enable flags are independent kill switches so
+        # the operator can disable image-vision without also losing directory
+        # summaries (or vice versa) by hand-editing the toml.
         summ = current.setdefault("summary", {})
         summ["enabled"] = answers["summary_enabled"]
         if answers["summary_enabled"]:
             summ["include_image_desc"] = answers.get("summary_include_image_desc", True)
             summ["provider"] = answers["vlm_provider"]
             summ["model"] = answers["vlm_model"]
-            current["vlm"] = {"provider": answers["vlm_provider"], "model": answers["vlm_model"]}
+            current["vlm"] = {
+                "enabled": True,
+                "provider": answers["vlm_provider"],
+                "model": answers["vlm_model"],
+            }
+        else:
+            # explicit off: drop any prior vlm.enabled=true from a re-run so a
+            # second pass through the wizard actually turns image VLM off.
+            current.pop("vlm", None)
     elif section == "milvus":
         block = {k: v for k, v in answers.items() if v != ""}
         if block:

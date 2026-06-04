@@ -181,6 +181,14 @@ class Capabilities:
     manual_sync: bool = True
     watch: bool = False
     cursor_kind: Optional[str] = None
+    # cursor_kind names the mod-time field the plugin USES for its own
+    # fingerprint/delta logic (e.g. "updatedAt"). It does NOT mean the
+    # connector honors a user-supplied --since <date>. since_pushdown is a
+    # separate, explicit opt-in: only set it to True when sync() actually
+    # filters records by opts.since. Connectors declared with cursor_kind but
+    # without since_pushdown still walk the whole source — --since is a no-op
+    # there, so we reject it at the engine boundary rather than lie silently.
+    since_pushdown: bool = False
     full_scan: bool = True
     delete_detection: DeleteDetection = "explicit"
     # object access
@@ -194,6 +202,7 @@ class Capabilities:
                 "manual": self.manual_sync,
                 "watch": self.watch,
                 "cursor": self.cursor_kind,
+                "since_pushdown": self.since_pushdown,
                 "full_scan": self.full_scan,
                 "delete_detection": self.delete_detection,
             },
@@ -256,6 +265,14 @@ PRESETS: dict[str, dict] = {
         text_fields=["title", "body", "reviews[].body", "comments[].body"],
         metadata_fields=["state", "draft", "labels[*]", "author", "merged_at", "updated_at"],
         locator_fields=["number"],
+    ),
+    "jira.issues": dict(
+        # JiraPlugin._flatten_issue yields summary + description (the issue body), the
+        # comment bodies as [{"body": ...}], plus business fields — so search covers the
+        # whole issue conversation (summary + description + comments), matching jira.md.
+        text_fields=["summary", "description", "comments[].body"],
+        metadata_fields=["status", "priority", "assignee", "reporter", "labels[*]", "updated"],
+        locator_fields=["key"],
     ),
     "slack.messages": dict(
         group_by="thread_ts",
@@ -326,6 +343,74 @@ PRESETS: dict[str, dict] = {
         text_fields=["text"],
         metadata_fields=["msg_type", "create_time", "sender"],
         locator_fields=["message_id"],
+    ),
+    # HubSpot CRM objects. HubSpotPlugin flattens {id, properties:{...}} to top-level and
+    # fetches only each object's DEFAULT property set, so text_fields must reference fields
+    # actually returned by basic_api.get_page. contacts + companies are grounded against this
+    # portal's live records; deals/tickets use HubSpot's standard default property names but
+    # are UNVERIFIED here (deals had 0 records, tickets 403'd without Service Hub).
+    "hubspot.contacts": dict(
+        text_fields=["firstname", "lastname", "email"],
+        metadata_fields=["createdate", "lastmodifieddate"],
+        locator_fields=["id"],
+    ),
+    "hubspot.companies": dict(
+        text_fields=["name", "domain"],
+        metadata_fields=["createdate"],
+        locator_fields=["id"],
+    ),
+    "hubspot.deals": dict(  # unverified field names (no deal records in test portal)
+        text_fields=["dealname", "dealstage"],
+        metadata_fields=["createdate"],
+        locator_fields=["id"],
+    ),
+    "hubspot.tickets": dict(  # unverified field names (Service Hub 403 in test portal)
+        text_fields=["subject", "content"],
+        metadata_fields=["createdate"],
+        locator_fields=["id"],
+    ),
+    # Linear. Field names are grounded in LinearPlugin._flatten / the users GraphQL query
+    # (the plugin controls the record shape), but not end-to-end tested against the live API
+    # (no key available).
+    "linear.issues": dict(
+        text_fields=["title", "description"],
+        metadata_fields=["state", "priority", "assignee", "labels[*]", "updatedAt"],
+        locator_fields=["identifier"],
+    ),
+    "linear.users": dict(
+        text_fields=["name", "email"],
+        metadata_fields=["active"],
+        locator_fields=["id"],
+    ),
+    # Salesforce standard SObjects. Field names are Salesforce's documented standard API names
+    # (stable across orgs), but are UNVERIFIED here — no Salesforce org/credentials available
+    # to test against. Custom objects (<Name>__c) and non-standard SObjects have no preset and
+    # still require an explicit [[objects]] block. `Id` is the standard record id on every
+    # SObject; the connector yields raw query rows minus `attributes`.
+    "salesforce.Account": dict(
+        text_fields=["Name", "Description"],
+        metadata_fields=["Industry", "Type"],
+        locator_fields=["Id"],
+    ),
+    "salesforce.Contact": dict(
+        text_fields=["Name", "Email", "Title"],
+        metadata_fields=["Department"],
+        locator_fields=["Id"],
+    ),
+    "salesforce.Opportunity": dict(
+        text_fields=["Name", "Description"],
+        metadata_fields=["StageName", "Amount"],
+        locator_fields=["Id"],
+    ),
+    "salesforce.Case": dict(
+        text_fields=["Subject", "Description"],
+        metadata_fields=["Status", "Priority"],
+        locator_fields=["Id"],
+    ),
+    "salesforce.Lead": dict(
+        text_fields=["Name", "Company", "Email"],
+        metadata_fields=["Status"],
+        locator_fields=["Id"],
     ),
 }
 
@@ -404,6 +489,15 @@ class ConnectorPlugin(ABC):
         return None
 
     async def healthcheck(self) -> HealthStatus:
+        # Default is a best-effort no-op: connect() already happened by the
+        # time `mfs connector probe` calls us, so the connector has at least
+        # opened a client/pool. That's NOT the same as "credentials are
+        # valid and the remote actually answers" — a SaaS connector that
+        # only constructs an httpx.AsyncClient at connect() time will say
+        # ok=True even with a 401 token until the first real call. Override
+        # this with a cheap round-trip (GitHub /repos/{o}/{r}, Slack
+        # auth.test, etc.) when correctness matters for the probe UX. The
+        # github connector does; the rest currently inherit this default.
         return HealthStatus(ok=True)
 
     async def introspect_for_wizard(self) -> dict[str, dict]:
@@ -453,6 +547,16 @@ class ConnectorPlugin(ABC):
     ) -> Optional[AsyncIterator[dict]]:
         """Structured connectors override as async generator. Base returns None
         (plain def, so `is None` distinguishes implemented vs not)."""
+        return None
+
+    async def record_count(self, path: str) -> Optional[int]:
+        """Total record count for a structured object (table_rows /
+        record_collection / message_stream), used by `estimate` to extrapolate
+        chunks/tokens from a fixed-size sample. None = unknown (base default);
+        estimate falls back to per-object averages, which under-counts when one
+        object holds many records than the sample. Override on connectors where
+        a count is cheap: SQL `count(*)`, Mongo `estimated_document_count()`,
+        BigQuery `numRows`, etc."""
         return None
 
     # --- required: change detection ---
