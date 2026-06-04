@@ -17,6 +17,7 @@ import re
 from collections.abc import AsyncIterator
 from typing import Optional
 
+from slack_sdk.errors import SlackApiError
 from slack_sdk.web.async_client import AsyncWebClient
 
 from ..base import (
@@ -31,7 +32,23 @@ from ..base import (
     SyncOptions,
 )
 
-_SANITIZE = re.compile(r"[^a-zA-Z0-9_.-]+")
+# Path-segment whitelist for channel names: unicode word chars + ASCII
+# path-friendly punctuation. The previous ASCII-only `[a-zA-Z0-9_.-]`
+# collapsed CJK, Cyrillic, accented Latin channel names to "unnamed"
+# (every char was rejected, strip removed the dashes, the `or "unnamed"`
+# fallback fired). Search still worked through the `__<id>` suffix, but
+# `mfs tree slack://...` was unreadable on non-English workspaces.
+# `re.UNICODE` is the default for `\w` in Python 3, named here for the
+# reader.
+_SANITIZE = re.compile(r"[^\w.-]+", re.UNICODE)
+
+# Slack `conversations.history` errors that mean "this channel will never
+# be readable by this token, don't retry". Treated as a per-object skip in
+# read_records — the task ends with zero records but no failure, so the
+# circuit breaker doesn't count it. The primary defence is the is_member
+# filter in `_channels()`; this catches the race where the bot was removed
+# from a channel between enumeration and read.
+_HISTORY_SKIP_ERRORS = {"not_in_channel", "channel_not_found", "missing_scope"}
 
 
 def _sanitize(name: str) -> str:
@@ -77,9 +94,21 @@ class SlackPlugin(ConnectorPlugin):
     async def _channels(self) -> list[dict]:
         out, cursor = [], None
         types = self._cfg("channel_types", "public_channel")
+        # `conversations.list` returns every channel the token CAN see — for a
+        # bot token that includes public channels the bot hasn't been invited
+        # to, where `conversations.history` later fails with `not_in_channel`.
+        # Filter at enumeration time so those never reach the task queue. A
+        # private channel only appears in this list if the bot is already a
+        # member (Slack's permission model), so the same filter is safe for
+        # private channel types too. Set `include_unjoined = true` in the toml
+        # to bypass the filter (e.g. when running with a user token that
+        # already has the visibility — `is_member` is bot-centric).
+        include_unjoined = bool(self._cfg("include_unjoined", False))
         while True:
             resp = await self._client.conversations_list(types=types, cursor=cursor, limit=200)
-            out.extend(resp["channels"])
+            for ch in resp["channels"]:
+                if include_unjoined or ch.get("is_member"):
+                    out.append(ch)
             cursor = (resp.get("response_metadata") or {}).get("next_cursor")
             if not cursor:
                 break
@@ -135,9 +164,22 @@ class SlackPlugin(ConnectorPlugin):
             limit = self._cfg("max_read_rows", 50000)
             n, cursor = 0, None
             while n < limit:
-                resp = await self._client.conversations_history(
-                    channel=channel, cursor=cursor, limit=200, oldest=oldest
-                )
+                try:
+                    resp = await self._client.conversations_history(
+                        channel=channel, cursor=cursor, limit=200, oldest=oldest
+                    )
+                except SlackApiError as e:
+                    # The `is_member` filter in `_channels()` already drops
+                    # un-joined channels at enumeration time, but a channel
+                    # the bot is kicked from BETWEEN sync and read still
+                    # surfaces here. Treat the documented "I will never read
+                    # this" errors as an empty stream so the task ends
+                    # cleanly with zero records — no retry, no circuit-
+                    # breaker fatal, no spurious failure on the dashboard.
+                    code = (getattr(e, "response", None) or {}).get("error") if e else None
+                    if code in _HISTORY_SKIP_ERRORS:
+                        return
+                    raise
                 for m in resp["messages"]:
                     # ensure thread grouping key: thread_ts present for replies, else own ts
                     m.setdefault("thread_ts", m.get("ts"))

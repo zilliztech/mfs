@@ -47,7 +47,15 @@ from ..base import (
 )
 
 API = "https://discord.com/api/v10"
-_SANITIZE = re.compile(r"[^a-zA-Z0-9_.-]+")
+# Path-segment whitelist: unicode word chars (CJK, Cyrillic, accented Latin,
+# etc.) + the three ASCII path-friendly punctuation marks. The previous
+# ASCII-only `[a-zA-Z0-9_.-]` collapsed every CJK / Cyrillic / accented
+# channel name to "unnamed" because every character was rejected. That made
+# `mfs tree discord://guild/channels` unreadable on non-English servers —
+# search still worked through the `__<id>` suffix, but the UI surface was
+# garbage. `re.UNICODE` is the default for `\w` in Python 3, named here for
+# the reader.
+_SANITIZE = re.compile(r"[^\w.-]+", re.UNICODE)
 # Text channel types (parent dirs we expose).
 #   0  GUILD_TEXT
 #   5  GUILD_ANNOUNCEMENT
