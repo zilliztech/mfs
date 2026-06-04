@@ -245,7 +245,7 @@ class MilvusStore:
                     f"{self.analyzer_params!r}: {detail}\n"
                     f"  Supported BM25 tokenizers: 'standard' (default) and 'jieba' (Chinese "
                     f"segmentation; requires the jieba package — `uv pip install jieba`).\n"
-                    f"  Fix milvus.analyzer_params in server.toml (e.g. {{type = \"jieba\"}}) and "
+                    f'  Fix milvus.analyzer_params in server.toml (e.g. {{type = "jieba"}}) and '
                     f"recreate the collection: the analyzer is applied only at collection "
                     f"creation, so an existing index must be dropped and re-indexed for the "
                     f"change to take effect.",
