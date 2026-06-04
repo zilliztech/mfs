@@ -119,7 +119,11 @@ Other useful flags:
 - `--all` — search every registered connector. Otherwise scope to a path/URI prefix.
 - `--kind <list>` — restrict chunk kinds (`row_text`, `thread_aggregate`,
   `chunk_body`, `summary`, `vlm_description`, …).
-- `--collapse` — fold multiple hits from the same object into one row.
+- `--collapse` — keep only the top-scoring chunk per object; later chunks
+  from the same source are dropped, not merged. Recall stays as-is (the
+  query still hits the same candidates), but the visible result count can
+  fall below `--top-k` — collapse is a post-filter, not a re-rank. If you
+  want N distinct objects, raise `--top-k` (e.g. `--top-k 30 --collapse`).
 
 ### `--all`: when yes, when no
 
@@ -159,7 +163,7 @@ mfs search "<query>" <path> --top-k 20         # more candidates
 mfs search "<query>" <path> --mode semantic    # dense-only
 mfs search "<query>" <path> --mode keyword     # BM25-only
 mfs search "<query>" <path> --kind row_text    # restrict chunk kinds
-mfs search "<query>" <path> --collapse         # dedup per object
+mfs search "<query>" <path> --collapse         # keep top hit per object (post-filter, may return < top-k)
 ```
 
 ### Grep
