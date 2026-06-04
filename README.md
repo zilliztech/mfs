@@ -120,19 +120,38 @@ uv run --project ../server/python maturin develop --release
 With the server running on `127.0.0.1:13619`:
 
 ```bash
-mfs status                      # server up? connectors registered?
-mfs add ./my-repo               # register a directory, indexes in the background
-mfs status file://my-repo       # poll until 'available'
+mfs status                         # server up? connectors registered?
+mfs add --wait ./my-repo           # index a local directory and wait for completion
 
-mfs search "rate limit handler" --connector-uri file://my-repo --top-k 5
-# Hit returns: file path + line range
-mfs cat file://my-repo/src/throttle.go --range 42:78
+mfs search "rate limit handler" ./my-repo --top-k 5
+mfs cat ./my-repo/src/throttle.go --range 42:78
+```
+
+If you omit `--wait`, `mfs add` returns a queued job id:
+
+```bash
+mfs add ./my-repo
+mfs job show JOB_ID
 ```
 
 Beyond `file://`, MFS ships connectors for postgres, mysql, snowflake,
 mongo, github, jira, hubspot, salesforce, notion, zendesk, slack, discord,
-gmail, feishu, s3, web — twenty schemes in total. Run `mfs connector ls`
-for the registered catalog and `mfs --help` for the full CLI surface.
+gmail, feishu, s3, web — twenty schemes in total. Run `mfs connector list`
+for registered sources and `mfs --help` for the full CLI surface.
+
+Use the MkDocs guides when you need the full runbook:
+
+| Guide | Start here for |
+|---|---|
+| [Quickstart](docs/getting-started.md) | First local run, checkpoints, and upload mode. |
+| [CLI Reference](docs/cli.md) | Current command forms, flags, jobs, and profiles. |
+| [Search and Browse](docs/search-and-browse.md) | Search, reopen exact evidence, and read narrow ranges. |
+| [Connectors](docs/connectors.md) | Connector catalog, TOML config, credentials, and lifecycle. |
+| [Configuration](docs/configuration.md) | Server defaults, auth, endpoint, token, and profile precedence. |
+| [Providers and Processing](docs/providers.md) | Embedding providers, setup extras, first-run cache behavior, and VLM/summary processing. |
+| [Deployment](docs/deployment.md) | Source, Docker, Compose, and beta deployment boundaries. |
+| [Troubleshooting](docs/troubleshooting.md) | Endpoint, auth, upload, indexing, and browse failures. |
+| [Development](docs/development.md) | Package boundaries, local setup, checks, and OpenAPI-to-SDK regeneration. |
 
 ## For agents
 

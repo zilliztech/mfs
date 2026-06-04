@@ -45,21 +45,17 @@ mfs search "request validation" ./src/
 mfs search "deprecated API" --top-k 20 --all
 ```
 
-### `mfs grep <pattern> [path] [--all] [-C N] [-i]`
+### `mfs grep <pattern> <path>`
 
-Indexed BM25 prefilter + exact regex on indexed files, with a system-grep
-fallback on un-indexed files under the scope path.
+Server-side keyword/full-text search for exact text under a required path.
 
-- **No path, no `--all`, tty stdin**: **errors out**.
-- **`<path>` positional**: matches Linux grep convention.
-- **`--all`**: grep across the whole index.
-- **`-C N`**: context lines before / after each match.
-- **`-i`**: case insensitive.
+- **`<path>` positional**: required scope path.
+- Use global `mfs --json grep ...` when you need JSON locators.
 
 ```
-mfs grep "ERR_TOKEN_EXPIRED" --all
-mfs grep -C 3 "class.*Middleware" ./src/
-mfs grep -i "todo" --all
+mfs grep "ERR_TOKEN_EXPIRED" ./src/
+mfs --json grep "Middleware" ./src/
+mfs grep "todo" ./src/
 ```
 
 ## Common patterns (situations, not steps)

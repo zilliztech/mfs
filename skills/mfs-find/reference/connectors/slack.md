@@ -94,5 +94,5 @@ mfs cat slack://acme/channels/eng-backend__C067890/messages.jsonl \
   search time on `metadata.user` or set up an `[[objects]]` filter.
 - **`/users.jsonl` may be `available` but `mfs search` returns no user
   hits**: connector might be on an older sync that pre-dates the
-  users-indexing feature. `mfs add slack://<alias> --update` to pick
-  it up.
+  users-indexing feature. Run `mfs add slack://<alias>` to pick it up;
+  use `--full` only when cached chunks must be rebuilt.

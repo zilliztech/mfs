@@ -48,6 +48,15 @@ These are curated, shortened traces from two separate agent runs on the same
 task. They remove absolute paths, long article excerpts, and low-signal tool
 output; they are not the full raw transcripts.
 
+Current CLI equivalents for the MFS trace browse steps:
+
+```bash
+mfs cat corpus/wixqa/articles/Editor_X_Adding_Wix_Bookings__be2c674a3e.md --peek
+mfs cat corpus/wixqa/articles/Wix_Bookings_Upgrading_Your_Site__d44da9f634.md --peek
+```
+
+The JSONL trace preserves older density flags as historical command records.
+
 ### Shell-Only Run
 
 | Step | Action | What happened | Why it mattered |
@@ -61,7 +70,7 @@ output; they are not the full raw transcripts.
 | Step | Action | What happened | Why it mattered |
 | ---: | --- | --- | --- |
 | 1 | search | `mfs search` returned the upgrade-specific Wix Bookings article alongside the setup article. | The correct intent appeared before a long manual file search. |
-| 2 | browse | `mfs cat --peek` checked both the setup article and the upgrade article. | The article outlines made the distinction obvious. |
+| 2 | browse | `mfs cat PATH --peek` checked both the setup article and the upgrade article. | The article outlines made the distinction obvious. |
 | 3 | final | It returned the Wix Bookings upgrade article. | The answer matched the user's actual blocker in 3 commands. |
 
 This example is useful because the mistake is easy to see: setup is not the

@@ -49,6 +49,17 @@ These are curated, shortened traces from two separate agent runs on the same
 task. They remove absolute paths, long article excerpts, and low-signal tool
 output; they are not the full raw transcripts.
 
+Current CLI equivalents for article-outline browse are:
+
+```bash
+mfs cat corpus/wixqa/articles/Email_Marketing_Upgrading_Your_Email_Marketing_Plan__de6e96935f.md --peek
+mfs cat corpus/wixqa/articles/Email_Marketing_Creating_a_Campaign_from_Start_to_Finish__1403e3db01.md --peek
+```
+
+Use `mfs cat PATH --skim` for a richer overview, or
+`mfs cat PATH --range A:B` for exact line windows. The JSONL trace preserves
+older density flags as historical command records.
+
 ### Shell-Only Run
 
 | Step | Action | What happened | Why it mattered |
@@ -62,7 +73,7 @@ output; they are not the full raw transcripts.
 | Step | Action | What happened | Why it mattered |
 | ---: | --- | --- | --- |
 | 1 | search | `mfs search` surfaced free quota and upgrade-plan candidates from the natural-language question. | The search started closer to the billing/plan intent. |
-| 2 | browse | `mfs cat --peek` compared the free-quota, upgrade-plan, and monthly-balance article structures. | Browse made adjacent candidate comparison cheap. |
+| 2 | browse | `mfs cat PATH --peek` compared the free-quota, upgrade-plan, and monthly-balance article structures. | Browse made adjacent candidate comparison cheap. |
 | 3 | search | A refined MFS query for plan pricing and free monthly emails surfaced the companion campaign article. | The agent recognized that the answer needed two articles. |
 | 4 | final | It returned both expected articles. | The final answer covered both pricing/upgrade and campaign flow. |
 

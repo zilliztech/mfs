@@ -16,7 +16,7 @@ The work splits into:
 2. Collecting credentials (preferring `env:VAR` / `file:/path` indirection
    over plaintext).
 3. Writing a connector TOML.
-4. Calling `mfs add <uri> --config <toml>` and tailing the job.
+4. Calling `mfs add <uri> --config <toml>` and monitoring the returned job.
 
 Each connector has its own field set, credential acquisition story, and
 gotchas. Per-connector details live in
@@ -27,8 +27,9 @@ collecting fields** for any scheme.
 
 ```bash
 mfs --version            # missing? `uv tool install mfs`
-mfs server-info          # server reachable?
-mfs connector ls         # what's already configured?
+mfs status               # server reachable? connectors/jobs visible?
+mfs config show          # endpoint/profile/client id/server-info debugging
+mfs connector list       # what's already configured?
 ```
 
 Branch on the result:
@@ -36,9 +37,9 @@ Branch on the result:
 | Signal | Action |
 |---|---|
 | `mfs` not found | install: `uv tool install mfs` |
-| `server-info` connection refused | tell user: `uv tool install mfs-server && mfs-server setup && mfs-server run`. Cannot proceed without a server. |
-| `server-info` 401 unauthorized | the user's `MFS_API_TOKEN` is missing/wrong — tell them to `export MFS_API_TOKEN=$(cat ~/.mfs/server.token)` and retry |
-| server up + `connector ls` empty | first-ever connector; jump to **§B (greenfield walk-through)** when intent matches |
+| `mfs status` connection refused | tell user: `uv tool install mfs-server && mfs-server setup && mfs-server run`. Cannot proceed without a server. |
+| `mfs status` returns 401 unauthorized | the user's `MFS_API_TOKEN` is missing/wrong. Use `mfs config show` to confirm the endpoint/profile, then set the intended token source and retry. |
+| server up + `connector list` empty | first-ever connector; jump to **§B (greenfield walk-through)** when intent matches |
 | server up + N connectors registered | proceed to Step 1 intent classification |
 
 ## Step 1: Classify intent (the central decision)
@@ -100,31 +101,37 @@ to the user, then write toml + run `mfs add`.
    Use a path like `/tmp/mfs-<alias>.toml` so it doesn't pollute the
    user's cwd.
 
-4. **Run `mfs add` with --estimate first** for sources where cost
-   matters (databases >100k rows, GitHub repos with many issues, large
-   Slack workspaces, full website crawls):
-   ```bash
-   mfs add <uri> --config /tmp/mfs-<alias>.toml --estimate
-   ```
-   Show the estimate to the user. If chunk count >50k or estimated
-   embedding spend looks non-trivial (tens of dollars at the configured
-   embedding rate), ASK to confirm before continuing.
-
-   Skip --estimate for small / unambiguous sources (single repo of docs,
-   one CRM with <10k records, a defined Slack channel).
-
-5. **Run `mfs add`** for real:
+4. **Run `mfs add` in estimate-confirm mode** for external sources where
+   cost matters (databases >100k rows, GitHub repos with many issues,
+   large Slack workspaces, full website crawls):
    ```bash
    mfs add <uri> --config /tmp/mfs-<alias>.toml
    ```
-   Capture the returned `job_id`.
+   For non-local targets, the current CLI automatically calls
+   `/v1/connectors/estimate` and prompts `Continue? [y/N]` unless `--yes`
+   is set. There is no standalone `--estimate` flag. Show the estimate to
+   the user and only answer yes when the user has approved.
 
-6. **Tail the job** until terminal state:
+   For small / unambiguous sources (single repo of docs, one CRM with
+   <10k records, a defined Slack channel), the same command is still the
+   normal add path. Use `--yes` only when the user has already accepted
+   skipping the estimate confirmation.
+
+5. **Capture the queued job id**. If the step 4 command was approved at the
+   prompt, it already queued the job. For local targets, or when the user has
+   explicitly approved skipping the estimate confirmation, run:
    ```bash
-   mfs job ls --tail <job_id>
+   mfs add <uri> --config /tmp/mfs-<alias>.toml
+   ```
+   Capture the returned `job_id`. Add `--wait` when the user wants the
+   command itself to block until indexing reaches a terminal state.
+
+6. **Follow the job** until terminal state:
+   ```bash
+   mfs job show <job_id>
    # or polled:
    while true; do
-     state=$(mfs job get <job_id> --json | jq -r .status)
+     state=$(mfs job show <job_id> | jq -r .status)
      [ "$state" = succeeded ] || [ "$state" = failed ] && break
      sleep 5
    done
@@ -136,7 +143,7 @@ to the user, then write toml + run `mfs add`.
    - `succeeded` + `succeeded_objects == 0` → check `mfs ls <uri>` —
      either source genuinely empty, or wrong `text_fields`/scope.
      Read `reference/troubleshooting.md`.
-   - `failed` → read job's `error.detail`, match against
+   - `failed` → read the job's `error` field, match against
      `reference/troubleshooting.md`, propose a fix and ask user.
 
 ---
@@ -175,7 +182,7 @@ delegate to §A's steps 2-7 with the chosen scheme.
    `env:VAR_NAME` if it's already exported, or paste the value here").
 
 5. **Continue with §A from step 2** (collect fields → write toml →
-   estimate → add → tail → confirm).
+   estimate-confirm/add → follow job → confirm).
 
 ---
 
@@ -187,14 +194,15 @@ want to wait for the next scheduled sync.
 
 1. **Confirm the URI** matches a registered connector:
    ```bash
-   mfs connector ls | grep <alias-or-scheme>
+   mfs connector list | grep <alias-or-scheme>
    ```
    If not found, redirect to §B.
 
 2. **Confirm with the user** when it's a force-full re-index (re-embeds
    everything, costs tokens):
    > "Re-syncing `<uri>`. Pick one:
-   >   • `--update`  pull only what's changed since last sync (cheap)
+   >   • no flag     pull changed data using the connector's normal sync path
+   >   • `--since`   ask connectors with a time cursor to limit the sync
    >   • `--full`    re-embed everything from scratch (re-bills embedding
    >                 API; only do this if you've changed `text_fields`,
    >                 the embedding model, or chunking config)"
@@ -206,7 +214,7 @@ want to wait for the next scheduled sync.
    mfs add <uri> --since <date>   # only new content since date
    ```
 
-4. **Tail + confirm** as in §A step 6-7.
+4. **Follow + confirm** as in §A step 6-7.
 
 ---
 
@@ -239,15 +247,15 @@ User wants to change a registered connector — new token, different
 
 3. **Apply the minimum diff**. Don't rewrite unrelated fields.
 
-4. **Run with `--update`** so the engine recognises this is a config
-   change, not a fresh registration:
+4. **Run `mfs connector update`** so the engine applies the new config
+   through the explicit update path:
    ```bash
-   mfs add <uri> --config $MFS_HOME/connectors/<alias>.toml --update
+   mfs connector update <uri> --config $MFS_HOME/connectors/<alias>.toml
    ```
 
-5. **Tail + confirm** as in §A step 6-7.
+5. **Follow + confirm** as in §A step 6-7.
 
-### When does `--update` re-embed?
+### When does a config update re-embed?
 
 | What changed | Re-embed? |
 |---|---|
@@ -257,20 +265,20 @@ User wants to change a registered connector — new token, different
 | `embedding.*` in server config | yes (and affects ALL connectors) |
 | `[[objects]] indexable = false` | drops that object from index |
 
-If the change forces re-embedding and the source is large, suggest
-estimating first (§A step 4 form).
+If the change forces re-embedding and the source is large, ask the user before
+running the update if the cost cannot be estimated from the CLI.
 
 ---
 
 ## §E. List registered connectors
 
 ```bash
-mfs connector ls                          # via the running server (live state)
+mfs connector list                        # via the running server (live state)
 mfs-server connector list                 # on-disk tomls under $MFS_HOME/connectors/
 ```
 
 The two views can differ:
-- `mfs connector ls` shows what the server has registered in its
+- `mfs connector list` shows what the server has registered in its
   metadata DB.
 - `mfs-server connector list` shows the toml files on disk (admin spec).
 
@@ -300,15 +308,15 @@ After they answer, jump to the matching §.
 Cheap reads any path may need:
 
 ```bash
-mfs server-info                  # server up?
 mfs status                       # server + all connectors at a glance
-mfs status <uri>                 # one connector's per-object index state
-mfs connector ls                 # live server view
+mfs config show                  # endpoint/profile/client id/server info
+mfs connector inspect <uri>      # one connector's object/job summary
+mfs ls <uri> --json              # per-entry search_status
+mfs connector list               # live server view
 mfs-server connector list        # on-disk toml view (admin)
-mfs job ls                       # in-flight ingest jobs
-mfs job ls --tail <job_id>       # follow one job
-mfs job get <job_id> --json      # one job's state
-mfs job logs <job_id>            # if failed, the cause
+mfs job list                     # recent ingest jobs
+mfs job show <job_id>            # one job's state and error field
+mfs job cancel <job_id>          # cancel a queued/running job
 mfs remove <uri>                 # drop a connector + its index data (DESTRUCTIVE)
 ```
 

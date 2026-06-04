@@ -32,23 +32,34 @@ nav:
     - Home: index.md
     - Why MFS: why.md
     - Architecture: architecture.md
-    - Roadmap: roadmap.md
+    - Status and Limits: roadmap.md
   - Get Started:
     - Quickstart: getting-started.md
+    - Examples: examples.md
     - Configuration: configuration.md
+    - Auth and Secrets: auth-and-secrets.md
+    - Providers and Processing: providers.md
     - Deployment: deployment.md
+    - Storage and Backup: storage-and-backup.md
     - Troubleshooting: troubleshooting.md
   - User Guide:
     - Search and Browse: search-and-browse.md
+    - Jobs and Indexing Progress: jobs.md
     - CLI Reference: cli.md
     - Connectors: connectors.md
+    - Connector Configuration Recipes: connector-config-recipes.md
+    - Connector Reference: connector-reference.md
     - Skills: skills.md
   - Developer Guide:
+    - Content Model: content-model.md
+    - Development: development.md
     - Server: server.md
     - HTTP API: api.md
     - SDKs: sdks.md
     - Evaluation: evaluation.md
   - Help:
+    - Error Codes: errors.md
+    - Glossary: glossary.md
     - FAQ: faq.md
 
 markdown_extensions:

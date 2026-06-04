@@ -1,0 +1,899 @@
+# Connector Reference
+
+This page keeps connector-specific details searchable inside the MkDocs site.
+Use [Connectors](connectors.md) for choosing a source and managing its
+lifecycle. Use [Connector Configuration Recipes](connector-config-recipes.md)
+when you already chose a scheme and need to author, probe, update, and validate
+TOML. Use this page when you need a concrete URI shape, minimum TOML,
+probe/add command, browse path, locator, or pitfall for one built-in scheme.
+
+The built-in scheme list below is taken from the server registry. `file` is
+always imported. The other built-ins are imported lazily and may be skipped in a
+server environment that does not have that connector's optional dependencies.
+Always probe the connector on the target server before queueing a large sync.
+
+```bash
+mfs connector probe <scheme://alias> --config ./connector.toml
+mfs add <scheme://alias> --config ./connector.toml --wait
+```
+
+!!! note "Config and secret references"
+    Connector TOML is loaded by the CLI and sent as the API `config` object.
+    Top-level `env:VAR` and `file:/abs/path` string values are resolved by the
+    server before the plugin is built. Use `credential_ref` when a connector
+    explicitly consumes the resolved `credential` fallback, such as Snowflake's
+    private key.
+
+For a cross-scheme decision table, credential matrix, `[[objects]]` field
+guide, recipe tabs, and readback validation examples, see
+[Connector Configuration Recipes](connector-config-recipes.md).
+
+## Built-in Scheme Index
+
+| Scheme | Primary tree shape | Use it for |
+|---|---|---|
+| [`file`](#file) | `file://local/abs/path/...` | Local directory trees and uploaded local paths. |
+| [`web`](#web) | `web://alias/pages/<host>/<path>.md` | HTTP pages converted to markdown. |
+| [`github`](#github) | `github://owner/repo/<repo-path>` | GitHub repository files, optionally issues and PRs. |
+| [`postgres`](#postgres) | `postgres://alias/<schema>/<table>/rows.jsonl` | Postgres rows and table schemas. |
+| [`mysql`](#mysql) | `mysql://alias/<table>/rows.jsonl` | MySQL rows in one database. |
+| [`mongo`](#mongo) | `mongo://alias/<collection>/documents.jsonl` | MongoDB documents in one database. |
+| [`slack`](#slack) | `slack://alias/channels/<name>__<id>/messages.jsonl` | Slack channel threads and workspace users. |
+| [`discord`](#discord) | `discord://alias/channels/<name>__<id>/messages.jsonl` | Discord text channel messages and active threads. |
+| [`gmail`](#gmail) | `gmail://alias/labels/<label>__<id>/messages.jsonl` | Gmail label streams grouped by `threadId`. |
+| [`notion`](#notion) | `notion://alias/pages/<id>.md` | Notion pages and data source records. |
+| [`jira`](#jira) | `jira://alias/projects/<key>/issues.jsonl` | Jira issue records by project. |
+| [`linear`](#linear) | `linear://alias/teams/<key>/issues.jsonl` | Linear issue records by team. |
+| [`zendesk`](#zendesk) | `zendesk://alias/tickets/records.jsonl` | Zendesk tickets, comments, users, and organizations. |
+| [`salesforce`](#salesforce) | `salesforce://alias/<SObject>/records.jsonl` | Salesforce sObject records. |
+| [`hubspot`](#hubspot) | `hubspot://alias/<object>/records.jsonl` | HubSpot CRM object records. |
+| [`bigquery`](#bigquery) | `bigquery://alias/<dataset>/tables/<table>/rows.jsonl` | BigQuery table rows and schemas. |
+| [`snowflake`](#snowflake) | `snowflake://alias/<DB>/<SCHEMA>/tables/<TABLE>/rows.jsonl` | Snowflake table rows and schemas. |
+| [`s3`](#s3) | `s3://alias/<object-key>` | S3-compatible object-key trees. |
+| [`gdrive`](#gdrive) | `gdrive://alias/<folder>/<file>` | Google Drive file trees. |
+| [`feishu`](#feishu) | `feishu://alias/chats/<name>__<id>/messages.jsonl` | Feishu/Lark chats and docx documents. |
+
+## `file`
+
+**URI shape:** bare local paths are accepted by the CLI. The server identity for
+same-host paths is `file://local/abs/path`. Uploaded remote paths use
+`file://<client_id><abs-root>`.
+
+**Minimum config:** no TOML for the simple case. Optional TOML can set
+`max_file_bytes` and `[[objects]]` rules such as `indexable = false`.
+
+**Start:**
+
+```bash
+mfs add ./docs --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "release checklist" ./docs --top-k 10
+mfs cat ./docs/README.md --range 1:80
+```
+
+**Common pitfalls:**
+
+- `.gitignore`, `.mfsignore`, and built-in ignore patterns remove files from
+  the visible tree.
+- Large files can be skipped by `max_file_bytes`.
+- `indexable = false` keeps an object browsable but prevents embedding chunks.
+- Symlinks are resolved under the connector root; paths that escape the root
+  are rejected.
+
+## `web`
+
+**URI shape:** `web://<alias>/pages/<host>/<url-path>.md`. URLs are fetched,
+converted to markdown, and exposed under `pages/`.
+
+**Minimum config:**
+
+```toml
+start_urls = ["https://docs.example.com/"]
+allowed_domains = ["docs.example.com"]
+max_pages = 100
+```
+
+**Start:**
+
+```bash
+mfs connector probe web://docs --config ./web.toml
+mfs add web://docs --config ./web.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "installation" web://docs
+mfs ls web://docs/pages/docs.example.com
+mfs cat web://docs/pages/docs.example.com/index.md --range 1:80
+```
+
+**Common pitfalls:**
+
+- The connector fetches HTTP responses; it does not execute client-side
+  JavaScript.
+- `allowed_domains` limits traversal. External links may appear in markdown but
+  are not indexed unless they match the allowed domain set.
+- `max_pages` is a crawl cap; raise it and re-sync if pages are missing.
+- Authentication is not modeled by the current plugin.
+
+## `github`
+
+**URI shape:** `github://<owner>/<repo>/...`. Repository files are exposed at
+their repo paths, for example `github://zilliztech/mfs/server/python/...`.
+When `index_meta = true`, `_meta/issues.jsonl`, `_meta/pulls.jsonl`, and PR
+diff documents are also exposed.
+
+**Minimum config:**
+
+```toml
+repo = "zilliztech/mfs"
+branch = "main"
+index_meta = true
+max_read_rows = 5000
+```
+
+Set `GITHUB_TOKEN` in the server environment for authenticated requests. The
+current plugin reads that environment variable directly when building GitHub
+API headers.
+
+**Start:**
+
+```bash
+mfs connector probe github://zilliztech/mfs --config ./github.toml
+mfs add github://zilliztech/mfs --config ./github.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "connector registry" github://zilliztech/mfs/server/python
+mfs cat github://zilliztech/mfs/server/python/src/mfs_server/connectors/registry.py --range 1:80
+mfs cat github://zilliztech/mfs/_meta/issues.jsonl --locator '{"number":42}'
+```
+
+**Common pitfalls:**
+
+- Set `repo` explicitly in TOML. The current plugin reads `repo` from config
+  instead of deriving it from the URI.
+- Issues, pulls, and PR diffs are opt-in through `index_meta = true`.
+- Private repositories need `GITHUB_TOKEN` in the server process environment.
+- Submodules are not followed as separate repository trees.
+
+## `postgres`
+
+**URI shape:** `postgres://<alias>/<schema>/<table>/rows.jsonl` for rows and
+`postgres://<alias>/<schema>/<table>/schema.json` for schema summaries.
+
+**Minimum config:**
+
+```toml
+dsn = "env:PG_DSN"
+schemas = ["public"]
+max_read_rows = 100000
+
+[[objects]]
+match = "/public/tickets"
+text_fields = ["title", "description"]
+locator_fields = ["id"]
+metadata_fields = ["status", "updated_at"]
+```
+
+**Start:**
+
+```bash
+mfs connector probe postgres://prod-db --config ./postgres.toml
+mfs add postgres://prod-db --config ./postgres.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "SSO migration" postgres://prod-db/public/tickets/rows.jsonl
+mfs search "email column" postgres://prod-db --kind schema_summary
+mfs cat postgres://prod-db/public/tickets/rows.jsonl --locator '{"id":12345}'
+```
+
+**Common pitfalls:**
+
+- Missing `[[objects]].text_fields` means rows enumerate but produce no
+  searchable row chunks.
+- `match` should target the connector-relative object path, such as
+  `/public/tickets`, so it matches `/public/tickets/rows.jsonl`.
+- Use read-only database credentials; the connector only needs `SELECT`.
+- `max_read_rows` caps large tables and can mark recall as partial.
+
+## `mysql`
+
+**URI shape:** `mysql://<alias>/<table>/rows.jsonl` for rows and
+`mysql://<alias>/<table>/schema.json` for schema summaries. The configured
+database is the connector scope.
+
+**Minimum config:**
+
+```toml
+host = "db.example.com"
+port = 3306
+database = "prod"
+user = "mfs_reader"
+password = "env:MYSQL_PASSWORD"
+
+[[objects]]
+match = "/tickets"
+text_fields = ["title", "description"]
+locator_fields = ["id"]
+```
+
+**Start:**
+
+```bash
+mfs connector probe mysql://prod-db --config ./mysql.toml
+mfs add mysql://prod-db --config ./mysql.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "billing bug" mysql://prod-db/tickets/rows.jsonl
+mfs search "email column" mysql://prod-db --kind schema_summary
+mfs cat mysql://prod-db/tickets/rows.jsonl --locator '{"id":12345}'
+```
+
+**Common pitfalls:**
+
+- A single connector covers one database; register another connector for
+  another database.
+- Missing `[[objects]]` text fields gives you browsable rows but no row search.
+- Legacy `utf8` collations can return mojibake for 4-byte characters.
+- Long table scans can hit MySQL server timeouts; lower `max_read_rows` while
+  testing.
+
+## `mongo`
+
+**URI shape:** `mongo://<alias>/<collection>/documents.jsonl` for documents and
+`mongo://<alias>/<collection>/schema.json` for a sampled schema preview.
+
+**Minimum config:**
+
+```toml
+uri = "env:MONGO_URI"
+database = "prod"
+cursor_field = "updatedAt"
+
+[[objects]]
+match = "/support_threads"
+text_fields = ["title", "messages[].body"]
+locator_fields = ["_id"]
+metadata_fields = ["status"]
+```
+
+**Start:**
+
+```bash
+mfs connector probe mongo://prod-cluster --config ./mongo.toml
+mfs add mongo://prod-cluster --config ./mongo.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "refund escalation" mongo://prod-cluster/support_threads/documents.jsonl
+mfs cat mongo://prod-cluster/support_threads/documents.jsonl --locator '{"_id":"65a3..."}'
+```
+
+**Common pitfalls:**
+
+- Mongo documents are heterogeneous; fields absent from a document are skipped
+  during text rendering.
+- `_id` locators use the serialized string form, not `ObjectId(...)`.
+- `max_read_docs` can cap a large collection.
+- The current plugin exposes `documents.jsonl`; older references may say
+  `docs.jsonl`.
+
+## `slack`
+
+**URI shape:** `slack://<alias>/channels/<name>__<id>/messages.jsonl` for
+channel messages and `slack://<alias>/users.jsonl` for workspace users.
+
+**Minimum config:**
+
+```toml
+token = "env:SLACK_BOT_TOKEN"
+channel_types = ["public_channel"]
+max_read_rows = 50000
+```
+
+No `[[objects]]` is required for messages or users because built-in presets
+apply `text_fields`, grouping, and locators.
+
+**Start:**
+
+```bash
+mfs connector probe slack://acme --config ./slack.toml
+mfs add slack://acme --config ./slack.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "deploy failed" slack://acme/channels/eng-backend__C012345/messages.jsonl
+mfs search "Alice Wang" slack://acme/users.jsonl
+mfs cat slack://acme/channels/eng-backend__C012345/messages.jsonl --locator '{"thread_ts":"1717123456.001200"}'
+```
+
+**Common pitfalls:**
+
+- Private channels require both scopes and bot membership.
+- Search hits are thread aggregates, so a short query can reopen a long thread.
+- `user` values in messages are Slack user IDs; use `/users.jsonl` to resolve
+  names.
+- `max_read_rows` applies per channel and can make recall partial.
+
+## `discord`
+
+**URI shape:** `discord://<alias>/channels/<name>__<id>/messages.jsonl` for
+top-level channel messages. Active thread channels appear under
+`/channels/<parent>__<id>/threads/<thread>__<id>/messages.jsonl`.
+
+**Minimum config:**
+
+```toml
+token = "env:DISCORD_BOT_TOKEN"
+guild_id = "987654321098765432"
+max_read_rows = 50000
+```
+
+No `[[objects]]` is required because the `discord.messages` preset applies.
+
+**Start:**
+
+```bash
+mfs connector probe discord://community --config ./discord.toml
+mfs add discord://community --config ./discord.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "deploy failed" discord://community
+mfs ls discord://community/channels/general__987654321
+mfs cat discord://community/channels/general__987654321/messages.jsonl --locator '{"id":"1234567890123456789"}'
+```
+
+**Common pitfalls:**
+
+- The bot needs Message Content Intent, or message `content` can be empty.
+- Only text and announcement channels are enumerated.
+- Only active threads are listed by the current plugin; archived threads are
+  not included.
+- Discord messages are indexed one message per row, not one thread aggregate.
+
+## `gmail`
+
+**URI shape:** `gmail://<alias>/labels/<label>__<id>/messages.jsonl`. Message
+records are grouped by Gmail `threadId` by the framework preset.
+
+**Minimum config:**
+
+```toml
+token = "env:GMAIL_ACCESS_TOKEN"
+labels = ["INBOX"]
+max_read_rows = 5000
+```
+
+The current plugin builds `google.oauth2.credentials.Credentials` from the
+configured `token` value when it is a string, or from
+`Credentials.from_authorized_user_info` when the parsed TOML value is an object.
+Probe the connector in the target server before syncing.
+
+**Start:**
+
+```bash
+mfs connector probe gmail://work --config ./gmail.toml
+mfs add gmail://work --config ./gmail.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "contract renewal" gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl
+mfs cat gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl --locator '{"threadId":"THREAD_ID","id":"MESSAGE_ID"}'
+```
+
+**Common pitfalls:**
+
+- The current path leaf is `messages.jsonl`; older references may say
+  `threads.jsonl`.
+- Label matching uses Gmail label names or IDs returned by the API.
+- Attachments are not indexed by the current connector.
+- Large labels can hit `max_read_rows` and produce partial recall.
+
+## `notion`
+
+**URI shape:** pages are `notion://<alias>/pages/<page-id>.md`. Data source
+records are `notion://<alias>/data_sources/<data-source-id>/records.jsonl` with
+`schema.json` next to them.
+
+**Minimum config:**
+
+```toml
+token = "env:NOTION_TOKEN"
+
+[[objects]]
+match = "/data_sources/<data-source-id>"
+text_fields = ["Name", "Description"]
+locator_fields = ["id"]
+```
+
+The `[[objects]]` block is only needed for searchable data source records.
+Pages render as markdown documents without per-record config.
+
+**Start:**
+
+```bash
+mfs connector probe notion://workspace --config ./notion.toml
+mfs add notion://workspace --config ./notion.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "launch checklist" notion://workspace/pages
+mfs cat notion://workspace/pages/<page-id>.md --range 1:80
+mfs cat notion://workspace/data_sources/<data-source-id>/records.jsonl --locator '{"id":"<page-id>"}'
+```
+
+**Common pitfalls:**
+
+- The integration only sees pages and data sources that were shared with it.
+- The current plugin uses Notion `data_source` APIs and paths under
+  `data_sources/`; older references may say `databases/`.
+- Data source records need `[[objects]].text_fields` to become searchable.
+- Notion typed properties are flattened before record rendering.
+
+## `jira`
+
+**URI shape:** `jira://<alias>/projects/<project-key>/issues.jsonl` plus
+`jira://<alias>/users.jsonl`.
+
+**Minimum config:**
+
+```toml
+url = "https://acme.atlassian.net"
+cloud = true
+username = "alice@acme.com"
+api_token = "env:JIRA_API_TOKEN"
+projects = ["ENG", "OPS"]
+max_read_rows = 50000
+
+[[objects]]
+match = "/projects/ENG"
+text_fields = ["summary", "description"]
+locator_fields = ["key"]
+metadata_fields = ["status", "priority", "updated"]
+```
+
+**Start:**
+
+```bash
+mfs connector probe jira://acme --config ./jira.toml
+mfs add jira://acme --config ./jira.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "SSO regression" jira://acme/projects/ENG/issues.jsonl
+mfs cat jira://acme/projects/ENG/issues.jsonl --locator '{"key":"ENG-1234"}'
+```
+
+**Common pitfalls:**
+
+- Without `projects`, the connector enumerates all visible projects.
+- The current flattened record uses `key` as the issue key field.
+- Add `[[objects]]` text fields for issue rows unless your deployment has a
+  generated config that already did this.
+- API token permissions are the user's permissions; restricted projects can
+  appear empty.
+
+## `linear`
+
+**URI shape:** `linear://<alias>/teams/<team-key>/issues.jsonl` plus
+`linear://<alias>/users.jsonl`.
+
+**Minimum config:**
+
+```toml
+api_key = "env:LINEAR_API_KEY"
+teams = ["ENG"]
+
+[[objects]]
+match = "/teams/ENG"
+text_fields = ["title", "description"]
+locator_fields = ["identifier"]
+metadata_fields = ["state", "priority", "updatedAt"]
+```
+
+**Start:**
+
+```bash
+mfs connector probe linear://workspace --config ./linear.toml
+mfs add linear://workspace --config ./linear.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "billing migration" linear://workspace/teams/ENG/issues.jsonl
+mfs cat linear://workspace/teams/ENG/issues.jsonl --locator '{"identifier":"ENG-42"}'
+```
+
+**Common pitfalls:**
+
+- The GraphQL API key is sent as the raw `Authorization` header value, not
+  `Bearer <token>`.
+- If `teams` is omitted, all visible teams are enumerated.
+- Add `[[objects]]`; the current plugin has no built-in Linear preset.
+- The current flattened issue record contains `identifier`, not an `id` field.
+
+## `zendesk`
+
+**URI shape:** tickets are `zendesk://<alias>/tickets/records.jsonl`, ticket
+comments are `/tickets/comments.jsonl`, users are `/users/records.jsonl`, and
+organizations are `/organizations/records.jsonl`.
+
+**Minimum config:**
+
+```toml
+subdomain = "acme"
+email = "alice@acme.com"
+api_token = "env:ZENDESK_API_TOKEN"
+max_read_rows = 50000
+```
+
+The connector schema in the wizard labels the email field as `username`, while
+the current plugin reads `email` when building Zendesk Basic auth. Probe the
+target config before syncing.
+
+**Start:**
+
+```bash
+mfs connector probe zendesk://acme --config ./zendesk.toml
+mfs add zendesk://acme --config ./zendesk.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "billing dispute" zendesk://acme/tickets/records.jsonl
+mfs search "refund policy" zendesk://acme/tickets/comments.jsonl
+mfs cat zendesk://acme/tickets/records.jsonl --locator '{"id":12345}'
+```
+
+**Common pitfalls:**
+
+- The built-in preset applies only to ticket records. Add `[[objects]]` if you
+  need searchable comments, users, or organizations.
+- Ticket comments are fetched per ticket and can be expensive on large tenants.
+- Internal comments can be indexed if the API user can see them.
+- `max_read_rows` caps each resource path.
+
+## `salesforce`
+
+**URI shape:** `salesforce://<alias>/<SObject>/records.jsonl` and
+`salesforce://<alias>/<SObject>/schema.json`.
+
+**Minimum config:**
+
+```toml
+username = "alice@acme.com"
+password = "env:SF_PASSWORD"
+security_token = "env:SF_SECURITY_TOKEN"
+domain = "login"
+objects = ["Account", "Contact", "Opportunity", "Case"]
+
+[[objects]]
+match = "/Account"
+text_fields = ["Name", "Description"]
+locator_fields = ["Id"]
+metadata_fields = ["LastModifiedDate"]
+```
+
+If `session_id` is set, the plugin uses `instance_url` plus `session_id`
+instead of username/password/security-token login.
+
+**Start:**
+
+```bash
+mfs connector probe salesforce://acme --config ./salesforce.toml
+mfs add salesforce://acme --config ./salesforce.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "renewal risk" salesforce://acme/Account/records.jsonl
+mfs cat salesforce://acme/Account/records.jsonl --locator '{"Id":"001AB..."}'
+```
+
+**Common pitfalls:**
+
+- Add `[[objects]]` text fields; Salesforce has no built-in row preset.
+- Field-level security controls which fields the API user can read.
+- Custom object names usually end in `__c` and must be included in `objects`.
+- Use `domain = "test"` for sandboxes.
+
+## `hubspot`
+
+**URI shape:** `hubspot://<alias>/<object>/records.jsonl`, for example
+`hubspot://acme/contacts/records.jsonl`.
+
+**Minimum config:**
+
+```toml
+access_token = "env:HUBSPOT_ACCESS_TOKEN"
+object_types = ["contacts", "companies", "deals", "tickets"]
+max_read_rows = 50000
+
+[[objects]]
+match = "/contacts"
+text_fields = ["firstname", "lastname", "email", "jobtitle"]
+locator_fields = ["id"]
+```
+
+**Start:**
+
+```bash
+mfs connector probe hubspot://acme --config ./hubspot.toml
+mfs add hubspot://acme --config ./hubspot.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "customer health" hubspot://acme/contacts/records.jsonl
+mfs cat hubspot://acme/contacts/records.jsonl --locator '{"id":"12345"}'
+```
+
+**Common pitfalls:**
+
+- Add `[[objects]]`; HubSpot has no built-in row preset.
+- If `object_types` is omitted, the plugin probes common default objects and
+  skips objects the portal rejects.
+- HubSpot properties are flattened from the `properties` envelope to top-level
+  fields.
+- Engagement records such as calls, notes, and emails are not included by this
+  connector.
+
+## `bigquery`
+
+**URI shape:** `bigquery://<alias>/<dataset>/tables/<table>/rows.jsonl` for
+rows and `schema.json` for table schemas.
+
+**Minimum config:**
+
+```toml
+project = "analytics-prod"
+datasets = ["events", "kb"]
+max_read_rows = 100000
+
+[[objects]]
+match = "/kb/tables/articles"
+text_fields = ["title", "body_markdown"]
+locator_fields = ["article_id"]
+```
+
+BigQuery credentials come from Application Default Credentials in the server
+environment, such as `GOOGLE_APPLICATION_CREDENTIALS`.
+
+**Start:**
+
+```bash
+mfs connector probe bigquery://analytics --config ./bigquery.toml
+mfs add bigquery://analytics --config ./bigquery.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "refund event" bigquery://analytics/events/tables/user_events/rows.jsonl
+mfs search "email column" bigquery://analytics --kind schema_summary
+mfs cat bigquery://analytics/kb/tables/articles/rows.jsonl --locator '{"article_id":"a-123"}'
+```
+
+**Common pitfalls:**
+
+- Add `[[objects]]`; BigQuery table rows need text fields and locator fields.
+- ADC must be available to the server process, not only the CLI shell.
+- The connector uses `list_rows`; `max_read_rows` caps large tables.
+- BigQuery has no primary-key concept for most tables, so choose stable
+  locator fields explicitly.
+
+## `snowflake`
+
+**URI shape:** `snowflake://<alias>/<DATABASE>/<SCHEMA>/tables/<TABLE>/rows.jsonl`
+and `schema.json`.
+
+**Minimum config:**
+
+```toml
+account = "abcdefg-xy12345"
+user = "mfs_reader"
+warehouse = "mfs_wh"
+role = "mfs_reader_role"
+database = "PROD"
+credential_ref = "file:/etc/mfs/snowflake/rsa_key.p8"
+
+[[objects]]
+match = "/PROD/PUBLIC/tables/TICKETS"
+text_fields = ["TITLE", "DESCRIPTION"]
+locator_fields = ["ID"]
+```
+
+`credential_ref` must resolve to a PEM PKCS#8 RSA private key. If the key is
+encrypted, set `private_key_passphrase_ref`.
+
+**Start:**
+
+```bash
+mfs connector probe snowflake://analytics --config ./snowflake.toml
+mfs add snowflake://analytics --config ./snowflake.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "billing event" snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
+mfs search "EMAIL column" snowflake://analytics --kind schema_summary
+mfs cat snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl --locator '{"ID":12345}'
+```
+
+**Common pitfalls:**
+
+- The connector supports key-pair JWT auth only.
+- Snowflake folds unquoted identifiers to uppercase; paths and locators must
+  match actual returned casing.
+- Warehouses may auto-resume on first query, adding startup latency.
+- Add `[[objects]]`; table rows need text fields and locator fields.
+
+## `s3`
+
+**URI shape:** `s3://<alias>/<object-key>`. The tree mirrors object keys in the
+configured bucket and prefix.
+
+**Minimum config:**
+
+```toml
+bucket = "acme-docs"
+prefix = "engineering/rfc/"
+region = "us-west-2"
+access_key_id = "env:AWS_ACCESS_KEY_ID"
+secret_access_key = "env:AWS_SECRET_ACCESS_KEY"
+```
+
+Set `endpoint_url` for R2, GCS S3 interop, MinIO, or another compatible
+endpoint.
+
+**Start:**
+
+```bash
+mfs connector probe s3://acme-docs --config ./s3.toml
+mfs add s3://acme-docs --config ./s3.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "retention policy" s3://acme-docs/engineering/rfc/
+mfs cat s3://acme-docs/engineering/rfc/rfc-001.md --range 1:80
+mfs export s3://acme-docs/engineering/rfc/rfc-001.pdf /tmp/rfc-001.pdf
+```
+
+**Common pitfalls:**
+
+- `prefix` is exact. Use a trailing slash when you mean a directory-like
+  prefix.
+- Versioned buckets expose only the latest version.
+- Very large PDFs or Office documents can be expensive to convert.
+- IAM must allow both `ListBucket` and `GetObject` for the scoped bucket/prefix.
+
+## `gdrive`
+
+**URI shape:** `gdrive://<alias>/<folder>/<file>`. Google-native Docs, Sheets,
+and Slides are exported to text or CSV-like content by the plugin.
+
+**Minimum config:**
+
+```toml
+token = "env:GDRIVE_ACCESS_TOKEN"
+```
+
+The current plugin builds `google.oauth2.credentials.Credentials` from the
+configured `token` value when it is a string, or from
+`Credentials.from_authorized_user_info` when the parsed TOML value is an object.
+Probe the connector in the target server before syncing.
+
+**Start:**
+
+```bash
+mfs connector probe gdrive://engineering --config ./gdrive.toml
+mfs add gdrive://engineering --config ./gdrive.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "roadmap" gdrive://engineering/Product/
+mfs cat gdrive://engineering/Product/Roadmap.txt --range 1:80
+mfs export gdrive://engineering/Product/Design.pdf /tmp/design.pdf
+```
+
+**Common pitfalls:**
+
+- The credential can only see files shared with it.
+- Google-native files are exported; comments are not indexed.
+- The current plugin does not expose a folder-token scope field; it walks files
+  visible to the credential.
+
+## `feishu`
+
+**URI shape:** chats are
+`feishu://<alias>/chats/<name>__<chat-id>/messages.jsonl`. Docx documents are
+`feishu://<alias>/docs/<title>__<doc-token>.md`.
+
+**Minimum config for tenant/bot mode:**
+
+```toml
+app_id = "cli_a1b2c3d4"
+app_secret = "env:FEISHU_APP_SECRET"
+region = "feishu"
+auth = "tenant"
+docs_folder_token = "fldcn..."
+max_read_rows = 50000
+```
+
+**Minimum config for user OAuth mode:**
+
+```toml
+auth = "user"
+oauth_state_file = "/home/mfs/feishu.oauth.json"
+```
+
+Create the OAuth state file with the bundled helper:
+
+```bash
+python -m mfs_server.connectors.feishu.auth_login \
+  --app-id cli_a1b2c3d4 \
+  --app-secret-env FEISHU_APP_SECRET \
+  --region feishu \
+  --output /home/mfs/feishu.oauth.json
+```
+
+**Start:**
+
+```bash
+mfs connector probe feishu://workspace --config ./feishu.toml
+mfs add feishu://workspace --config ./feishu.toml --wait
+```
+
+**Search or browse:**
+
+```bash
+mfs search "deploy failed" feishu://workspace/chats/
+mfs search "quarterly roadmap" feishu://workspace/docs/
+mfs cat feishu://workspace/chats/eng__oc_xxx/messages.jsonl --locator '{"message_id":"om_abc123"}'
+mfs cat feishu://workspace/docs/Roadmap__doccnxxx.md --range 1:80
+```
+
+**Common pitfalls:**
+
+- Current code uses `auth = "tenant"` or `auth = "user"` and region values
+  `feishu` or `lark`.
+- Tenant mode only sees chats the bot is in and docs shared with the app.
+- User mode refresh tokens rotate; `oauth_state_file` must be writable by the
+  server process.
+- Only docx documents are exposed under `docs/` by the current plugin.

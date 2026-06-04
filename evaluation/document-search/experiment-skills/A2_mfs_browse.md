@@ -17,9 +17,9 @@ Start by classifying the sub-task:
 
 - Need a high-level map of an unfamiliar corpus or directory -> `mfs tree`.
 - Need to compare files/articles under a known directory -> `mfs ls`.
-- Need a known file's structure -> `mfs cat --peek`.
-- Need a concise but richer known-file overview -> `mfs cat --skim`.
-- Need exact surrounding lines once a section is known -> `mfs cat -n A:B`.
+- Need a known file's structure -> `mfs cat PATH --peek`.
+- Need a concise but richer known-file overview -> `mfs cat PATH --skim`.
+- Need exact surrounding lines once a section is known -> `mfs cat PATH --range A:B`.
 - Need exact literal matching -> native `rg` / `grep`.
 - Need filename patterns -> native `find`.
 
@@ -28,21 +28,21 @@ Start by classifying the sub-task:
 Directory overview:
 
 ```bash
-mfs tree --peek -L 2 <dir>
-mfs ls <dir> --skim
+mfs tree <dir> -L 2
+mfs ls <dir>
 ```
 
 Known file overview:
 
 ```bash
-mfs cat --peek <path>
-mfs cat --skim <path>
+mfs cat <path> --peek
+mfs cat <path> --skim
 ```
 
 Line-window read:
 
 ```bash
-mfs cat <path> -n <start>:<end>
+mfs cat <path> --range <start>:<end>
 ```
 
 For code, `--peek` should reveal symbols, classes, functions, and headings.

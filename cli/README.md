@@ -33,12 +33,30 @@ endpoint). See the main repo for how to start it.
 
 ```bash
 mfs status                              # server up? connectors registered?
-mfs add ./my-repo                       # register a directory, indexes in the background
-mfs status file://my-repo               # poll until 'available'
+mfs add --wait ./my-repo                # index a local directory and wait for completion
 
-mfs search "rate limit handler" --connector-uri file://my-repo --top-k 5
-mfs cat file://my-repo/src/throttle.go --range 42:78
+mfs search "rate limit handler" ./my-repo --top-k 5
+mfs cat ./my-repo/src/throttle.go --range 42:78
 ```
+
+If you omit `--wait`, `mfs add` returns a queued job id:
+
+```bash
+mfs add ./my-repo
+mfs job show JOB_ID
+```
+
+For the full docs, use:
+
+| Guide | Use it for |
+|---|---|
+| [Quickstart](../docs/getting-started.md) | First local run and upload-mode choices. |
+| [CLI Reference](../docs/cli.md) | Current commands, flags, jobs, connectors, profiles, and JSON output. |
+| [Search and Browse](../docs/search-and-browse.md) | Search, locate, and reopen exact evidence. |
+| [Connectors](../docs/connectors.md) | Connector catalog, TOML config, credentials, and lifecycle. |
+| [Configuration](../docs/configuration.md) | Endpoint, token, profile, and server config precedence. |
+| [Deployment](../docs/deployment.md) | Source, Docker, Compose, and beta deployment boundaries. |
+| [Troubleshooting](../docs/troubleshooting.md) | Endpoint, auth, upload, indexing, and browse recovery. |
 
 ## Pointing at a non-default server
 

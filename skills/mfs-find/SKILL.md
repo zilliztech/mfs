@@ -52,8 +52,8 @@ Before running any query, especially on cross-source asks:
 
 ```bash
 mfs status                  # server up? any connectors registered?
-mfs status <uri>            # this source's per-object search_status
-mfs ls <uri> --json         # see capabilities + indexable / search_status
+mfs connector inspect <uri> # this connector's object/job summary
+mfs ls <uri> --json         # per-entry capabilities + indexable / search_status
 ```
 
 - Server unreachable → tell user to start it (`mfs serve start` if
@@ -221,9 +221,9 @@ mfs export <uri> <out-file>     # full object to disk for jq/awk pipelines
 
 ```bash
 mfs status                      # server + all connectors
-mfs status <uri>                # one connector + per-object search_status
-mfs connector ls                # list registered connectors
-mfs job ls                      # in-flight indexing jobs (background re-syncs)
+mfs connector inspect <uri>     # one connector's object/job summary
+mfs connector list              # list registered connectors
+mfs job list                    # recent indexing jobs (background re-syncs)
 ```
 
 Always prefer `--json` when output will be parsed.
@@ -283,12 +283,12 @@ This is the most common diagnostic case. Walk this ladder, stop on first
 hit:
 
 ```bash
-# 1. THIS connector's search availability
-mfs status <uri>
+# 1. THIS connector's object/job summary
+mfs connector inspect <uri>
 
 # 2. failed sync jobs?
-mfs job ls
-mfs job logs <job-id>      # if any 'failed', read the cause
+mfs job list
+mfs job show <job-id>      # if any failed, read the job's error field
 
 # 3. per-object granularity
 mfs ls <uri> --json        # each entry's search_status

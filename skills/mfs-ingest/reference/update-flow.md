@@ -13,16 +13,19 @@ ls -la ~/.mfs/connectors/<alias>.toml
 ```
 
 If the toml is missing but the connector shows up in
-`mfs connector ls`, it was registered via a hand-rolled
+`mfs connector list`, it was registered via a hand-rolled
 `mfs add --config /one/off/path.toml` and the spec lives wherever the
-user kept it. Ask the user for the file path, or have them re-create
-the toml from the current state:
+user kept it. Ask the user for the file path, or re-create the TOML
+from the connector reference and source credentials. The current CLI
+does not expose stored connector config through `mfs connector list`.
 
 ```bash
-mfs connector ls --json | jq '.[] | select(.uri == "<uri>") | .config'
+mfs connector list
+mfs connector inspect <uri>
 ```
 
-That dumps the live config dict — copy it into a new toml file.
+Use `inspect` only to confirm the connector's object/job state; do not
+guess missing config fields from it.
 
 ## What kinds of edits exist
 
@@ -42,7 +45,7 @@ token = "env:SLACK_BOT_TOKEN"   # then `export SLACK_BOT_TOKEN=xoxb-NEW`
 ```
 
 ```bash
-mfs add slack://acme --config $MFS_HOME/connectors/acme.toml --update
+mfs connector update slack://acme --config $MFS_HOME/connectors/acme.toml
 ```
 
 Server re-validates auth on the next sync; no re-embedding.
@@ -60,7 +63,7 @@ channel_types = ["public_channel", "private_channel"]
 ```
 
 ```bash
-mfs add slack://acme --config $MFS_HOME/connectors/acme.toml --update
+mfs connector update slack://acme --config $MFS_HOME/connectors/acme.toml
 ```
 
 Effect: newly-in-scope objects get indexed; previously-in-scope-now-out
@@ -78,7 +81,7 @@ max_read_rows = 50000    # was 10000
 ```
 
 ```bash
-mfs add <uri> --config <toml> --update
+mfs connector update <uri> --config <toml>
 ```
 
 Already-indexed objects beyond the OLD cap don't auto-re-index — they
@@ -86,7 +89,7 @@ were "partial" before and stay partial until that object is re-synced.
 To force them to pick up the new cap:
 
 ```bash
-mfs add <uri> --update --since 1970-01-01    # treat all as changed
+mfs add <uri> --since 1970-01-01             # treat all as changed if supported
 # OR
 mfs add <uri> --full                          # nuke + re-ingest everything
 ```
@@ -105,7 +108,7 @@ locator_fields = ["id"]
 ```
 
 ```bash
-mfs add postgres://prod --config <toml> --update
+mfs connector update postgres://prod --config <toml>
 ```
 
 **This DOES force re-embedding** of every row in that table, because
@@ -115,7 +118,10 @@ the chunk content shape changed. ASK the user to confirm:
 > (estimated <X> chunks). At the configured embedding rate, that's
 > roughly $<Y>. Proceed?"
 
-`mfs add --estimate` gives the chunk count cheaply (no embedding).
+There is no standalone `mfs add --estimate` flag. For external connectors,
+plain `mfs add <uri> --config <toml>` runs the zero-billing estimate and
+confirmation before queueing, unless `--yes` is set. For update-specific
+cost estimates, call out the ambiguity instead of guessing.
 
 ### 5. `indexable = false` on a specific object
 
@@ -129,7 +135,7 @@ indexable = false
 ```
 
 ```bash
-mfs add <uri> --config <toml> --update
+mfs connector update <uri> --config <toml>
 ```
 
 Effect: that object's existing chunks are removed from Milvus on next
@@ -148,32 +154,33 @@ toml. It affects every connector. Warn the user:
 
 After changing:
 ```bash
-mfs-server reload    # picks up the new server.toml
+mfs-server reload    # validates server.toml and reports resolved backends
+# restart the running server process to apply the new embedding config
 # then re-ingest each connector:
-mfs connector ls --json | jq -r '.[].uri' | while read uri; do
+mfs --json connector list | jq -r '.[].root_uri' | while read uri; do
   mfs add "$uri" --full
 done
 ```
 
-## The `--update` vs no-flag distinction
+## Config update vs sync
 
-| Flag | Behaviour |
+| Command | Behaviour |
 |---|---|
 | `mfs add <uri>` | re-runs sync against the existing connector; respects fingerprint / incremental cursors |
-| `mfs add <uri> --update` | also applies a new toml's config diff to the stored config_json |
 | `mfs add <uri> --since <date>` | only re-process objects with mtime > date |
 | `mfs add <uri> --full` | ignore caches/fingerprints; re-fetch + re-embed every object |
-| `mfs add <uri> --config <new.toml> --update` | combine: new config + re-run sync |
+| `mfs connector update <uri> --config <new.toml>` | applies the new config through the explicit update path and queues a sync |
 
-If only the toml changed (not the data), `--update` is sufficient. If
-the data changed, plain `mfs add <uri>` does an incremental pull.
+If only the data changed, plain `mfs add <uri>` does an incremental pull
+when the connector supports it. If the TOML changed, use
+`mfs connector update <uri> --config <new.toml>`.
 
 ## After any update
 
-Tail the job:
+Check the job:
 
 ```bash
-mfs job ls --tail <job_id>
+mfs job show <job_id>
 ```
 
 Smoke-check with one search the user knows should work:

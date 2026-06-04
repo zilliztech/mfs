@@ -71,6 +71,16 @@ These are curated, shortened traces from two separate agent runs on the same
 task. They remove absolute paths, long tool output, and low-signal reasoning;
 they are not the full raw transcripts.
 
+Current CLI equivalents for the MFS trace browse steps:
+
+```bash
+mfs cat corpus_subsets/size_2000/pytorch/vision/torchvision/utils.py --peek
+mfs cat corpus_subsets/size_2000/pytorch/vision/torchvision/utils.py --range 88:120
+```
+
+The JSONL trace preserves the historical command record, including older
+line-window syntax from the run.
+
 ### Shell-Only Run
 
 | Step | Action | What happened | Why it mattered |
@@ -86,7 +96,7 @@ they are not the full raw transcripts.
 | ---: | --- | --- | --- |
 | 1 | search | `mfs search` used the behavioral query about persisting a numerical array as a rasterized picture. | The candidate search was not limited to exact symbol names. |
 | 2 | search | A refined MFS query checked the nearby array-to-image family. | The agent kept the false-positive family visible while looking for the implementation target. |
-| 3 | browse | `mfs cat --peek` showed `make_grid` and `save_image` in `torchvision/utils.py`. | The correct function became visible without reading the full file. |
+| 3 | browse | `mfs cat PATH --peek` showed `make_grid` and `save_image` in `torchvision/utils.py`. | The correct function became visible without reading the full file. |
 | 4 | browse | A narrow line-range read showed `save_image` converting a tensor through PIL and saving it to disk. | This verified the file matched the behavior described by the query. |
 | 5 | final | It answered with `pytorch/vision/torchvision/utils.py`. | The final answer matched the expected file with lower token usage than the shell-only run. |
 

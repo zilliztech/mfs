@@ -24,10 +24,10 @@ The control-plane couldn't even queue the work. Common cases:
 ## B. Job ends `failed`
 
 ```bash
-mfs job get <job_id> --json
+mfs job show <job_id>
 ```
 
-Look at `error.detail`. Common patterns:
+Look at the `error` field. Common patterns:
 
 ### Auth failure
 
@@ -144,7 +144,7 @@ This is the most common "I did everything right but nothing's there"
 case. Walk:
 
 ```bash
-mfs status <uri>                  # should say 'available'
+mfs connector inspect <uri>       # object/job summary for this connector
 mfs ls <uri> --json | head        # what's actually indexed
 mfs head <uri>/<one-object> -n 3  # is content where we think it is?
 ```
@@ -169,10 +169,15 @@ context instead.
 ## E. Server is up but tells me "no embedding provider available"
 
 ```bash
-mfs server-info --json | jq .embedding
+mfs config show
 ```
 
-If `provider` is `openai` but no `OPENAI_API_KEY` is set in the
+The current `mfs` CLI has no `server-info` subcommand, and
+`/v1/server/info` exposes only version, machine id, and namespace. Embedding
+provider details are server-side config. Check the server config and process
+environment where `mfs-server` runs.
+
+If the configured provider is `openai` but no `OPENAI_API_KEY` is set in the
 server's env, every ingest job will fail. Fix on the server side:
 
 ```bash
@@ -190,8 +195,8 @@ User can't run `mfs add` for any URI; everything 502s. Check whether
 the server itself is healthy:
 
 ```bash
-mfs server-info             # 200 OK?
-mfs status                  # Milvus connection green?
+mfs config show             # endpoint/profile/client id/server info
+mfs status                  # status envelope and connector/job counts
 ```
 
 If Milvus is the problem: `MILVUS_URI` / `ZILLIZ_URI` likely wrong or

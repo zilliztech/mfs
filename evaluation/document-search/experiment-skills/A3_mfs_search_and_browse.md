@@ -23,8 +23,9 @@ Start by classifying the sub-task:
 - Exact identifier, error code, URL, ticket ID, or unique phrase -> native
   `rg` / `grep`.
 - Filename pattern -> native `find`.
-- Known file structure or section navigation -> `mfs cat --peek` / `--skim`.
-- Need surrounding context around a search hit -> `mfs cat -n A:B`.
+- Known file structure or section navigation -> `mfs cat PATH --peek` /
+  `mfs cat PATH --skim`.
+- Need surrounding context around a search hit -> `mfs cat PATH --range A:B`.
 
 ## Recommended Flow
 
@@ -45,19 +46,18 @@ the returned path and line range. If candidates are close or the snippet is
 too narrow, use browse:
 
 ```bash
-mfs cat --peek -H 20 -D 3 <candidate-path>
-mfs cat --skim -H 12 -D 3 -W 160 <candidate-path>
-mfs cat <candidate-path> -n <start>:<end>
+mfs cat <candidate-path> --peek
+mfs cat <candidate-path> --skim
+mfs cat <candidate-path> --range <start>:<end>
 ```
 
 Use progressive browsing as a budget ladder:
 
 - `--peek` is for title, outline, headings, symbols, and file shape.
 - `--skim` is for short excerpts under relevant headings.
-- `--deep` is for unusually close candidates where short excerpts are not
-  enough.
-- `-H`, `-D`, and `-W` can widen the view without reading an entire file.
-- `-n A:B` is for final confirmation around a known line range.
+- `--range A:B` is for final confirmation around a known line range.
+- `--locator JSON` reopens an exact search or grep hit when JSON results
+  provide a locator.
 
 Do not read a whole large file when `--peek`, `--skim`, or a line window can
 answer the comparison.
@@ -76,9 +76,9 @@ For documents:
   answer the user question.
 - Search may return several related pages; compare top 3-5 distinct candidate
   files before choosing when titles are similar.
-- Use `--peek -H 20 -D 3` to compare article outlines, then `--skim -H 12 -D 3
-  -W 160` on the strongest candidates to verify that they contain the right
-  procedure, policy, FAQ, example, or section.
+- Use `mfs cat PATH --peek` to compare article outlines, then
+  `mfs cat PATH --skim` on the strongest candidates to verify that they
+  contain the right procedure, policy, FAQ, example, or section.
 - If one candidate is a broad overview and another is a specific task,
   troubleshooting, setup, or reference page for the requested action, inspect
   the specific candidate before choosing the broad one.

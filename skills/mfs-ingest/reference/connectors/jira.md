@@ -72,7 +72,8 @@ mfs add jira://acme --config /tmp/mfs-jira.toml
   enhanced JQL endpoint. Server / DC fall back to classic search.
 - **No `projects` filter → all projects**: in a large tenant this is
   100k+ issues. ASK the user before running unfiltered on a big
-  tenant — `--estimate` first.
+  tenant. Run `mfs add jira://<alias> --config <toml>` without `--yes`
+  so the CLI shows the automatic estimate-confirm prompt before queueing.
 - **Permission errors per project**: the API token has the user's
   permission set; if some projects are restricted, those just return
   empty. Not a failure.

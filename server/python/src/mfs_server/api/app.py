@@ -46,7 +46,7 @@ _CODE_SUGGESTIONS = {
     "tail_unsupported": ["head", "cat --range"],
     "locator_not_found": ["re-search; the record may have changed"],
     "since_unsupported": ["drop --since"],
-    "sync_already_running": ["status <uri>", "job cancel <id>"],
+    "sync_already_running": ["mfs job list", "mfs job cancel JOB_ID"],
     "connector_removing": ["wait for removal to finish, then retry"],
     "connector_unhealthy": ["check credentials/connectivity"],
     "not_found": ["check the URI"],

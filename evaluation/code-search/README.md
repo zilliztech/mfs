@@ -20,11 +20,15 @@ The tasks were split into three levels:
 | --- | --- | --- |
 | Agent shell tools | the agent's built-in Bash/shell command execution with standard tools such as `grep`, `find`, `sed`, `cat`, and direct file reads | [`A0_native_shell.md`](experiment-skills/A0_native_shell.md) |
 | MFS search | agent shell tools plus `mfs search` for locating candidates | [`A1_mfs_search.md`](experiment-skills/A1_mfs_search.md) |
-| MFS search + MFS browse | agent shell tools plus `mfs search` for locating candidates and MFS browse commands such as `mfs cat --peek/--skim/-n` for compact inspection | [`A3_mfs_search_and_browse.md`](experiment-skills/A3_mfs_search_and_browse.md) |
+| MFS search + MFS browse | agent shell tools plus `mfs search` for locating candidates and MFS browse commands such as `mfs cat PATH --peek`, `mfs cat PATH --skim`, and `mfs cat PATH --range A:B` for compact inspection | [`A3_mfs_search_and_browse.md`](experiment-skills/A3_mfs_search_and_browse.md) |
 
 The result tables below use shorter labels such as `MFS search`, but those
 rows still mean the agent kept its normal shell tools and gained the listed
 MFS capability.
+
+The linked JSONL traces are historical records. Use the prompt files and
+example pages for current browse syntax; do not copy older trace-only forms
+such as `mfs cat FILE -n A:B`.
 
 Each run ended with one predicted source file. We measured whether the file was
 correct, how many turns the agent took, and how much token usage it incurred.

@@ -12,7 +12,7 @@
 | `locator_not_found` | `cat --locator` key not present | re-search; the record may be gone/changed |
 | `chunk_max_exceeded` | object partially indexed (too large) | `search` works but recall partial; add `index_filter`/`windowed` or raise `chunk_max` |
 | `since_unsupported` | `--since` on a connector without time cursor | drop `--since` |
-| `sync_already_running` | a sync is in flight | `mfs status <uri>` / `mfs job cancel` |
+| `sync_already_running` | a sync is in flight | `mfs job list`, then wait or `mfs job cancel JOB_ID` |
 | `connector_removing` | connector being removed | wait, then retry |
 | `connector_unhealthy` | source unreachable / bad creds | check credentials/connectivity |
 | `embedding_quota_exceeded` / `embedding_auth_failed` | embedding API out of quota / bad key | top up / fix key, then `mfs add` again |

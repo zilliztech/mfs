@@ -35,6 +35,12 @@ The result tables below use shorter labels such as `MFS browse`, but those
 rows still mean the agent kept its normal shell tools and gained the listed
 MFS capability.
 
+Current browse syntax for reruns is `mfs cat PATH --peek`,
+`mfs cat PATH --skim`, `mfs cat PATH --range A:B`, `mfs head PATH -n N`,
+`mfs tail PATH --lines N`, `mfs ls PATH`, and `mfs tree PATH -L N`. The JSONL
+traces are historical records and may contain older browse flags; leave those
+records unchanged and copy current commands from the prompt files or examples.
+
 The test had 40 questions:
 
 - 30 questions expected one article.

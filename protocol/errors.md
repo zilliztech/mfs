@@ -22,7 +22,7 @@ SDKs should switch on `code`, never on `detail` text.
 | `locator_not_found` | 404 | `cat --locator` key not present | re-search; record may be gone/changed |
 | `chunk_max_exceeded` | 200* | object partially indexed (too large) | search works but recall partial; add `index_filter`/`windowed` or raise `chunk_max` |
 | `since_unsupported` | 400 | `--since` on a connector without a time cursor | drop `--since` |
-| `sync_already_running` | 409 | a sync is in flight | `status <uri>` / `job cancel` |
+| `sync_already_running` | 409 | a sync is in flight | `mfs job list`, then wait or `mfs job cancel JOB_ID` |
 | `connector_removing` | 409 | connector being removed | wait, then retry |
 | `connector_unhealthy` | 502 | source unreachable / bad creds | check credentials/connectivity |
 | `embedding_quota_exceeded` | 502 | embedding API out of quota | top up, then re-add |

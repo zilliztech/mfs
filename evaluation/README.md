@@ -40,6 +40,23 @@ The result tables below use shorter labels such as `MFS search`, but those
 rows still mean the agent kept its normal shell tools and gained the listed
 MFS capability.
 
+Current MFS browse commands to copy:
+
+```bash
+mfs cat PATH --range A:B
+mfs cat PATH --locator '{"lines":[A,B]}'
+mfs head PATH -n N
+mfs tail PATH --lines N
+mfs cat PATH --peek
+mfs cat PATH --skim
+mfs ls PATH
+mfs tree PATH -L N
+```
+
+Curated JSONL traces preserve the exact historical command records from each
+run. If a trace shows older browse syntax, leave it as trace evidence and use
+the current-command examples in the README, example pages, and prompt files.
+
 ## Data Shape
 
 The data was intentionally close to what agents see in real projects:

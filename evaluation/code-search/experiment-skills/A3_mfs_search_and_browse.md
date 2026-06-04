@@ -29,7 +29,7 @@ START: what are you doing?
 
 **(4) Search returned candidate X but the chunk window is too narrow — want
 more surrounding context**
-→ `mfs cat X -n A:B` (use the chunk's line range ±20)
+→ `mfs cat X --range A:B` (use the chunk's line range ±20)
 
 **(5) Filename pattern (`*.py`, `**/*test*`)**
 → native `Glob`. Do not use MFS.
@@ -58,16 +58,16 @@ more surrounding context**
 - ✗ Re-reading a file with `mfs cat` / `Read` on a line range that a search
   chunk already returned.
 - ✗ **`mfs search` looked unsuccessful → immediately pivoting to `grep`
-  with keyword combinations.** Paraphrase + re-search first, or `mfs cat
-  --peek` the top candidates. Grep is not smarter than search at concept
-  matching; it is only better at literal identifiers.
+  with keyword combinations.** Paraphrase + re-search first, or inspect the
+  top candidates with `mfs cat PATH --peek`. Grep is not smarter than search
+  at concept matching; it is only better at literal identifiers.
 
 ## mfs cat / ls / tree are NOT for finding files
 
 They are the magnifier that sits on top of search, not an independent way of
 locating files:
 
-- `mfs search` returned chunk L42-50 but you want L20-80 → `mfs cat -n 20:80 <file>`
+- `mfs search` returned chunk L42-50 but you want L20-80 → `mfs cat <file> --range 20:80`
 - `mfs search` hit file X, want to see what else is inside X → `mfs cat X --peek`
 - `mfs search` hit directory X/, want to peek at sibling files → `mfs ls X/`
 
@@ -97,56 +97,43 @@ mfs search "request validation" ./src/
 mfs search "deprecated API" --top-k 20 --all
 ```
 
-### `mfs grep <pattern> [path] [--all] [-C N] [-i]`
+### `mfs grep <pattern> <path>`
 
-Indexed BM25 prefilter + exact regex, falls back to system grep on
-un-indexed files under scope.
+Server-side keyword/full-text search for exact text under a required path.
 
-- No path + no `--all` + tty stdin → **errors out**.
-- `-C N`: context lines.
-- `-i`: case insensitive.
+- Use native `Grep` / `rg` first for exact identifiers when it is available.
+- Use global `mfs --json grep ...` when you need JSON locators.
 
 ```
-mfs grep "ERR_TOKEN_EXPIRED" --all
-mfs grep -C 3 "class.*Middleware" ./src/
+mfs grep "ERR_TOKEN_EXPIRED" ./src/
+mfs --json grep "Middleware" ./src/
 ```
 
-### `mfs cat <file> [-n A:B] [--peek | --skim | --deep] [-W N] [-H N] [-D N]`
+### `mfs cat PATH [--range A:B] [--locator JSON] [--peek | --skim]`
 
 | Mode | What you get |
 |---|---|
 | (no flag) | full content |
-| `-n A:B` | lines A through B |
+| `--range A:B` | lines A through B |
+| `--locator JSON` | exact hit or structured record |
 | `--peek` | heading / signature skeleton |
 | `--skim` | headings + first paragraph per section |
-| `--deep` | expanded structure with most body |
-
-`-W N` = max chars per node, `-H N` = max nodes, `-D N` = max heading depth.
 
 ```
-mfs cat --peek ./docs/auth.md
-mfs cat -n 40:80 ./src/handler.py
-mfs cat ./docs/auth.md -W 200 -H 10 -D 3
+mfs cat ./docs/auth.md --peek
+mfs cat ./docs/auth.md --skim
+mfs cat ./src/handler.py --range 40:80
+mfs cat ./src/handler.py --locator '{"lines":[40,80]}'
 ```
 
 ### `mfs ls <dir>` and `mfs tree <dir> [-L N]`
 
-Directory listing with per-file auto-summary. Accept `--peek / --skim /
---deep` and `-W / -H / -D`.
+Directory listing and recursive tree browsing. `tree` accepts `-L N` or
+`--depth N` for a bounded depth.
 
 ```
 mfs ls ./docs/
-mfs tree --peek -L 2 .
-```
-
-### Pipe optimization — `mfs cat | mfs search`
-
-`mfs cat <file>` writes a `::mfs:` metadata header when stdout is piped.
-Downstream `mfs search` / `mfs grep` scopes to that file's chunks without
-re-embedding.
-
-```
-mfs cat ./docs/auth.md | mfs search "token refresh"
+mfs tree . -L 2
 ```
 
 ## Output
