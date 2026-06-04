@@ -4,8 +4,15 @@ URI: `snowflake://<alias>`.
 
 ## How to obtain credentials
 
-Snowflake requires **key-pair JWT authentication** (passwords are no
-longer supported by the connector). Generate an RSA key:
+Three modes, selected via `auth_mode`:
+
+- `auth_mode = "key-pair"` (default, **recommended for production**)
+- `auth_mode = "password"`
+- `auth_mode = "pat"`
+
+### Key-pair (default)
+
+Generate an RSA key:
 
 ```bash
 openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out rsa_key.p8 -nocrypt
@@ -17,7 +24,22 @@ Register the public key on a Snowflake user:
 ALTER USER mfs_reader SET RSA_PUBLIC_KEY='<contents of rsa_key.pub minus header/footer>';
 ```
 
-The private key file path goes into the toml.
+The private key file path goes into `credential_ref`.
+
+### Password
+
+`credential_ref` carries the user's Snowflake password (`env:` or
+`file:` ref recommended). Snowflake is progressively requiring MFA
+and tightening password login; check your account's policy before
+relying on this mode in production.
+
+### PAT (Programmatic Access Token)
+
+Issue a PAT for a user in the Snowflake UI, attach it to a network
+policy that includes your egress IPs, and put the token string into
+`credential_ref` (again, prefer `env:` or `file:`). Rotation is just
+"issue a new PAT, replace the secret"; no key-pair re-registration
+needed.
 
 ## Required scopes / role
 
@@ -41,16 +63,17 @@ warehouses, the connector will fail if the role can't resume.
 | `account` | account identifier (e.g. `ABCDEFG-XY12345`); shown in the URL of your Snowflake console |
 | `user` | username |
 | `warehouse` | warehouse name |
-| `credential_ref` | path to the PKCS#8 PEM key, as `file:/abs/path/to/rsa_key.p8` |
+| `credential_ref` | key-pair: `file:/abs/path/to/rsa_key.p8`; password: the password; pat: the PAT token. Use `env:` / `file:` refs for anything sensitive. |
 
 ## Optional
 
 | key | meaning |
 |---|---|
+| `auth_mode` | `"key-pair"` (default) / `"password"` / `"pat"` |
 | `role` | role name (recommend `mfs_reader_role`) |
 | `database` | one DB |
 | `databases` | multi-DB list (alternative to `database`) |
-| `private_key_passphrase_ref` | env:VAR or file:/path; required if the key has a passphrase |
+| `private_key_passphrase_ref` | env:VAR or file:/path; only used in `auth_mode="key-pair"` |
 | `max_read_rows` | per-table cap |
 
 ## `[[objects]]` blocks
