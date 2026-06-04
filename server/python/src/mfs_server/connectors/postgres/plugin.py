@@ -152,6 +152,13 @@ class PostgresPlugin(ConnectorPlugin):
         if len(parts) == 3 and parts[2] == "rows.jsonl":
             schema, table = safe_ident(parts[0]), safe_ident(parts[1])
             lim = self._cfg("max_read_rows", 100000)
+            # ORDER BY ctid pins a deterministic physical-row order without
+            # needing to know the table's PK. ctid drifts after VACUUM FULL or
+            # table rewrites, but it is stable for the duration of any single
+            # transaction — long enough to keep cat --range pagination and
+            # sync enumeration self-consistent, which is what determinism
+            # actually means here. Deep-offset cost stays linear; restoring
+            # true OFFSET pushdown is TODO #15-D65.
             async with self._pool.acquire() as c:
                 if range is not None:
                     # cat --range pushdown: page at the source instead of
@@ -160,7 +167,8 @@ class PostgresPlugin(ConnectorPlugin):
                     cnt = max(0, int(range.end) - off)
                     async with c.transaction():
                         async for r in c.cursor(
-                            f'SELECT * FROM "{schema}"."{table}" OFFSET {off} LIMIT {cnt}'
+                            f'SELECT * FROM "{schema}"."{table}" '
+                            f"ORDER BY ctid OFFSET {off} LIMIT {cnt}"
                         ):
                             yield dict(r)
                     return
@@ -170,7 +178,9 @@ class PostgresPlugin(ConnectorPlugin):
                         path
                     )  # capped -> framework marks search_status=partial
                 async with c.transaction():  # asyncpg cursors require a transaction
-                    async for r in c.cursor(f'SELECT * FROM "{schema}"."{table}" LIMIT {lim}'):
+                    async for r in c.cursor(
+                        f'SELECT * FROM "{schema}"."{table}" ORDER BY ctid LIMIT {lim}'
+                    ):
                         yield dict(r)
         elif len(parts) == 3 and parts[2] == "schema.json":
             async with self._pool.acquire() as c:

@@ -141,20 +141,30 @@ class MySQLPlugin(ConnectorPlugin):
         if len(parts) == 2 and parts[1] == "rows.jsonl":
             lim = self._cfg("max_read_rows", 100000)
             t = safe_ident(parts[0])
+            # ORDER BY 1 pins the first column as a deterministic sort key. On
+            # well-designed tables this is the PK / surrogate id; on legacy
+            # tables it's at worst a content column whose ordering is still
+            # repeatable. Either way it removes the "two consecutive
+            # `cat --range` calls return overlapping or disjoint pages"
+            # surprise — InnoDB's clustered-index order is undefined without
+            # an ORDER BY. Cost: same B-tree the PK lives on; LIMIT halts the
+            # scan early.
             async with self._pool.acquire() as c:
                 async with c.cursor(aiomysql.DictCursor) as cur:
                     if range is not None:
                         # cat --range pushdown: page at the source
                         off = max(0, int(range.start))
                         cnt = max(0, int(range.end) - off)
-                        await cur.execute(f"SELECT * FROM `{t}` LIMIT %s OFFSET %s", (cnt, off))
+                        await cur.execute(
+                            f"SELECT * FROM `{t}` ORDER BY 1 LIMIT %s OFFSET %s", (cnt, off)
+                        )
                         for r in await cur.fetchall():
                             yield r
                         return
                     await cur.execute(f"SELECT count(*) AS n FROM `{t}`")
                     if (await cur.fetchone())["n"] > lim:
                         self.ctx.declare_partial(path)  # capped -> search_status=partial
-                    await cur.execute(f"SELECT * FROM `{t}` LIMIT {lim}")
+                    await cur.execute(f"SELECT * FROM `{t}` ORDER BY 1 LIMIT {lim}")
                     for r in await cur.fetchall():
                         yield r
         elif len(parts) == 2 and parts[1] == "schema.json":

@@ -145,6 +145,15 @@ class BigQueryPlugin(ConnectorPlugin):
             ref = f"{self._client.project}.{dataset}.{table}"
             # list_rows (tabledata.list) instead of a SELECT * query: no query-job billing,
             # native start_index/max_results paging for cat --range pushdown.
+            # NOTE on ordering: tabledata.list returns rows in BigQuery's storage
+            # order, which is NOT specified across queries — the postgres ctid /
+            # mongo _id stability trick has no equivalent here. Adding a stable
+            # sort means switching to a SELECT ... ORDER BY query job, which (a)
+            # bills per-byte-scanned and (b) doesn't compose with start_index
+            # paging the same way. Acceptable today because BigQuery sync is
+            # full-scan (no since-pushdown), so we never page on top of a
+            # changing snapshot within one run. Tracked as TODO #15 if a deep-
+            # offset deterministic-ordering use case shows up.
             if range is not None:
                 start = max(0, int(range.start))
                 cnt = max(0, int(range.end) - start)

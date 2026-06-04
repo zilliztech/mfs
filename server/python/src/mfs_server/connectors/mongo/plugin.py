@@ -116,15 +116,20 @@ class MongoPlugin(ConnectorPlugin):
         parts = self._parts(path)
         if len(parts) == 2 and parts[1] == "documents.jsonl":
             lim = self._cfg("max_read_docs", 100000)
+            # sort by _id: every collection has it, it's always indexed,
+            # and ascending order is stable across reads. Without this
+            # find() returns docs in natural (insertion / storage) order
+            # which mongo explicitly documents as non-deterministic across
+            # versions — same offset, different doc, no warning.
             if range is not None:
                 # cat --range pushdown: skip/limit at the source
                 off = max(0, int(range.start))
                 cnt = max(0, int(range.end) - off)
-                cursor = self._db()[parts[0]].find().skip(off).limit(cnt)
+                cursor = self._db()[parts[0]].find().sort("_id", 1).skip(off).limit(cnt)
             else:
                 if await self._db()[parts[0]].estimated_document_count() > lim:
                     self.ctx.declare_partial(path)  # capped -> search_status=partial
-                cursor = self._db()[parts[0]].find(limit=lim)
+                cursor = self._db()[parts[0]].find(limit=lim).sort("_id", 1)
             async for doc in cursor:
                 if "_id" in doc:
                     doc["_id"] = str(doc["_id"])
