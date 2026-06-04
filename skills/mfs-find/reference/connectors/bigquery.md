@@ -31,7 +31,7 @@ columns become nested objects, ARRAY columns become arrays.
 
 - **STRUCT / ARRAY columns**: `text_fields` configured at ingest can
   reach into them (e.g. `event_properties.user_id` or `tags[]`). If
-  `mfs cat --range 0:3` shows the values but search misses, check the
+  `mfs cat --range 1:4` shows the values but search misses, check the
   ingest config.
 - **No incremental sync (yet)**: every `mfs add` full-scans the
   configured tables. For very large tables this is expensive.

@@ -29,7 +29,7 @@ but documented.
 
 | chunk_kind | locator | how to reopen |
 |---|---|---|
-| `body` / code / document | `{"lines": [start, end]}` | `mfs cat <source> --range start:end` (or `cat --locator '{"lines":[s,e]}'`) |
+| `body` / code / document | `{"lines": [start, end]}` (1-based, end-exclusive) | `mfs cat <source> --range start:end` (or `cat --locator '{"lines":[s,e]}'`) |
 | `row_text` (DB row, issue, ...) | connector PK dict (e.g. `{"id": 12}`, `{"number": 42}`) | `mfs cat <source> --locator '{...}'` |
 | `thread_aggregate` (slack / feishu chat) | `{"thread_ts": "...", "chunk_index": 0, "msg_range": [s,e]}` | `mfs cat <source> --locator '{"thread_ts":"..."}'` |
 | `directory_summary` / `schema_summary` / `vlm_description` | `null` | `mfs cat <source>` (object-wide) |
@@ -42,7 +42,8 @@ code / document path — your connector's `locator_fields` cannot claim it
 
 Look inside `locator`:
 
-- key `lines` is present → text/code range; either:
+- key `lines` is present → text/code range (1-based, end-exclusive: `[3, 8]`
+  means lines 3..7); either:
   ```bash
   mfs cat <source> --range <start>:<end>
   # or

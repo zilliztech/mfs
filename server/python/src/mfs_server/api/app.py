@@ -394,15 +394,27 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
         rg = None
         if range:
-            a, _, b = range.partition(":")  # supports "a:b", "a:", ":b", "a"
-            # Mirror the locator parse below: a non-numeric/garbage range must be a clean
-            # 400, not a raw 500 from int() leaking to the generic exception handler.
+            # External --range is 1-based half-open [start, end) — matches
+            # locator.lines, head/tail line counts, and how humans cite ranges
+            # ("lines 100 to 200"). Require an explicit colon so a bare "100"
+            # doesn't silently degrade to a single line or an open end. Convert
+            # to 0-based half-open here; engine.cat + plugin.read stay 0-based
+            # internally.
+            if ":" not in range:
+                raise HTTPException(
+                    400, "invalid range: expected start:end (1-based, end-exclusive)"
+                )
+            a, _, b = range.partition(":")
             try:
-                start = int(a) if a.strip() else 0
-                end = int(b) if b.strip() else (2**63 - 1)
+                start_1 = int(a) if a.strip() else 1
+                end_1 = int(b) if b.strip() else (2**63 - 1)
             except ValueError:
                 raise HTTPException(400, "invalid range")
-            rg = (start, end)
+            if start_1 < 1:
+                raise HTTPException(400, "invalid range: start must be >= 1")
+            if end_1 < start_1:
+                raise HTTPException(400, "invalid range: end must be >= start")
+            rg = (start_1 - 1, end_1 - 1)
         loc = None
         if locator:
             try:

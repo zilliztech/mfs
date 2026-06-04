@@ -2550,11 +2550,17 @@ class Engine:
                 }
             okind = plugin.object_kind_of(rel)
             structured = okind in ("table_rows", "record_collection", "message_stream")
+            # Binary objects have no line-based view — reading them with --range
+            # would return mojibake (UTF-8 errors="replace") under the guise of a
+            # text slice. Refuse cleanly so the caller falls back to `export`.
+            if range is not None and okind == "binary":
+                raise ValueError("range_unsupported")
 
             # --- locator with reserved "lines" key: route to the range path ---
             # Body / code / document chunks store identity as {"lines":[s,e]};
             # reopening one means slicing the file by line range, not iterating
-            # structured records.
+            # structured records. locator.lines is 1-based half-open (matches
+            # how cat --range is exposed); plugin.read takes 0-based half-open.
             if (
                 locator is not None
                 and isinstance(locator, dict)
@@ -2562,8 +2568,8 @@ class Engine:
                 and len(locator) == 1
                 and not structured
             ):
-                s, e = locator["lines"][0], locator["lines"][1]
-                rg = Range(int(s), int(e))
+                s, e = int(locator["lines"][0]), int(locator["lines"][1])
+                rg = Range(max(0, s - 1), max(0, e - 1))
                 buf = bytearray()
                 async for ch in plugin.read(rel, rg):
                     buf += ch
@@ -2821,11 +2827,13 @@ class Engine:
             if gen is not None:
                 async for gm in gen:
                     # Structured pushdown carries gm.locator (PK dict); text/code
-                    # pushdown carries gm.line_no (we wrap as {"lines":[n,n]}).
+                    # pushdown carries gm.line_no. locator.lines is 1-based
+                    # half-open [s,e), so a single line n is [n, n+1] — not
+                    # [n, n], which would round-trip as an empty slice.
                     loc = (
                         gm.locator
                         if gm.locator is not None
-                        else ({"lines": [gm.line_no, gm.line_no]} if gm.line_no else None)
+                        else ({"lines": [gm.line_no, gm.line_no + 1]} if gm.line_no else None)
                     )
                     results.append(
                         {
@@ -2894,7 +2902,7 @@ class Engine:
                             results.append(
                                 {
                                     "source": curi + relp,
-                                    "locator": {"lines": [ln, ln]},
+                                    "locator": {"lines": [ln, ln + 1]},
                                     "content": line,
                                     "via": "linear",
                                 }
@@ -2910,7 +2918,7 @@ class Engine:
                                 results.append(
                                     {
                                         "source": curi + relp,
-                                        "locator": {"lines": [i, i]},
+                                        "locator": {"lines": [i, i + 1]},
                                         "content": line,
                                         "via": "linear",
                                     }

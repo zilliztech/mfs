@@ -132,7 +132,7 @@ mfs ls <uri> --json | jq '.entries[] | {name, indexable, search_status}'
 ```bash
 # 3. is the right field configured for content?
 # For DB / SaaS connectors, no text_fields → no content extracted → no chunks.
-mfs cat <uri>/<sample-object> --range 0:3
+mfs cat <uri>/<sample-object> --range 1:4
 ```
 
 - If the records are visible but `text_fields` is empty in the toml,

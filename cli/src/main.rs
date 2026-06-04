@@ -80,6 +80,9 @@ enum Cmd {
     /// Read an object
     Cat {
         path: String,
+        /// Line range, 1-based half-open: `start:end` returns lines start..end-1
+        /// (e.g. `--range 1:11` = first 10 lines). Matches `locator.lines` from
+        /// search hits.
         #[arg(long)]
         range: Option<String>,
         #[arg(long)]

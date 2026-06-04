@@ -64,7 +64,7 @@ For composite PKs the locator is the full key:
 ## Large-dataset tips
 
 - Tables with millions of rows: search is fine (Milvus is fast), but
-  `mfs cat --range 0:100000` on `rows.jsonl` is a sequential scan.
+  `mfs cat --range 1:100001` on `rows.jsonl` is a sequential scan.
   Use `--locator` for known IDs instead.
 - Schema with hundreds of tables: `mfs tree -L 3 postgres://<alias>`
   to orient.

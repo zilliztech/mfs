@@ -176,7 +176,7 @@ export` then local `grep`.
 
 ```bash
 mfs cat <path>                                  # full content (refused if "lazy")
-mfs cat <path> --range A:B                      # byte/line range
+mfs cat <path> --range A:B                      # lines A..B-1 (1-based, end-exclusive)
 mfs cat <path> --locator '{"id":12}'            # reopen a structured record
 mfs cat <path> --peek                           # outline only
 mfs cat <path> --skim                           # peek + per-section summaries
