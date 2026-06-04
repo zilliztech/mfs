@@ -2567,9 +2567,18 @@ class Engine:
                             out.append(line)
                     return "\n".join(out)
                 start, end = range[0], range[1]
-                # hand the range to the connector so a pushdown-capable one can LIMIT/OFFSET
-                # at the source; the engine still slices defensively for connectors that ignore it.
-                records = plugin.read_records(rel, Range(start, end))
+                # Pass Range(0, end) — a LIMIT-only hint — and slice [start, end) HERE, in one
+                # place. Connectors disagree on whether they honor the Range: the DB ones
+                # (mysql/postgres/mongo/bigquery) push OFFSET start + LIMIT down, while the SaaS
+                # ones (jira/slack/notion/…) ignore it and return from row 0 — yet ALL declare
+                # paged_cat=True, so the engine can't tell them apart. Pushing OFFSET start AND
+                # then re-slicing `i >= start` double-applied the offset on the DB connectors, so
+                # `cat --range 100:200` returned an empty/wrong page. With offset=0 every
+                # connector returns rows from 0 and the single `i >= start` slice is correct for
+                # both. (Trade-off: the DB connectors lose OFFSET pushdown and read `end` rows for
+                # a deep page — still LIMIT-bounded; restoring true offset-pushdown needs an
+                # explicit "range honored" capability — see human_todo [dborder/D65].)
+                records = plugin.read_records(rel, Range(0, end))
                 if records is not None:
                     out, i = [], 0
                     async with aclosing(records):  # break-early must close the generator
