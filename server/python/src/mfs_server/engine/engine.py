@@ -55,6 +55,18 @@ _PER_OBJECT_SKIP_ERRORS: tuple = (
 )
 
 
+def _normalize_json(s: str) -> str:
+    """Sort-key + strip-whitespace normalize a JSON object string so two configs
+    with identical contents but different key ordering / whitespace compare
+    equal. Used to detect real config drift vs cosmetic re-serialization."""
+    import json as _json
+
+    try:
+        return _json.dumps(_json.loads(s), sort_keys=True, separators=(",", ":"))
+    except (ValueError, TypeError):
+        return s
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -445,17 +457,42 @@ class Engine:
 
         stored = self._redact_config(config)
         row = await self.meta.fetchone(
-            "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=?",
+            "SELECT id, config_json FROM connectors WHERE namespace_id=? AND root_uri=?",
             (self.ns, connector_uri),
         )
         if row:
             # `mfs connector update --config` re-registers an existing connector: refresh
             # its stored config so changed text_fields / scope / credential_ref take effect.
-            if overwrite_config:
+            # `mfs add --config` on an already-registered connector used to silently drop
+            # the new config; that's a documented footgun (#6) — now we persist it and
+            # WARN about the indexing implication. Existing chunks are NOT re-embedded
+            # under the new config until the user re-syncs with --force-index. The
+            # warning is suppressed when nothing actually changed (same config dict
+            # passed by the upload-mode staging shortcut on every call).
+            new_json = json.dumps(stored, sort_keys=True)
+            old_json = row["config_json"] or "{}"
+            drift = _normalize_json(new_json) != _normalize_json(old_json)
+            if overwrite_config or drift:
                 await self.meta.execute(
                     "UPDATE connectors SET config_json=? WHERE id=?",
                     (json.dumps(stored), row["id"]),
                 )
+                if drift and not overwrite_config:
+                    # Count what's actually at risk so the warning is concrete
+                    # rather than scary boilerplate.
+                    n = await self.meta.fetchone(
+                        "SELECT count(*) AS n FROM objects "
+                        "WHERE connector_id=? AND search_status='indexed'",
+                        (row["id"],),
+                    )
+                    indexed = (n or {}).get("n", 0)
+                    print(
+                        f"mfs-server: WARNING --config differs from stored config for "
+                        f"{connector_uri}; persisted, but {indexed} existing indexed "
+                        f"object(s) retain the OLD config until you re-sync with "
+                        f"`mfs add --force-index`.",
+                        flush=True,
+                    )
             return row["id"]
         cid = uuid.uuid4().hex
         await self.meta.execute(
