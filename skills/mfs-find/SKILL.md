@@ -172,9 +172,27 @@ mfs search "<query>" <path> --collapse         # keep top hit per object (post-f
 mfs grep "<pattern>" <path>          # pushdown -> BM25 -> linear
 ```
 
-Pushdown is literal-exact but token-level (no regex on structured
-connectors). For exact-exhaustive on a huge structured object, `mfs
-export` then local `grep`.
+**`mfs grep` is not `grep`.** The three-tier dispatch is:
+
+1. **Pushdown** — for structured connectors (`postgres`, `mongo`,
+   `jira`, …) the pattern is shipped to the source as a LIKE / regex
+   filter. Literal-exact, token-level; no regex on most structured
+   connectors.
+2. **BM25** over indexed objects — for `body`/`code`/`document` chunks
+   already in Milvus, the pattern is fed through the same sparse
+   index `search --mode keyword` uses. That is a tokenized,
+   ranked lookup, **not** a literal substring scan: an analyzer split
+   like `getUserId` → `get`, `user`, `id` will rank
+   `userId` as a hit; a CJK pattern with no analyzer match returns
+   nothing even when the literal bytes are present. If you need
+   "does this exact byte string appear anywhere?", `mfs export` the
+   object and run `rg` locally — `mfs grep` has no "force linear over
+   indexed objects" flag.
+3. **Linear scan** — only for not-indexed files in scope (file
+   connector before `mfs add`). True substring / regex.
+
+For exact-exhaustive on a huge structured object, `mfs export` then
+local `grep` / `rg`.
 
 ### Read
 
