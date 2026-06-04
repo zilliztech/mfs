@@ -102,6 +102,16 @@ class MongoPlugin(ConnectorPlugin):
             ]
         return []
 
+    async def record_count(self, path: str) -> Optional[int]:
+        # Only documents.jsonl is record-shaped; schema.json is a single
+        # synthetic record. estimated_document_count() is O(1) (reads
+        # collection metadata, no scan), accurate enough for a pre-flight
+        # estimate.
+        parts = self._parts(path)
+        if not (len(parts) == 2 and parts[1] == "documents.jsonl"):
+            return None
+        return await self._db()[parts[0]].estimated_document_count()
+
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
         parts = self._parts(path)
         if len(parts) == 2 and parts[1] == "documents.jsonl":

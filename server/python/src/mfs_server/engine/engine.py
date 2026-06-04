@@ -2265,15 +2265,15 @@ class Engine:
                 elif okind in ("table_rows", "record_collection", "message_stream"):
                     ocfg = plugin.ctx.object_config_for(rel)
                     records = plugin.read_records(rel)
+                    sampled = 0  # records actually consumed (≤ sample_records)
                     if records is not None and ocfg.text_fields:
-                        n = 0
                         try:
                             async for rec in records:
                                 t = _render_record(rec, ocfg.text_fields, ocfg.render_template)
                                 if t.strip():
                                     texts.append(t)
-                                n += 1
-                                if n >= sample_records:
+                                sampled += 1
+                                if sampled >= sample_records:
                                     break
                         finally:
                             # Breaking out of `async for` does NOT close the async generator,
@@ -2285,6 +2285,23 @@ class Engine:
                             aclose = getattr(records, "aclose", None)
                             if aclose is not None:
                                 await aclose()
+                    # Ask the plugin for the real record count; if cheap and known,
+                    # extrapolate per-record averages over the full count instead of
+                    # summing the truncated sample. Otherwise fall back to summing
+                    # what we sampled (matches the old behavior — a known
+                    # under-count when one object contains many records).
+                    rec_total: int | None = None
+                    if okind in ("table_rows", "record_collection", "message_stream"):
+                        try:
+                            rec_total = await plugin.record_count(rel)
+                        except Exception:  # noqa: BLE001 - estimate must never fail
+                            rec_total = None
+                    if rec_total is not None and rec_total > sampled > 0 and texts:
+                        per_rec_chunks = len(texts) / sampled
+                        per_rec_tokens = sum(ntok(t) for t in texts) / sampled
+                        s_chunks += per_rec_chunks * rec_total
+                        s_tokens += per_rec_tokens * rec_total
+                        texts = []  # already accounted for, don't re-count below
                 if texts:
                     s_chunks += len(texts)
                     s_tokens += sum(ntok(t) for t in texts)

@@ -540,6 +540,16 @@ class ConnectorPlugin(ABC):
         (plain def, so `is None` distinguishes implemented vs not)."""
         return None
 
+    async def record_count(self, path: str) -> Optional[int]:
+        """Total record count for a structured object (table_rows /
+        record_collection / message_stream), used by `estimate` to extrapolate
+        chunks/tokens from a fixed-size sample. None = unknown (base default);
+        estimate falls back to per-object averages, which under-counts when one
+        object holds many records than the sample. Override on connectors where
+        a count is cheap: SQL `count(*)`, Mongo `estimated_document_count()`,
+        BigQuery `numRows`, etc."""
+        return None
+
     # --- required: change detection ---
     @abstractmethod
     async def fingerprint(self, path: str) -> Optional[str]: ...

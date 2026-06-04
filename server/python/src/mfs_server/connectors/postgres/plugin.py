@@ -127,6 +127,19 @@ class PostgresPlugin(ConnectorPlugin):
             )
         return [{"name": r["column_name"], "type": r["data_type"]} for r in cols]
 
+    async def record_count(self, path: str) -> Optional[int]:
+        # Only rows.jsonl is record-shaped; schema.json is a single-record
+        # synthetic, no extrapolation needed there.
+        parts = self._parts(path)
+        if not (len(parts) == 3 and parts[2] == "rows.jsonl"):
+            return None
+        schema, table = safe_ident(parts[0]), safe_ident(parts[1])
+        # Exact count(*) — cheap on indexed tables, OK on medium, accepted as
+        # the price of a correct pre-flight estimate (the alternative,
+        # pg_class.reltuples, can be wildly stale on append-only tables).
+        async with self._pool.acquire() as c:
+            return await c.fetchval(f'SELECT count(*) FROM "{schema}"."{table}"')
+
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
         parts = self._parts(path)
         if len(parts) == 3 and parts[2] == "schema.json":
