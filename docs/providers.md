@@ -105,40 +105,40 @@ configured separately:
 ```toml
 [summary]
 enabled = false
-include_image_desc = false
+include_image_description = false
 provider = "openai"
 model = "gpt-4o-mini"
 
-[vlm]
+[description]
+enabled = false
 provider = "openai"
 model = "gpt-4o-mini"
 ```
 
-Run the VLM setup section when you want the wizard to write summary settings and
-VLM provider/model settings:
+Run the description setup section when you want the wizard to write summary
+settings and image-description provider/model settings:
 
 ```bash
-uv run mfs-server setup --section vlm
+uv run mfs-server setup --section description
 ```
 
 When enabled through the wizard, this section sets `summary.enabled`,
-`summary.include_image_desc`, the summary provider/model, and the VLM
-provider/model. You can also set `MFS_SUMMARY_ENABLED` in the server
-environment; truthy values are `1`, `true`, `yes`, and `on`.
+`summary.include_image_description`, the summary provider/model, and the
+image-description provider/model. You can also set `MFS_SUMMARY_ENABLED` in the
+server environment; truthy values are `1`, `true`, `yes`, and `on`.
 
 !!! note
-    Runtime image indexing does not check `summary.enabled`: indexable image
-    objects use the configured VLM provider to produce `vlm_description` chunks
-    when the VLM call succeeds. `summary.include_image_desc` only controls
-    whether cached image-description text is included in directory-summary
-    input.
+    Image indexing is gated by `[description].enabled`: indexable image objects
+    use the configured provider to produce `vlm_description` chunks when the call
+    succeeds. `summary.include_image_description` only controls whether cached
+    image-description text is folded into directory-summary input.
 
 ## Conversion and Processing
 
 Framework conversion uses MarkItDown by default:
 
 ```toml
-[converter]
+[conversion]
 default = "markitdown"
 ```
 

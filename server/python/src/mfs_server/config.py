@@ -156,53 +156,76 @@ class EmbeddingConfig(BaseModel):
     provider: str = "onnx"
     model: str = "gpahal/bge-m3-onnx-int8"
     dim: int = 1024
-    batch_size: int = 100
-    batch_max_wait_ms: int = 100
+    batch_size: int = 100  # EmbedConsumer forward batch
+    # NB: the dead [embedding].batch_max_wait_ms was dropped in V0.4 — the EmbedConsumer's
+    # idle flush is the internal constant _EMBED_FLUSH_IDLE_MS (engine/pipeline.py), not a knob.
 
 
 class SummaryConfig(BaseModel):
-    enabled: bool = False  # master switch for directory summaries; off by default (opt-in)
+    """[summary] — directory / file summaries (Reduce subsystem, §3.5)."""
+
+    # Master opt-in. §7.2's example omits this, but it is kept so the default stays OFF
+    # (directory summaries cost an LLM call per directory — opt-in avoids surprise bills);
+    # the ReduceCoordinator is fully inert unless enabled.
+    enabled: bool = False
     provider: str = "openai"
     model: str = "gpt-4o-mini"
     max_tokens: int = 800
-    dir_recursive: bool = True  # bottom-up recursive directory summary (child summaries roll up)
-    max_input_kb: int = 64  # total input budget fed to one directory summary (truncated)
+    max_input_kb: int = 64  # total input budget fed to one summary (truncated)
     per_file_max_kb: int = 16  # per-file truncation cap so one big file can't eat the budget
-    include_image_desc: bool = False  # feed image VLM descriptions into the directory summary
-    batch_size: int = 20
+    include_image_description: bool = False  # feed image VLM text into directory summaries
+    concurrency: int = 20  # SummaryWorker pool size + LLM in-flight ceiling (was the dead batch_size)
+    dir: bool = True  # run recursive bottom-up directory summaries (when enabled)
+    file: bool = False  # run per-file summaries (§6.4.7; default off — overlaps chunk recall, 2x cost)
 
 
-class VlmConfig(BaseModel):
-    # Independent kill switch for image VLM description (opt-in by default —
-    # without an explicit toml or wizard yes, we don't fire vision API calls
-    # on every image in an ingest, even when a [vlm] provider is configured).
-    # Symmetric with [summary].enabled for the directory-summary path.
+class DescriptionConfig(BaseModel):
+    """[description] — image VLM description (renamed from [vlm]: 'vlm' was the model type,
+    the business is image description)."""
+
+    # Independent kill switch (opt-in): no vision calls unless turned on, even when a
+    # provider is configured. Symmetric with [summary].enabled.
     enabled: bool = False
     provider: str = "openai"
     model: str = "gpt-4o-mini"
     prompt: str = "Describe this image in detail for search indexing."
-    batch_size: int = 10
+    concurrency: int = 10  # ConcurrencyGate: max in-flight VLM calls (was the dead batch_size)
 
 
-class ConverterConfig(BaseModel):
+class ConversionConfig(BaseModel):
+    """[conversion] — binary document -> markdown (renamed from [converter])."""
+
     default: str = "markitdown"
 
 
-class WorkerConfig(BaseModel):
-    concurrency: str | int = "auto"  # auto | <int>; sqlite forced to 1
+class ChunksProducerConfig(BaseModel):
+    """[chunks_producer] — the process-global ChunksProducer pool (was [worker].concurrency)."""
+
+    concurrency: str | int = 8  # in-process ChunksProducer coroutines (auto | <int>); default 8
+
+
+class ObjectTaskConfig(BaseModel):
+    """[object_task] — per-ObjectTask retry / circuit-breaker (was on [worker])."""
+
     max_retries: int = 3
     backoff_initial_ms: int = 1000
     backoff_max_ms: int = 30000
     consecutive_fatal_threshold: int = 5
-    # AIO single-binary: `mfs-server run` drains the queue in-process so an enqueued
-    # (--no-process) job isn't stranded with no worker. CS deployments run a dedicated
-    # `mfs-server worker` and should set this false on the API replicas.
-    in_process: bool = True
 
 
-class ChunkConfig(BaseModel):
-    default_chunk_max: int = 1_000_000
-    chunk_size: int = 2048  # chonkie token budget
+class ServerSectionConfig(BaseModel):
+    """[server] — deployment mode (was [worker].in_process)."""
+
+    # true: `mfs-server run` drains the queue in-process so an enqueued (--no-process) job
+    # isn't stranded. CS deployments run a dedicated `mfs-server worker` and set this false.
+    in_process_jobrunner: bool = True
+
+
+class ChunkingConfig(BaseModel):
+    """[chunking] — text chunking knobs (renamed from [chunk])."""
+
+    chunk_size: int = 2048  # chonkie token budget per chunk
+    default_chunk_max: int = 1_000_000  # cap on chunks per object
 
 
 class SearchConfig(BaseModel):
@@ -221,10 +244,12 @@ class ServerConfig(BaseModel):
     milvus: MilvusConfig = MilvusConfig()
     embedding: EmbeddingConfig = EmbeddingConfig()
     summary: SummaryConfig = SummaryConfig()
-    vlm: VlmConfig = VlmConfig()
-    converter: ConverterConfig = ConverterConfig()
-    worker: WorkerConfig = WorkerConfig()
-    chunk: ChunkConfig = ChunkConfig()
+    description: DescriptionConfig = DescriptionConfig()
+    conversion: ConversionConfig = ConversionConfig()
+    chunks_producer: ChunksProducerConfig = ChunksProducerConfig()
+    object_task: ObjectTaskConfig = ObjectTaskConfig()
+    server: ServerSectionConfig = ServerSectionConfig()
+    chunking: ChunkingConfig = ChunkingConfig()
     search: SearchConfig = SearchConfig()
 
     def resolve_defaults(self) -> "ServerConfig":
@@ -314,6 +339,43 @@ def _migrate_legacy_blocks(data: dict[str, Any]) -> None:
         for k, v in legacy_os.items():
             merged.setdefault(k, v)
         data["artifact_cache"] = merged
+
+
+# V0.4 engine refactor renamed several sections + dropped dead keys with NO backward-compat
+# aliases (MFS is pre-V1, §7.1). We fail loudly pointing at the new name rather than let
+# pydantic silently ignore an old section/key (which would leave the user wondering why their
+# config did nothing).
+_RENAMED_BLOCKS = {
+    "vlm": "[description]",
+    "converter": "[conversion]",
+    "worker": "[chunks_producer] / [object_task] / [server]",
+    "chunk": "[chunking]",
+}
+_REMOVED_KEYS = {
+    ("embedding", "batch_max_wait_ms"): "removed (internal constant _EMBED_FLUSH_IDLE_MS)",
+    ("summary", "batch_size"): "[summary].concurrency",
+    ("summary", "dir_recursive"): "[summary].dir",
+    ("summary", "include_image_desc"): "[summary].include_image_description",
+}
+
+
+def _reject_renamed_config(data: dict[str, Any]) -> None:
+    """Raise a clear error for V0.3 section/key names so a stale toml fails loudly."""
+    bad_blocks = [k for k in _RENAMED_BLOCKS if k in data]
+    if bad_blocks:
+        renamed = "; ".join(f"[{k}] -> {_RENAMED_BLOCKS[k]}" for k in bad_blocks)
+        raise ValueError(
+            f"server.toml uses renamed config section(s): {renamed}. "
+            "MFS has no backward-compat aliases pre-V1; rename the section(s)."
+        )
+    bad_keys = [
+        (sec, key) for (sec, key), _ in _REMOVED_KEYS.items() if key in (data.get(sec) or {})
+    ]
+    if bad_keys:
+        removed = "; ".join(f"[{sec}].{key} -> {_REMOVED_KEYS[(sec, key)]}" for sec, key in bad_keys)
+        raise ValueError(
+            f"server.toml uses removed/renamed key(s): {removed}. Update them (no aliases pre-V1)."
+        )
 
 
 def _apply_env_overrides(cfg: ServerConfig) -> None:
@@ -448,6 +510,7 @@ def load_server_config(explicit: str | None = None, apply_env: bool = True) -> S
         with open(path, "rb") as f:
             data = tomllib.load(f)
     _migrate_legacy_blocks(data)
+    _reject_renamed_config(data)
     cfg = ServerConfig(**data)
     if apply_env:
         # IMPORTANT: env override runs BEFORE resolve_defaults so the override

@@ -20,7 +20,7 @@ CONVERT_EXTS = {".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls", ".htm
 
 class CachingConverterClient:
     def __init__(self, cfg: ServerConfig, tx_cache: TransformationCache):
-        self.default = cfg.converter.default  # "markitdown"
+        self.default = cfg.conversion.default  # "markitdown"
         self.provider = "markitdown"
         self.version = "1"
         self.tx_cache = tx_cache

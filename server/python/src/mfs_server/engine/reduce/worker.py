@@ -27,7 +27,7 @@ async def _child_text(coord, job_id: str, child_uri: str, okind: str) -> str:
     cap = coord.cfg.summary.per_file_max_kb * 1024
     ext = os.path.splitext(child_uri)[1].lower()
     if okind == "image":
-        if not coord.cfg.summary.include_image_desc:
+        if not coord.cfg.summary.include_image_description:
             return ""
         raw = await read_bytes(plugin, child_uri)
         h = sha1_hex(raw)

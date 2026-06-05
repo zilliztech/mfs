@@ -8,7 +8,7 @@ OpenAI / Zilliz Cloud / Postgres / S3 is purely opt-in — provide credentials
 when prompted and the section flips to the hosted backend.
 
 Sections (default order):
-  embedding -> vlm -> milvus -> database -> cache -> auth
+  embedding -> description -> milvus -> database -> cache -> auth
 
 `database` configures the single relational backend used for both
 metadata (connectors / objects / queue) and the transformation-cache
@@ -51,13 +51,13 @@ from ..config import (
     MilvusConfig,
     ServerConfig,
     SummaryConfig,
-    VlmConfig,
+    DescriptionConfig,
     load_server_config,
     mfs_home,
 )
 from . import wizard_ui as ui
 
-SECTIONS = ("embedding", "vlm", "milvus", "database", "cache", "auth")
+SECTIONS = ("embedding", "description", "milvus", "database", "cache", "auth")
 
 
 # ─── per-section wizards ────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ def _wizard_embedding(current: EmbeddingConfig, step: int, total: int) -> dict[s
 
 
 def _wizard_vlm(
-    current_summary: SummaryConfig, current_vlm: VlmConfig, step: int, total: int
+    current_summary: SummaryConfig, current_vlm: DescriptionConfig, step: int, total: int
 ) -> dict[str, Any]:
     from ..common.llm import DEFAULT_VISION_MODELS as VISION_DEFAULTS
 
@@ -365,7 +365,7 @@ def _build_runners(
 ) -> dict[str, Callable[[ServerConfig], dict[str, Any]]]:
     return {
         "embedding": lambda c: _wizard_embedding(c.embedding, step_of["embedding"], total),
-        "vlm": lambda c: _wizard_vlm(c.summary, c.vlm, step_of["vlm"], total),
+        "description": lambda c: _wizard_vlm(c.summary, c.description, step_of["description"], total),
         "milvus": lambda c: _wizard_milvus(
             c.milvus, env_resolved=milvus_from_env, step=step_of["milvus"], total=total
         ),
@@ -383,7 +383,7 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
             "model": answers["model"],
             "dim": answers["dim"],
         }
-    elif section == "vlm":
+    elif section == "description":
         # `vlm` toggles summary.enabled (master switch + LLM for text summary)
         # and the vlm.enabled + vlm.* block (LLM for image descriptions). They
         # share the same provider/model by default — multimodal LLMs handle
@@ -394,10 +394,10 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
         summ = current.setdefault("summary", {})
         summ["enabled"] = answers["summary_enabled"]
         if answers["summary_enabled"]:
-            summ["include_image_desc"] = answers.get("summary_include_image_desc", True)
+            summ["include_image_description"] = answers.get("summary_include_image_desc", True)
             summ["provider"] = answers["vlm_provider"]
             summ["model"] = answers["vlm_model"]
-            current["vlm"] = {
+            current["description"] = {
                 "enabled": True,
                 "provider": answers["vlm_provider"],
                 "model": answers["vlm_model"],
@@ -405,7 +405,7 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
         else:
             # explicit off: drop any prior vlm.enabled=true from a re-run so a
             # second pass through the wizard actually turns image VLM off.
-            current.pop("vlm", None)
+            current.pop("description", None)
     elif section == "milvus":
         block = {k: v for k, v in answers.items() if v != ""}
         if block:
@@ -499,7 +499,7 @@ def _summary_pairs(out: dict[str, Any]) -> list[tuple[str, str]]:
         pairs.append(("Embedding", f"{e.get('provider')} / {e.get('model')} (dim={e.get('dim')})"))
     s = out.get("summary", {})
     if s.get("enabled"):
-        v = out.get("vlm", {})
+        v = out.get("description", {})
         pairs.append(("VLM", f"{v.get('provider', '?')} / {v.get('model', '?')}"))
     else:
         pairs.append(("VLM", "off"))

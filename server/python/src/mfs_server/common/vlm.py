@@ -26,9 +26,9 @@ _MIME = {
 
 class CachingVlmClient:
     def __init__(self, cfg: ServerConfig, tx_cache: TransformationCache):
-        self.model = cfg.vlm.model
-        self.prompt = cfg.vlm.prompt
-        self.provider = cfg.vlm.provider
+        self.model = cfg.description.model
+        self.prompt = cfg.description.prompt
+        self.provider = cfg.description.provider
         self.version = "1"
         self.tx_cache = tx_cache
         # Lazy: server boots w/o any LLM key.

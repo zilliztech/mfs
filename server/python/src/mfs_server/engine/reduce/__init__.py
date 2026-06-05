@@ -40,8 +40,10 @@ __all__ = ["ReduceCoordinator", "build_reduce_subsystem"]
 class ReduceCoordinator:
     def __init__(self, cfg, *, tx_cache, summary, vlm, converter, chunks_q):
         self.cfg = cfg
-        self.enabled = bool(cfg.summary.enabled)
-        self.recursive = bool(getattr(cfg.summary, "dir_recursive", True))
+        self.enabled = bool(cfg.summary.enabled)  # master switch (§7.2 [summary].enabled)
+        self.do_dir = bool(cfg.summary.dir)  # run recursive directory summaries
+        self.do_file = bool(cfg.summary.file)  # run per-file summaries (§6.4.7, default off)
+        self.recursive = True  # directory summaries are always recursive bottom-up now
         self.tx_cache = tx_cache
         self.summary = summary
         self.vlm = vlm
@@ -67,8 +69,7 @@ class ReduceCoordinator:
     def _worker_count(self) -> int:
         # [summary].concurrency lands with the TOML rename (step 11); until then reuse the
         # existing [summary].batch_size knob (default 20) as the SummaryWorker pool size.
-        n = getattr(self.cfg.summary, "concurrency", None) or getattr(self.cfg.summary, "batch_size", 20)
-        return max(1, int(n))
+        return max(1, int(self.cfg.summary.concurrency))
 
     async def stop(self) -> None:
         for t in self._tasks:
@@ -94,11 +95,12 @@ class ReduceCoordinator:
         builder = self.builders.get(job_id)
         if builder is None:
             return
-        builder.add(uri, okind)
+        if self.do_dir:
+            builder.add(uri, okind)
         # file_summary (§6.4.7): [summary].file opt-in, default off. When on, each file also
         # gets its own summary task. Plumbing only — collected here; processed by the same
         # worker pool. Default-off so it stays a no-op and is not exercised by tests.
-        if getattr(self.cfg.summary, "file", False):
+        if self.do_file:
             self._file_summary_candidates.setdefault(job_id, []).append((uri, okind))
 
     def on_sync_done(self, job_id: str) -> None:

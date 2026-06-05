@@ -112,7 +112,7 @@ async def _build_engine(tmp_path):
     cfg.transformation_cache.backend = "sqlite"
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "art")
-    cfg.chunk.chunk_size = 32  # small budget forces multi-heading docs to split per heading
+    cfg.chunking.chunk_size = 32  # small budget forces multi-heading docs to split per heading
     eng = Engine(cfg)
     eng.embed = _FakeEmbed()
     eng.milvus = _FakeMilvus()

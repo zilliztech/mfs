@@ -61,7 +61,7 @@ class _FakeTx:
 def _coord(files, *, include_image_desc=False):
     cfg = ServerConfig()
     cfg.summary.enabled = True
-    cfg.summary.include_image_desc = include_image_desc
+    cfg.summary.include_image_description = include_image_desc
     coord = ReduceCoordinator(
         cfg, tx_cache=_FakeTx(), summary=_FakeSummary(),
         vlm=_FakeVlm(), converter=_FakeConverter(), chunks_q=asyncio.Queue(),

@@ -96,7 +96,7 @@ class TextChunksProducer:
             if task.connector_uri.startswith(("web://", "github://")):
                 await self.ctx.artifacts.put_artifact(ns, full_uri, "converted_md", text.encode())
 
-        pairs = chunk_text_body(text, okind, ext, self.ctx.cfg.chunk.chunk_size)
+        pairs = chunk_text_body(text, okind, ext, self.ctx.cfg.chunking.chunk_size)
         chunk_max = ocfg.chunk_max
         truncated = len(pairs) > chunk_max
         if truncated:

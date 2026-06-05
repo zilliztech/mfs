@@ -148,7 +148,7 @@ def build_ctx(
     converter: Any = None,
 ) -> ProducerContext:
     cfg = ServerConfig()
-    cfg.chunk.chunk_size = chunk_size
+    cfg.chunking.chunk_size = chunk_size
     return ProducerContext(
         cfg=cfg,
         namespace_id="default",

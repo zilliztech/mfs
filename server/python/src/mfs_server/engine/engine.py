@@ -381,7 +381,7 @@ class Engine:
         # ConnectorJobWatcher runs in this same event loop as the EmbedConsumer + SummaryWorker
         # pool, finalizing jobs out-of-band (§5.7).
         self._job_watcher = ConnectorJobWatcher(
-            self.meta, self._reduce, threshold=self.cfg.worker.consecutive_fatal_threshold
+            self.meta, self._reduce, threshold=self.cfg.object_task.consecutive_fatal_threshold
         )
         self._job_watcher_task = asyncio.create_task(self._job_watcher.run())
         # NB: the embedding dim-mismatch warning is deferred to the first provider build
@@ -448,8 +448,8 @@ class Engine:
             converter=self.converter,
             vlm=self.vlm,
             summary=self.summary,
-            description_gate=DescriptionConcurrencyGate(self.cfg.vlm.batch_size),
-            summary_gate=SummaryConcurrencyGate(self.cfg.summary.batch_size),
+            description_gate=DescriptionConcurrencyGate(self.cfg.description.concurrency),
+            summary_gate=SummaryConcurrencyGate(self.cfg.summary.concurrency),
         )
         # Reduce subsystem (§3.5): dir summaries emit into the SAME chunks_q. Its
         # on_embed_succeeded is registered alongside the Map per-task hook so a file's
@@ -472,7 +472,7 @@ class Engine:
         document / code / message_stream / record_collection / table_rows always route
         (_PIPELINE_OKINDS). image routes only when VLM is enabled (the [description] business,
         renamed in step 11) — its ImageChunksProducer makes a VLM call, so with VLM off image
-        falls through to the legacy inline branch (also gated on `cfg.vlm.enabled`), recording
+        falls through to the legacy inline branch (also gated on `cfg.description.enabled`), recording
         the image as metadata-only. table_schema routes only when summary is enabled — its
         TableSchemaProducer makes a summary LLM call, mirroring the legacy inline gate
         `okind == 'table_schema' and self.summary.enabled`. Only dir_summary stays inline now;
@@ -480,7 +480,7 @@ class Engine:
         if okind in self._PIPELINE_OKINDS:
             return True
         if okind == "image":
-            return self.cfg.vlm.enabled
+            return self.cfg.description.enabled
         if okind == "table_schema":
             return self.summary.enabled
         return False
@@ -863,9 +863,9 @@ class Engine:
             # framework-level chunk cap applies unless this object config set its own
             if (
                 oc.chunk_max == _CHUNK_MAX_DEFAULT
-                and self.cfg.chunk.default_chunk_max != _CHUNK_MAX_DEFAULT
+                and self.cfg.chunking.default_chunk_max != _CHUNK_MAX_DEFAULT
             ):
-                oc = _replace(oc, chunk_max=self.cfg.chunk.default_chunk_max)
+                oc = _replace(oc, chunk_max=self.cfg.chunking.default_chunk_max)
             return oc
 
         ctx._resolver = _resolve_cfg
@@ -955,7 +955,7 @@ class Engine:
             "UPDATE object_tasks SET connector_job_id=?, status='pending' "
             "WHERE connector_id=? AND status IN ('pending','failed') AND attempts < ? "
             "AND change_kind != 'dir_summary'",
-            (job_id, cid, self.cfg.worker.max_retries),
+            (job_id, cid, self.cfg.object_task.max_retries),
         )
         return job_id
 
@@ -1430,7 +1430,7 @@ class Engine:
         return job["id"]
 
     def _resolve_concurrency(self, concurrency=None) -> int:
-        c = concurrency if concurrency is not None else self.cfg.worker.concurrency
+        c = concurrency if concurrency is not None else self.cfg.chunks_producer.concurrency
         if c == "auto":
             return max(1, (os.cpu_count() or 2))
         try:
@@ -1618,7 +1618,7 @@ class Engine:
         — the object is recorded as status='skipped' and the breaker is left alone."""
         import asyncio as _a
 
-        max_r = self.cfg.worker.max_retries
+        max_r = self.cfg.object_task.max_retries
         for attempt in range(max_r + 1):
             try:
                 await self._index_object(plugin, connector_uri, task)
@@ -1668,8 +1668,8 @@ class Engine:
                     # initial-only sleep ignored backoff_max_ms entirely and hammered a
                     # rate-limited provider at a fixed cadence.
                     delay_ms = min(
-                        self.cfg.worker.backoff_initial_ms * (2**attempt),
-                        self.cfg.worker.backoff_max_ms,
+                        self.cfg.object_task.backoff_initial_ms * (2**attempt),
+                        self.cfg.object_task.backoff_max_ms,
                     )
                     await _a.sleep(delay_ms / 1000)
                     continue
@@ -1722,7 +1722,7 @@ class Engine:
     async def _run_job(self, job_id: str, cid: str, connector_uri: str, plugin) -> str | None:
         """Returns None on normal completion, or a circuit-breaker reason string.
         Consecutive fatal failures abort the job."""
-        threshold = self.cfg.worker.consecutive_fatal_threshold
+        threshold = self.cfg.object_task.consecutive_fatal_threshold
         consec_fail = 0  # consecutive object failures (fatal OR retries exhausted)
         stop_hb = asyncio.Event()
         hb_task = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
@@ -2022,7 +2022,7 @@ class Engine:
                 plugin, connector_uri, relpath, full_uri, okind, task
             )
 
-        elif okind == "image" and self.cfg.vlm.enabled:
+        elif okind == "image" and self.cfg.description.enabled:
             # Legacy inline VLM path — superseded by the pipeline route above whenever VLM is
             # enabled (so with VLM on this branch is no longer reached). Kept as the reference
             # pre-pipeline implementation; image with VLM off falls through to metadata-only.
@@ -2445,7 +2445,7 @@ class Engine:
                 if okind in ("document", "code", "text_blob"):
                     ext = os.path.splitext(rel)[1].lower()
                     text = await self._read_text(plugin, rel)
-                    texts = [t for t, _ in chunk_body(text, okind, ext, self.cfg.chunk.chunk_size)]
+                    texts = [t for t, _ in chunk_body(text, okind, ext, self.cfg.chunking.chunk_size)]
                 elif okind in ("table_rows", "record_collection", "message_stream"):
                     ocfg = plugin.ctx.object_config_for(rel)
                     records = plugin.read_records(rel)

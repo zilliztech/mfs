@@ -114,8 +114,8 @@ async def _build_engine(tmp_path, *, vlm_enabled=True, vlm_concurrency=10, llm_d
     cfg.transformation_cache.backend = "sqlite"
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "art")
-    cfg.vlm.enabled = vlm_enabled
-    cfg.vlm.batch_size = vlm_concurrency  # description_gate cap (renamed [description].concurrency, step 11)
+    cfg.description.enabled = vlm_enabled
+    cfg.description.concurrency = vlm_concurrency  # description_gate cap (renamed [description].concurrency, step 11)
     eng = Engine(cfg)
     eng.embed = _FakeEmbed()
     eng.milvus = _FakeMilvus()
