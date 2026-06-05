@@ -427,6 +427,22 @@ class Engine:
         )
         self._embed_consumer.start(self._chunks_q)
 
+    def _routes_to_pipeline(self, okind: str) -> bool:
+        """Whether this okind goes through the new producer -> chunks_q -> EmbedConsumer path.
+
+        document / code always (step 4). image only when VLM (the [description] business,
+        renamed in step 11) is enabled — its ImageChunksProducer makes a VLM call, so with
+        VLM off image must NOT route here; it falls through to the legacy inline branch,
+        which is itself gated on `cfg.vlm.enabled` and therefore records the image as
+        metadata-only (no VLM call) — the unchanged pre-pipeline behaviour. The other okinds
+        (message_stream / record_collection / table_rows / table_schema) stay inline until
+        steps 6-7."""
+        if okind in self._PIPELINE_OKINDS:
+            return True
+        if okind == "image":
+            return self.cfg.vlm.enabled
+        return False
+
     def _on_pipeline_task_succeeded(self, task_uri: str, job_id: str | None) -> None:
         """EmbedConsumer success hook: all of this object's chunks are in Milvus. Wake the
         worker blocked in _index_via_pipeline (and, from step 9, notify the Reduce subsystem
@@ -2003,10 +2019,10 @@ class Engine:
 
         if not indexable:
             pass  # binary / opted-out: metadata-only, no chunk/embed (gated below)
-        elif okind in self._PIPELINE_OKINDS:
-            # New pipeline path (§3.1 / §3.2): TextChunksProducer reads + converts +
-            # markdown/code-chunks this object (incl. the converted_md / web-github artifact
-            # writes that used to be inline), and its Chunk stream is embedded + upserted by
+        elif self._routes_to_pipeline(okind):
+            # New pipeline path (§3.1 / §3.2): document/code via TextChunksProducer, image via
+            # ImageChunksProducer (description_gate caps in-flight VLM calls, transformation
+            # cache dedups identical images — §5.5). The Chunk stream is embedded + upserted by
             # the process-level EmbedConsumer. _index_via_pipeline blocks until all of this
             # object's chunks are written (§6.1), so the per-object atomic invariant and the
             # caller's 'mark succeeded' both still hold. delete_by_object is now done once by
@@ -2016,6 +2032,9 @@ class Engine:
             )
 
         elif okind == "image" and self.cfg.vlm.enabled:
+            # Legacy inline VLM path — superseded by the pipeline route above whenever VLM is
+            # enabled (so with VLM on this branch is no longer reached). Kept as the reference
+            # pre-pipeline implementation; image with VLM off falls through to metadata-only.
             ext = os.path.splitext(relpath)[1].lower()
             raw = await self._read_bytes(plugin, relpath)
             desc = await self.vlm.describe(raw, ext)
