@@ -362,6 +362,10 @@ class Engine:
         # (§6.1: _index_via_pipeline awaits it so the task isn't 'succeeded' before its
         # Milvus writes land).
         self._task_events: dict[str, asyncio.Event] = {}
+        # full_uri -> (cid, relpath, stat, indexable, plugin) for pipeline-path objects whose
+        # objects-table row is written by _on_pipeline_object_indexed when the EmbedConsumer
+        # reports the task done (13b — moves the row write off the synchronous tail).
+        self._pending_finalize: dict[str, tuple] = {}
         self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
         # Reduce subsystem (dir_summary lane); built in _build_pipeline, inert when summary off.
         self._reduce = None
@@ -437,6 +441,7 @@ class Engine:
             namespace_id=self.ns,
             embed_key_fn=self.embed._key,
         )
+        self._embed_consumer.register_on_succeeded(self._on_pipeline_object_indexed)
         self._embed_consumer.register_on_succeeded(self._on_pipeline_task_succeeded)
         # ONE description gate + ONE summary gate per process (§5.5), shared by BOTH the Map
         # producers (image / table_schema) and the Reduce SummaryWorker pool, so every VLM /
@@ -530,6 +535,55 @@ class Engine:
             except Exception as e:  # noqa: BLE001
                 print(f"mfs-server: WARNING reduce recovery for job {job_id} failed: {e}", flush=True)
 
+    async def _on_pipeline_object_indexed(
+        self, task_uri: str, job_id: str | None, chunk_count: int = 0, partial: bool = False
+    ) -> None:
+        """EmbedConsumer success hook (13b): write the `objects` row + commit the connector's
+        file_state cursor for a pipeline-path object, now that the EmbedConsumer knows its final
+        chunk_count + partial flag. Skips tasks it has no stashed context for (e.g. a Reduce
+        directory_summary success, which has no objects row)."""
+        ctx = self._pending_finalize.pop(task_uri, None)
+        if ctx is None:
+            return
+        cid, relpath, st, indexable, plugin = ctx
+        if chunk_count == 0:
+            search_status = "not_indexed"
+        elif partial:
+            search_status = "partial"
+        else:
+            search_status = "indexed"
+        await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
+        await plugin.on_object_indexed(relpath)
+
+    async def _write_object_row(
+        self, cid: str, relpath: str, st, indexable: bool, search_status: str, chunk_count: int
+    ) -> None:
+        """UPSERT the `objects` registry row (type/media/size/fingerprint + search_status +
+        chunk_count). Shared by the inline _index_object tail and the pipeline success hook."""
+        await self.meta.execute(
+            "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
+            " fingerprint, indexable, last_seen, search_status, chunk_count, indexed_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(connector_id, object_uri) DO UPDATE SET "
+            " type=excluded.type, media_type=excluded.media_type, size_hint=excluded.size_hint, "
+            " fingerprint=excluded.fingerprint, indexable=excluded.indexable, last_seen=excluded.last_seen, "
+            " search_status=excluded.search_status, chunk_count=excluded.chunk_count, indexed_at=excluded.indexed_at",
+            (
+                cid,
+                relpath,
+                os.path.dirname(relpath) or "/",
+                st.type,
+                st.media_type,
+                st.size_hint,
+                st.fingerprint,
+                1 if indexable else 0,
+                _now(),
+                search_status,
+                chunk_count,
+                _now(),
+            ),
+        )
+
     def _on_pipeline_task_succeeded(
         self, task_uri: str, job_id: str | None, chunk_count: int = 0, partial: bool = False
     ) -> None:
@@ -543,67 +597,60 @@ class Engine:
 
     async def _index_via_pipeline(
         self, plugin, connector_uri: str, relpath: str, full_uri: str, okind: str, task: dict
-    ) -> tuple[int, str]:
+    ) -> None:
         """Produce this object's chunks through the new producer -> chunks_q -> EmbedConsumer
-        path and BLOCK until they are all embedded + upserted (§6.1). Returns
-        (chunk_count, search_status) for the shared objects-row write in _index_object.
+        path and BLOCK until they are all embedded + upserted (§6.1).
 
-        The blocking is a per-object asyncio.Event set by the EmbedConsumer success hook:
-        it preserves the per-object atomic invariant (delete_by_object — done once by the
-        consumer — then upsert all chunks) and keeps the caller's existing 'mark succeeded'
-        correct, since _index_object only returns once Milvus reflects this object."""
+        The blocking is a per-object asyncio.Event set by the EmbedConsumer success hook: it
+        preserves the per-object atomic invariant (delete_by_object — done once by the consumer
+        — then upsert all chunks) and keeps the caller's existing 'mark succeeded' correct,
+        since _index_object only returns once Milvus reflects this object. The objects-table row
+        is written by _on_pipeline_object_indexed (13b); this method no longer returns counts."""
         if self._embed_consumer is None:
             self._build_pipeline()
-        producer = select_producer(okind, self._producer_ctx)
-        if producer is None:
-            return 0, "not_indexed"
         task_id = task["id"]
         job_id = task.get("connector_job_id")
-        otask = ObjectTask(
-            object_uri=relpath,
-            connector_uri=connector_uri,
-            okind=okind,
-            change_kind=task["change_kind"],
-            connector_job_id=job_id,
-            task_id=task_id,
-            plugin=plugin,
-            ocfg=plugin.ctx.object_config_for(relpath),
-        )
+        producer = select_producer(okind, self._producer_ctx)
         ev = asyncio.Event()
         self._task_events[full_uri] = ev
-        count = 0
-        partial = False
         try:
-            async for item in producer.produce(otask):
-                partial = partial or item.partial
-                if not isinstance(item, EndOfTask):
-                    count += 1
+            if producer is None:
+                # unreachable for routed okinds; emit a bare EndOfTask so the consumer finalizes
+                # (zero-chunk) and the success hook still writes the metadata-only objects row.
                 await self._chunks_q.put(
-                    TaskEnvelope(
-                        task_id=task_id,
-                        task_uri=full_uri,
-                        connector_uri=connector_uri,
-                        job_id=job_id,
-                        payload=item,
-                    )
+                    TaskEnvelope(task_id, full_uri, connector_uri, job_id, EndOfTask())
                 )
-            await ev.wait()  # consumer wrote all chunks + fired the success hook
+            else:
+                otask = ObjectTask(
+                    object_uri=relpath,
+                    connector_uri=connector_uri,
+                    okind=okind,
+                    change_kind=task["change_kind"],
+                    connector_job_id=job_id,
+                    task_id=task_id,
+                    plugin=plugin,
+                    ocfg=plugin.ctx.object_config_for(relpath),
+                )
+                async for item in producer.produce(otask):
+                    await self._chunks_q.put(
+                        TaskEnvelope(task_id, full_uri, connector_uri, job_id, item)
+                    )
+            await ev.wait()  # consumer wrote all chunks + fired the success hooks
         finally:
             self._task_events.pop(full_uri, None)
+            # cleanup on the FAILURE path (the success hook already popped it); a failed task
+            # writes no objects row.
+            self._pending_finalize.pop(full_uri, None)
             if okind == "message_stream":
                 # GC the per-task raw_records jsonl the MessageStreamProducer materialized
-                # (§5.4): it was only needed to regroup messages by thread during produce(),
-                # which is now done. Task-scoped cleanup — runs on success AND failure so a
-                # crashed task doesn't leak the temp file; the next sync re-materializes.
+                # (§5.4): only needed to regroup messages by thread during produce(). Runs on
+                # success AND failure so a crashed task doesn't leak the temp file.
                 try:
                     await asyncio.to_thread(
                         self.artifact_cache.delete_artifact, self.ns, full_uri, "raw_records"
                     )
                 except Exception:  # noqa: BLE001 — GC of a temp artifact must never fail the task
                     pass
-        if count == 0:
-            return 0, "not_indexed"
-        return count, ("partial" if partial else "indexed")
 
     # --- target resolution (Phase 2: file only) ---
     def _resolve_target(self, target: str) -> tuple[str, str, str, dict]:
@@ -2020,15 +2067,16 @@ class Engine:
             pass  # binary / opted-out: metadata-only, no chunk/embed (gated below)
         elif self._routes_to_pipeline(okind):
             # New pipeline path (§3.1 / §3.2): document/code via TextChunksProducer, image via
-            # ImageChunksProducer (description_gate caps in-flight VLM calls, transformation
-            # cache dedups identical images — §5.5). The Chunk stream is embedded + upserted by
-            # the process-level EmbedConsumer. _index_via_pipeline blocks until all of this
-            # object's chunks are written (§6.1), so the per-object atomic invariant and the
-            # caller's 'mark succeeded' both still hold. delete_by_object is now done once by
-            # the consumer (on the object's first chunk), not here.
-            chunk_count, search_status = await self._index_via_pipeline(
+            # ImageChunksProducer, etc. The Chunk stream is embedded + upserted by the process-
+            # level EmbedConsumer; delete_by_object is done once by the consumer (first chunk).
+            # The objects-table row + on_object_indexed are written by _on_pipeline_object_indexed
+            # when the consumer reports the task done (13b), so stash the per-object context and
+            # return before the shared inline tail.
+            self._pending_finalize[full_uri] = (cid, relpath, st, indexable, plugin)
+            await self._index_via_pipeline(
                 plugin, connector_uri, relpath, full_uri, okind, task
             )
+            return
 
         elif okind == "image" and self.cfg.description.enabled:
             # Legacy inline VLM path — superseded by the pipeline route above whenever VLM is
@@ -2290,37 +2338,14 @@ class Engine:
         # bottom-up by the independent Reduce subsystem (engine/reduce/, §3.5) from the
         # in-memory dir tree, so a parent folder's summary can fold in its children's summaries.
 
+        # Inline tail — only reached for NON-pipeline okinds now (pipeline okinds return early
+        # above; their objects row is written by _on_pipeline_object_indexed, 13b).
         if chunk_count == 0:
             # A rebuild that produced no chunks (object became binary / indexable=false /
-            # document emptied / empty VLM or summary) must
-            # still purge chunks from a previous index, else search keeps returning stale
-            # content. The per-kind branches only delete when they have new rows to upsert,
-            # so cover the zero-chunk case here (rebuild = delete-by-object + insert).
+            # document emptied / empty VLM or summary) must still purge chunks from a previous
+            # index, else search keeps returning stale content.
             await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-        await self.meta.execute(
-            "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
-            " fingerprint, indexable, last_seen, search_status, chunk_count, indexed_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(connector_id, object_uri) DO UPDATE SET "
-            " type=excluded.type, media_type=excluded.media_type, size_hint=excluded.size_hint, "
-            " fingerprint=excluded.fingerprint, indexable=excluded.indexable, last_seen=excluded.last_seen, "
-            " search_status=excluded.search_status, chunk_count=excluded.chunk_count, indexed_at=excluded.indexed_at",
-            (
-                cid,
-                relpath,
-                os.path.dirname(relpath) or "/",
-                st.type,
-                st.media_type,
-                st.size_hint,
-                st.fingerprint,
-                1 if indexable else 0,
-                _now(),
-                search_status,
-                chunk_count,
-                _now(),
-            ),
-        )
-
+        await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
         await plugin.on_object_indexed(relpath)
 
     # --- search ---

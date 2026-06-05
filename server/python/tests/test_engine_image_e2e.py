@@ -187,18 +187,18 @@ async def test_description_gate_caps_concurrent_vlm(tmp_path):
 
     async def index(rel):
         task = {"id": uuid.uuid4().hex, "change_kind": "added", "connector_job_id": "j"}
-        return await eng._index_via_pipeline(
+        await eng._index_via_pipeline(
             plugin, connector_uri, rel, connector_uri + rel, "image", task
         )
 
-    results = await asyncio.wait_for(
-        asyncio.gather(*[index(rel) for rel in files]), timeout=10
-    )
+    await asyncio.wait_for(asyncio.gather(*[index(rel) for rel in files]), timeout=10)
     await eng._embed_consumer.shutdown()
 
     assert llm.calls == 5  # five distinct images, all hit the provider
     assert llm.max_inflight <= 2  # description_gate held in-flight VLM calls to the cap
-    assert all(count == 1 and status == "indexed" for count, status in results)
+    # each image produced one vlm_description chunk, written through chunks_q to the sink
+    rows = [r for batch in eng.milvus.upserts for r in batch]
+    assert len(rows) == 5 and all(r["chunk_kind"] == "vlm_description" for r in rows)
     await eng.meta.close()
 
 
