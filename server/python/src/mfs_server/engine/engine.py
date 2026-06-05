@@ -362,9 +362,9 @@ class Engine:
         # (§6.1: _index_via_pipeline awaits it so the task isn't 'succeeded' before its
         # Milvus writes land).
         self._task_events: dict[str, asyncio.Event] = {}
-        # full_uri -> (cid, relpath, stat, indexable, plugin) for pipeline-path objects whose
-        # objects-table row is written by _on_pipeline_object_indexed when the EmbedConsumer
-        # reports the task done (13b — moves the row write off the synchronous tail).
+        # full_uri -> (cid, relpath, stat, indexable, plugin, task_id) for pipeline-path objects
+        # whose objects-table row + object_tasks status are written by _on_pipeline_object_indexed
+        # when the EmbedConsumer reports the task done (13b/13c — moves both off the sync tail).
         self._pending_finalize: dict[str, tuple] = {}
         self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
         # Reduce subsystem (dir_summary lane); built in _build_pipeline, inert when summary off.
@@ -545,7 +545,7 @@ class Engine:
         ctx = self._pending_finalize.pop(task_uri, None)
         if ctx is None:
             return
-        cid, relpath, st, indexable, plugin = ctx
+        cid, relpath, st, indexable, plugin, task_id = ctx
         if chunk_count == 0:
             search_status = "not_indexed"
         elif partial:
@@ -554,6 +554,13 @@ class Engine:
             search_status = "indexed"
         await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
         await plugin.on_object_indexed(relpath)
+        # Flip the object_tasks row to 'succeeded' here (13c) — moved off _run_job_loop so a
+        # non-blocking producer pump (13d) doesn't mark the task done before its chunks land.
+        # Conditional on status='running' so a cancelled task is not revived.
+        await self.meta.execute(
+            "UPDATE object_tasks SET status='succeeded', finished_at=? WHERE id=? AND status='running'",
+            (_now(), task_id),
+        )
 
     async def _write_object_row(
         self, cid: str, relpath: str, st, indexable: bool, search_status: str, chunk_count: int
@@ -2072,7 +2079,7 @@ class Engine:
             # The objects-table row + on_object_indexed are written by _on_pipeline_object_indexed
             # when the consumer reports the task done (13b), so stash the per-object context and
             # return before the shared inline tail.
-            self._pending_finalize[full_uri] = (cid, relpath, st, indexable, plugin)
+            self._pending_finalize[full_uri] = (cid, relpath, st, indexable, plugin, task["id"])
             await self._index_via_pipeline(
                 plugin, connector_uri, relpath, full_uri, okind, task
             )
