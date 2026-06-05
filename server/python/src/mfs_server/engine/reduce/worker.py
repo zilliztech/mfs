@@ -34,7 +34,10 @@ async def _child_text(coord, job_id: str, child_uri: str, okind: str) -> str:
         key = cache_key(h, "vlm", coord.vlm.provider, coord.vlm.model, coord.vlm.version)
 
         async def _vlm() -> bytes:
-            return (await coord.vlm.describe(raw, ext)).encode()
+            # share the description gate so a folded-in image draws from the same VLM
+            # in-flight budget as the Map ImageChunksProducer (§5.5)
+            async with coord.description_gate:
+                return (await coord.vlm.describe(raw, ext)).encode()
 
         out = await coord.tx_cache.get_or_compute(
             key, _vlm, kind="vlm", input_hash=h,
@@ -85,7 +88,11 @@ async def fold_and_summarize(coord, job_id: str, dir_uri: str) -> None:
                 parts.append(f"## subdirectory {sub_uri}\n{sub.summary}")
         listing = "\n\n".join(parts)[: coord.cfg.summary.max_input_kb * 1024]
         if listing.strip():
-            summ = await coord.summary.summarize(listing, "directory_summary")
+            # acquire the summary gate even though the SummaryWorker pool is already sized by
+            # [summary].concurrency — so any other caller of summary.summarize shares the same
+            # provider in-flight budget (§5.5, forward-safety).
+            async with coord.summary_gate:
+                summ = await coord.summary.summarize(listing, "directory_summary")
     except Exception as e:  # noqa: BLE001 — never leave a dir un-finalized (would wedge the job)
         print(f"mfs-server: WARNING directory summary {dir_uri} failed: {e}", flush=True)
         summ = ""

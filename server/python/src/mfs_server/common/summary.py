@@ -3,6 +3,11 @@
 Multi-provider (openai/anthropic/gemini), memoized in the transformation cache
 (kind='summary', keyed on input hash + provider/model/version → model change
 re-summarizes). Lazy provider so the server boots without any API key.
+
+This client holds NO concurrency control of its own: the [summary].concurrency ceiling is
+enforced by the shared SummaryConcurrencyGate (engine/producers/base.py) at every call site
+(TableSchemaProducer, the Reduce SummaryWorker), so a single process-wide budget governs
+in-flight summary calls regardless of where summarize() is invoked (§5.5).
 """
 
 from __future__ import annotations

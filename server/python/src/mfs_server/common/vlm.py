@@ -1,8 +1,12 @@
 """VLM client: image bytes -> description text, memoized in transformation cache.
 
-Multi-provider (openai/anthropic/gemini); the configured vlm.provider drives
-the lookup. Result is stored as a vlm_text artifact + indexed as a
-vlm_description chunk.
+Multi-provider (openai/anthropic/gemini); the configured [description].provider drives
+the lookup. Result is stored as a vlm_text artifact + indexed as a vlm_description chunk.
+
+This client holds NO concurrency control of its own: the [description].concurrency ceiling
+is enforced by the shared DescriptionConcurrencyGate (engine/producers/base.py) at every
+call site (ImageChunksProducer, the Reduce SummaryWorker), so a single process-wide budget
+governs in-flight VLM calls regardless of where describe() is invoked (§5.5).
 """
 
 from __future__ import annotations

@@ -438,9 +438,12 @@ class Engine:
             embed_key_fn=self.embed._key,
         )
         self._embed_consumer.register_on_succeeded(self._on_pipeline_task_succeeded)
-        # The [description]/[summary].concurrency TOML keys land in step 11; until then the
-        # gates (used only by image/summary producers, not the document/code path) reuse the
-        # existing batch_size knobs as a reasonable in-flight ceiling.
+        # ONE description gate + ONE summary gate per process (§5.5), shared by BOTH the Map
+        # producers (image / table_schema) and the Reduce SummaryWorker pool, so every VLM /
+        # summary provider call — wherever it originates — draws from the same in-flight budget
+        # ([description].concurrency / [summary].concurrency).
+        self._description_gate = DescriptionConcurrencyGate(self.cfg.description.concurrency)
+        self._summary_gate = SummaryConcurrencyGate(self.cfg.summary.concurrency)
         self._producer_ctx = ProducerContext(
             cfg=self.cfg,
             namespace_id=self.ns,
@@ -448,8 +451,8 @@ class Engine:
             converter=self.converter,
             vlm=self.vlm,
             summary=self.summary,
-            description_gate=DescriptionConcurrencyGate(self.cfg.description.concurrency),
-            summary_gate=SummaryConcurrencyGate(self.cfg.summary.concurrency),
+            description_gate=self._description_gate,
+            summary_gate=self._summary_gate,
         )
         # Reduce subsystem (§3.5): dir summaries emit into the SAME chunks_q. Its
         # on_embed_succeeded is registered alongside the Map per-task hook so a file's
@@ -461,6 +464,8 @@ class Engine:
             vlm=self.vlm,
             converter=self.converter,
             chunks_q=self._chunks_q,
+            description_gate=self._description_gate,
+            summary_gate=self._summary_gate,
         )
         self._embed_consumer.register_on_succeeded(self._reduce.on_embed_succeeded)
         self._embed_consumer.start(self._chunks_q)

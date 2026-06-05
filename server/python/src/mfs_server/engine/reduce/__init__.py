@@ -29,7 +29,12 @@ import posixpath
 from typing import Any, Optional
 
 from ..pipeline import TaskEnvelope
-from ..producers.base import Chunk, EndOfTask
+from ..producers.base import (
+    Chunk,
+    DescriptionConcurrencyGate,
+    EndOfTask,
+    SummaryConcurrencyGate,
+)
 from .queue import SummaryQueue
 from .tree import DirTreeBuilder
 from .worker import run_summary_worker
@@ -38,7 +43,10 @@ __all__ = ["ReduceCoordinator", "build_reduce_subsystem"]
 
 
 class ReduceCoordinator:
-    def __init__(self, cfg, *, tx_cache, summary, vlm, converter, chunks_q):
+    def __init__(
+        self, cfg, *, tx_cache, summary, vlm, converter, chunks_q,
+        description_gate=None, summary_gate=None,
+    ):
         self.cfg = cfg
         self.enabled = bool(cfg.summary.enabled)  # master switch (§7.2 [summary].enabled)
         self.do_dir = bool(cfg.summary.dir)  # run recursive directory summaries
@@ -49,6 +57,13 @@ class ReduceCoordinator:
         self.vlm = vlm
         self.converter = converter
         self.chunks_q = chunks_q
+        # Concurrency gates (§5.5) shared with the Map producers, so a SummaryWorker's summary /
+        # VLM provider call draws from the same in-flight budget as image / table_schema. Default
+        # to fresh gates sized by cfg when none is injected (e.g. unit tests).
+        self.summary_gate = summary_gate or SummaryConcurrencyGate(cfg.summary.concurrency)
+        self.description_gate = description_gate or DescriptionConcurrencyGate(
+            cfg.description.concurrency
+        )
 
         self.queue = SummaryQueue()
         self.builders: dict[str, DirTreeBuilder] = {}
@@ -249,9 +264,19 @@ class ReduceCoordinator:
             st["event"].set()
 
 
-def build_reduce_subsystem(cfg, *, tx_cache, summary, vlm, converter, chunks_q) -> ReduceCoordinator:
+def build_reduce_subsystem(
+    cfg, *, tx_cache, summary, vlm, converter, chunks_q, description_gate=None, summary_gate=None
+) -> ReduceCoordinator:
     """Construct the Reduce coordinator. The caller (engine) registers its on_embed_succeeded
-    with the EmbedConsumer and calls start() after the event loop is running."""
+    with the EmbedConsumer and calls start() after the event loop is running. The
+    description/summary gates are shared with the Map producers (§5.5)."""
     return ReduceCoordinator(
-        cfg, tx_cache=tx_cache, summary=summary, vlm=vlm, converter=converter, chunks_q=chunks_q
+        cfg,
+        tx_cache=tx_cache,
+        summary=summary,
+        vlm=vlm,
+        converter=converter,
+        chunks_q=chunks_q,
+        description_gate=description_gate,
+        summary_gate=summary_gate,
     )
