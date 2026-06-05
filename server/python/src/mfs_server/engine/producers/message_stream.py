@@ -20,6 +20,7 @@ step 6).
 from __future__ import annotations
 
 import json
+import os
 from typing import AsyncIterator
 
 from .base import (
@@ -59,6 +60,9 @@ class MessageStreamProducer:
         # --- pass 1: materialize to jsonl, keep only the thread -> offsets map ---
         order: list = []
         groups: dict = {}  # group value -> [(byte_offset, byte_length)]
+        # the artifact path may sit under a per-object dir the cache only mkdirs on
+        # put_artifact; ensure it exists since we stream-write the file ourselves.
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         try:
             with open(path, "wb") as f:
                 async for rec in records:

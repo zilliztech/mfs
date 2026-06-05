@@ -338,7 +338,7 @@ class Engine:
     # okinds whose ObjectTasks go through the new producer + chunks_q + EmbedConsumer
     # path (§3.2). The other kinds (image / message_stream / record_collection /
     # table_rows / table_schema / dir_summary) keep the inline path until steps 5-7.
-    _PIPELINE_OKINDS = ("document", "code")
+    _PIPELINE_OKINDS = ("document", "code", "message_stream")
 
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
@@ -500,6 +500,17 @@ class Engine:
             await ev.wait()  # consumer wrote all chunks + fired the success hook
         finally:
             self._task_events.pop(full_uri, None)
+            if okind == "message_stream":
+                # GC the per-task raw_records jsonl the MessageStreamProducer materialized
+                # (§5.4): it was only needed to regroup messages by thread during produce(),
+                # which is now done. Task-scoped cleanup — runs on success AND failure so a
+                # crashed task doesn't leak the temp file; the next sync re-materializes.
+                try:
+                    await asyncio.to_thread(
+                        self.artifact_cache.delete_artifact, self.ns, full_uri, "raw_records"
+                    )
+                except Exception:  # noqa: BLE001 — GC of a temp artifact must never fail the task
+                    pass
         if count == 0:
             return 0, "not_indexed"
         return count, ("partial" if partial else "indexed")
@@ -2065,6 +2076,9 @@ class Engine:
         # configured.
 
         elif okind == "message_stream":
+            # Legacy inline path — superseded by the pipeline route above (message_stream is
+            # in _PIPELINE_OKINDS, so this is no longer reached). Kept as the reference
+            # pre-pipeline implementation of the thread-aggregate chunking.
             ocfg = plugin.ctx.object_config_for(relpath)
             records = plugin.read_records(relpath)
             if records is not None and ocfg.text_fields:
