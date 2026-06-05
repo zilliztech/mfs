@@ -41,6 +41,7 @@ from .producers.base import (
     SummaryConcurrencyGate,
     cap_content,
 )
+from .job_watcher import ConnectorJobWatcher
 from .reduce import build_reduce_subsystem
 from .state import ConnectorStateStore
 
@@ -364,6 +365,9 @@ class Engine:
         self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
         # Reduce subsystem (dir_summary lane); built in _build_pipeline, inert when summary off.
         self._reduce = None
+        # ConnectorJobWatcher: out-of-band job completion / cancel / reduce-evict (§5.7).
+        self._job_watcher = None
+        self._job_watcher_task: asyncio.Task | None = None
 
     async def startup(self) -> None:
         load_builtin()
@@ -374,11 +378,25 @@ class Engine:
         self.milvus.ensure_collection(self.ns)
         self._build_pipeline()
         await self._recover_reduce()
+        # ConnectorJobWatcher runs in this same event loop as the EmbedConsumer + SummaryWorker
+        # pool, finalizing jobs out-of-band (§5.7).
+        self._job_watcher = ConnectorJobWatcher(
+            self.meta, self._reduce, threshold=self.cfg.worker.consecutive_fatal_threshold
+        )
+        self._job_watcher_task = asyncio.create_task(self._job_watcher.run())
         # NB: the embedding dim-mismatch warning is deferred to the first provider build
         # (CachingEmbeddingClient._warn_dim_mismatch_once) so boot never downloads/loads the
         # model just to read .dimension — the provider stays lazy and cold start is fast.
 
     async def shutdown(self) -> None:
+        if self._job_watcher is not None:
+            self._job_watcher.stop()
+            if self._job_watcher_task is not None:
+                try:
+                    await self._job_watcher_task
+                except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                    pass
+            self._job_watcher = None
         if self._reduce is not None:
             # stop the SummaryWorker pool first so no new dir chunks are produced, then
             # drain whatever already reached the queue.

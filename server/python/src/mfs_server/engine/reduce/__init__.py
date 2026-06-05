@@ -173,6 +173,21 @@ class ReduceCoordinator:
             return
         await st["event"].wait()
 
+    def is_reduce_done(self, job_id: str) -> bool:
+        """Synchronous completion check for the ConnectorJobWatcher: True when this job has
+        no outstanding directory summaries (or no reduce work at all)."""
+        if not self.enabled:
+            return True
+        st = self._completion.get(job_id)
+        if st is None:
+            return True  # job not tracked by the reduce subsystem -> nothing to wait on
+        return st["event"].is_set()
+
+    def active_jobs(self) -> list[str]:
+        """Jobs whose in-memory DirTree is still held (bounded set the watcher scans to
+        evict reduce state of terminal jobs)."""
+        return list(self.builders.keys())
+
     def evict_job(self, job_id: str) -> None:
         self.builders.pop(job_id, None)
         self.job_plugins.pop(job_id, None)
