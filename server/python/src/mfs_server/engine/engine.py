@@ -24,13 +24,23 @@ from ..common.vlm import CachingVlmClient
 from ..config import ServerConfig
 from ..connectors.base import ConnectorContext, ObjectConfig, SyncOptions
 from ..connectors.registry import get_plugin_cls, load_builtin
-from ..processors.text import chunk_body
 from ..storage.file_state import FileStateStore
 from ..storage.ids import chunk_id
 from ..storage.metadata import make_metadata_store
 from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW, MilvusStore
 from ..storage.artifact_cache import make_artifact_cache
 from ..storage.transformation_cache import make_transformation_cache
+from .adapters import ArtifactStoreAdapter, EmbedderAdapter, MilvusSinkAdapter, TxCacheAdapter
+from .pipeline import EmbedConsumer, TaskEnvelope, _EMBED_FLUSH_IDLE_MS, make_chunks_q
+from .producers import select_producer
+from .producers.base import (
+    DescriptionConcurrencyGate,
+    EndOfTask,
+    ObjectTask,
+    ProducerContext,
+    SummaryConcurrencyGate,
+    cap_content,
+)
 from .state import ConnectorStateStore
 
 _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
@@ -292,7 +302,44 @@ def _split_thread(
     return out
 
 
+class _PipelineEmbedConsumer(EmbedConsumer):
+    """EmbedConsumer wired for the real Milvus + embedding cache: fills in the two hooks
+    step 2 left open — the embed cache key (provider/model/version aware, shared with
+    CachingEmbeddingClient) and the Milvus row shape (chunk_id PK + namespace_id +
+    indexed_at). Mirrors driver._WiredEmbedConsumer; kept local so step 4 doesn't depend
+    on driver.py (the global-pool wiring lands in step 7)."""
+
+    def __init__(self, *args, namespace_id: str, embed_key_fn, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._ns = namespace_id
+        self._embed_key_fn = embed_key_fn
+
+    def _cache_key(self, chunk) -> str:
+        return self._embed_key_fn(chunk.content)
+
+    def _build_row(self, env: TaskEnvelope, chunk, vec: list[float]) -> dict:
+        content, _ = cap_content(chunk.content)
+        loc = chunk.locator
+        return {
+            "chunk_id": chunk_id(self._ns, env.connector_uri, env.task_uri, chunk.chunk_kind, loc),
+            "namespace_id": self._ns,
+            "connector_uri": env.connector_uri,
+            "object_uri": env.task_uri,
+            "locator": loc,
+            "content": content,
+            "dense_vec": vec,
+            "chunk_kind": chunk.chunk_kind,
+            "metadata": chunk.metadata,
+            "indexed_at": int(time.time() * 1000),
+        }
+
+
 class Engine:
+    # okinds whose ObjectTasks go through the new producer + chunks_q + EmbedConsumer
+    # path (§3.2). The other kinds (image / message_stream / record_collection /
+    # table_rows / table_schema / dir_summary) keep the inline path until steps 5-7.
+    _PIPELINE_OKINDS = ("document", "code")
+
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
         self.ns = cfg.namespace
@@ -305,6 +352,15 @@ class Engine:
         self.vlm = CachingVlmClient(cfg, self.tx_cache)
         self.summary = CachingSummaryClient(cfg, self.tx_cache)
         self._artifact_writes = 0  # throttles LRU eviction sweeps
+        # --- new pipeline (process singletons; built lazily in _build_pipeline) ---
+        self._chunks_q: asyncio.Queue | None = None
+        self._embed_consumer: _PipelineEmbedConsumer | None = None
+        self._producer_ctx: ProducerContext | None = None
+        # full_uri -> Event the EmbedConsumer sets when this object's chunks are all written
+        # (§6.1: _index_via_pipeline awaits it so the task isn't 'succeeded' before its
+        # Milvus writes land).
+        self._task_events: dict[str, asyncio.Event] = {}
+        self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
 
     async def startup(self) -> None:
         load_builtin()
@@ -313,13 +369,124 @@ class Engine:
         await self.tx_cache.connect()
         self.milvus.connect()
         self.milvus.ensure_collection(self.ns)
+        self._build_pipeline()
         # NB: the embedding dim-mismatch warning is deferred to the first provider build
         # (CachingEmbeddingClient._warn_dim_mismatch_once) so boot never downloads/loads the
         # model just to read .dimension — the provider stays lazy and cold start is fast.
 
     async def shutdown(self) -> None:
+        if self._embed_consumer is not None:
+            # drain the queue + flush the final batch before the loop closes, so an
+            # in-flight task's chunks aren't lost on shutdown.
+            await self._embed_consumer.shutdown()
+            self._embed_consumer = None
         await self.meta.close()
         await self.tx_cache.close()
+
+    # --- new pipeline: process-singleton chunks_q + EmbedConsumer (§3.1 / §5.2) ---
+    def _build_pipeline(self) -> None:
+        """Construct the process-level chunks_q + EmbedConsumer + ProducerContext and start
+        the consumer draining in the background. Idempotent; called from startup() (and
+        lazily from _index_via_pipeline so the pipeline path works even if a caller skipped
+        startup). The EmbedConsumer is shared across all jobs so embed batches fill across
+        connectors (§5.2)."""
+        if self._embed_consumer is not None:
+            return
+        batch_size = self.cfg.embedding.batch_size
+        self._chunks_q = make_chunks_q(batch_size)
+        self._embed_consumer = _PipelineEmbedConsumer(
+            # raw provider embed (no caching) so the consumer's TxCacheAdapter is the single
+            # embed cache and there is no double-cache; cache key matches CachingEmbeddingClient.
+            EmbedderAdapter(self.embed._embed_api),
+            MilvusSinkAdapter(self.milvus, self.ns),
+            TxCacheAdapter(
+                self.tx_cache,
+                kind="embedding",
+                provider=self.embed.provider_name,
+                model=self.embed.model,
+                version=self.embed.version,
+            ),
+            batch_size,
+            idle_ms=self._embed_idle_ms,
+            namespace_id=self.ns,
+            embed_key_fn=self.embed._key,
+        )
+        self._embed_consumer.register_on_succeeded(self._on_pipeline_task_succeeded)
+        # The [description]/[summary].concurrency TOML keys land in step 11; until then the
+        # gates (used only by image/summary producers, not the document/code path) reuse the
+        # existing batch_size knobs as a reasonable in-flight ceiling.
+        self._producer_ctx = ProducerContext(
+            cfg=self.cfg,
+            namespace_id=self.ns,
+            artifacts=ArtifactStoreAdapter(self.artifact_cache, self.meta),
+            converter=self.converter,
+            vlm=self.vlm,
+            summary=self.summary,
+            description_gate=DescriptionConcurrencyGate(self.cfg.vlm.batch_size),
+            summary_gate=SummaryConcurrencyGate(self.cfg.summary.batch_size),
+        )
+        self._embed_consumer.start(self._chunks_q)
+
+    def _on_pipeline_task_succeeded(self, task_uri: str, job_id: str | None) -> None:
+        """EmbedConsumer success hook: all of this object's chunks are in Milvus. Wake the
+        worker blocked in _index_via_pipeline (and, from step 9, notify the Reduce subsystem
+        via on_object_task_succeeded §6.4.4)."""
+        ev = self._task_events.get(task_uri)
+        if ev is not None:
+            ev.set()
+
+    async def _index_via_pipeline(
+        self, plugin, connector_uri: str, relpath: str, full_uri: str, okind: str, task: dict
+    ) -> tuple[int, str]:
+        """Produce this object's chunks through the new producer -> chunks_q -> EmbedConsumer
+        path and BLOCK until they are all embedded + upserted (§6.1). Returns
+        (chunk_count, search_status) for the shared objects-row write in _index_object.
+
+        The blocking is a per-object asyncio.Event set by the EmbedConsumer success hook:
+        it preserves the per-object atomic invariant (delete_by_object — done once by the
+        consumer — then upsert all chunks) and keeps the caller's existing 'mark succeeded'
+        correct, since _index_object only returns once Milvus reflects this object."""
+        if self._embed_consumer is None:
+            self._build_pipeline()
+        producer = select_producer(okind, self._producer_ctx)
+        if producer is None:
+            return 0, "not_indexed"
+        task_id = task["id"]
+        job_id = task.get("connector_job_id")
+        otask = ObjectTask(
+            object_uri=relpath,
+            connector_uri=connector_uri,
+            okind=okind,
+            change_kind=task["change_kind"],
+            connector_job_id=job_id,
+            task_id=task_id,
+            plugin=plugin,
+            ocfg=plugin.ctx.object_config_for(relpath),
+        )
+        ev = asyncio.Event()
+        self._task_events[full_uri] = ev
+        count = 0
+        partial = False
+        try:
+            async for item in producer.produce(otask):
+                partial = partial or item.partial
+                if not isinstance(item, EndOfTask):
+                    count += 1
+                await self._chunks_q.put(
+                    TaskEnvelope(
+                        task_id=task_id,
+                        task_uri=full_uri,
+                        connector_uri=connector_uri,
+                        job_id=job_id,
+                        payload=item,
+                    )
+                )
+            await ev.wait()  # consumer wrote all chunks + fired the success hook
+        finally:
+            self._task_events.pop(full_uri, None)
+        if count == 0:
+            return 0, "not_indexed"
+        return count, ("partial" if partial else "indexed")
 
     # --- target resolution (Phase 2: file only) ---
     def _resolve_target(self, target: str) -> tuple[str, str, str, dict]:
@@ -1836,53 +2003,17 @@ class Engine:
 
         if not indexable:
             pass  # binary / opted-out: metadata-only, no chunk/embed (gated below)
-        elif okind in ("document", "code"):
-            ext = os.path.splitext(relpath)[1].lower()
-            if okind == "document" and ext in CONVERT_EXTS:
-                raw = await self._read_bytes(plugin, relpath)
-                text = await self.converter.convert(raw, ext)
-                await self._put_artifact(ns, full_uri, "converted_md", text.encode())
-            else:
-                text = await self._read_text(plugin, relpath)
-                if connector_uri.startswith(("web://", "github://")):
-                    await self._put_artifact(ns, full_uri, "converted_md", text.encode())
-            ocfg = plugin.ctx.object_config_for(relpath)
-            pairs = chunk_body(text, okind, ext, self.cfg.chunk.chunk_size)
-            chunk_max = ocfg.chunk_max
-            partial = len(pairs) > chunk_max
-            if partial:
-                pairs = pairs[:chunk_max]
-            if pairs:
-                vecs = await self.embed.batch_embed([p[0] for p in pairs])
-                now_ms = int(time.time() * 1000)
-                content_truncated = False
-                rows = []
-                for (ctext, lines), vec in zip(pairs, vecs):
-                    # Body chunks: the per-chunk identity is the line range,
-                    # stored as the reserved "lines" key inside locator.
-                    loc = {"lines": lines}
-                    capped, was_trunc = _cap_content(ctext)
-                    content_truncated = content_truncated or was_trunc
-                    rows.append(
-                        {
-                            "chunk_id": chunk_id(ns, connector_uri, full_uri, "body", loc),
-                            "namespace_id": ns,
-                            "connector_uri": connector_uri,
-                            "object_uri": full_uri,
-                            "locator": loc,
-                            "content": capped,
-                            "dense_vec": vec,
-                            "chunk_kind": "body",
-                            "metadata": {},
-                            "indexed_at": now_ms,
-                        }
-                    )
-                # No per-file summary: a whole-file LLM summary is only meaningful at the
-                # directory level (see the recursive directory-summary phase), not per file.
-                await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-                await asyncio.to_thread(self.milvus.upsert, ns, rows)
-                chunk_count = len(rows)
-                search_status = "partial" if (partial or content_truncated) else "indexed"
+        elif okind in self._PIPELINE_OKINDS:
+            # New pipeline path (§3.1 / §3.2): TextChunksProducer reads + converts +
+            # markdown/code-chunks this object (incl. the converted_md / web-github artifact
+            # writes that used to be inline), and its Chunk stream is embedded + upserted by
+            # the process-level EmbedConsumer. _index_via_pipeline blocks until all of this
+            # object's chunks are written (§6.1), so the per-object atomic invariant and the
+            # caller's 'mark succeeded' both still hold. delete_by_object is now done once by
+            # the consumer (on the object's first chunk), not here.
+            chunk_count, search_status = await self._index_via_pipeline(
+                plugin, connector_uri, relpath, full_uri, okind, task
+            )
 
         elif okind == "image" and self.cfg.vlm.enabled:
             ext = os.path.splitext(relpath)[1].lower()
