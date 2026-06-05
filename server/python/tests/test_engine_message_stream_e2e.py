@@ -146,7 +146,7 @@ async def test_message_stream_routes_through_pipeline(tmp_path):
 
     # extra success hook: prove the channel task finalizes exactly once
     finalized = Counter()
-    eng._embed_consumer.register_on_succeeded(lambda uri, j: finalized.update([uri]))
+    eng._embed_consumer.register_on_succeeded(lambda uri, j, *a: finalized.update([uri]))
 
     await asyncio.wait_for(
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),

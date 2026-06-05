@@ -111,7 +111,11 @@ class _Shutdown:
 
 _SHUTDOWN = _Shutdown()
 
-SuccessCallback = Callable[[str, Optional[str]], Union[None, Awaitable[None]]]
+# Success hook: (task_uri, job_id, chunk_count, partial). chunk_count is the total number of
+# chunks written for the object; partial is True if any chunk's content was capped or the task
+# was truncated (EndOfTask.partial). Callers derive search_status from these without the
+# producer returning them inline (§6.1 / 13a).
+SuccessCallback = Callable[[str, Optional[str], int, bool], Union[None, Awaitable[None]]]
 
 
 class EmbedConsumer:
@@ -141,6 +145,10 @@ class EmbedConsumer:
         self._eot: dict[str, bool] = {}  # task_id -> partial flag (presence = EndOfTask seen)
         self._deleted: set[str] = set()  # task_ids whose stale chunks were purged
         self._meta: dict[str, TaskEnvelope] = {}  # task_id -> last seen envelope (identity)
+        # per-task accounting for the success hook (13a): cumulative chunk count (never
+        # decremented, unlike _pending) + an OR of every chunk's / the EndOfTask's partial flag.
+        self._count: dict[str, int] = {}
+        self._partial: dict[str, bool] = {}
 
         self._on_succeeded: list[SuccessCallback] = []
         self._q: Optional[asyncio.Queue] = None
@@ -148,8 +156,9 @@ class EmbedConsumer:
 
     # --- registration ---
     def register_on_succeeded(self, callback: SuccessCallback) -> None:
-        """Add a per-task success hook, invoked as callback(task_uri, job_id) when a
-        task's chunks are all written + its EndOfTask was seen (Map → Reduce, §6.4.4)."""
+        """Add a per-task success hook, invoked as callback(task_uri, job_id, chunk_count,
+        partial) when a task's chunks are all written + its EndOfTask was seen (Map → Reduce
+        notification §6.4.4; objects-table update 13b). Callbacks may ignore the trailing args."""
         self._on_succeeded.append(callback)
 
     # --- lifecycle ---
@@ -199,6 +208,9 @@ class EmbedConsumer:
             await self._milvus.delete_by_object(env.connector_uri, env.task_uri)
             self._deleted.add(tid)
         self._pending[tid] = self._pending.get(tid, 0) + 1
+        self._count[tid] = self._count.get(tid, 0) + 1  # cumulative: every received chunk is written
+        if chunk.partial:
+            self._partial[tid] = True
         self._batch.append((env, chunk))
         if len(self._batch) >= self._batch_size:
             await self._flush()
@@ -207,6 +219,8 @@ class EmbedConsumer:
         tid = env.task_id
         self._meta[tid] = env
         self._eot[tid] = env.payload.partial
+        if env.payload.partial:
+            self._partial[tid] = True
         if self._pending.get(tid, 0) == 0:
             # all chunks already written (or this task produced none) — a zero-chunk
             # rebuild still must purge any prior index (§6.1).
@@ -251,12 +265,16 @@ class EmbedConsumer:
     async def _maybe_finalize(self, task_id: str) -> None:
         if self._pending.get(task_id, 0) <= 0 and task_id in self._eot:
             env = self._meta[task_id]
-            await self._fire_success(env.task_uri, env.job_id)
+            chunk_count = self._count.get(task_id, 0)
+            partial = self._partial.get(task_id, False)
+            await self._fire_success(env.task_uri, env.job_id, chunk_count, partial)
             self._cleanup(task_id)
 
-    async def _fire_success(self, task_uri: str, job_id: Optional[str]) -> None:
+    async def _fire_success(
+        self, task_uri: str, job_id: Optional[str], chunk_count: int, partial: bool
+    ) -> None:
         for cb in self._on_succeeded:
-            res = cb(task_uri, job_id)
+            res = cb(task_uri, job_id, chunk_count, partial)
             if asyncio.iscoroutine(res):
                 await res
 
@@ -265,6 +283,8 @@ class EmbedConsumer:
         self._eot.pop(task_id, None)
         self._deleted.discard(task_id)
         self._meta.pop(task_id, None)
+        self._count.pop(task_id, None)
+        self._partial.pop(task_id, None)
 
     # --- overridable hooks (the wiring layer in steps 3-4 supplies the real ones) ---
     def _cache_key(self, chunk: Chunk) -> str:

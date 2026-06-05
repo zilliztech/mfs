@@ -530,10 +530,13 @@ class Engine:
             except Exception as e:  # noqa: BLE001
                 print(f"mfs-server: WARNING reduce recovery for job {job_id} failed: {e}", flush=True)
 
-    def _on_pipeline_task_succeeded(self, task_uri: str, job_id: str | None) -> None:
+    def _on_pipeline_task_succeeded(
+        self, task_uri: str, job_id: str | None, chunk_count: int = 0, partial: bool = False
+    ) -> None:
         """EmbedConsumer success hook: all of this object's chunks are in Milvus. Wake the
         worker blocked in _index_via_pipeline (and, from step 9, notify the Reduce subsystem
-        via on_object_task_succeeded §6.4.4)."""
+        via on_object_task_succeeded §6.4.4). chunk_count / partial are carried for the
+        objects-table updater (13b); unused here."""
         ev = self._task_events.get(task_uri)
         if ev is not None:
             ev.set()

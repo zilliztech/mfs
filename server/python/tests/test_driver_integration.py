@@ -108,7 +108,7 @@ async def test_full_drain_single_worker_priority_order(tmp_path):
 
     # extra success hook to prove per-task pending hits zero exactly once each
     succeeded = Counter()
-    consumer.register_on_succeeded(lambda uri, job: succeeded.update([uri]))
+    consumer.register_on_succeeded(lambda uri, job, *a: succeeded.update([uri]))
 
     await drain_pending(
         meta=meta, ctx=ctx, consumer=consumer, resolve_plugin=resolve_plugin,

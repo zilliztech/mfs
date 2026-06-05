@@ -124,8 +124,8 @@ async def test_end_of_task_zero_pending_invokes_all_callbacks():
     await q.put(_chunk_env("T", "a"))
     await q.put(_eot_env("T"))  # pending still 1 (chunk unflushed); finalize waits for write
     await c.shutdown()  # drain flush writes the chunk -> pending 0 + eot seen -> success
-    cb1.assert_awaited_once_with("c://x/T", "job1")
-    cb2.assert_awaited_once_with("c://x/T", "job1")
+    cb1.assert_awaited_once_with("c://x/T", "job1", 1, False)  # 1 chunk, not partial
+    cb2.assert_awaited_once_with("c://x/T", "job1", 1, False)
 
 
 async def test_zero_chunk_task_finalizes_and_still_deletes():
@@ -136,7 +136,7 @@ async def test_zero_chunk_task_finalizes_and_still_deletes():
     c.start(q)
     await q.put(_eot_env("EMPTY"))  # no chunks at all (e.g. emptied document)
     await c.shutdown()
-    cb.assert_awaited_once_with("c://x/EMPTY", "job1")
+    cb.assert_awaited_once_with("c://x/EMPTY", "job1", 0, False)  # zero chunks
     # a zero-chunk rebuild must still purge any prior index
     milvus.delete_by_object.assert_awaited_once_with("c://x", "c://x/EMPTY")
     embedder.batch_embed.assert_not_called()
@@ -179,7 +179,7 @@ async def test_shutdown_drains_pending_batch():
 async def test_multiple_tasks_interleaved_pending_isolated():
     c, embedder, milvus, tx = _consumer(batch_size=4)
     seen = []
-    c.register_on_succeeded(lambda uri, job: seen.append((uri, job)))
+    c.register_on_succeeded(lambda uri, job, *a: seen.append((uri, job)))
     q = make_chunks_q(4)
     c.start(q)
     # interleave A and B chunks in one batch, then their EndOfTasks
@@ -213,3 +213,31 @@ async def test_partial_flag_round_trips_into_row():
     await c.shutdown()
     row = milvus.upsert.call_args.args[0][0]
     assert row["partial"] is True
+
+
+async def test_success_callback_carries_chunk_count_and_partial():
+    # 13a: the success hook receives (task_uri, job_id, chunk_count, partial); chunk_count is
+    # cumulative across flushes and partial ORs every chunk's + the EndOfTask's flag.
+    c, embedder, milvus, tx = _consumer(batch_size=2)  # forces T1 across two flushes
+    seen: dict[str, tuple] = {}
+    c.register_on_succeeded(lambda uri, job, count, partial: seen.update({uri: (count, partial)}))
+    q = make_chunks_q(2)
+    c.start(q)
+
+    # T1: 3 chunks (spans flushes), none partial -> (3, False)
+    for i in range(3):
+        await q.put(_chunk_env("T1", f"c{i}"))
+    await q.put(_eot_env("T1"))
+    # T2: one chunk flagged partial, EndOfTask not partial -> (1, True) via the chunk flag
+    env = _chunk_env("T2", "big")
+    env.payload.partial = True
+    await q.put(env)
+    await q.put(_eot_env("T2", partial=False))
+    # T3: one clean chunk but the EndOfTask is partial (chunk_max truncation) -> (1, True)
+    await q.put(_chunk_env("T3", "x"))
+    await q.put(_eot_env("T3", partial=True))
+
+    await c.shutdown()
+    assert seen["c://x/T1"] == (3, False)
+    assert seen["c://x/T2"] == (1, True)
+    assert seen["c://x/T3"] == (1, True)

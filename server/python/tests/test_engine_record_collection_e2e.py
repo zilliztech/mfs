@@ -143,7 +143,7 @@ async def test_record_collection_routes_to_pipeline(tmp_path):
     await _seed(eng, job_id=job_id, cid=cid, object_uri="/issues")
 
     finalized = Counter()
-    eng._embed_consumer.register_on_succeeded(lambda uri, j: finalized.update([uri]))
+    eng._embed_consumer.register_on_succeeded(lambda uri, j, *a: finalized.update([uri]))
 
     await asyncio.wait_for(
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),

@@ -147,7 +147,9 @@ class ChunksProducerPool:
         )
 
     # --- terminal transitions ---
-    async def _on_task_succeeded(self, task_uri: str, job_id: Optional[str]) -> None:
+    async def _on_task_succeeded(
+        self, task_uri: str, job_id: Optional[str], chunk_count: int = 0, partial: bool = False
+    ) -> None:
         """EmbedConsumer success hook: all of this object's chunks are in Milvus."""
         task_id = self._inflight.pop(task_uri, None)
         if task_id is None:
