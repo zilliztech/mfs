@@ -41,6 +41,7 @@ from .producers.base import (
     SummaryConcurrencyGate,
     cap_content,
 )
+from .reduce import build_reduce_subsystem
 from .state import ConnectorStateStore
 
 _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
@@ -361,6 +362,8 @@ class Engine:
         # Milvus writes land).
         self._task_events: dict[str, asyncio.Event] = {}
         self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
+        # Reduce subsystem (dir_summary lane); built in _build_pipeline, inert when summary off.
+        self._reduce = None
 
     async def startup(self) -> None:
         load_builtin()
@@ -370,11 +373,16 @@ class Engine:
         self.milvus.connect()
         self.milvus.ensure_collection(self.ns)
         self._build_pipeline()
+        await self._recover_reduce()
         # NB: the embedding dim-mismatch warning is deferred to the first provider build
         # (CachingEmbeddingClient._warn_dim_mismatch_once) so boot never downloads/loads the
         # model just to read .dimension — the provider stays lazy and cold start is fast.
 
     async def shutdown(self) -> None:
+        if self._reduce is not None:
+            # stop the SummaryWorker pool first so no new dir chunks are produced, then
+            # drain whatever already reached the queue.
+            await self._reduce.stop()
         if self._embed_consumer is not None:
             # drain the queue + flush the final batch before the loop closes, so an
             # in-flight task's chunks aren't lost on shutdown.
@@ -425,7 +433,20 @@ class Engine:
             description_gate=DescriptionConcurrencyGate(self.cfg.vlm.batch_size),
             summary_gate=SummaryConcurrencyGate(self.cfg.summary.batch_size),
         )
+        # Reduce subsystem (§3.5): dir summaries emit into the SAME chunks_q. Its
+        # on_embed_succeeded is registered alongside the Map per-task hook so a file's
+        # success both unblocks _index_via_pipeline AND notifies the dir tree (§6.4.4).
+        self._reduce = build_reduce_subsystem(
+            self.cfg,
+            tx_cache=self.tx_cache,
+            summary=self.summary,
+            vlm=self.vlm,
+            converter=self.converter,
+            chunks_q=self._chunks_q,
+        )
+        self._embed_consumer.register_on_succeeded(self._reduce.on_embed_succeeded)
         self._embed_consumer.start(self._chunks_q)
+        self._reduce.start()  # no-op unless cfg.summary.enabled
 
     def _routes_to_pipeline(self, okind: str) -> bool:
         """Whether this okind goes through the new producer -> chunks_q -> EmbedConsumer path.
@@ -445,6 +466,46 @@ class Engine:
         if okind == "table_schema":
             return self.summary.enabled
         return False
+
+    async def _recover_reduce(self) -> None:
+        """Rebuild the Reduce subsystem's in-memory dir trees for jobs left 'running' by a
+        crash (§6.4.5). Best-effort: a per-job failure is logged and skipped, never blocking
+        boot. Already-written directory summaries are recomputed (idempotent + summary-cache
+        cheap) rather than queried back from Milvus."""
+        if self._reduce is None or not self._reduce.enabled:
+            return
+        import json as _json
+
+        try:
+            jobs = await self.meta.fetchall(
+                "SELECT id, connector_id FROM connector_jobs WHERE status='running'"
+            )
+        except Exception:  # noqa: BLE001 — recovery must never wedge startup
+            return
+        for job in jobs:
+            job_id, cid = job["id"], job["connector_id"]
+            try:
+                crow = await self.meta.fetchone(
+                    "SELECT root_uri, type, config_json FROM connectors WHERE id=?", (cid,)
+                )
+                if not crow:
+                    continue
+                connector_uri, ctype = crow["root_uri"], crow["type"]
+                stored_cfg = _json.loads(crow["config_json"]) if crow["config_json"] else {}
+                plugin, _ = self._build_plugin(ctype, stored_cfg, cid)
+                await asyncio.wait_for(plugin.connect(), timeout=_WORKER_CONNECT_TIMEOUT_S)
+                rows = await self.meta.fetchall(
+                    "SELECT object_uri, status FROM object_tasks "
+                    "WHERE connector_job_id=? AND change_kind != 'dir_summary'",
+                    (job_id,),
+                )
+                objects = [
+                    (r["object_uri"], plugin.object_kind_of(r["object_uri"]), r["status"])
+                    for r in rows
+                ]
+                self._reduce.recover_job(job_id, connector_uri, plugin, objects, [])
+            except Exception as e:  # noqa: BLE001
+                print(f"mfs-server: WARNING reduce recovery for job {job_id} failed: {e}", flush=True)
 
     def _on_pipeline_task_succeeded(self, task_uri: str, job_id: str | None) -> None:
         """EmbedConsumer success hook: all of this object's chunks are in Milvus. Wake the
@@ -878,13 +939,6 @@ class Engine:
             "AND change_kind != 'dir_summary'",
             (job_id, cid, self.cfg.worker.max_retries),
         )
-        # dir_summary tasks are regenerated from scratch in phase 2 each run; drop any
-        # leftovers so they don't run in a file phase against stale content.
-        await self.meta.execute(
-            "UPDATE object_tasks SET status='cancelled' "
-            "WHERE connector_id=? AND change_kind='dir_summary' AND status IN ('pending','failed','running')",
-            (cid,),
-        )
         return job_id
 
     async def _drain_job(
@@ -916,6 +970,8 @@ class Engine:
             # job is 'running'/'preparing' here with no other heartbeat source).
             stop_hb = asyncio.Event()
             hb = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
+            # Reduce subsystem: build this job's in-memory dir tree as sync() yields (§6.4).
+            self._reduce.register_job(job_id, connector_uri, plugin)
             try:
                 async for ch in plugin.sync(opts):
                     if ch.kind == "deleted" and (
@@ -940,6 +996,11 @@ class Engine:
                             plugin.task_priority(ch),
                         ),
                     )
+                    if ch.kind != "deleted":
+                        # accumulate the dir tree (okind passed in — no extra DB hit, §6.4.1)
+                        self._reduce.on_yield_object_change(
+                            job_id, ch.uri, plugin.object_kind_of(ch.uri)
+                        )
             finally:
                 stop_hb.set()
                 hb.cancel()
@@ -947,6 +1008,10 @@ class Engine:
                     await hb
                 except (asyncio.CancelledError, Exception):  # noqa: BLE001
                     pass
+            # sync enumeration finished: finalize the dir tree (pushes ready leaves; the rest
+            # are pushed as Map file tasks succeed). Done for both inline and enqueue models so
+            # an in-process worker can drain the summaries later.
+            self._reduce.on_sync_done(job_id)
             if not process:
                 # enqueue model: stash staged state on the job; the worker commits it only
                 # after the job succeeds, so a failed background job doesn't
@@ -1244,6 +1309,9 @@ class Engine:
                 job_id,
             ),
         )
+        # job reached a terminal state: free the Reduce subsystem's in-memory dir tree (§6.4.6)
+        if self._reduce is not None:
+            self._reduce.evict_job(job_id)
 
     # --- standalone worker: poll DB queue, process queued jobs ---
     async def cancel_job(self, job_id: str) -> bool:
@@ -1466,8 +1534,9 @@ class Engine:
         """Claim up to `limit` pending tasks GLOBALLY (§5.7 — no per-job filter), ordered by
         priority then age, so any worker coroutine immediately picks up the highest-priority
         pending task regardless of which job it belongs to (a late high-priority job interleaves
-        with an older one). dir_summary tasks are excluded — they are a reduce operation claimed
-        per-job by _claim_dir_summary_batch (and become the Reduce subsystem in step 9).
+        with an older one). The `change_kind != 'dir_summary'` clause is now only a defensive
+        guard against stale rows from a pre-upgrade DB — dir_summary is no longer enqueued as an
+        object_task; the Reduce subsystem (§3.5) owns it entirely.
 
         Transitional note: the legacy _run_job_loop still processes each claimed task with its
         OWN connector's plugin, so a globally-claimed task belonging to a *different* connector
@@ -1479,17 +1548,6 @@ class Engine:
             "SELECT * FROM object_tasks WHERE status='pending' AND change_kind != 'dir_summary' "
             "ORDER BY priority ASC, started_at ASC LIMIT ?",
             (limit,),
-        )
-        return await self._claim_rows(rows)
-
-    async def _claim_dir_summary_batch(self, job_id: str, limit: int) -> list[dict]:
-        """Per-job claim of this job's dir_summary tasks only (the legacy Reduce path, inline
-        until step 9). Kept per-job: a dir_summary folds children read through the owning
-        connector's plugin, so it must run on that connector — unlike the global map claim."""
-        rows = await self.meta.fetchall(
-            "SELECT * FROM object_tasks WHERE connector_job_id=? AND status='pending' "
-            "AND change_kind = 'dir_summary' ORDER BY priority ASC, started_at ASC LIMIT ?",
-            (job_id, limit),
         )
         return await self._claim_rows(rows)
 
@@ -1653,13 +1711,13 @@ class Engine:
         try:
             r = await self._run_job_loop(job_id, cid, connector_uri, plugin, threshold, consec_fail)
             if r is not None:
-                return r  # file phase aborted (cancel / circuit breaker)
-            if self.summary.enabled:
-                # phase 2: recursive directory summaries over the dirs this job touched,
-                # processed deepest-first so a parent folds in its children's summaries.
-                return await self._run_directory_summary_phase(
-                    job_id, cid, connector_uri, plugin, threshold
-                )
+                return r  # map phase aborted (cancel / circuit breaker)
+            if self.summary.enabled and self._reduce is not None:
+                # Reduce subsystem (§3.5): the dir tree was accumulated during sync and is
+                # driven bottom-up by the Map success notifications + the SummaryWorker pool.
+                # Block until every directory_summary for this job is computed AND persisted,
+                # so the job isn't marked succeeded before its summaries are in Milvus.
+                await self._reduce.await_reduce_done(job_id)
             return None
         finally:
             stop_hb.set()
@@ -1670,25 +1728,14 @@ class Engine:
                 pass
 
     async def _run_job_loop(
-        self,
-        job_id: str,
-        cid: str,
-        connector_uri: str,
-        plugin,
-        threshold: int,
-        consec_fail: int,
-        dir_summary_only: bool = False,
+        self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int, consec_fail: int
     ) -> str | None:
-        # Map phase claims globally (§5.7); the directory-summary phase (dir_summary_only=True)
-        # claims only THIS job's dir_summary tasks so they stay bound to this connector's plugin.
+        # Map phase claims object_tasks globally (§5.7). dir_summary is no longer an
+        # object_task — the Reduce subsystem owns it (§3.5), driven by the success notifications.
         while True:
             if await self._should_stop(job_id, cid):
                 return "cancelled"
-            tasks = await (
-                self._claim_dir_summary_batch(job_id, 64)
-                if dir_summary_only
-                else self._claim_batch(64)
-            )
+            tasks = await self._claim_batch(64)
             if not tasks:
                 break
             for t in tasks:
@@ -1740,133 +1787,6 @@ class Engine:
                         )
                         return "circuit_breaker_tripped"
         return None
-
-    # --- phase 2: recursive directory summaries ---
-    @staticmethod
-    def _ancestor_dirs(relpath: str) -> set[str]:
-        """All ancestor directory relpaths of a file object_uri, incl. the root '/'.
-        '/src/connectors/file/plugin.py' -> {'/', '/src', '/src/connectors', '/src/connectors/file'}."""
-        parts = [p for p in relpath.split("/") if p]
-        dirs = {"/"}
-        cur = ""
-        for seg in parts[:-1]:  # drop the file leaf
-            cur = f"{cur}/{seg}"
-            dirs.add(cur)
-        return dirs
-
-    async def _run_directory_summary_phase(
-        self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int
-    ) -> str | None:
-        """Enqueue a directory_summary task for every directory this job touched (ancestors
-        of its changed objects). priority=-depth so the shared run loop processes them
-        deepest-first; since tasks run sequentially, a parent always runs after all its
-        descendants, so its summary can fold in the children's already-written summaries."""
-        rows = await self.meta.fetchall(
-            "SELECT DISTINCT object_uri FROM object_tasks "
-            "WHERE connector_job_id=? AND change_kind != 'dir_summary'",
-            (job_id,),
-        )
-        dirs: set[str] = set()
-        for r in rows:
-            dirs |= self._ancestor_dirs(r["object_uri"])
-        if not self.cfg.summary.dir_recursive:
-            dirs &= {"/"}  # non-recursive: only the connector root
-        for d in dirs:
-            depth = len([p for p in d.split("/") if p])
-            await self.meta.execute(
-                "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
-                " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
-                (uuid.uuid4().hex, job_id, cid, d, None, "dir_summary", "pending", -depth),
-            )
-        return await self._run_job_loop(
-            job_id, cid, connector_uri, plugin, threshold, 0, dir_summary_only=True
-        )
-
-    async def _read_text_capped(self, plugin, relpath: str, cap: int) -> str:
-        """Read at most `cap` bytes (bounded so a huge file can't blow up the summary input)."""
-        buf = bytearray()
-        async for chunk in plugin.read(relpath):
-            buf += chunk
-            if len(buf) >= cap:
-                break
-        return bytes(buf[:cap]).decode("utf-8", errors="replace")
-
-    async def _dir_child_text(self, plugin, connector_uri: str, child_rel: str, etype: str) -> str:
-        """Content excerpt fed into a directory summary for one direct child entry:
-        md/code raw, pdf/html/docx -> cached converted_md, image -> cached VLM text (only
-        when include_image_desc), capped at per_file_max_kb. Reuses phase-1 artifacts so we
-        don't re-convert or re-call the VLM."""
-        ns = self.ns
-        cap = self.cfg.summary.per_file_max_kb * 1024
-        full_uri = connector_uri + child_rel
-        okind = plugin.object_kind_of(child_rel)
-        ext = os.path.splitext(child_rel)[1].lower()
-        if okind == "image":
-            if not self.cfg.summary.include_image_desc:
-                return ""
-            data = await asyncio.to_thread(
-                self.artifact_cache.get_artifact, ns, full_uri, "vlm_text"
-            )
-            return data.decode("utf-8", errors="replace")[:cap] if data else ""
-        if okind == "document" and ext in CONVERT_EXTS:
-            data = await asyncio.to_thread(
-                self.artifact_cache.get_artifact, ns, full_uri, "converted_md"
-            )
-            return data.decode("utf-8", errors="replace")[:cap] if data else ""
-        if okind in ("document", "code"):
-            return await self._read_text_capped(plugin, child_rel, cap)
-        return ""  # binary / text_blob / structured: skip
-
-    async def _summarize_directory(self, plugin, connector_uri: str, relpath: str) -> None:
-        """Build a directory's LLM summary from its direct children — file content excerpts
-        plus the already-computed summaries of its sub-directories — then upsert one
-        directory_summary chunk. Empty input purges any stale summary instead."""
-        ns = self.ns
-        full_uri = connector_uri + relpath
-        budget = self.cfg.summary.max_input_kb * 1024
-        try:
-            entries = await plugin.list(relpath)
-        except Exception:  # noqa: BLE001 - vanished dir: purge and move on
-            await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-            return
-        parts: list[str] = []
-        base = relpath.rstrip("/")
-        for e in entries:
-            child_rel = f"{base}/{e.name}"
-            if e.type == "dir":
-                chs = await asyncio.to_thread(
-                    self.milvus.get_chunks_by_object, ns, connector_uri, connector_uri + child_rel
-                )
-                sub = next(
-                    (c["content"] for c in chs if c.get("chunk_kind") == "directory_summary"), ""
-                )
-                if sub.strip():
-                    parts.append(f"## subdirectory {e.name}/\n{sub}")
-            else:
-                txt = await self._dir_child_text(plugin, connector_uri, child_rel, e.type)
-                if txt.strip():
-                    parts.append(f"## file {e.name}\n{txt}")
-        listing = "\n\n".join(parts)[:budget]
-        if not listing.strip():
-            await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-            return
-        summ = await self.summary.summarize(listing, "directory_summary")
-        await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-        if summ.strip():
-            vec = (await self.embed.batch_embed([summ]))[0]
-            row = {
-                "chunk_id": chunk_id(ns, connector_uri, full_uri, "directory_summary", None),
-                "namespace_id": ns,
-                "connector_uri": connector_uri,
-                "object_uri": full_uri,
-                "locator": None,
-                "content": summ[:65000],
-                "dense_vec": vec,
-                "chunk_kind": "directory_summary",
-                "metadata": {},
-                "indexed_at": int(time.time() * 1000),
-            }
-            await asyncio.to_thread(self.milvus.upsert, ns, [row])
 
     async def _read_text(self, plugin, relpath: str) -> str:
         return (await self._read_bytes(plugin, relpath)).decode("utf-8", errors="replace")
@@ -1968,9 +1888,7 @@ class Engine:
         ns = self.ns
         full_uri = connector_uri + relpath
 
-        if kind == "dir_summary":
-            await self._summarize_directory(plugin, connector_uri, relpath)
-            return
+        # dir_summary is no longer an object_task — it lives in the Reduce subsystem (§3.5).
 
         if kind == "deleted":
             await self.meta.execute(
@@ -2343,9 +2261,8 @@ class Engine:
                     search_status = "indexed"
 
         # Directory summaries are NOT produced here per enumerated object. They are built
-        # bottom-up in a dedicated phase after all files are indexed (see
-        # _run_directory_summary_phase / _summarize_directory), so a parent folder's summary
-        # can fold in its children's summaries.
+        # bottom-up by the independent Reduce subsystem (engine/reduce/, §3.5) from the
+        # in-memory dir tree, so a parent folder's summary can fold in its children's summaries.
 
         if chunk_count == 0:
             # A rebuild that produced no chunks (object became binary / indexable=false /
