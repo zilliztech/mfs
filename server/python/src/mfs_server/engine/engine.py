@@ -338,7 +338,7 @@ class Engine:
     # okinds whose ObjectTasks go through the new producer + chunks_q + EmbedConsumer
     # path (§3.2). The other kinds (image / message_stream / record_collection /
     # table_rows / table_schema / dir_summary) keep the inline path until steps 5-7.
-    _PIPELINE_OKINDS = ("document", "code", "message_stream")
+    _PIPELINE_OKINDS = ("document", "code", "message_stream", "record_collection", "table_rows")
 
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
@@ -430,17 +430,20 @@ class Engine:
     def _routes_to_pipeline(self, okind: str) -> bool:
         """Whether this okind goes through the new producer -> chunks_q -> EmbedConsumer path.
 
-        document / code always (step 4). image only when VLM (the [description] business,
-        renamed in step 11) is enabled — its ImageChunksProducer makes a VLM call, so with
-        VLM off image must NOT route here; it falls through to the legacy inline branch,
-        which is itself gated on `cfg.vlm.enabled` and therefore records the image as
-        metadata-only (no VLM call) — the unchanged pre-pipeline behaviour. The other okinds
-        (message_stream / record_collection / table_rows / table_schema) stay inline until
-        steps 6-7."""
+        document / code / message_stream / record_collection / table_rows always route
+        (_PIPELINE_OKINDS). image routes only when VLM is enabled (the [description] business,
+        renamed in step 11) — its ImageChunksProducer makes a VLM call, so with VLM off image
+        falls through to the legacy inline branch (also gated on `cfg.vlm.enabled`), recording
+        the image as metadata-only. table_schema routes only when summary is enabled — its
+        TableSchemaProducer makes a summary LLM call, mirroring the legacy inline gate
+        `okind == 'table_schema' and self.summary.enabled`. Only dir_summary stays inline now;
+        it becomes the Reduce subsystem in step 9."""
         if okind in self._PIPELINE_OKINDS:
             return True
         if okind == "image":
             return self.cfg.vlm.enabled
+        if okind == "table_schema":
+            return self.summary.enabled
         return False
 
     def _on_pipeline_task_succeeded(self, task_uri: str, job_id: str | None) -> None:
@@ -1459,15 +1462,41 @@ class Engine:
 
         await asyncio.gather(*[_loop() for _ in range(n)])
 
-    async def _claim_batch(self, job_id: str, limit: int) -> list[dict]:
-        """Claim up to `limit` pending tasks. Each is taken with a conditional UPDATE
-        guarded on status='pending'; only rows this worker actually flipped (rowcount
-        == 1) are returned, so concurrent workers never double-process a task."""
+    async def _claim_batch(self, limit: int) -> list[dict]:
+        """Claim up to `limit` pending tasks GLOBALLY (§5.7 — no per-job filter), ordered by
+        priority then age, so any worker coroutine immediately picks up the highest-priority
+        pending task regardless of which job it belongs to (a late high-priority job interleaves
+        with an older one). dir_summary tasks are excluded — they are a reduce operation claimed
+        per-job by _claim_dir_summary_batch (and become the Reduce subsystem in step 9).
+
+        Transitional note: the legacy _run_job_loop still processes each claimed task with its
+        OWN connector's plugin, so a globally-claimed task belonging to a *different* connector
+        is only processed correctly once the global ChunksProducer pool (which resolves the
+        plugin per task, driver.py) replaces this loop. In the default single-host deployment
+        the inline drain runs one connector's job at a time, so the global claim in practice
+        only sees that connector's tasks; full cross-connector isolation lands with the pool."""
+        rows = await self.meta.fetchall(
+            "SELECT * FROM object_tasks WHERE status='pending' AND change_kind != 'dir_summary' "
+            "ORDER BY priority ASC, started_at ASC LIMIT ?",
+            (limit,),
+        )
+        return await self._claim_rows(rows)
+
+    async def _claim_dir_summary_batch(self, job_id: str, limit: int) -> list[dict]:
+        """Per-job claim of this job's dir_summary tasks only (the legacy Reduce path, inline
+        until step 9). Kept per-job: a dir_summary folds children read through the owning
+        connector's plugin, so it must run on that connector — unlike the global map claim."""
         rows = await self.meta.fetchall(
             "SELECT * FROM object_tasks WHERE connector_job_id=? AND status='pending' "
-            "ORDER BY priority ASC, started_at ASC LIMIT ?",
+            "AND change_kind = 'dir_summary' ORDER BY priority ASC, started_at ASC LIMIT ?",
             (job_id, limit),
         )
+        return await self._claim_rows(rows)
+
+    async def _claim_rows(self, rows: list[dict]) -> list[dict]:
+        """Take each candidate row with a conditional UPDATE guarded on status='pending';
+        return only the rows this worker actually flipped (rowcount == 1), so concurrent
+        workers never double-process a task."""
         claimed = []
         for r in rows:
             won = await self.meta.execute_rowcount(
@@ -1641,12 +1670,25 @@ class Engine:
                 pass
 
     async def _run_job_loop(
-        self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int, consec_fail: int
+        self,
+        job_id: str,
+        cid: str,
+        connector_uri: str,
+        plugin,
+        threshold: int,
+        consec_fail: int,
+        dir_summary_only: bool = False,
     ) -> str | None:
+        # Map phase claims globally (§5.7); the directory-summary phase (dir_summary_only=True)
+        # claims only THIS job's dir_summary tasks so they stay bound to this connector's plugin.
         while True:
             if await self._should_stop(job_id, cid):
                 return "cancelled"
-            tasks = await self._claim_batch(job_id, limit=64)
+            tasks = await (
+                self._claim_dir_summary_batch(job_id, 64)
+                if dir_summary_only
+                else self._claim_batch(64)
+            )
             if not tasks:
                 break
             for t in tasks:
@@ -1736,7 +1778,9 @@ class Engine:
                 " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
                 (uuid.uuid4().hex, job_id, cid, d, None, "dir_summary", "pending", -depth),
             )
-        return await self._run_job_loop(job_id, cid, connector_uri, plugin, threshold, 0)
+        return await self._run_job_loop(
+            job_id, cid, connector_uri, plugin, threshold, 0, dir_summary_only=True
+        )
 
     async def _read_text_capped(self, plugin, relpath: str, cap: int) -> str:
         """Read at most `cap` bytes (bounded so a huge file can't blow up the summary input)."""
@@ -2160,6 +2204,8 @@ class Engine:
                     search_status = "partial" if content_truncated else "indexed"
 
         elif okind in ("table_rows", "record_collection"):
+            # Legacy inline path — superseded by the pipeline route above (both are in
+            # _PIPELINE_OKINDS now). Kept as the reference pre-pipeline per-row implementation.
             ocfg = plugin.ctx.object_config_for(relpath)
             records = plugin.read_records(relpath)
             if records is not None and ocfg.text_fields:
@@ -2251,6 +2297,8 @@ class Engine:
                     )
 
         elif okind == "table_schema" and self.summary.enabled:
+            # Legacy inline path — superseded by the pipeline route above whenever summary is
+            # enabled (so no longer reached). Kept as the reference pre-pipeline implementation.
             # schema_summary chunk: an LLM description of the table/collection schema
             records = plugin.read_records(relpath)
             schema_obj = None
