@@ -358,10 +358,6 @@ class Engine:
         self._chunks_q: asyncio.Queue | None = None
         self._embed_consumer: _PipelineEmbedConsumer | None = None
         self._producer_ctx: ProducerContext | None = None
-        # full_uri -> Event the EmbedConsumer sets when this object's chunks are all written
-        # (§6.1: _index_via_pipeline awaits it so the task isn't 'succeeded' before its
-        # Milvus writes land).
-        self._task_events: dict[str, asyncio.Event] = {}
         # full_uri -> (cid, relpath, stat, indexable, plugin, task_id) for pipeline-path objects
         # whose objects-table row + object_tasks status are written by _on_pipeline_object_indexed
         # when the EmbedConsumer reports the task done (13b/13c — moves both off the sync tail).
@@ -442,7 +438,6 @@ class Engine:
             embed_key_fn=self.embed._key,
         )
         self._embed_consumer.register_on_succeeded(self._on_pipeline_object_indexed)
-        self._embed_consumer.register_on_succeeded(self._on_pipeline_task_succeeded)
         # ONE description gate + ONE summary gate per process (§5.5), shared by BOTH the Map
         # producers (image / table_schema) and the Reduce SummaryWorker pool, so every VLM /
         # summary provider call — wherever it originates — draws from the same in-flight budget
@@ -591,35 +586,19 @@ class Engine:
             ),
         )
 
-    def _on_pipeline_task_succeeded(
-        self, task_uri: str, job_id: str | None, chunk_count: int = 0, partial: bool = False
-    ) -> None:
-        """EmbedConsumer success hook: all of this object's chunks are in Milvus. Wake the
-        worker blocked in _index_via_pipeline (and, from step 9, notify the Reduce subsystem
-        via on_object_task_succeeded §6.4.4). chunk_count / partial are carried for the
-        objects-table updater (13b); unused here."""
-        ev = self._task_events.get(task_uri)
-        if ev is not None:
-            ev.set()
-
     async def _index_via_pipeline(
         self, plugin, connector_uri: str, relpath: str, full_uri: str, okind: str, task: dict
     ) -> None:
-        """Produce this object's chunks through the new producer -> chunks_q -> EmbedConsumer
-        path and BLOCK until they are all embedded + upserted (§6.1).
-
-        The blocking is a per-object asyncio.Event set by the EmbedConsumer success hook: it
-        preserves the per-object atomic invariant (delete_by_object — done once by the consumer
-        — then upsert all chunks) and keeps the caller's existing 'mark succeeded' correct,
-        since _index_object only returns once Milvus reflects this object. The objects-table row
-        is written by _on_pipeline_object_indexed (13b); this method no longer returns counts."""
+        """Produce this object's chunks and forward them to the shared chunks_q, then return —
+        a non-blocking producer pump (13d). Completion is async: the EmbedConsumer writes the
+        chunks (delete_by_object once on the first chunk, then upsert — the §6.1 per-object
+        atomic invariant) and fires the success hooks, which write the objects row + flip the
+        object_tasks status. The caller marks nothing for this task ('deferred')."""
         if self._embed_consumer is None:
             self._build_pipeline()
         task_id = task["id"]
         job_id = task.get("connector_job_id")
         producer = select_producer(okind, self._producer_ctx)
-        ev = asyncio.Event()
-        self._task_events[full_uri] = ev
         try:
             if producer is None:
                 # unreachable for routed okinds; emit a bare EndOfTask so the consumer finalizes
@@ -642,16 +621,16 @@ class Engine:
                     await self._chunks_q.put(
                         TaskEnvelope(task_id, full_uri, connector_uri, job_id, item)
                     )
-            await ev.wait()  # consumer wrote all chunks + fired the success hooks
-        finally:
-            self._task_events.pop(full_uri, None)
-            # cleanup on the FAILURE path (the success hook already popped it); a failed task
-            # writes no objects row.
+        except Exception:
+            # produce() failed before all chunks were enqueued: drop the stashed finalize
+            # context so no objects row is written, then re-raise for _process_with_retry.
             self._pending_finalize.pop(full_uri, None)
+            raise
+        finally:
             if okind == "message_stream":
                 # GC the per-task raw_records jsonl the MessageStreamProducer materialized
-                # (§5.4): only needed to regroup messages by thread during produce(). Runs on
-                # success AND failure so a crashed task doesn't leak the temp file.
+                # (§5.4): only needed to regroup messages by thread during produce(), which is
+                # done once the produce loop above exhausts. Runs on success AND failure.
                 try:
                     await asyncio.to_thread(
                         self.artifact_cache.delete_artifact, self.ns, full_uri, "raw_records"
@@ -1618,12 +1597,10 @@ class Engine:
         guard against stale rows from a pre-upgrade DB — dir_summary is no longer enqueued as an
         object_task; the Reduce subsystem (§3.5) owns it entirely.
 
-        Transitional note: the legacy _run_job_loop still processes each claimed task with its
-        OWN connector's plugin, so a globally-claimed task belonging to a *different* connector
-        is only processed correctly once the global ChunksProducer pool (which resolves the
-        plugin per task, driver.py) replaces this loop. In the default single-host deployment
-        the inline drain runs one connector's job at a time, so the global claim in practice
-        only sees that connector's tasks; full cross-connector isolation lands with the pool."""
+        The worker loop processes each claimed task with its OWN connector's plugin. In the
+        single-host deployment the inline drain runs one connector's job at a time, so the
+        global claim in practice only sees that connector's tasks; cross-connector isolation
+        for a multi-connector worker pool would require per-task plugin resolution."""
         rows = await self.meta.fetchall(
             "SELECT * FROM object_tasks WHERE status='pending' AND change_kind != 'dir_summary' "
             "ORDER BY priority ASC, started_at ASC LIMIT ?",
@@ -1683,8 +1660,9 @@ class Engine:
         max_r = self.cfg.object_task.max_retries
         for attempt in range(max_r + 1):
             try:
-                await self._index_object(plugin, connector_uri, task)
-                return None
+                # None = inline okind done (caller marks succeeded); "deferred" = pipeline
+                # okind whose completion is flipped async by the EmbedConsumer success hook.
+                return await self._index_object(plugin, connector_uri, task)
             except _PER_OBJECT_SKIP_ERRORS as e:
                 # Source vanished / type changed mid-sync. No point retrying (the file
                 # really is gone), and counting this toward the consecutive-fatal breaker
@@ -1792,6 +1770,11 @@ class Engine:
             r = await self._run_job_loop(job_id, cid, connector_uri, plugin, threshold, consec_fail)
             if r is not None:
                 return r  # map phase aborted (cancel / circuit breaker)
+            # The pump enqueued every map task without blocking (13d); wait for the
+            # EmbedConsumer to write them and flip their object_tasks status, so the job isn't
+            # finalized before its chunks are in Milvus (§6.1) and the dir tree's file
+            # notifications have all fired.
+            await self._await_map_drained(job_id)
             if self.summary.enabled and self._reduce is not None:
                 # Reduce subsystem (§3.5): the dir tree was accumulated during sync and is
                 # driven bottom-up by the Map success notifications + the SummaryWorker pool.
@@ -1806,6 +1789,21 @@ class Engine:
                 await hb_task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
                 pass
+
+    async def _await_map_drained(self, job_id: str) -> None:
+        """Block until this job has no still-running map tasks — i.e. the EmbedConsumer has
+        written every pumped task's chunks and the success hook flipped it to a terminal
+        status. The heartbeat (held by _run_job) stays warm meanwhile; the consumer's idle
+        flush guarantees forward progress so this can't wedge while the consumer is alive."""
+        while True:
+            row = await self.meta.fetchone(
+                "SELECT count(*) AS n FROM object_tasks "
+                "WHERE connector_job_id=? AND status='running'",
+                (job_id,),
+            )
+            if (row["n"] if row else 0) == 0:
+                return
+            await asyncio.sleep(0.05)
 
     async def _run_job_loop(
         self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int, consec_fail: int
@@ -1828,6 +1826,7 @@ class Engine:
                     return "cancelled"
                 r = await self._process_with_retry(plugin, connector_uri, t)
                 if r is None:
+                    # inline okind (deleted/renamed/binary/metadata-only) done synchronously.
                     # only flip a task we still own: a conditional UPDATE means a task that
                     # was cancelled out from under us (remove/cancel) is NOT revived to succeeded.
                     await self.meta.execute(
@@ -1835,6 +1834,10 @@ class Engine:
                         "WHERE id=? AND status='running'",
                         (_now(), t["id"]),
                     )
+                    consec_fail = 0
+                elif r == "deferred":
+                    # pipeline okind: chunks enqueued; the EmbedConsumer success hook flips this
+                    # task to 'succeeded' once they're written. The pump does NOT block or mark.
                     consec_fail = 0
                 elif r == "skipped":
                     # Per-object local event (source vanished / type changed); the row was
@@ -2083,7 +2086,10 @@ class Engine:
             await self._index_via_pipeline(
                 plugin, connector_uri, relpath, full_uri, okind, task
             )
-            return
+            # "deferred": the producer chunks are enqueued; the EmbedConsumer success hook
+            # (_on_pipeline_object_indexed) writes the objects row + flips status when they land.
+            # _run_job_loop must NOT mark this task succeeded — its chunks aren't written yet.
+            return "deferred"
 
         elif okind == "image" and self.cfg.description.enabled:
             # Legacy inline VLM path — superseded by the pipeline route above whenever VLM is
