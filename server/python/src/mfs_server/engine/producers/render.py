@@ -1,10 +1,10 @@
-"""Record rendering + thread splitting for the structured producers.
+"""Record rendering + thread splitting — the single source for JSON-record -> chunk-text.
 
-These are JSON-record -> chunk-text utilities shared by MessageStreamProducer and
-RecordCollectionProducer. They are byte-for-byte the same logic as the originals in
-`engine.py` (`_resolve_path` / `_render_record` / `_split_thread` etc.); kept here so
-the producers package is self-contained and unit-testable without importing the heavy
-engine module. Step 4 unifies the two copies by having engine import from here.
+`render_record` / `resolve_path` / `split_thread` and friends are the JSONPath-lite field
+resolution and thread sub-chunking used by the structured producers (MessageStreamProducer,
+RecordCollectionProducer) and by engine.py (estimate sampling, locator round-trip in `cat`).
+They live in the producers package so it stays self-contained + unit-testable without
+importing the heavy engine module.
 """
 
 from __future__ import annotations
