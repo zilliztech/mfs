@@ -2544,10 +2544,10 @@ class Engine:
             await plugin.close()
 
     def _warn_if_huge_export(self, uri: str, text: str) -> None:
-        """Single-host export materializes the whole object in memory; warn on
-        anything over 100 MB so the operator sees the cost before the next OOM
-        rather than after. Streaming export is the proper fix — tracked in
-        TODO #10."""
+        """Single-host export materializes the whole object in memory; warn on anything over
+        100 MB so the operator sees the cost before the next OOM rather than after. A streaming
+        export path is the proper fix but is deferred — objects this large are rare on the
+        single-host deployment this guard covers, and the warning makes the cost explicit."""
         size = len(text.encode("utf-8", errors="ignore")) if text else 0
         if size > 100 * 1024 * 1024:
             print(
