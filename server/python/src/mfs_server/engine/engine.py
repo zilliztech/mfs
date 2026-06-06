@@ -305,11 +305,9 @@ def _split_thread(
 
 
 class _PipelineEmbedConsumer(EmbedConsumer):
-    """EmbedConsumer wired for the real Milvus + embedding cache: fills in the two hooks
-    step 2 left open — the embed cache key (provider/model/version aware, shared with
-    CachingEmbeddingClient) and the Milvus row shape (chunk_id PK + namespace_id +
-    indexed_at). Mirrors driver._WiredEmbedConsumer; kept local so step 4 doesn't depend
-    on driver.py (the global-pool wiring lands in step 7)."""
+    """EmbedConsumer wired for the real Milvus + embedding cache: supplies the embed cache key
+    (provider/model/version aware, shared with CachingEmbeddingClient) and the Milvus row shape
+    (chunk_id PK + namespace_id + indexed_at)."""
 
     def __init__(self, *args, namespace_id: str, embed_key_fn, **kwargs):
         super().__init__(*args, **kwargs)
