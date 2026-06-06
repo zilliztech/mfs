@@ -110,7 +110,7 @@ class ArtifactStoreAdapter:
     """Adapt the artifact_cache (bytes store) + metadata store to producers.base
     .ArtifactStore. Mirrors engine._put_artifact's two writes — the bytes plus the
     artifact_cache index row so `mfs cat` / `head` can find the derived artifact — but
-    leaves the throttled LRU eviction sweep to the engine (step 4)."""
+    leaves the throttled LRU eviction sweep to the engine."""
 
     def __init__(self, artifact_cache: Any, meta: Any):
         self._cache = artifact_cache

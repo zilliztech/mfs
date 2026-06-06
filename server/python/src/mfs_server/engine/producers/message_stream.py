@@ -13,8 +13,7 @@ isn't possible (§5.4). Two passes:
      (short thread) or several (long thread, split at message boundaries with overlap).
 
 Post-materialization the stream is structurally identical to a file: read from a local
-file, yield chunks. The raw_records artifact is transient (GC'd after the task; wired in
-step 6).
+file, yield chunks. The raw_records artifact is transient (GC'd after the task).
 """
 
 from __future__ import annotations

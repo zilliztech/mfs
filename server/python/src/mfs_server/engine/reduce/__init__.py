@@ -18,7 +18,7 @@ Coordinator hooks the engine calls:
                                                   are computed + persisted
   evict_job(job_id)                             — free a terminal job's DirTree
 
-Gated on cfg.summary.enabled (the legacy master switch): with summaries off the coordinator
+Gated on cfg.summary.enabled (the master switch): with summaries off the coordinator
 is inert and every hook is a no-op, so the default path is unchanged.
 """
 
@@ -82,8 +82,7 @@ class ReduceCoordinator:
             self._tasks.append(asyncio.create_task(run_summary_worker(self, i)))
 
     def _worker_count(self) -> int:
-        # [summary].concurrency lands with the TOML rename (step 11); until then reuse the
-        # existing [summary].batch_size knob (default 20) as the SummaryWorker pool size.
+        # [summary].concurrency caps the SummaryWorker pool size.
         return max(1, int(self.cfg.summary.concurrency))
 
     async def stop(self) -> None:
@@ -137,7 +136,7 @@ class ReduceCoordinator:
     ) -> None:
         # chunk_count / partial are unused here (Reduce only needs the parent-pending notify),
         # but accepted so the single success-hook signature carries them for the objects-table
-        # updater (13b).
+        # updater.
         if not self.enabled or job_id is None:
             return
         builder = self.builders.get(job_id)

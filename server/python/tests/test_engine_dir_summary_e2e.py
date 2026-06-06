@@ -3,8 +3,8 @@
 root has two sub-dirs (sub1, sub2) each with one .md file. The Map phase indexes the files;
 their success notifications drive the bottom-up Reduce subsystem, which emits directory_summary
 chunks for sub1, sub2, then root into the same chunks_q. Asserts bottom-up order, that the
-chunks reach Milvus, that NO dir_summary object_tasks are created (legacy inline path gone),
-and that the per-job DirTree is evicted on completion.
+chunks reach Milvus, that NO dir_summary object_tasks are created (the Reduce subsystem owns
+them, not the Map object_task path), and that the per-job DirTree is evicted on completion.
 """
 
 from __future__ import annotations
@@ -159,7 +159,7 @@ async def test_dir_summary_reduce_subsystem(tmp_path):
     # the root summary folded in the leaf summaries (content present on all three)
     assert all(r["content"].startswith("DIRSUMMARY") for r in dir_rows)
 
-    # legacy inline path is gone: NO dir_summary object_tasks were ever created
+    # dir_summary is never an object_task: NO dir_summary object_tasks were ever created
     n = await eng.meta.fetchone(
         "SELECT count(*) AS n FROM object_tasks WHERE change_kind='dir_summary'"
     )

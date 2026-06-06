@@ -163,9 +163,9 @@ class _PipelineEmbedConsumer(EmbedConsumer):
 
 
 class Engine:
-    # okinds whose ObjectTasks go through the new producer + chunks_q + EmbedConsumer
-    # path (§3.2). The other kinds (image / message_stream / record_collection /
-    # table_rows / table_schema / dir_summary) keep the inline path until steps 5-7.
+    # okinds always routed to the producer + chunks_q + EmbedConsumer path (§3.2). image and
+    # table_schema route conditionally (see _routes_to_pipeline); everything else is
+    # metadata-only. dir_summary is not an object_task — the Reduce subsystem owns it (§3.5).
     _PIPELINE_OKINDS = ("document", "code", "message_stream", "record_collection", "table_rows")
 
     def __init__(self, cfg: ServerConfig):
@@ -186,7 +186,7 @@ class Engine:
         self._producer_ctx: ProducerContext | None = None
         # full_uri -> (cid, relpath, stat, indexable, plugin, task_id) for pipeline-path objects
         # whose objects-table row + object_tasks status are written by _on_pipeline_object_indexed
-        # when the EmbedConsumer reports the task done (13b/13c — moves both off the sync tail).
+        # when the EmbedConsumer reports the task done.
         self._pending_finalize: dict[str, tuple] = {}
         self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
         # Reduce subsystem (dir_summary lane); built in _build_pipeline, inert when summary off.
@@ -298,16 +298,14 @@ class Engine:
         self._reduce.start()  # no-op unless cfg.summary.enabled
 
     def _routes_to_pipeline(self, okind: str) -> bool:
-        """Whether this okind goes through the new producer -> chunks_q -> EmbedConsumer path.
+        """Whether this okind goes through the producer -> chunks_q -> EmbedConsumer path.
 
         document / code / message_stream / record_collection / table_rows always route
-        (_PIPELINE_OKINDS). image routes only when VLM is enabled (the [description] business,
-        renamed in step 11) — its ImageChunksProducer makes a VLM call, so with VLM off image
-        falls through to the legacy inline branch (also gated on `cfg.description.enabled`), recording
-        the image as metadata-only. table_schema routes only when summary is enabled — its
-        TableSchemaProducer makes a summary LLM call, mirroring the legacy inline gate
-        `okind == 'table_schema' and self.summary.enabled`. Only dir_summary stays inline now;
-        it becomes the Reduce subsystem in step 9."""
+        (_PIPELINE_OKINDS). image routes only when [description] is enabled — its
+        ImageChunksProducer makes a VLM call, so with it off the image is recorded metadata-only.
+        table_schema routes only when [summary] is enabled — its TableSchemaProducer makes a
+        summary LLM call; with it off the schema is metadata-only. dir_summary is not an
+        object_task at all — the Reduce subsystem owns it (§3.5)."""
         if okind in self._PIPELINE_OKINDS:
             return True
         if okind == "image":
@@ -359,10 +357,10 @@ class Engine:
     async def _on_pipeline_object_indexed(
         self, task_uri: str, job_id: str | None, chunk_count: int = 0, partial: bool = False
     ) -> None:
-        """EmbedConsumer success hook (13b): write the `objects` row + commit the connector's
-        file_state cursor for a pipeline-path object, now that the EmbedConsumer knows its final
-        chunk_count + partial flag. Skips tasks it has no stashed context for (e.g. a Reduce
-        directory_summary success, which has no objects row)."""
+        """EmbedConsumer success hook: write the `objects` row, commit the connector's
+        file_state cursor, and flip object_tasks to 'succeeded' for a pipeline-path object — now
+        that the EmbedConsumer knows its final chunk_count + partial flag. Skips tasks it has no
+        stashed context for (e.g. a Reduce directory_summary success, which has no objects row)."""
         ctx = self._pending_finalize.pop(task_uri, None)
         if ctx is None:
             return
@@ -375,9 +373,9 @@ class Engine:
             search_status = "indexed"
         await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
         await plugin.on_object_indexed(relpath)
-        # Flip the object_tasks row to 'succeeded' here (13c) — moved off _run_job_loop so a
-        # non-blocking producer pump (13d) doesn't mark the task done before its chunks land.
-        # Conditional on status='running' so a cancelled task is not revived.
+        # Completion lives here, not in the worker loop: the pump enqueues chunks without
+        # blocking, so only the consumer knows when they have landed. Conditional on
+        # status='running' so a task cancelled out from under us is not revived.
         await self.meta.execute(
             "UPDATE object_tasks SET status='succeeded', finished_at=? WHERE id=? AND status='running'",
             (_now(), task_id),
@@ -416,9 +414,9 @@ class Engine:
         self, plugin, connector_uri: str, relpath: str, full_uri: str, okind: str, task: dict
     ) -> None:
         """Produce this object's chunks and forward them to the shared chunks_q, then return —
-        a non-blocking producer pump (13d). Completion is async: the EmbedConsumer writes the
-        chunks (delete_by_object once on the first chunk, then upsert — the §6.1 per-object
-        atomic invariant) and fires the success hooks, which write the objects row + flip the
+        a non-blocking producer pump. Completion is async: the EmbedConsumer writes the chunks
+        (delete_by_object once on the first chunk, then upsert — the §6.1 per-object atomic
+        invariant) and fires the success hooks, which write the objects row + flip the
         object_tasks status. The caller marks nothing for this task ('deferred')."""
         if self._embed_consumer is None:
             self._build_pipeline()
@@ -606,9 +604,9 @@ class Engine:
         if row:
             # `mfs connector update --config` re-registers an existing connector: refresh
             # its stored config so changed text_fields / scope / credential_ref take effect.
-            # `mfs add --config` on an already-registered connector used to silently drop
-            # the new config; that's a documented footgun (#6) — now we persist it and
-            # WARN about the indexing implication. Existing chunks are NOT re-embedded
+            # `mfs add --config` on an already-registered connector persists the new config
+            # and WARNs about the indexing implication, rather than silently dropping it.
+            # Existing chunks are NOT re-embedded
             # under the new config until the user re-syncs with --force-index. The
             # warning is suppressed when nothing actually changed (same config dict
             # passed by the upload-mode staging shortcut on every call).
@@ -1311,8 +1309,7 @@ class Engine:
 
         Each job is recovered independently and any error is LOGGED, never silently swallowed
         — a single un-recoverable job must not abort (and thus starve) the reclaim of every
-        other orphan, which is exactly how an unrecoverable orphan used to wedge crash-recovery
-        for all connectors."""
+        other orphan, which would wedge crash-recovery for all connectors."""
         cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
 
         # Fail stale 'preparing' jobs FIRST: one whose process died mid-enumeration never
@@ -1358,8 +1355,8 @@ class Engine:
                 # If the connector still has another in-flight enqueue (queued OR a non-stale
                 # 'preparing'), flipping this orphan to 'queued' would violate
                 # ux_jobs_one_pending. Hand its in-flight tasks to that job and fail the orphan
-                # instead — covers 'preparing' too (the guard used to only check 'queued', so a
-                # preparing sibling raised UNIQUE and silently aborted the whole reclaim pass).
+                # instead. The 'preparing' case matters: a preparing sibling holds the pending
+                # slot too, so without it the reclaim would raise UNIQUE and silently abort.
                 sibling = await self.meta.fetchone(
                     "SELECT id FROM connector_jobs WHERE connector_id=? "
                     "AND status IN ('queued', 'preparing') AND id<>? LIMIT 1",
@@ -1419,9 +1416,9 @@ class Engine:
         """Claim up to `limit` pending tasks GLOBALLY (§5.7 — no per-job filter), ordered by
         priority then age, so any worker coroutine immediately picks up the highest-priority
         pending task regardless of which job it belongs to (a late high-priority job interleaves
-        with an older one). The `change_kind != 'dir_summary'` clause is now only a defensive
-        guard against stale rows from a pre-upgrade DB — dir_summary is no longer enqueued as an
-        object_task; the Reduce subsystem (§3.5) owns it entirely.
+        with an older one). The `change_kind != 'dir_summary'` clause is a defensive guard:
+        dir_summary is never enqueued as an object_task — the Reduce subsystem (§3.5) owns it
+        entirely — so the clause only ever excludes a stray row.
 
         The worker loop processes each claimed task with its OWN connector's plugin. In the
         single-host deployment the inline drain runs one connector's job at a time, so the
@@ -1596,7 +1593,7 @@ class Engine:
             r = await self._run_job_loop(job_id, cid, connector_uri, plugin, threshold, consec_fail)
             if r is not None:
                 return r  # map phase aborted (cancel / circuit breaker)
-            # The pump enqueued every map task without blocking (13d); wait for the
+            # The pump enqueued every map task without blocking; wait for the
             # EmbedConsumer to write them and flip their object_tasks status, so the job isn't
             # finalized before its chunks are in Milvus (§6.1) and the dir tree's file
             # notifications have all fired.
@@ -1634,8 +1631,8 @@ class Engine:
     async def _run_job_loop(
         self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int, consec_fail: int
     ) -> str | None:
-        # Map phase claims object_tasks globally (§5.7). dir_summary is no longer an
-        # object_task — the Reduce subsystem owns it (§3.5), driven by the success notifications.
+        # Map phase claims object_tasks globally (§5.7). dir_summary is not an object_task —
+        # the Reduce subsystem owns it (§3.5), driven by the success notifications.
         while True:
             if await self._should_stop(job_id, cid):
                 return "cancelled"
@@ -1788,16 +1785,15 @@ class Engine:
         return evicted
 
     async def _index_object(self, plugin, connector_uri: str, task: dict) -> None:
-        """Real chunk/embed/Milvus. document/code -> body chunks;
-        other kinds carry no chunks in Phase 3 (image VLM / pdf converter -> Phase 6).
-        per-object atomic: delete_by_object then upsert all of this object's chunks."""
+        """Handle one object_task. Change-kind branches (deleted / renamed) run inline here;
+        indexable objects that route to the pipeline are produced + embedded asynchronously
+        (returns 'deferred'); everything else falls to the metadata-only tail. Per-object
+        atomic: delete_by_object then upsert all of this object's chunks (§6.1)."""
         relpath = task["object_uri"]
         kind = task["change_kind"]
         cid = task["connector_id"]
         ns = self.ns
         full_uri = connector_uri + relpath
-
-        # dir_summary is no longer an object_task — it lives in the Reduce subsystem (§3.5).
 
         if kind == "deleted":
             await self.meta.execute(
@@ -1902,11 +1898,11 @@ class Engine:
         if not indexable:
             pass  # binary / opted-out: metadata-only, no chunk/embed (gated below)
         elif self._routes_to_pipeline(okind):
-            # New pipeline path (§3.1 / §3.2): document/code via TextChunksProducer, image via
+            # Pipeline path (§3.1 / §3.2): document/code via TextChunksProducer, image via
             # ImageChunksProducer, etc. The Chunk stream is embedded + upserted by the process-
             # level EmbedConsumer; delete_by_object is done once by the consumer (first chunk).
             # The objects-table row + on_object_indexed are written by _on_pipeline_object_indexed
-            # when the consumer reports the task done (13b), so stash the per-object context and
+            # when the consumer reports the task done, so stash the per-object context and
             # return before the shared inline tail.
             self._pending_finalize[full_uri] = (cid, relpath, st, indexable, plugin, task["id"])
             await self._index_via_pipeline(
@@ -1921,8 +1917,8 @@ class Engine:
         # bottom-up by the independent Reduce subsystem (engine/reduce/, §3.5) from the
         # in-memory dir tree, so a parent folder's summary can fold in its children's summaries.
 
-        # Inline tail — only reached for NON-pipeline okinds now (pipeline okinds return early
-        # above; their objects row is written by _on_pipeline_object_indexed, 13b).
+        # Inline tail — only reached for NON-pipeline okinds (pipeline okinds return early
+        # above; their objects row is written by _on_pipeline_object_indexed).
         if chunk_count == 0:
             # A rebuild that produced no chunks (object became binary / indexable=false /
             # document emptied / empty VLM or summary) must still purge chunks from a previous

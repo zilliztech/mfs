@@ -1,6 +1,6 @@
-"""End-to-end: engine routes table_schema ObjectTasks through the NEW pipeline
+"""End-to-end: engine routes table_schema ObjectTasks through the pipeline
 (TableSchemaProducer -> schema_summary chunk via the summary gate). Routing is gated on
-cfg.summary.enabled, mirroring the legacy inline gate.
+cfg.summary.enabled.
 """
 
 from __future__ import annotations

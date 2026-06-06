@@ -10,7 +10,7 @@ with.
 
 Producers are deliberately free of Milvus / embedding: they only read + transform
 + yield. The per-object `delete_by_object` (§6.1) and embedding/upsert live in the
-EmbedConsumer (step 2), which consumes this stream. This keeps producers
+EmbedConsumer (pipeline.py), which consumes this stream. This keeps producers
 self-contained and unit-testable in isolation.
 """
 
@@ -133,7 +133,7 @@ class SummaryConcurrencyGate(ConcurrencyGate):
 @runtime_checkable
 class ArtifactStore(Protocol):
     """Per-object derived-artifact store (converted_md / vlm_text / head_cache /
-    raw_records). The engine adapter (wired in steps 4/6) backs this with the real
+    raw_records). The engine's ArtifactStoreAdapter backs this with the real
     artifact_cache + its metadata row; tests back it with an in-memory fake."""
 
     async def put_artifact(
@@ -154,11 +154,10 @@ class ArtifactStore(Protocol):
 class ProducerContext:
     """Process-global services shared by every ChunksProducer instance.
 
-    NB: `plugin` is intentionally NOT here — it is per-task (the producer pool is
+    `plugin` is intentionally NOT here — it is per-task (the producer pool is
     cross-connector, §5.7) and lives on ObjectTask. The converter / vlm / summary
     clients already memoize through the transformation cache, so producers reach the
-    transformation cache transitively via them rather than holding it directly (the
-    unified get_or_compute interface + compute lock is step 8)."""
+    transformation cache transitively via them rather than holding it directly."""
 
     cfg: Any  # ServerConfig
     namespace_id: str

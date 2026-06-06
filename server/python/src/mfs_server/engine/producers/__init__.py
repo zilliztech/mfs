@@ -47,8 +47,8 @@ _OKIND_PRODUCER: dict[str, type] = {
 
 def select_producer(okind: str, ctx: ProducerContext) -> ChunksProducer | None:
     """Build the ChunksProducer for an okind, or None when the okind carries no chunks
-    (binary / directory). Enablement gating ([description]/[summary]) is the dispatcher's
-    job (step 4), not this factory's."""
+    (binary / directory). Enablement gating ([description]/[summary]) is the engine's
+    routing job (_routes_to_pipeline), not this factory's."""
     cls = _OKIND_PRODUCER.get(okind)
     return cls(ctx) if cls is not None else None
 

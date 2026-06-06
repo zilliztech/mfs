@@ -216,7 +216,7 @@ async def test_partial_flag_round_trips_into_row():
 
 
 async def test_success_callback_carries_chunk_count_and_partial():
-    # 13a: the success hook receives (task_uri, job_id, chunk_count, partial); chunk_count is
+    # the success hook receives (task_uri, job_id, chunk_count, partial); chunk_count is
     # cumulative across flushes and partial ORs every chunk's + the EndOfTask's flag.
     c, embedder, milvus, tx = _consumer(batch_size=2)  # forces T1 across two flushes
     seen: dict[str, tuple] = {}

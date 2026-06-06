@@ -1,6 +1,6 @@
 """Pipeline tail: chunks_q + the process-level EmbedConsumer (§3.1 / §5.1 / §5.2).
 
-The Map producers (step 1) and the Reduce subsystem both emit Chunk streams into a
+The Map producers and the Reduce subsystem both emit Chunk streams into a
 single bounded `chunks_q` (§5.1 — embed is the real bottleneck, so one queue decouples
 chunk production from embed consumption). One process-level EmbedConsumer (§5.2) drains
 that queue across ALL connector jobs so embed batches always fill to `batch_size`,
@@ -14,12 +14,12 @@ on_object_task_succeeded hooks fire (the Map → Reduce notification, §6.4.4).
 Queue transport — `Chunk` carries `uri` + `connector_job_id`, but `EndOfTask` is a bare
 identity-less sentinel (producers/base.py). Since this consumer interleaves many tasks
 on one queue, every queue item is a `TaskEnvelope` pairing the payload with explicit
-task identity. The wiring layer (steps 3-4) builds the envelopes from each ObjectTask's
-producer output; this file does NOT redefine the base Chunk / EndOfTask types.
+task identity. The engine builds the envelopes from each ObjectTask's producer output;
+this file does NOT redefine the base Chunk / EndOfTask types.
 
 No real Milvus / embedder here — the three injected Protocols are mocked in tests; the
 adapters that bind them to the real CachingEmbeddingClient / MilvusStore / tx_cache (and
-that add chunk_id + namespace to rows) land in steps 3-4.
+that add chunk_id + namespace to rows) live in adapters.py.
 """
 
 from __future__ import annotations
@@ -114,15 +114,15 @@ _SHUTDOWN = _Shutdown()
 # Success hook: (task_uri, job_id, chunk_count, partial). chunk_count is the total number of
 # chunks written for the object; partial is True if any chunk's content was capped or the task
 # was truncated (EndOfTask.partial). Callers derive search_status from these without the
-# producer returning them inline (§6.1 / 13a).
+# producer returning them inline (§6.1).
 SuccessCallback = Callable[[str, Optional[str], int, bool], Union[None, Awaitable[None]]]
 
 
 class EmbedConsumer:
     """Process-level singleton: drain chunks_q across all jobs, embed, upsert (§5.2).
 
-    NB: `tx_cache` is an injected dependency (TxCacheLike) the constructor sketch in the
-    step spec omitted — flush() needs it for the vector cache layer."""
+    `tx_cache` is an injected dependency (TxCacheLike): flush() needs it for the vector
+    cache layer."""
 
     def __init__(
         self,
@@ -145,7 +145,7 @@ class EmbedConsumer:
         self._eot: dict[str, bool] = {}  # task_id -> partial flag (presence = EndOfTask seen)
         self._deleted: set[str] = set()  # task_ids whose stale chunks were purged
         self._meta: dict[str, TaskEnvelope] = {}  # task_id -> last seen envelope (identity)
-        # per-task accounting for the success hook (13a): cumulative chunk count (never
+        # per-task accounting for the success hook: cumulative chunk count (never
         # decremented, unlike _pending) + an OR of every chunk's / the EndOfTask's partial flag.
         self._count: dict[str, int] = {}
         self._partial: dict[str, bool] = {}
@@ -158,7 +158,7 @@ class EmbedConsumer:
     def register_on_succeeded(self, callback: SuccessCallback) -> None:
         """Add a per-task success hook, invoked as callback(task_uri, job_id, chunk_count,
         partial) when a task's chunks are all written + its EndOfTask was seen (Map → Reduce
-        notification §6.4.4; objects-table update 13b). Callbacks may ignore the trailing args."""
+        notification §6.4.4; objects-table update). Callbacks may ignore the trailing args."""
         self._on_succeeded.append(callback)
 
     # --- lifecycle ---
@@ -286,14 +286,14 @@ class EmbedConsumer:
         self._count.pop(task_id, None)
         self._partial.pop(task_id, None)
 
-    # --- overridable hooks (the wiring layer in steps 3-4 supplies the real ones) ---
+    # --- overridable hooks (the adapters in adapters.py supply the real ones) ---
     def _cache_key(self, chunk: Chunk) -> str:
-        """Per-input embed cache key (§6.3). Default hashes content only; the wiring
-        layer overrides to fold in provider + model + version so a model swap re-embeds."""
+        """Per-input embed cache key (§6.3). Default hashes content only; the adapter
+        overrides to fold in provider + model + version so a model swap re-embeds."""
         return hashlib.sha1(chunk.content.encode("utf-8")).hexdigest()
 
     def _build_row(self, env: TaskEnvelope, chunk: Chunk, vec: list[float]) -> dict:
-        """Map a Chunk + its vector to a Milvus row. The wiring layer overrides to add
+        """Map a Chunk + its vector to a Milvus row. The adapter overrides to add
         chunk_id (PK) + namespace; here we keep the transport-level fields."""
         content, _ = cap_content(chunk.content)
         return {

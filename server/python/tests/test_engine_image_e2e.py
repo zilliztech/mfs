@@ -4,7 +4,7 @@ Uses the real CachingVlmClient (with an injected fake LLM provider) + real sqlit
 transformation cache so the VLM dedup is exercised for real, plus fake embedder / Milvus.
 Asserts vlm_description chunks are upserted, the description_gate caps concurrent VLM
 calls (§5.5), identical images dedup via the transformation cache, and that disabling VLM
-falls back to legacy metadata-only handling.
+records the image as metadata-only.
 """
 
 from __future__ import annotations
@@ -115,7 +115,7 @@ async def _build_engine(tmp_path, *, vlm_enabled=True, vlm_concurrency=10, llm_d
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "art")
     cfg.description.enabled = vlm_enabled
-    cfg.description.concurrency = vlm_concurrency  # description_gate cap (renamed [description].concurrency, step 11)
+    cfg.description.concurrency = vlm_concurrency  # description_gate cap ([description].concurrency)
     eng = Engine(cfg)
     eng.embed = _FakeEmbed()
     eng.milvus = _FakeMilvus()
