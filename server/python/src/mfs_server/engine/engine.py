@@ -2191,12 +2191,20 @@ class Engine:
 
     async def inspect(self, target: str) -> dict | None:
         """Connector row + object/job summary."""
-        _, connector_uri, _, _ = self._resolve_target(target)
-        row = await self.meta.fetchone(
-            "SELECT id, root_uri, type, status, registered_at FROM connectors "
-            "WHERE namespace_id=? AND root_uri=?",
-            (self.ns, connector_uri),
-        )
+        match = await self._match_connector(target)
+        if match is not None:
+            matched, _ = match
+            row = await self.meta.fetchone(
+                "SELECT id, root_uri, type, status, registered_at FROM connectors WHERE id=?",
+                (matched["id"],),
+            )
+        else:
+            _, connector_uri, _, _ = self._resolve_target(target)
+            row = await self.meta.fetchone(
+                "SELECT id, root_uri, type, status, registered_at FROM connectors "
+                "WHERE namespace_id=? AND root_uri=?",
+                (self.ns, connector_uri),
+            )
         if not row:
             return None
         cid = row["id"]

@@ -967,10 +967,11 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                 }
             }
             ConnectorAction::Inspect { target } => {
+                let target = resolve_path_arg(client, base, target)?;
                 let v = get(
                     client,
                     &format!("{base}/v1/connectors/inspect"),
-                    &[("target", target.clone())],
+                    &[("target", target)],
                 )?;
                 println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
             }
