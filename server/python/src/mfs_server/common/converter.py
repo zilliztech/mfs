@@ -33,27 +33,27 @@ class CachingConverterClient:
 
     async def convert(self, data: bytes, ext: str) -> str:
         key = self._key(data)
-        cached = await self.tx_cache.batch_get([key])
-        if cached[key] is not None:
-            self.cache_hits += 1
-            return cached[key].decode("utf-8", errors="replace")
-        md = await asyncio.to_thread(self._convert_sync, data, ext)
-        self.api_calls += 1
-        await self.tx_cache.batch_put(
-            [
-                {
-                    "cache_key": key,
-                    "kind": "convert",
-                    "input_hash": sha1_hex(data),
-                    "provider": self.provider,
-                    "model": self.default,
-                    "model_version": self.version,
-                    "output_bytes": md.encode(),
-                    "output_size": len(md.encode()),
-                }
-            ]
+        h = sha1_hex(data)
+        ran = False
+
+        async def _compute() -> bytes:
+            nonlocal ran
+            ran = True
+            md = await asyncio.to_thread(self._convert_sync, data, ext)
+            return md.encode()
+
+        # per-key lock: the Map text producer and the Reduce SummaryWorker can both miss the
+        # same document hash concurrently; with the lock the (expensive) conversion runs once
+        # (§3.4).
+        out = await self.tx_cache.get_or_compute(
+            key, _compute, kind="convert", input_hash=h,
+            provider=self.provider, model=self.default, model_version=self.version,
         )
-        return md
+        if ran:
+            self.api_calls += 1
+        else:
+            self.cache_hits += 1
+        return out.decode("utf-8", errors="replace")
 
     def _convert_sync(self, data: bytes, ext: str) -> str:
         from markitdown import MarkItDown

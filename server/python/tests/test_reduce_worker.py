@@ -50,11 +50,10 @@ class _FakeConverter:
 
 
 class _FakeTx:
-    def __init__(self):
-        self.keys: list[str] = []
+    """The worker no longer calls get_or_compute directly (single-flight lives inside the vlm /
+    converter clients now); this stub exists only so the coordinator constructs."""
 
     async def get_or_compute(self, cache_key, compute_fn, **kw):
-        self.keys.append(cache_key)
         return await compute_fn()
 
 
@@ -119,14 +118,14 @@ async def test_parent_folds_subdir_summaries():
     assert b.tree["/"].parent is None  # root has no parent to notify
 
 
-async def test_image_child_uses_get_or_compute():
+async def test_image_child_described_and_folded():
     coord = _coord({"/d/pic.png": b"\x89PNGbytes"}, include_image_desc=True)
     b = coord.builders["j"]
     b.add("/d/pic.png", "image")
     b.sync_done = True
 
     await fold_and_summarize(coord, "j", "/d")
-    # the image child was read through tx_cache.get_or_compute (the §3.4 compute lock)
-    assert len(coord.tx_cache.keys) == 1
-    assert coord.vlm.calls == 1  # provider invoked via the compute_fn (cache miss)
+    # the image child was described once (single-flight now lives inside the vlm client) and
+    # its description folded into the directory summary input.
+    assert coord.vlm.calls == 1
     assert "image description" in coord.summary.inputs[0]

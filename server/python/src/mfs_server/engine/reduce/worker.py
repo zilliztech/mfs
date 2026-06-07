@@ -13,14 +13,14 @@ from __future__ import annotations
 import os
 
 from ...common.converter import CONVERT_EXTS
-from ...storage.ids import cache_key, sha1_hex
 from ..producers.base import read_bytes, read_text
 
 
 async def _child_text(coord, job_id: str, child_uri: str, okind: str) -> str:
     """Content excerpt for one child file, capped at per_file_max_kb. image/document-convert
-    go through tx_cache.get_or_compute so a hash already produced by the Map subsystem is
-    reused (and concurrent misses computed once); code / markdown are read directly."""
+    reuse a hash already produced by the Map subsystem — the single-flight + memoization lives
+    inside the vlm / converter clients (tx_cache.get_or_compute, §3.4) — while code / markdown
+    are read directly."""
     plugin = coord.job_plugins.get(job_id)
     if plugin is None:
         return ""
@@ -30,34 +30,14 @@ async def _child_text(coord, job_id: str, child_uri: str, okind: str) -> str:
         if not coord.cfg.summary.include_image_description:
             return ""
         raw = await read_bytes(plugin, child_uri)
-        h = sha1_hex(raw)
-        key = cache_key(h, "vlm", coord.vlm.provider, coord.vlm.model, coord.vlm.version)
-
-        async def _vlm() -> bytes:
-            # share the description gate so a folded-in image draws from the same VLM
-            # in-flight budget as the Map ImageChunksProducer (§5.5)
-            async with coord.description_gate:
-                return (await coord.vlm.describe(raw, ext)).encode()
-
-        out = await coord.tx_cache.get_or_compute(
-            key, _vlm, kind="vlm", input_hash=h,
-            provider=coord.vlm.provider, model=coord.vlm.model, model_version=coord.vlm.version,
-        )
-        return out.decode("utf-8", "replace")[:cap]
+        # share the description gate so a folded-in image draws from the same VLM in-flight
+        # budget as the Map ImageChunksProducer (§5.5).
+        async with coord.description_gate:
+            out = await coord.vlm.describe(raw, ext)
+        return out[:cap]
     if okind == "document" and ext in CONVERT_EXTS:
         raw = await read_bytes(plugin, child_uri)
-        h = sha1_hex(raw)
-        key = cache_key(h, "convert", coord.converter.provider, coord.converter.default, coord.converter.version)
-
-        async def _conv() -> bytes:
-            return (await coord.converter.convert(raw, ext)).encode()
-
-        out = await coord.tx_cache.get_or_compute(
-            key, _conv, kind="convert", input_hash=h,
-            provider=coord.converter.provider, model=coord.converter.default,
-            model_version=coord.converter.version,
-        )
-        return out.decode("utf-8", "replace")[:cap]
+        return (await coord.converter.convert(raw, ext))[:cap]
     if okind in ("document", "code", "text_blob"):
         return (await read_text(plugin, child_uri))[:cap]
     return ""  # binary / structured: not folded into a directory summary
