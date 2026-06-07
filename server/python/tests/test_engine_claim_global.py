@@ -1,7 +1,8 @@
-"""Proof that _claim_batch is now GLOBAL (§5.7): a worker loop pulls pending tasks across
-connector_jobs, not just its own job's. Both jobs here belong to the SAME connector (so the
-loop's bound plugin processes every claimed task correctly) — the cross-connector pool with
-per-task plugin resolution lands with driver.py in a later step.
+"""Proof that _claim_batch pulls pending tasks across the JOBS of one connector (not just the
+loop's own job), while staying scoped to that connector. Both jobs here belong to the SAME
+connector, so the loop's bound plugin processes every claimed task correctly; tasks of a
+different connector are NOT claimed (they need that connector's plugin — a cross-connector
+worker pool with per-task plugin resolution is a separate change).
 """
 
 from __future__ import annotations
@@ -137,6 +138,30 @@ async def test_single_loop_drains_other_jobs_tasks(tmp_path):
     assert {r["connector_job_id"] for r in rows} == {"jobA", "jobB"}
     # deterministic global order (priority, started_at) -> interleaved across the two jobs
     assert plugin.processed == ["/a1.md", "/b1.md", "/a2.md", "/b2.md"]
+    await eng.meta.close()
+
+
+async def test_claim_scoped_to_connector(tmp_path):
+    # A connector's loop must NOT claim another connector's tasks: it would read them with the
+    # wrong plugin. The other connector's task stays pending for its own drain.
+    eng = await _build_engine(tmp_path)
+    texts = {"/a.md": "# A\n\nbody", "/b.md": "# B\n\nbody"}
+    plugin = _FakeDocPlugin(texts)
+    await _seed(eng, job_id="job1", cid="c1", object_uri="/a.md", started_at="2026-01-01T00:00:01")
+    await _seed(eng, job_id="job2", cid="c2", object_uri="/b.md", started_at="2026-01-01T00:00:02")
+
+    # loop owns connector c1 only
+    await asyncio.wait_for(
+        eng._run_job_loop("job1", "c1", "file:///repo1", plugin, threshold=5, consec_fail=0),
+        timeout=10,
+    )
+    await eng._embed_consumer.shutdown()
+
+    rows = await eng.meta.fetchall("SELECT object_uri, status FROM object_tasks")
+    statuses = {r["object_uri"]: r["status"] for r in rows}
+    assert statuses["/a.md"] == "succeeded"  # c1's task drained
+    assert statuses["/b.md"] == "pending"  # c2's task left for c2's own loop
+    assert plugin.processed == ["/a.md"]  # the wrong-connector task was never read
     await eng.meta.close()
 
 

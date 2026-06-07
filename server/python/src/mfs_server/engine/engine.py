@@ -1415,22 +1415,24 @@ class Engine:
 
         await asyncio.gather(*[_loop() for _ in range(n)])
 
-    async def _claim_batch(self, limit: int) -> list[dict]:
-        """Claim up to `limit` pending tasks GLOBALLY (§5.7 — no per-job filter), ordered by
-        priority then age, so any worker coroutine immediately picks up the highest-priority
-        pending task regardless of which job it belongs to (a late high-priority job interleaves
-        with an older one). The `change_kind != 'dir_summary'` clause is a defensive guard:
-        dir_summary is never enqueued as an object_task — the Reduce subsystem (§3.5) owns it
-        entirely — so the clause only ever excludes a stray row.
+    async def _claim_batch(self, limit: int, connector_id: str) -> list[dict]:
+        """Claim up to `limit` pending tasks for ONE connector, ordered by priority then age,
+        so a worker coroutine picks up the highest-priority pending task across that connector's
+        jobs (a late high-priority job interleaves with an older one). The `change_kind !=
+        'dir_summary'` clause is a defensive guard: dir_summary is never enqueued as an
+        object_task — the Reduce subsystem (§3.5) owns it entirely — so it only excludes a
+        stray row.
 
-        The worker loop processes each claimed task with its OWN connector's plugin. In the
-        single-host deployment the inline drain runs one connector's job at a time, so the
-        global claim in practice only sees that connector's tasks; cross-connector isolation
-        for a multi-connector worker pool would require per-task plugin resolution."""
+        Scoped to connector_id because the worker loop processes each claimed task with the
+        plugin bound to THIS connector. A global claim would hand another connector's task to
+        the wrong plugin, reading the wrong source; a true cross-connector worker pool needs
+        per-task plugin resolution, which is a separate change. Per-connector parallelism is
+        preserved: each connector's drain runs its own loop(s)."""
         rows = await self.meta.fetchall(
-            "SELECT * FROM object_tasks WHERE status='pending' AND change_kind != 'dir_summary' "
+            "SELECT * FROM object_tasks WHERE status='pending' AND connector_id=? "
+            "AND change_kind != 'dir_summary' "
             "ORDER BY priority ASC, started_at ASC LIMIT ?",
-            (limit,),
+            (connector_id, limit),
         )
         return await self._claim_rows(rows)
 
@@ -1640,12 +1642,12 @@ class Engine:
     async def _run_job_loop(
         self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int, consec_fail: int
     ) -> str | None:
-        # Map phase claims object_tasks globally (§5.7). dir_summary is not an object_task —
-        # the Reduce subsystem owns it (§3.5), driven by the success notifications.
+        # Map phase claims this connector's pending object_tasks. dir_summary is not an
+        # object_task — the Reduce subsystem owns it (§3.5), driven by the success notifications.
         while True:
             if await self._should_stop(job_id, cid):
                 return "cancelled"
-            tasks = await self._claim_batch(64)
+            tasks = await self._claim_batch(64, cid)
             if not tasks:
                 break
             for t in tasks:
