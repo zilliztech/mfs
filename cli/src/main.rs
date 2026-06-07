@@ -561,8 +561,8 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
         }
         Cmd::Tree { path, depth } => {
             let rp = remote_path(base, path);
-            let v = get(client, &format!("{base}/v1/ls"), &[("path", rp.clone())])?;
             if cli.json {
+                let v = tree_json(client, base, &rp, *depth)?;
                 println!("{v}");
                 return Ok(());
             }
@@ -738,10 +738,12 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
             }
             ConnectorAction::Remove { target, yes } => {
-                return remove_connector(client, base, target, *yes)
+                return remove_connector(client, base, target, *yes, cli.json)
             }
         },
-        Cmd::Remove { target, yes } => return remove_connector(client, base, target, *yes),
+        Cmd::Remove { target, yes } => {
+            return remove_connector(client, base, target, *yes, cli.json)
+        }
         Cmd::Profile { action } => return profile_cmd(action),
         Cmd::Config { action } => match action {
             ConfigAction::Show => {
@@ -1044,6 +1046,7 @@ fn remove_connector(
     base: &str,
     target: &str,
     yes: bool,
+    json: bool,
 ) -> Result<(), String> {
     // remove is destructive (drops the index, artifacts, and all metadata); confirm unless -y.
     if !yes
@@ -1051,7 +1054,14 @@ fn remove_connector(
             "Remove connector '{target}' and everything it owns? [y/N] "
         ))?
     {
-        println!("aborted.");
+        if json {
+            println!(
+                "{}",
+                serde_json::json!({"removed": false, "aborted": true})
+            );
+        } else {
+            println!("aborted.");
+        }
         return Ok(());
     }
     let target = remote_path(base, target); // local path -> upload identity when remote
@@ -1063,8 +1073,16 @@ fn remove_connector(
     .send()
     .map_err(|e| e.to_string())?;
     let v = parse(resp)?;
-    println!("removed: {}", v["removed"].as_bool().unwrap_or(false));
+    println!("{}", remove_output(&v, json));
     Ok(())
+}
+
+fn remove_output(v: &Value, json: bool) -> String {
+    if json {
+        v.to_string()
+    } else {
+        format!("removed: {}", v["removed"].as_bool().unwrap_or(false))
+    }
 }
 
 fn print_entries(v: &Value) {
@@ -1107,6 +1125,63 @@ fn tree(
         }
     }
     Ok(())
+}
+
+fn tree_json(
+    client: &reqwest::blocking::Client,
+    base: &str,
+    path: &str,
+    depth: u32,
+) -> Result<Value, String> {
+    let mut root = get(
+        client,
+        &format!("{base}/v1/ls"),
+        &[("path", path.to_string())],
+    )?;
+    let entries = root["entries"].as_array().cloned().unwrap_or_default();
+    if depth == 0 {
+        root["entries"] = Value::Array(Vec::new());
+        return Ok(root);
+    }
+    let mut fetch_child = |child_path: &str| {
+        get(
+            client,
+            &format!("{base}/v1/ls"),
+            &[("path", child_path.to_string())],
+        )
+    };
+    root["entries"] = Value::Array(expand_tree_entries(entries, depth, &mut fetch_child)?);
+    Ok(root)
+}
+
+fn expand_tree_entries<F>(
+    entries: Vec<Value>,
+    depth: u32,
+    fetch_child: &mut F,
+) -> Result<Vec<Value>, String>
+where
+    F: FnMut(&str) -> Result<Value, String>,
+{
+    if depth == 0 {
+        return Ok(Vec::new());
+    }
+
+    let mut expanded = Vec::with_capacity(entries.len());
+    for mut entry in entries {
+        let is_dir = entry["type"].as_str() == Some("dir");
+        if is_dir && depth > 1 {
+            let children = if let Some(child_path) = entry["path"].as_str() {
+                let child = fetch_child(child_path)?;
+                let child_entries = child["entries"].as_array().cloned().unwrap_or_default();
+                expand_tree_entries(child_entries, depth - 1, fetch_child)?
+            } else {
+                Vec::new()
+            };
+            entry["children"] = Value::Array(children);
+        }
+        expanded.push(entry);
+    }
+    Ok(expanded)
 }
 
 fn profile_cmd(action: &ProfileAction) -> Result<(), String> {
@@ -1282,4 +1357,58 @@ fn parse(resp: reqwest::blocking::Response) -> Result<Value, String> {
         });
     }
     Ok(v)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn expand_tree_entries_adds_nested_children_until_depth_limit() {
+        let root_entries = vec![
+            json!({"name": "README.md", "path": "file://root/README.md", "type": "file"}),
+            json!({"name": "notes", "path": "file://root/notes", "type": "dir"}),
+        ];
+        let mut fetch_child = |path: &str| match path {
+            "file://root/notes" => Ok(json!({
+                "entries": [
+                    {"name": "search.md", "path": "file://root/notes/search.md", "type": "file"}
+                ]
+            })),
+            _ => Err(format!("unexpected path {path}")),
+        };
+
+        let expanded = expand_tree_entries(root_entries, 2, &mut fetch_child).unwrap();
+
+        assert_eq!(expanded[0].get("children"), None);
+        assert_eq!(
+            expanded[1]["children"][0]["path"],
+            "file://root/notes/search.md"
+        );
+    }
+
+    #[test]
+    fn expand_tree_entries_respects_depth_one() {
+        let root_entries =
+            vec![json!({"name": "notes", "path": "file://root/notes", "type": "dir"})];
+        let mut fetch_child = |_path: &str| -> Result<Value, String> {
+            panic!("depth one should not fetch child directories")
+        };
+
+        let expanded = expand_tree_entries(root_entries, 1, &mut fetch_child).unwrap();
+
+        assert_eq!(expanded[0].get("children"), None);
+    }
+
+    #[test]
+    fn remove_output_honors_json_flag() {
+        let response = json!({"removed": true});
+
+        assert_eq!(remove_output(&response, false), "removed: true");
+        assert_eq!(
+            serde_json::from_str::<Value>(&remove_output(&response, true)).unwrap(),
+            response
+        );
+    }
 }
