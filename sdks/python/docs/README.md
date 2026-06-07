@@ -16,7 +16,7 @@
 | Normal server URL | `http://127.0.0.1:13619` for `mfs-server run` / `mfs-server api`. |
 | Generated default URL | `http://127.0.0.1:8765`; use it only when you intentionally start a server there, such as for the smoke harness. |
 | Bearer auth | When runtime auth is enabled, every request except `GET /healthz` must include `Authorization: Bearer <token>`. |
-| OpenAPI auth text | The OpenAPI spec currently has no security scheme, so "no authorization required" in generated method pages is scaffolding. |
+| OpenAPI auth text | The OpenAPI spec declares bearer auth; stale "no authorization required" text in generated method pages is scaffolding. |
 | Examples | Placeholder JSON blocks are schema examples, not runnable MFS workflows. Prefer the examples in [`docs/sdks.md`](../../../docs/sdks.md). |
 
 ## Python Setup Pattern

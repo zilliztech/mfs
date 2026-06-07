@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers
 from starlette.requests import ClientDisconnect
@@ -24,6 +25,7 @@ from .models import (
     CatMeta,
     CatResponse,
     EstimateResponse,
+    ErrorResponse,
     GrepResponse,
     JobResponse,
     LsResponse,
@@ -78,6 +80,77 @@ _STATUS_CODE = {
     501: "not_available",
     502: "connector_unhealthy",
 }
+_OPENAPI_ERROR_RESPONSES = {
+    "400": "Bad Request",
+    "401": "Unauthorized",
+    "404": "Not Found",
+    "422": "Validation Error",
+    "500": "Internal Server Error",
+}
+_OPENAPI_METHODS = {"get", "post", "put", "patch", "delete", "options", "head"}
+
+
+def _error_response_ref(description: str) -> dict:
+    return {
+        "description": description,
+        "content": {
+            "application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}
+        },
+    }
+
+
+def _install_openapi_contract(app: FastAPI, cfg: ServerConfig) -> None:
+    """Keep generated OpenAPI aligned with auth middleware and error handlers."""
+
+    def custom_openapi() -> dict:
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+        components = schema.setdefault("components", {})
+        schemas = components.setdefault("schemas", {})
+        schemas["ErrorResponse"] = ErrorResponse.model_json_schema(
+            ref_template="#/components/schemas/{model}"
+        )
+
+        auth_enabled = bool(cfg.auth_token)
+        if auth_enabled:
+            components.setdefault("securitySchemes", {})["BearerAuth"] = {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "opaque",
+            }
+            schema["security"] = [{"BearerAuth": []}]
+
+        for path, path_item in schema.get("paths", {}).items():
+            for method, operation in path_item.items():
+                if method not in _OPENAPI_METHODS:
+                    continue
+
+                if auth_enabled:
+                    operation["security"] = [] if path == "/healthz" else [{"BearerAuth": []}]
+
+                if path == "/healthz":
+                    continue
+
+                responses = operation.setdefault("responses", {})
+                for status, description in _OPENAPI_ERROR_RESPONSES.items():
+                    if status == "401" and not auth_enabled:
+                        continue
+                    responses[status] = _error_response_ref(description)
+
+        schemas.pop("HTTPValidationError", None)
+        schemas.pop("ValidationError", None)
+
+        app.openapi_schema = schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi
 
 
 def _auth_failure(headers: Headers, expected_token: str) -> tuple[int, dict] | None:
@@ -143,6 +216,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         lifespan=lifespan,
         description="Multi-source File-like Search — HTTP /v1 control plane.",
     )
+    _install_openapi_contract(app, cfg)
 
     if cfg.auth_token:
 

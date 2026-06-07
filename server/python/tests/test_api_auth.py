@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
 from starlette.datastructures import Headers
 
 from mfs_server.api.app import _auth_failure
+from mfs_server.api.app import create_app
+from mfs_server.config import ServerConfig
 
 
 def _headers(*values: str) -> Headers:
@@ -31,3 +34,48 @@ def test_auth_rejects_empty_and_whitespace_tokens() -> None:
         status, body = failure
         assert status == 401
         assert body["code"] == "unauthorized"
+
+
+def test_openapi_documents_bearer_auth_and_error_envelope(tmp_path) -> None:
+    cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
+    app = create_app(cfg)
+    client = TestClient(app)
+
+    response = client.get("/openapi.json", headers={"Authorization": "Bearer expected"})
+
+    assert response.status_code == 200
+    spec = response.json()
+    assert spec["components"]["securitySchemes"]["BearerAuth"] == {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque",
+    }
+    assert spec["components"]["schemas"]["ErrorResponse"]["type"] == "object"
+    assert "HTTPValidationError" not in spec["components"]["schemas"]
+    assert "ValidationError" not in spec["components"]["schemas"]
+    assert spec["paths"]["/healthz"]["get"]["security"] == []
+
+    for path in ("/v1/status", "/v1/jobs", "/v1/search", "/v1/grep", "/v1/ls", "/v1/cat"):
+        operation = spec["paths"][path]["get"]
+        assert operation["security"] == [{"BearerAuth": []}]
+        assert operation["responses"]["401"]["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/ErrorResponse"
+        }
+        assert operation["responses"]["422"]["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/ErrorResponse"
+        }
+
+
+def test_validation_errors_use_documented_envelope(tmp_path) -> None:
+    cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
+    app = create_app(cfg)
+    client = TestClient(app)
+
+    response = client.get("/v1/search", headers={"Authorization": "Bearer expected"})
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "code": "validation_error",
+        "detail": "query.q: Field required",
+        "suggestions": ["fix request shape"],
+    }

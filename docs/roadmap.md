@@ -56,9 +56,9 @@ is still beta-only, and where to click next.
 - Connector management, file manifest/upload steps, `head`, `tail`, `export`,
   and `listJobs` are part of the OpenAPI surface but are not all exposed as
   generated SDK methods in the current checked-in clients.
-- Generated SDK READMEs and generated API docs say authorization is not required
-  because the OpenAPI spec does not model bearer auth. The running server is
-  authoritative for auth behavior.
+- Older generated SDK READMEs and generated API docs may say authorization is
+  not required. Treat that as stale generated text; the OpenAPI contract now
+  models bearer auth and the running server remains authoritative for auth behavior.
 - Generated TypeScript runtime defaults to `http://127.0.0.1:8765`; the
   documented `mfs-server run` and `mfs-server api` default bind is
   `127.0.0.1:13619`. Set the base URL explicitly.

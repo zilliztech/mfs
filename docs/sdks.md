@@ -32,9 +32,9 @@ Generated source docs:
 !!! note "Generated README caveats"
     The generated README files and generated package internals may mention
     `0.4.0`, while the checked-in package metadata currently says
-    `0.4.0-beta.3`. OpenAPI-derived generator output may also say endpoints do
-    not require authorization because the spec has no security scheme. Treat
-    that as generator scaffolding; the running server is authoritative for auth.
+    `0.4.0-beta.3`. If older generated output says endpoints do not require
+    authorization, treat that as stale generator scaffolding; the OpenAPI
+    contract declares bearer auth and the running server is authoritative for auth.
     The checked-in SDK README files and `sdks/*/docs/README.md` entries include
     a small runtime overlay before the generated examples and model pages.
 

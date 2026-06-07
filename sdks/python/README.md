@@ -165,9 +165,8 @@ not runnable runtime examples.
 <a id="documentation-for-authorization"></a>
 ## Documentation For Authorization
 
-The OpenAPI spec currently has no security scheme, so the generated client does
-not attach authorization automatically. Runtime behavior may still require
-bearer auth:
+The OpenAPI spec declares bearer auth. If this checked-in generated client does
+not attach authorization automatically, set the header explicitly:
 
 ```python
 api_client.set_default_header("Authorization", f"Bearer {token}")

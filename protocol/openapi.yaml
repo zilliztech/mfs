@@ -17,6 +17,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerInfo'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/add:
     post:
       tags:
@@ -41,7 +73,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/jobs/{job_id}/cancel:
     post:
       tags:
@@ -67,7 +125,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/connectors/probe:
     post:
       tags:
@@ -92,13 +176,39 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/connectors/estimate:
     post:
       tags:
       - connectors
       summary: Estimate
-      description: 'Zero-billing pre-flight estimate (design/04 §3): object/chunk/token counts via
+      description: 'Zero-billing pre-flight estimate: object/chunk/token counts via
 
         metadata + a local chunker/tokenizer dry-run. No embedding API calls.'
       operationId: estimateConnector
@@ -120,7 +230,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/connectors/inspect:
     get:
       tags:
@@ -145,7 +281,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/connectors:
     delete:
       tags:
@@ -171,7 +333,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/upload:
     post:
       tags:
@@ -207,15 +395,42 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/files/manifest:
     post:
       tags:
       - ingest
       summary: Files Manifest
-      description: 'Manifest-diff upload step ②: stat-only manifest in, need_sha1 + deletion
+      description: 'Manifest-diff upload step ②: stat-only manifest in, need_sha1
+        + deletion
 
-        candidates out (design/02 §4.2). No bytes transferred here.'
+        candidates out. No bytes transferred here.'
       operationId: filesManifest
       requestBody:
         content:
@@ -235,7 +450,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/files/upload:
     put:
       tags:
@@ -245,7 +486,9 @@ paths:
 
         member (hashes/renames/deletions) + the changed file bytes. The server applies
 
-        it to the staging area and triggers the file-connector sync.'
+        it to the staging area and triggers the file-connector sync. full=true
+
+        (--force-index/--force-upload) forces a re-index of the whole staged tree.'
       operationId: filesUpload
       parameters:
       - name: client_id
@@ -267,6 +510,13 @@ paths:
           type: boolean
           default: true
           title: Process
+      - name: full
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Full
       responses:
         '200':
           description: Successful Response
@@ -279,7 +529,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/search:
     get:
       tags:
@@ -322,6 +598,14 @@ paths:
           type: boolean
           default: false
           title: Collapse
+      - name: kind
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kind
       responses:
         '200':
           description: Successful Response
@@ -334,7 +618,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/grep:
     get:
       tags:
@@ -366,7 +676,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/ls:
     get:
       tags:
@@ -392,7 +728,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/cat:
     get:
       tags:
@@ -449,7 +811,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/head:
     get:
       tags:
@@ -482,7 +870,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/tail:
     get:
       tags:
@@ -515,13 +929,49 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/export:
     get:
       tags:
       - browse
       summary: Export
-      description: Full object content (no row cap / size guard) for `mfs export`.
+      description: 'Full object content for `mfs export`. Honest about completeness:
+
+        each connector''s own row cap still applies (postgres `max_read_rows`,
+
+        BigQuery `max_read_rows`, etc.), so structured objects above that
+
+        threshold return `partial=true`. The bare-cat size guard
+
+        (object_too_large_for_cat) does NOT apply — export is the escape
+
+        hatch for that — but true streaming export is still TODO.'
       operationId: export
       parameters:
       - name: path
@@ -542,7 +992,53 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
+  /healthz:
+    get:
+      tags:
+      - server
+      summary: Healthz
+      description: 'Unauthenticated liveness/readiness probe (no sensitive data);
+        used by the
+
+        compose healthcheck and Helm probes so they work even with auth enabled.'
+      operationId: healthz_healthz_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Healthz Healthz Get
+      security: []
   /v1/status:
     get:
       tags:
@@ -556,6 +1052,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/jobs:
     get:
       tags:
@@ -585,7 +1113,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
   /v1/jobs/{job_id}:
     get:
       tags:
@@ -611,7 +1165,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - BearerAuth: []
 components:
   schemas:
     AddRequest:
@@ -626,8 +1206,8 @@ components:
             type: object
           - type: 'null'
           title: Config
-          description: connector config ([[objects]], schemas, _credential_ref, ...); the CLI loads this
-            from --config <file.toml>
+          description: connector config ([[objects]], schemas, _credential_ref, ...);
+            the CLI loads this from --config <file.toml>
         full:
           type: boolean
           title: Full
@@ -642,12 +1222,14 @@ components:
         process:
           type: boolean
           title: Process
-          description: 'True: index inline now; False: enqueue for a worker'
-          default: true
+          description: 'False (default): enqueue and return the job_id immediately
+            (poll GET /v1/jobs/{id}); True: index inline and return when done'
+          default: false
         update:
           type: boolean
           title: Update
-          description: apply config to an existing connector (connector update); add ignores it
+          description: apply config to an existing connector (connector update); add
+            ignores it
           default: false
       type: object
       required:
@@ -684,6 +1266,10 @@ components:
         content:
           type: string
           title: Content
+        partial:
+          type: boolean
+          title: Partial
+          default: false
       type: object
       required:
       - source
@@ -700,6 +1286,16 @@ components:
         status:
           type: string
           title: Status
+        object_count:
+          type: integer
+          title: Object Count
+          description: indexed objects for this connector
+          default: 0
+        chunk_count:
+          type: integer
+          title: Chunk Count
+          description: indexed vector chunks for this connector
+          default: 0
       type: object
       required:
       - root_uri
@@ -770,13 +1366,14 @@ components:
           - type: string
           - type: 'null'
           title: Source
-        lines:
+        locator:
           anyOf:
-          - items:
-              type: integer
-            type: array
+          - additionalProperties: true
+            type: object
           - type: 'null'
-          title: Lines
+          title: Locator
+          description: 'per-hit identity. text/code line hits: {''lines'':[n,n]};
+            structured pushdown: connector PK dict; notice rows: null.'
         content:
           type: string
           title: Content
@@ -786,7 +1383,7 @@ components:
           - type: string
           - type: 'null'
           title: Via
-          description: bm25 | linear | pushdown
+          description: bm25 | linear | pushdown | notice
       type: object
       title: GrepMatchModel
     GrepResponse:
@@ -800,15 +1397,6 @@ components:
       required:
       - results
       title: GrepResponse
-    HTTPValidationError:
-      properties:
-        detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          type: array
-          title: Detail
-      type: object
-      title: HTTPValidationError
     JobResponse:
       properties:
         id:
@@ -1049,14 +1637,6 @@ components:
           type: string
           title: Source
           description: object URI — feed to cat/head/export
-        lines:
-          anyOf:
-          - items:
-              type: integer
-            type: array
-          - type: 'null'
-          title: Lines
-          description: '[start,end] for text/code; null for structured'
         content:
           type: string
           title: Content
@@ -1074,7 +1654,9 @@ components:
             type: object
           - type: 'null'
           title: Locator
-          description: structured unit key (pk/number/thread_ts)
+          description: 'per-chunk identity. body/code/document chunks: {''lines'':[start,end]};
+            structured (DB row, issue, slack thread): connector PK dict (e.g. {''id'':1},
+            {''number'':42}, {''thread_ts'':''...''}); once-per-object kinds: null.'
         metadata:
           additionalProperties: true
           type: object
@@ -1084,7 +1666,7 @@ components:
       required:
       - source
       title: ResultEnvelope
-      description: 'One search/grep hit (design/06 §7). Outer shape is stable across connectors;
+      description: 'One search/grep hit. Outer shape is stable across connectors;
 
         locator + metadata.fields are per-connector but documented.'
     SearchResponse:
@@ -1135,29 +1717,29 @@ components:
       required:
       - connectors
       title: StatusResponse
-    ValidationError:
+    ErrorResponse:
       properties:
-        loc:
+        code:
+          description: stable error code
+          title: Code
+          type: string
+        detail:
+          default: ''
+          title: Detail
+          type: string
+        suggestions:
           items:
-            anyOf:
-            - type: string
-            - type: integer
+            type: string
+          title: Suggestions
           type: array
-          title: Location
-        msg:
-          type: string
-          title: Message
-        type:
-          type: string
-          title: Error Type
-        input:
-          title: Input
-        ctx:
-          type: object
-          title: Context
-      type: object
       required:
-      - loc
-      - msg
-      - type
-      title: ValidationError
+      - code
+      title: ErrorResponse
+      type: object
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+security:
+- BearerAuth: []

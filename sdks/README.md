@@ -24,8 +24,8 @@ APIs are grouped by tag: `ServerApi` (info/status), `IngestApi` (add/job),
 `ResultEnvelope` (`source`, `content`, `score`, `locator`, `metadata`); current
 runtime guidance treats line ranges as `locator.lines`.
 
-The OpenAPI spec currently does not declare bearer security, so generated
-authorization text such as "no authorization required" is scaffolding. The
+The OpenAPI spec declares bearer security. If checked-in generated authorization
+text still says "no authorization required", treat it as stale scaffolding. The
 running server is authoritative for auth behavior.
 
 ## Smoke Harnesses
