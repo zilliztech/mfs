@@ -61,6 +61,9 @@ def test_openapi_documents_bearer_auth_and_error_envelope(tmp_path) -> None:
         assert operation["responses"]["401"]["content"]["application/json"]["schema"] == {
             "$ref": "#/components/schemas/ErrorResponse"
         }
+        assert operation["responses"]["405"]["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/ErrorResponse"
+        }
         assert operation["responses"]["422"]["content"]["application/json"]["schema"] == {
             "$ref": "#/components/schemas/ErrorResponse"
         }

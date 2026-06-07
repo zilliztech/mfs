@@ -32,6 +32,7 @@ SDKs should switch on `code`, never on `detail` text.
 | `upload_rejected` | 400 | `--no-upload` set | adjust flags or profile |
 | `upload_not_applicable` | 400 | `--force-upload` on shared fs | adjust flags or profile |
 | `not_found` | 404 | path / job / object not found | check the URI |
+| `method_not_allowed` | 405 | route exists, but the HTTP method is not supported | use a supported method from the `Allow` header |
 | `validation_error` | 422 | malformed request (FastAPI/pydantic) | fix request shape |
 
 \* `chunk_max_exceeded` is surfaced as a `search_status: partial` rather than a hard
