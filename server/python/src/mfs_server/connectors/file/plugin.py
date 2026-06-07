@@ -23,6 +23,8 @@ from ..base import (
     Capabilities,
     ConnectorPlugin,
     Entry,
+    GrepMatch,
+    GrepOptions,
     HealthStatus,
     ObjectChange,
     ObjectKind,
@@ -169,7 +171,7 @@ class FilePlugin(ConnectorPlugin):
         cursor_kind=None,
         full_scan=True,
         delete_detection="full_scan",
-        grep_pushdown=False,
+        grep_pushdown=True,
         search_pushdown=False,
         paged_cat=True,
     )
@@ -347,6 +349,57 @@ class FilePlugin(ConnectorPlugin):
                             return
                 if buf and start <= i < end:  # trailing line without a newline
                     yield buf
+
+    async def grep(
+        self, pattern: str, path: str, options: GrepOptions
+    ) -> Optional[AsyncIterator[GrepMatch]]:
+        """Run exact literal grep against the source files.
+
+        Indexed BM25 is useful recall, but it is not exact grep: analyzers can miss
+        punctuation-heavy tokens, and partial objects only store capped chunk text.
+        The file connector always has the bytes locally, including upload staging, so
+        source-side grep is the correct behavior for exact file matches.
+        """
+        from ...common import accel
+
+        root = self.root.resolve()
+        real = self._real(path)
+        if not real.exists():
+            raise FileNotFoundError(path)
+
+        if real.is_file():
+            relpaths = [
+                "/" + str(real.relative_to(root)).replace(os.sep, "/"),
+            ]
+        elif real.is_dir():
+            if real == root:
+                relpaths = list(self._scan().keys())
+            else:
+                base = "/" + str(real.relative_to(root)).replace(os.sep, "/")
+                prefix = base.rstrip("/") + "/"
+                relpaths = [rel for rel in self._scan().keys() if rel.startswith(prefix)]
+        else:
+            relpaths = []
+
+        async def gen() -> AsyncIterator[GrepMatch]:
+            emitted = 0
+            max_matches = 100
+            for rel in relpaths:
+                if emitted >= max_matches:
+                    break
+                matches = await asyncio.to_thread(
+                    accel.linear_grep_file,
+                    str(self._real(rel)),
+                    pattern,
+                    options.case_insensitive,
+                    False,
+                    max_matches - emitted,
+                )
+                for line_no, line in matches:
+                    emitted += 1
+                    yield GrepMatch(path=rel, line_no=line_no, content=line)
+
+        return gen()
 
     # --- fingerprint: content sha1 (accurate; stat uses size:mtime for fast check) ---
     async def fingerprint(self, path: str) -> Optional[str]:
