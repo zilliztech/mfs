@@ -89,6 +89,21 @@ def _norm_rel(p: str) -> str:
     return "/" + p.lstrip("/")
 
 
+def _validate_upload_member(m) -> None:
+    """Reject archive members that tarfile could materialize outside the staging tree."""
+    import posixpath as _posixpath
+
+    if m.issym() or m.islnk():
+        raise ValueError(f"links not allowed in upload: {m.name}")
+    if not (m.isfile() or m.isdir()):
+        raise ValueError(f"unsupported member in upload: {m.name}")
+    rel = str(m.name or "")
+    if not rel or _posixpath.isabs(rel) or any(part == ".." for part in rel.split("/")):
+        raise ValueError(f"unsafe path in archive: {rel}")
+    if _posixpath.normpath(rel) in ("", ".") and not m.isdir():
+        raise ValueError(f"unsafe path in archive: {rel}")
+
+
 def _match_object_config(objects_cfg: list, path: str) -> ObjectConfig | None:
     """Find the user [[objects]] entry whose `match` matches this path,
     first-match wins; None when nothing matches (caller falls back to a built-in preset)."""
@@ -956,8 +971,11 @@ class Engine:
         # (a non-tar throws tarfile.ReadError; an all-zero body parses as an empty archive).
         try:
             with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as _probe:
-                if not _probe.getmembers():
+                members = _probe.getmembers()
+                if not members:
                     raise ValueError("invalid or empty upload bundle")
+                for m in members:
+                    _validate_upload_member(m)
         except tarfile.TarError as e:
             raise ValueError("invalid or empty upload bundle") from e
 
@@ -965,7 +983,7 @@ class Engine:
         fs = FileStateStore(self.meta, self.ns, cid)
 
         def _safe(rel: str) -> str:
-            dest = os.path.realpath(os.path.join(staging, rel.lstrip("/")))
+            dest = os.path.realpath(os.path.join(staging, rel))
             if dest != staging and not dest.startswith(staging + os.sep):
                 raise ValueError(f"unsafe path in archive: {rel}")
             return dest
@@ -973,8 +991,7 @@ class Engine:
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as tf:
             members = tf.getmembers()
             for m in members:  # validate EVERY member before any side effect
-                if m.issym() or m.islnk():
-                    raise ValueError(f"links not allowed in upload: {m.name}")
+                _validate_upload_member(m)
                 _safe(m.name)  # incl. directory entries: a lone `../escaped`
                 #                               dir member would otherwise extractall outside
                 #                               staging (zip-slip via a directory, not a file)
@@ -1065,8 +1082,18 @@ class Engine:
         # (a non-tar throws tarfile.ReadError; an all-zero body parses as an empty archive).
         try:
             with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:*") as _probe:
-                if not _probe.getmembers():
+                members = _probe.getmembers()
+                if not members:
                     raise ValueError("invalid or empty upload bundle")
+                for m in members:
+                    if m.name == ".mfs-meta.json":
+                        if not m.isfile():
+                            raise ValueError("invalid upload metadata")
+                        continue
+                    _validate_upload_member(m)
+                mm = next((m for m in members if m.name == ".mfs-meta.json"), None)
+                if mm:
+                    _json.loads(_probe.extractfile(mm).read().decode())
         except tarfile.TarError as e:
             raise ValueError("invalid or empty upload bundle") from e
 
@@ -1074,7 +1101,7 @@ class Engine:
         fs = FileStateStore(self.meta, self.ns, cid)
 
         def _safe(base: str, rel: str) -> str:
-            dest = os.path.realpath(os.path.join(base, rel.lstrip("/")))
+            dest = os.path.realpath(os.path.join(base, rel))
             if dest != base and not dest.startswith(base + os.sep):
                 raise ValueError(f"unsafe path in archive: {rel}")
             return dest
@@ -1084,11 +1111,12 @@ class Engine:
             with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:*") as tf:
                 members = tf.getmembers()
                 for m in members:
-                    if m.issym() or m.islnk():
-                        raise ValueError(f"links not allowed in upload: {m.name}")
                     if m.name != ".mfs-meta.json":
+                        _validate_upload_member(m)
                         _safe(staging, m.name)
                         _safe(tmp, m.name)
+                    elif not m.isfile():
+                        raise ValueError("invalid upload metadata")
                 mm = next((m for m in members if m.name == ".mfs-meta.json"), None)
                 meta = _json.loads(tf.extractfile(mm).read().decode()) if mm else {}
                 hashes = {h["path"]: h for h in meta.get("hashes", [])}

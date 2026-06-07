@@ -13,6 +13,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers
+from starlette.requests import ClientDisconnect
 
 from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
@@ -73,6 +74,7 @@ _STATUS_CODE = {
     404: "not_found",
     409: "conflict",
     422: "validation_error",
+    499: "client_closed_request",
     501: "not_available",
     502: "connector_unhealthy",
 }
@@ -313,7 +315,10 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     async def upload(request: Request, name: str, process: bool = True) -> AddResponse:
         """CS upload flow: POST a tar(.gz) of a tree as the raw body (?name=<label>);
         the server stages + indexes it. For client/server without a shared filesystem."""
-        data = await request.body()
+        try:
+            data = await request.body()
+        except ClientDisconnect:
+            raise HTTPException(499, "client disconnected during upload")
         if not data:
             raise HTTPException(400, "empty upload body")
         try:
@@ -346,7 +351,10 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         member (hashes/renames/deletions) + the changed file bytes. The server applies
         it to the staging area and triggers the file-connector sync. full=true
         (--force-index/--force-upload) forces a re-index of the whole staged tree."""
-        data = await request.body()
+        try:
+            data = await request.body()
+        except ClientDisconnect:
+            raise HTTPException(499, "client disconnected during upload")
         if not data:
             raise HTTPException(400, "empty upload body")
         try:
