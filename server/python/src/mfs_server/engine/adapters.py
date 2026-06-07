@@ -13,15 +13,9 @@ Wiring map:
 from __future__ import annotations
 
 import asyncio
-import hashlib
-from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Optional
 
 from ..common.embedding import decode_vec, encode_vec
-
-
-def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 
 class EmbedderAdapter:
@@ -107,35 +101,28 @@ class TxCacheAdapter:
 
 
 class ArtifactStoreAdapter:
-    """Adapt the artifact_cache (bytes store) + metadata store to producers.base
-    .ArtifactStore. Mirrors engine._put_artifact's two writes — the bytes plus the
-    artifact_cache index row so `mfs cat` / `head` can find the derived artifact — but
-    leaves the throttled LRU eviction sweep to the engine."""
+    """Adapt engine artifact storage to producers.base.ArtifactStore.
 
-    def __init__(self, artifact_cache: Any, meta: Any):
-        self._cache = artifact_cache
-        self._meta = meta
+    Delegates to the engine's own _put_artifact / _read_artifact rather than re-implementing
+    the bytes + index-row writes: that keeps the LRU size-eviction sweep (put) and the
+    last_accessed recency bump (get) in one place, so producer-written artifacts are accounted
+    for and capped under [artifact_cache].max_size_gb exactly like engine-written ones."""
+
+    def __init__(
+        self,
+        put_fn: Callable[[str, str, str, bytes], Awaitable[str]],
+        read_fn: Callable[[str, str, str], Awaitable[Optional[bytes]]],
+        artifact_path_fn: Callable[[str, str, str], Any],
+    ):
+        self._put = put_fn
+        self._read = read_fn
+        self._artifact_path = artifact_path_fn
 
     async def put_artifact(self, namespace_id: str, object_uri: str, kind: str, data: bytes) -> None:
-        path = await asyncio.to_thread(
-            self._cache.put_artifact, namespace_id, object_uri, kind, data
-        )
-        now = _now()
-        fp = hashlib.sha1(data).hexdigest()
-        await self._meta.execute(
-            "INSERT INTO artifact_cache (namespace_id, object_uri, artifact_kind, storage_path, "
-            " fingerprint, size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(namespace_id, object_uri, artifact_kind) DO UPDATE SET "
-            " storage_path=excluded.storage_path, fingerprint=excluded.fingerprint, "
-            " size_bytes=excluded.size_bytes, built_at=excluded.built_at, "
-            " last_accessed=excluded.last_accessed",
-            (namespace_id, object_uri, kind, str(path), fp, len(data), now, now),
-        )
+        await self._put(namespace_id, object_uri, kind, data)
 
     async def get_artifact(self, namespace_id: str, object_uri: str, kind: str) -> Optional[bytes]:
-        return await asyncio.to_thread(
-            self._cache.get_artifact, namespace_id, object_uri, kind
-        )
+        return await self._read(namespace_id, object_uri, kind)
 
     def artifact_path(self, namespace_id: str, object_uri: str, kind: str) -> str:
-        return str(self._cache.artifact_path(namespace_id, object_uri, kind))
+        return str(self._artifact_path(namespace_id, object_uri, kind))

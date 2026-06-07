@@ -271,7 +271,9 @@ class Engine:
         self._producer_ctx = ProducerContext(
             cfg=self.cfg,
             namespace_id=self.ns,
-            artifacts=ArtifactStoreAdapter(self.artifact_cache, self.meta),
+            artifacts=ArtifactStoreAdapter(
+                self._put_artifact, self._read_artifact, self.artifact_cache.artifact_path
+            ),
             converter=self.converter,
             vlm=self.vlm,
             summary=self.summary,
