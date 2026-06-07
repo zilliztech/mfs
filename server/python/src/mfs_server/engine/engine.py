@@ -1527,6 +1527,12 @@ class Engine:
                     self._warn_object_failed(connector_uri, task, e)
                     return "retryable_exhausted"
                 if attempt < max_r:
+                    # A pipeline okind whose producer raised may have pumped partial chunks +
+                    # bookkeeping into the EmbedConsumer before failing. Reset that per-task
+                    # state so the re-pump below behaves like a fresh attempt (§6.1): runs
+                    # delete_by_object again and counts only the retry's chunks.
+                    if self._embed_consumer is not None:
+                        self._embed_consumer.on_task_retry(task["id"])
                     # exponential backoff capped at backoff_max_ms: a flat
                     # initial-only sleep ignored backoff_max_ms entirely and hammered a
                     # rate-limited provider at a fixed cadence.

@@ -303,3 +303,34 @@ async def test_upsert_failure_preserves_batch_then_succeeds_on_retry():
     assert len(flaky_upsert.last) == 2  # both chunks survived the failed flush
     assert seen == [("c://x/T", 2)]  # task finalized exactly once with both chunks counted
     assert c._pending == {}
+
+
+async def test_on_task_retry_resets_per_task_state():
+    # findings (8)/(9): a producer that raised after pumping 2 chunks (no EndOfTask) left
+    # _deleted/_pending/_count behind. on_task_retry must clear them so the retry re-deletes
+    # and counts only its own chunks.
+    c, embedder, milvus, tx = _consumer(batch_size=10, idle_ms=30)
+    seen: dict[str, tuple] = {}
+    c.register_on_succeeded(lambda uri, job, count, partial: seen.update({uri: (count, partial)}))
+    q = make_chunks_q(10)
+    c.start(q)
+
+    # attempt 1: 2 chunks pumped, then the producer raised (no EndOfTask ever sent).
+    await q.put(_chunk_env("T", "a1"))
+    await q.put(_chunk_env("T", "a2"))
+    await asyncio.sleep(0.08)  # let the idle flush write them (delete_by_object runs once)
+    assert milvus.delete_by_object.await_count == 1
+
+    # engine resets the task before re-pumping.
+    c.on_task_retry("T")
+    assert c._pending.get("T", 0) == 0 and c._count.get("T", 0) == 0 and "T" not in c._deleted
+
+    # attempt 2: a clean run of 3 chunks + EndOfTask.
+    for i in range(3):
+        await q.put(_chunk_env("T", f"b{i}"))
+    await q.put(_eot_env("T"))
+    await c.shutdown()
+
+    assert seen["c://x/T"] == (3, False)  # counts ONLY the retry's chunks, not 2+3
+    assert milvus.delete_by_object.await_count == 2  # delete ran again on the retry's first chunk
+    assert c._pending == {}

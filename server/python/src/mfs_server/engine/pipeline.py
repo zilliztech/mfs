@@ -207,6 +207,24 @@ class EmbedConsumer:
         if self._task is not None:
             await self._task
 
+    # --- retry ---
+    def on_task_retry(self, task_id: str) -> None:
+        """Drop ALL per-task state before the engine re-pumps a task's producer (§6.1).
+
+        A producer that raised mid-stream left partial state behind: chunks already in the
+        batch, an inflated _pending/_count, and `task_id` in _deleted (so the next first-chunk
+        would SKIP delete_by_object). Carrying any of that into the retry would double-count
+        the chunk_count, leave stale chunks the retry no longer produces, and corrupt the
+        pending counter. Resetting to fresh state makes the retry behave like a first attempt:
+        delete_by_object runs again and the counters reflect only the retry's chunks."""
+        self._batch = [(e, c) for (e, c) in self._batch if e.task_id != task_id]
+        self._pending.pop(task_id, None)
+        self._count.pop(task_id, None)
+        self._partial.pop(task_id, None)
+        self._eot.pop(task_id, None)
+        self._deleted.discard(task_id)
+        self._meta.pop(task_id, None)
+
     # --- consume ---
     async def _consume(self, env: TaskEnvelope) -> None:
         payload = env.payload
