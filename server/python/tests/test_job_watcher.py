@@ -75,7 +75,7 @@ async def test_completion_marks_succeeded_and_evicts(tmp_path):
     await _task(meta, b, status="pending")  # B still has work
 
     reduce = _FakeReduce()
-    watcher = ConnectorJobWatcher(meta, reduce, threshold=5)
+    watcher = ConnectorJobWatcher(meta, reduce)
     await watcher.tick()
 
     assert await _status(meta, a) == "succeeded"
@@ -91,7 +91,7 @@ async def test_cancel_cleans_pending_and_evicts(tmp_path):
     await _task(meta, b, status="succeeded")
 
     reduce = _FakeReduce(active=[b])  # B's DirTree still held
-    watcher = ConnectorJobWatcher(meta, reduce, threshold=5)
+    watcher = ConnectorJobWatcher(meta, reduce)
     await watcher.tick()
 
     assert await _status(meta, b) == "cancelled"
@@ -101,20 +101,40 @@ async def test_cancel_cleans_pending_and_evicts(tmp_path):
     await meta.close()
 
 
-async def test_failure_threshold_marks_failed_and_evicts(tmp_path):
+async def test_watcher_does_not_trip_breaker_on_failures(tmp_path):
+    # The watcher is reconciliation only — it does NOT fail jobs on a cumulative failed count.
+    # The circuit breaker lives in _run_job_loop (consecutive failures). A running job with
+    # failures AND still-pending work must be left running by the watcher.
     meta = await _meta(tmp_path)
     j = await _job(meta, status="running")
     await _task(meta, j, status="failed")
     await _task(meta, j, status="failed")
-    await _task(meta, j, status="pending")  # leftover pending -> cancelled on failure
+    await _task(meta, j, status="pending")  # job still has live work
 
     reduce = _FakeReduce()
-    watcher = ConnectorJobWatcher(meta, reduce, threshold=2)
+    watcher = ConnectorJobWatcher(meta, reduce)
     await watcher.tick()
 
-    assert await _status(meta, j) == "failed"
+    assert await _status(meta, j) == "running"  # not failed by the watcher
     rows = await meta.fetchall("SELECT status FROM object_tasks WHERE connector_job_id=?", (j,))
-    assert rows_count(rows, "cancelled") == 1 and rows_count(rows, "failed") == 2
+    assert rows_count(rows, "pending") == 1  # pending NOT cancelled by the watcher
+    assert reduce.evicted == []
+    await meta.close()
+
+
+async def test_all_tasks_terminal_with_failures_completes(tmp_path):
+    # When every task is terminal (some failed, none live) the job is a normal completion ->
+    # 'succeeded' (partial-success; failed_objects is recorded by _finalize_job, not here).
+    meta = await _meta(tmp_path)
+    j = await _job(meta, status="running")
+    await _task(meta, j, status="failed")
+    await _task(meta, j, status="succeeded")
+
+    reduce = _FakeReduce()
+    watcher = ConnectorJobWatcher(meta, reduce)
+    await watcher.tick()
+
+    assert await _status(meta, j) == "succeeded"
     assert reduce.evicted == [j]
     await meta.close()
 
@@ -129,7 +149,7 @@ async def test_idempotent_no_double_evict(tmp_path):
     await _task(meta, a, status="succeeded")
 
     reduce = _FakeReduce()
-    watcher = ConnectorJobWatcher(meta, reduce, threshold=5)
+    watcher = ConnectorJobWatcher(meta, reduce)
     await watcher.tick()
     await watcher.tick()  # second cycle must not re-finalize or re-evict
 
@@ -143,7 +163,7 @@ async def test_running_job_no_tasks_not_finalized(tmp_path):
     meta = await _meta(tmp_path)
     j = await _job(meta, status="running")
     reduce = _FakeReduce()
-    watcher = ConnectorJobWatcher(meta, reduce, threshold=5)
+    watcher = ConnectorJobWatcher(meta, reduce)
     await watcher.tick()
     assert await _status(meta, j) == "running"
     assert reduce.evicted == []
@@ -156,7 +176,7 @@ async def test_completion_waits_for_reduce(tmp_path):
     j = await _job(meta, status="running")
     await _task(meta, j, status="succeeded")
     reduce = _FakeReduce(done=False)  # reduce not done yet
-    watcher = ConnectorJobWatcher(meta, reduce, threshold=5)
+    watcher = ConnectorJobWatcher(meta, reduce)
     await watcher.tick()
     assert await _status(meta, j) == "running"  # held until reduce completes
     assert reduce.evicted == []

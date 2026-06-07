@@ -7,10 +7,14 @@ short interval, and folds in the Reduce subsystem teardown:
 
   - completion: a 'running' job with >=1 task and no pending/running tasks AND no outstanding
     directory summaries -> 'succeeded' + evict the job's DirTree.
-  - failure: a 'running' job whose failed-task count reached the consecutive-fatal threshold ->
-    'failed' + cancel its leftover pending tasks + evict.
   - cancel: a job the user cancelled (status='cancelled' — set immediately by Engine.cancel_job)
     that still holds a DirTree or pending tasks -> cancel the pending tasks + evict.
+
+The watcher does NOT trip the circuit breaker. That is owned solely by _run_job_loop, which
+tracks CONSECUTIVE failures and aborts the job (cancelling pending tasks + returning a reason
+that _finalize_job records as 'failed'). The watcher is reconciliation only; duplicating the
+breaker here against a CUMULATIVE failed count would disagree with the loop's semantics and
+fail jobs the loop deliberately kept running (interspersed failures below the consecutive cap).
 
 It is idempotent: terminal transitions use `WHERE status='running'` conditional UPDATEs and
 evict removes the DirTree, so a second tick does not re-finalize or re-evict.
@@ -45,12 +49,10 @@ class ConnectorJobWatcher:
         meta: Any,
         reduce_coordinator: Any,
         *,
-        threshold: int,
         poll_interval_s: float = _JOB_WATCH_INTERVAL_S,
     ):
         self.meta = meta
         self.reduce = reduce_coordinator
-        self.threshold = max(1, int(threshold))
         self.poll_interval_s = poll_interval_s
         self._stop = asyncio.Event()
 
@@ -90,22 +92,6 @@ class ConnectorJobWatcher:
             cmap = {r["status"]: r["n"] for r in counts}
             total = sum(cmap.values())
             live = sum(cmap.get(s, 0) for s in _LIVE_TASK_STATUSES)
-            failed = cmap.get("failed", 0)
-
-            if failed >= self.threshold:
-                won = await self.meta.execute_rowcount(
-                    "UPDATE connector_jobs SET status='failed', finished_at=? "
-                    "WHERE id=? AND status='running'",
-                    (_now(), job_id),
-                )
-                if won == 1:
-                    await self.meta.execute(
-                        "UPDATE object_tasks SET status='cancelled' "
-                        "WHERE connector_job_id=? AND status='pending'",
-                        (job_id,),
-                    )
-                    self.reduce.evict_job(job_id)
-                continue
 
             # Completion needs >=1 task so a job mid-enumeration (process=True jobs are
             # created 'running' and accrue tasks as sync() yields) isn't finalized at 0 tasks;

@@ -206,9 +206,7 @@ class Engine:
         await self._recover_reduce()
         # ConnectorJobWatcher runs in this same event loop as the EmbedConsumer + SummaryWorker
         # pool, finalizing jobs out-of-band (§5.7).
-        self._job_watcher = ConnectorJobWatcher(
-            self.meta, self._reduce, threshold=self.cfg.object_task.consecutive_fatal_threshold
-        )
+        self._job_watcher = ConnectorJobWatcher(self.meta, self._reduce)
         self._job_watcher_task = asyncio.create_task(self._job_watcher.run())
         # NB: the embedding dim-mismatch warning is deferred to the first provider build
         # (CachingEmbeddingClient._warn_dim_mismatch_once) so boot never downloads/loads the
