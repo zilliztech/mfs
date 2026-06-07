@@ -10,8 +10,26 @@ from typing import Optional
 def _lit(v: str) -> str:
     """Escape a value for a double-quoted Milvus expr string literal. connector_uri /
     object_prefix derive from user paths, so an unescaped `"` or `\\` could break out
-    of the literal and bypass namespace/connector scoping (cross-tenant leak)."""
-    return str(v).replace("\\", "\\\\").replace('"', '\\"')
+    of the literal and bypass namespace/connector scoping (cross-tenant leak).
+    Control characters also need escaping so POSIX filenames containing newlines
+    or tabs do not produce invalid Milvus expressions."""
+    out: list[str] = []
+    for ch in str(v):
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == '"':
+            out.append('\\"')
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif ord(ch) < 0x20:
+            out.append(f"\\u{ord(ch):04x}")
+        else:
+            out.append(ch)
+    return "".join(out)
 
 
 def build_filter(

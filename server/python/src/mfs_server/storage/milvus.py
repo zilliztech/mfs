@@ -65,8 +65,26 @@ def _reraise_known_milvus_error(exc: MilvusException) -> None:
 def _lit(v: str) -> str:
     """Escape a value for a double-quoted Milvus expr literal. connector_uri/object_uri
     derive from user paths/URIs, so an unescaped `"` or `\\` could break out of the
-    literal and corrupt the delete/query scope. Mirrors common.retrieval._lit."""
-    return str(v).replace("\\", "\\\\").replace('"', '\\"')
+    literal and corrupt the delete/query scope. Control characters such as newlines
+    must also be escaped, otherwise legitimate POSIX filenames can make the expr
+    unparsable. Mirrors common.retrieval._lit."""
+    out: list[str] = []
+    for ch in str(v):
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == '"':
+            out.append('\\"')
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif ord(ch) < 0x20:
+            out.append(f"\\u{ord(ch):04x}")
+        else:
+            out.append(ch)
+    return "".join(out)
 
 
 class MilvusStore:
