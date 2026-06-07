@@ -3,6 +3,11 @@
 Multi-provider (openai/anthropic/gemini), memoized in the transformation cache
 (kind='summary', keyed on input hash + provider/model/version → model change
 re-summarizes). Lazy provider so the server boots without any API key.
+
+This client holds NO concurrency control of its own: the [summary].concurrency ceiling is
+enforced by the shared SummaryConcurrencyGate (engine/producers/base.py) at every call site
+(TableSchemaProducer, the Reduce SummaryWorker), so a single process-wide budget governs
+in-flight summary calls regardless of where summarize() is invoked (§5.5).
 """
 
 from __future__ import annotations
@@ -47,37 +52,33 @@ class CachingSummaryClient:
         if not text.strip():
             return ""
         prompt = _PROMPTS.get(kind, _PROMPTS["directory_summary"])
+        h = sha1_hex((kind + "\n" + text).encode())
+        # max_tokens is part of the cache identity: a different output budget yields a
+        # different summary, so it must not return one cached under another budget.
         key = cache_key(
-            sha1_hex((kind + "\n" + text).encode()),
-            "summary",
-            self.provider,
-            self.model,
-            self.version,
+            h, "summary", self.provider, self.model, self.version,
+            config=str(self.max_tokens),
         )
-        cached = await self.tx_cache.batch_get([key])
-        if cached[key] is not None:
+        ran = False
+
+        async def _compute() -> bytes:
+            nonlocal ran
+            ran = True
+            llm = self._ensure_llm()
+            # caller truncates to summary.max_input_kb; this is just a hard safety ceiling
+            out = await llm.chat(
+                f"{prompt}\n\n---\n{text[:200_000]}", model=self.model, max_tokens=self.max_tokens
+            )
+            return out.encode()
+
+        # per-key lock: concurrent callers that miss the same input (TableSchemaProducer +
+        # Reduce SummaryWorker) compute it once (§3.4).
+        out = await self.tx_cache.get_or_compute(
+            key, _compute, kind="summary", input_hash=h,
+            provider=self.provider, model=self.model, model_version=self.version,
+        )
+        if ran:
+            self.api_calls += 1
+        else:
             self.cache_hits += 1
-            return cached[key].decode("utf-8", errors="replace")
-        llm = self._ensure_llm()
-        # caller truncates to summary.max_input_kb; this is just a hard safety ceiling
-        out = await llm.chat(
-            f"{prompt}\n\n---\n{text[:200_000]}",
-            model=self.model,
-            max_tokens=self.max_tokens,
-        )
-        self.api_calls += 1
-        await self.tx_cache.batch_put(
-            [
-                {
-                    "cache_key": key,
-                    "kind": "summary",
-                    "input_hash": sha1_hex(text.encode()),
-                    "provider": self.provider,
-                    "model": self.model,
-                    "model_version": self.version,
-                    "output_bytes": out.encode(),
-                    "output_size": len(out.encode()),
-                }
-            ]
-        )
-        return out
+        return out.decode("utf-8", errors="replace")

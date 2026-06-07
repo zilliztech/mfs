@@ -24,13 +24,26 @@ from ..common.vlm import CachingVlmClient
 from ..config import ServerConfig
 from ..connectors.base import ConnectorContext, ObjectConfig, SyncOptions
 from ..connectors.registry import get_plugin_cls, load_builtin
-from ..processors.text import chunk_body
 from ..storage.file_state import FileStateStore
 from ..storage.ids import chunk_id
 from ..storage.metadata import make_metadata_store
 from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW, MilvusStore
 from ..storage.artifact_cache import make_artifact_cache
 from ..storage.transformation_cache import make_transformation_cache
+from .adapters import ArtifactStoreAdapter, EmbedderAdapter, MilvusSinkAdapter, TxCacheAdapter
+from .pipeline import EmbedConsumer, TaskEnvelope, _EMBED_FLUSH_IDLE_MS, make_chunks_q
+from .producers import select_producer
+from .producers.base import (
+    DescriptionConcurrencyGate,
+    EndOfTask,
+    ObjectTask,
+    ProducerContext,
+    SummaryConcurrencyGate,
+    cap_content,
+)
+from .producers.render import render_record, resolve_path
+from .job_watcher import ConnectorJobWatcher
+from .reduce import build_reduce_subsystem
 from .state import ConnectorStateStore
 
 _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
@@ -119,180 +132,42 @@ def _density_view(text: str, ext: str, density: str) -> str:
     return "\n".join(out)
 
 
-class _SafeDict(dict):
-    """format_map() helper: render unknown {field} placeholders as empty, not KeyError."""
+class _PipelineEmbedConsumer(EmbedConsumer):
+    """EmbedConsumer wired for the real Milvus + embedding cache: supplies the embed cache key
+    (provider/model/version aware, shared with CachingEmbeddingClient) and the Milvus row shape
+    (chunk_id PK + namespace_id + indexed_at)."""
 
-    def __missing__(self, key):  # noqa: D401
-        return ""
+    def __init__(self, *args, namespace_id: str, embed_key_fn, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._ns = namespace_id
+        self._embed_key_fn = embed_key_fn
 
+    def _cache_key(self, chunk) -> str:
+        return self._embed_key_fn(chunk.content)
 
-_PATH_SEG = re.compile(r"^([^\[\]]+)(?:\[([^\]]*)\])?$")
-
-
-def _resolve_path(obj, path: str):
-    """JSONPath-lite field resolver. Supports:
-      a.b           nested dict access
-      a[*].b / a[].b  every element's b   -> flattened list
-      a[2].b        index
-      a[0:5].b      slice                 -> list
-    Returns a scalar for single-valued paths, a list for multi-valued ones, None/[] when
-    absent. Used for text_fields / metadata_fields / locator_fields."""
-    nodes = [obj]
-    multi = False
-    for seg in path.split("."):
-        m = _PATH_SEG.match(seg)
-        if not m:
-            return None
-        key, br = m.group(1), m.group(2)
-        nxt = []
-        for n in nodes:
-            if not isinstance(n, dict) or key not in n:
-                continue
-            v = n[key]
-            if br is None:
-                nxt.append(v)
-                continue
-            if not isinstance(v, list):
-                v = [v]
-            if br in ("*", ""):
-                nxt.extend(v)
-                multi = True
-            elif ":" in br:
-                a, _, b = br.partition(":")
-                nxt.extend(v[slice(int(a) if a else None, int(b) if b else None)])
-                multi = True
-            else:
-                idx = int(br)
-                if -len(v) <= idx < len(v):
-                    nxt.append(v[idx])
-        nodes = nxt
-    if multi:
-        return nodes
-    return nodes[0] if nodes else None
-
-
-def _field_values(rec: dict, field: str) -> list[str]:
-    """Resolved field as a list of non-empty stringified values."""
-    v = _resolve_path(rec, field)
-    if v is None:
-        return []
-    items = v if isinstance(v, list) else [v]
-    return [str(x) for x in items if x is not None and x != ""]
-
-
-def _field_top_key(field: str) -> str:
-    """First JSONPath-lite segment of a text_field — the record key whose PRESENCE (not value)
-    decides absent-vs-empty: 'comments[].body' -> 'comments', 'a.b' -> 'a', 'name' -> 'name'."""
-    return field.split(".", 1)[0].split("[", 1)[0]
-
-
-# Per-chunk content ceiling (Milvus VARCHAR / embedding input limit). Capping is unavoidable,
-# but a cap that actually cuts content means the tail is unsearchable, so callers OR the
-# was_truncated flag into the object's partial state (search_status='partial') instead of
-# silently reporting 'indexed'.
-_CONTENT_MAX = 65000
-
-
-def _cap_content(text: str) -> tuple[str, bool]:
-    """Return (text capped to _CONTENT_MAX, whether the cap actually removed any content)."""
-    return text[:_CONTENT_MAX], len(text) > _CONTENT_MAX
-
-
-def _render_record(rec: dict, text_fields: list[str], render_template: str | None = None) -> str:
-    """Render a record into chunk content for embedding.
-
-    Two rendering modes:
-
-    1. **render_template** (chat / message presets): Python str.format applied
-       directly to the record. e.g. `"{user}: {text}"` against a Slack message
-       gives `"U012345: 部署炸了"` — speaker identity stays inside each chunk
-       so the embedding can learn who-said-what. Missing keys fall back to an
-       empty string instead of raising KeyError, so a partial record doesn't
-       sink the whole ingest.
-
-    2. **labeled text_fields** (default for structured / record_collection
-       presets): JSONPath-lite walk of each field, joined with `field: value`
-       lines. Multi-valued paths (e.g. `comments[].body`) flatten to bulleted
-       lists. When `text_fields` has exactly one bare entry (no `[]`), the
-       label is dropped — `name: alice` would be redundant when the whole
-       chunk is one field; chat-style presets used to suffer this with
-       `text: ...` until we added render_template.
-    """
-    if render_template is not None:
-        try:
-            return render_template.format_map(_SafeDict(rec))
-        except Exception:  # noqa: BLE001 — bad template shouldn't crash ingest
-            pass  # fall through to labeled rendering
-
-    parts = []
-    single_bare = len(text_fields) == 1 and "[" not in text_fields[0]
-    for f in text_fields:
-        vals = _field_values(rec, f)
-        if not vals:
-            continue
-        if len(vals) == 1 and "[" not in f:
-            if single_bare:
-                parts.append(str(vals[0]))
-            else:
-                parts.append(f"{f}: {vals[0]}")
-        else:
-            parts.append(f"{f}:\n- " + "\n- ".join(vals))
-    return "\n\n".join(parts)
-
-
-class _SafeDict(dict):
-    """str.format_map helper: missing keys render as empty string, nested
-    {a[b]} lookups still work because str.format reaches into the value."""
-
-    def __init__(self, rec: dict):
-        super().__init__(rec)
-
-    def __missing__(self, key):
-        return ""
-
-
-# Internal knobs for thread-aggregate sub-chunking. Not user-configurable: 2025 chat-RAG
-# research (Weaviate / Unstructured / Slack RAG case studies) consistently shows that
-# fixed ~200-word chunks at message boundaries + a small overlap matches or beats
-# embedding-based semantic chunking for chat data — and the dependency cost of a real
-# SemanticChunker (loading a second embedding model) is real, so we stay simple.
-_THREAD_MAX_CHARS = 1500  # ~200-400 tokens; under the 8K embedding ceiling and well
-#   under the 65535 Milvus content cap with headroom.
-_THREAD_OVERLAP_MESSAGES = 2  # carry the last N rendered messages into the next sub-chunk
-#   so a reply that references an earlier message keeps
-#   that context in its embedding window.
-
-
-def _split_thread(
-    rendered: list[str], max_chars: int = _THREAD_MAX_CHARS, overlap: int = _THREAD_OVERLAP_MESSAGES
-) -> list[tuple[int, int, str]]:
-    """Split a thread's rendered messages into size-bounded sub-chunks that break ONLY at
-    message boundaries (never mid-message). Adjacent sub-chunks share `overlap` trailing
-    messages so cross-chunk references survive. Returns [(start_msg_idx, end_msg_idx, text)].
-    A short thread (joined size <= max_chars) returns one item, preserving prior behaviour."""
-    if not rendered:
-        return []
-    out: list[tuple[int, int, str]] = []
-    cur: list[str] = []
-    cur_len = 0
-    start = 0
-    for i, m in enumerate(rendered):
-        # +2 accounts for the "\n\n" joiner between messages
-        if cur and cur_len + len(m) + 2 > max_chars:
-            out.append((start, start + len(cur) - 1, "\n\n".join(cur)))
-            # carry the last `overlap` messages into the next sub-chunk for context
-            carry = cur[-overlap:] if overlap else []
-            cur = list(carry)
-            cur_len = sum(len(x) + 2 for x in cur)
-            start = i - len(carry)
-        cur.append(m)
-        cur_len += len(m) + 2
-    if cur:
-        out.append((start, start + len(cur) - 1, "\n\n".join(cur)))
-    return out
+    def _build_row(self, env: TaskEnvelope, chunk, vec: list[float]) -> dict:
+        content, _ = cap_content(chunk.content)
+        loc = chunk.locator
+        return {
+            "chunk_id": chunk_id(self._ns, env.connector_uri, env.task_uri, chunk.chunk_kind, loc),
+            "namespace_id": self._ns,
+            "connector_uri": env.connector_uri,
+            "object_uri": env.task_uri,
+            "locator": loc,
+            "content": content,
+            "dense_vec": vec,
+            "chunk_kind": chunk.chunk_kind,
+            "metadata": chunk.metadata,
+            "indexed_at": int(time.time() * 1000),
+        }
 
 
 class Engine:
+    # okinds always routed to the producer + chunks_q + EmbedConsumer path (§3.2). image and
+    # table_schema route conditionally (see _routes_to_pipeline); everything else is
+    # metadata-only. dir_summary is not an object_task — the Reduce subsystem owns it (§3.5).
+    _PIPELINE_OKINDS = ("document", "code", "message_stream", "record_collection", "table_rows")
+
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
         self.ns = cfg.namespace
@@ -305,6 +180,20 @@ class Engine:
         self.vlm = CachingVlmClient(cfg, self.tx_cache)
         self.summary = CachingSummaryClient(cfg, self.tx_cache)
         self._artifact_writes = 0  # throttles LRU eviction sweeps
+        # --- new pipeline (process singletons; built lazily in _build_pipeline) ---
+        self._chunks_q: asyncio.Queue | None = None
+        self._embed_consumer: _PipelineEmbedConsumer | None = None
+        self._producer_ctx: ProducerContext | None = None
+        # full_uri -> (cid, relpath, stat, indexable, plugin, task_id) for pipeline-path objects
+        # whose objects-table row + object_tasks status are written by _on_pipeline_object_indexed
+        # when the EmbedConsumer reports the task done.
+        self._pending_finalize: dict[str, tuple] = {}
+        self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
+        # Reduce subsystem (dir_summary lane); built in _build_pipeline, inert when summary off.
+        self._reduce = None
+        # ConnectorJobWatcher: out-of-band job completion / cancel / reduce-evict (§5.7).
+        self._job_watcher = None
+        self._job_watcher_task: asyncio.Task | None = None
 
     async def startup(self) -> None:
         load_builtin()
@@ -313,13 +202,265 @@ class Engine:
         await self.tx_cache.connect()
         self.milvus.connect()
         self.milvus.ensure_collection(self.ns)
+        self._build_pipeline()
+        await self._recover_reduce()
+        # ConnectorJobWatcher runs in this same event loop as the EmbedConsumer + SummaryWorker
+        # pool, finalizing jobs out-of-band (§5.7).
+        self._job_watcher = ConnectorJobWatcher(self.meta, self._reduce)
+        self._job_watcher_task = asyncio.create_task(self._job_watcher.run())
         # NB: the embedding dim-mismatch warning is deferred to the first provider build
         # (CachingEmbeddingClient._warn_dim_mismatch_once) so boot never downloads/loads the
         # model just to read .dimension — the provider stays lazy and cold start is fast.
 
     async def shutdown(self) -> None:
+        if self._job_watcher is not None:
+            self._job_watcher.stop()
+            if self._job_watcher_task is not None:
+                try:
+                    await self._job_watcher_task
+                except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                    pass
+            self._job_watcher = None
+        if self._reduce is not None:
+            # stop the SummaryWorker pool first so no new dir chunks are produced, then
+            # drain whatever already reached the queue.
+            await self._reduce.stop()
+        if self._embed_consumer is not None:
+            # drain the queue + flush the final batch before the loop closes, so an
+            # in-flight task's chunks aren't lost on shutdown.
+            await self._embed_consumer.shutdown()
+            self._embed_consumer = None
         await self.meta.close()
         await self.tx_cache.close()
+
+    # --- new pipeline: process-singleton chunks_q + EmbedConsumer (§3.1 / §5.2) ---
+    def _build_pipeline(self) -> None:
+        """Construct the process-level chunks_q + EmbedConsumer + ProducerContext and start
+        the consumer draining in the background. Idempotent; called from startup() (and
+        lazily from _index_via_pipeline so the pipeline path works even if a caller skipped
+        startup). The EmbedConsumer is shared across all jobs so embed batches fill across
+        connectors (§5.2)."""
+        if self._embed_consumer is not None:
+            return
+        batch_size = self.cfg.embedding.batch_size
+        self._chunks_q = make_chunks_q(batch_size)
+        self._embed_consumer = _PipelineEmbedConsumer(
+            # raw provider embed (no caching) so the consumer's TxCacheAdapter is the single
+            # embed cache and there is no double-cache; cache key matches CachingEmbeddingClient.
+            EmbedderAdapter(self.embed._embed_api),
+            MilvusSinkAdapter(self.milvus, self.ns),
+            TxCacheAdapter(
+                self.tx_cache,
+                kind="embedding",
+                provider=self.embed.provider_name,
+                model=self.embed.model,
+                version=self.embed.version,
+            ),
+            batch_size,
+            idle_ms=self._embed_idle_ms,
+            namespace_id=self.ns,
+            embed_key_fn=self.embed._key,
+        )
+        self._embed_consumer.register_on_succeeded(self._on_pipeline_object_indexed)
+        # ONE description gate + ONE summary gate per process (§5.5), shared by BOTH the Map
+        # producers (image / table_schema) and the Reduce SummaryWorker pool, so every VLM /
+        # summary provider call — wherever it originates — draws from the same in-flight budget
+        # ([description].concurrency / [summary].concurrency).
+        self._description_gate = DescriptionConcurrencyGate(self.cfg.description.concurrency)
+        self._summary_gate = SummaryConcurrencyGate(self.cfg.summary.concurrency)
+        self._producer_ctx = ProducerContext(
+            cfg=self.cfg,
+            namespace_id=self.ns,
+            artifacts=ArtifactStoreAdapter(
+                self._put_artifact, self._read_artifact, self.artifact_cache.artifact_path
+            ),
+            converter=self.converter,
+            vlm=self.vlm,
+            summary=self.summary,
+            description_gate=self._description_gate,
+            summary_gate=self._summary_gate,
+        )
+        # Reduce subsystem (§3.5): dir summaries emit into the SAME chunks_q. Its
+        # on_embed_succeeded is registered alongside the Map per-task hook so a file's
+        # success both unblocks _index_via_pipeline AND notifies the dir tree (§6.4.4).
+        self._reduce = build_reduce_subsystem(
+            self.cfg,
+            tx_cache=self.tx_cache,
+            summary=self.summary,
+            vlm=self.vlm,
+            converter=self.converter,
+            chunks_q=self._chunks_q,
+            description_gate=self._description_gate,
+            summary_gate=self._summary_gate,
+        )
+        self._embed_consumer.register_on_succeeded(self._reduce.on_embed_succeeded)
+        self._embed_consumer.start(self._chunks_q)
+        self._reduce.start()  # no-op unless cfg.summary.enabled
+
+    def _routes_to_pipeline(self, okind: str) -> bool:
+        """Whether this okind goes through the producer -> chunks_q -> EmbedConsumer path.
+
+        document / code / message_stream / record_collection / table_rows always route
+        (_PIPELINE_OKINDS). image routes only when [description] is enabled — its
+        ImageChunksProducer makes a VLM call, so with it off the image is recorded metadata-only.
+        table_schema routes only when [summary] is enabled — its TableSchemaProducer makes a
+        summary LLM call; with it off the schema is metadata-only. dir_summary is not an
+        object_task at all — the Reduce subsystem owns it (§3.5)."""
+        if okind in self._PIPELINE_OKINDS:
+            return True
+        if okind == "image":
+            return self.cfg.description.enabled
+        if okind == "table_schema":
+            return self.summary.enabled
+        return False
+
+    async def _recover_reduce(self) -> None:
+        """Rebuild the Reduce subsystem's in-memory dir trees for jobs left 'running' by a
+        crash (§6.4.5). Best-effort: a per-job failure is logged and skipped, never blocking
+        boot. Already-written directory summaries are recomputed (idempotent + summary-cache
+        cheap) rather than queried back from Milvus."""
+        if self._reduce is None or not self._reduce.enabled:
+            return
+        import json as _json
+
+        try:
+            jobs = await self.meta.fetchall(
+                "SELECT id, connector_id FROM connector_jobs WHERE status='running'"
+            )
+        except Exception:  # noqa: BLE001 — recovery must never wedge startup
+            return
+        for job in jobs:
+            job_id, cid = job["id"], job["connector_id"]
+            try:
+                crow = await self.meta.fetchone(
+                    "SELECT root_uri, type, config_json FROM connectors WHERE id=?", (cid,)
+                )
+                if not crow:
+                    continue
+                connector_uri, ctype = crow["root_uri"], crow["type"]
+                stored_cfg = _json.loads(crow["config_json"]) if crow["config_json"] else {}
+                plugin, _ = self._build_plugin(ctype, stored_cfg, cid)
+                await asyncio.wait_for(plugin.connect(), timeout=_WORKER_CONNECT_TIMEOUT_S)
+                rows = await self.meta.fetchall(
+                    "SELECT object_uri, status FROM object_tasks "
+                    "WHERE connector_job_id=? AND change_kind != 'dir_summary'",
+                    (job_id,),
+                )
+                objects = [
+                    (r["object_uri"], plugin.object_kind_of(r["object_uri"]), r["status"])
+                    for r in rows
+                ]
+                self._reduce.recover_job(job_id, connector_uri, plugin, objects, [])
+            except Exception as e:  # noqa: BLE001
+                print(f"mfs-server: WARNING reduce recovery for job {job_id} failed: {e}", flush=True)
+
+    async def _on_pipeline_object_indexed(
+        self, task_uri: str, job_id: str | None, chunk_count: int = 0, partial: bool = False
+    ) -> None:
+        """EmbedConsumer success hook: write the `objects` row, commit the connector's
+        file_state cursor, and flip object_tasks to 'succeeded' for a pipeline-path object — now
+        that the EmbedConsumer knows its final chunk_count + partial flag. Skips tasks it has no
+        stashed context for (e.g. a Reduce directory_summary success, which has no objects row)."""
+        ctx = self._pending_finalize.pop(task_uri, None)
+        if ctx is None:
+            return
+        cid, relpath, st, indexable, plugin, task_id = ctx
+        if chunk_count == 0:
+            search_status = "not_indexed"
+        elif partial:
+            search_status = "partial"
+        else:
+            search_status = "indexed"
+        await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
+        await plugin.on_object_indexed(relpath)
+        # Completion lives here, not in the worker loop: the pump enqueues chunks without
+        # blocking, so only the consumer knows when they have landed. Conditional on
+        # status='running' so a task cancelled out from under us is not revived.
+        await self.meta.execute(
+            "UPDATE object_tasks SET status='succeeded', finished_at=? WHERE id=? AND status='running'",
+            (_now(), task_id),
+        )
+
+    async def _write_object_row(
+        self, cid: str, relpath: str, st, indexable: bool, search_status: str, chunk_count: int
+    ) -> None:
+        """UPSERT the `objects` registry row (type/media/size/fingerprint + search_status +
+        chunk_count). Shared by the inline _index_object tail and the pipeline success hook."""
+        await self.meta.execute(
+            "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
+            " fingerprint, indexable, last_seen, search_status, chunk_count, indexed_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
+            "ON CONFLICT(connector_id, object_uri) DO UPDATE SET "
+            " type=excluded.type, media_type=excluded.media_type, size_hint=excluded.size_hint, "
+            " fingerprint=excluded.fingerprint, indexable=excluded.indexable, last_seen=excluded.last_seen, "
+            " search_status=excluded.search_status, chunk_count=excluded.chunk_count, indexed_at=excluded.indexed_at",
+            (
+                cid,
+                relpath,
+                os.path.dirname(relpath) or "/",
+                st.type,
+                st.media_type,
+                st.size_hint,
+                st.fingerprint,
+                1 if indexable else 0,
+                _now(),
+                search_status,
+                chunk_count,
+                _now(),
+            ),
+        )
+
+    async def _index_via_pipeline(
+        self, plugin, connector_uri: str, relpath: str, full_uri: str, okind: str, task: dict
+    ) -> None:
+        """Produce this object's chunks and forward them to the shared chunks_q, then return —
+        a non-blocking producer pump. Completion is async: the EmbedConsumer writes the chunks
+        (delete_by_object once on the first chunk, then upsert — the §6.1 per-object atomic
+        invariant) and fires the success hooks, which write the objects row + flip the
+        object_tasks status. The caller marks nothing for this task ('deferred')."""
+        if self._embed_consumer is None:
+            self._build_pipeline()
+        task_id = task["id"]
+        job_id = task.get("connector_job_id")
+        producer = select_producer(okind, self._producer_ctx)
+        try:
+            if producer is None:
+                # unreachable for routed okinds; emit a bare EndOfTask so the consumer finalizes
+                # (zero-chunk) and the success hook still writes the metadata-only objects row.
+                await self._chunks_q.put(
+                    TaskEnvelope(task_id, full_uri, connector_uri, job_id, EndOfTask())
+                )
+            else:
+                otask = ObjectTask(
+                    object_uri=relpath,
+                    connector_uri=connector_uri,
+                    okind=okind,
+                    change_kind=task["change_kind"],
+                    connector_job_id=job_id,
+                    task_id=task_id,
+                    plugin=plugin,
+                    ocfg=plugin.ctx.object_config_for(relpath),
+                )
+                async for item in producer.produce(otask):
+                    await self._chunks_q.put(
+                        TaskEnvelope(task_id, full_uri, connector_uri, job_id, item)
+                    )
+        except Exception:
+            # produce() failed before all chunks were enqueued: drop the stashed finalize
+            # context so no objects row is written, then re-raise for _process_with_retry.
+            self._pending_finalize.pop(full_uri, None)
+            raise
+        finally:
+            if okind == "message_stream":
+                # GC the per-task raw_records jsonl the MessageStreamProducer materialized
+                # (§5.4): only needed to regroup messages by thread during produce(), which is
+                # done once the produce loop above exhausts. Runs on success AND failure.
+                try:
+                    await asyncio.to_thread(
+                        self.artifact_cache.delete_artifact, self.ns, full_uri, "raw_records"
+                    )
+                except Exception:  # noqa: BLE001 — GC of a temp artifact must never fail the task
+                    pass
 
     # --- target resolution (Phase 2: file only) ---
     def _resolve_target(self, target: str) -> tuple[str, str, str, dict]:
@@ -463,9 +604,9 @@ class Engine:
         if row:
             # `mfs connector update --config` re-registers an existing connector: refresh
             # its stored config so changed text_fields / scope / credential_ref take effect.
-            # `mfs add --config` on an already-registered connector used to silently drop
-            # the new config; that's a documented footgun (#6) — now we persist it and
-            # WARN about the indexing implication. Existing chunks are NOT re-embedded
+            # `mfs add --config` on an already-registered connector persists the new config
+            # and WARNs about the indexing implication, rather than silently dropping it.
+            # Existing chunks are NOT re-embedded
             # under the new config until the user re-syncs with --force-index. The
             # warning is suppressed when nothing actually changed (same config dict
             # passed by the upload-mode staging shortcut on every call).
@@ -587,9 +728,9 @@ class Engine:
             # framework-level chunk cap applies unless this object config set its own
             if (
                 oc.chunk_max == _CHUNK_MAX_DEFAULT
-                and self.cfg.chunk.default_chunk_max != _CHUNK_MAX_DEFAULT
+                and self.cfg.chunking.default_chunk_max != _CHUNK_MAX_DEFAULT
             ):
-                oc = _replace(oc, chunk_max=self.cfg.chunk.default_chunk_max)
+                oc = _replace(oc, chunk_max=self.cfg.chunking.default_chunk_max)
             return oc
 
         ctx._resolver = _resolve_cfg
@@ -679,14 +820,7 @@ class Engine:
             "UPDATE object_tasks SET connector_job_id=?, status='pending' "
             "WHERE connector_id=? AND status IN ('pending','failed') AND attempts < ? "
             "AND change_kind != 'dir_summary'",
-            (job_id, cid, self.cfg.worker.max_retries),
-        )
-        # dir_summary tasks are regenerated from scratch in phase 2 each run; drop any
-        # leftovers so they don't run in a file phase against stale content.
-        await self.meta.execute(
-            "UPDATE object_tasks SET status='cancelled' "
-            "WHERE connector_id=? AND change_kind='dir_summary' AND status IN ('pending','failed','running')",
-            (cid,),
+            (job_id, cid, self.cfg.object_task.max_retries),
         )
         return job_id
 
@@ -719,6 +853,8 @@ class Engine:
             # job is 'running'/'preparing' here with no other heartbeat source).
             stop_hb = asyncio.Event()
             hb = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
+            # Reduce subsystem: build this job's in-memory dir tree as sync() yields (§6.4).
+            self._reduce.register_job(job_id, connector_uri, plugin)
             try:
                 async for ch in plugin.sync(opts):
                     if ch.kind == "deleted" and (
@@ -743,6 +879,16 @@ class Engine:
                             plugin.task_priority(ch),
                         ),
                     )
+                    if ch.kind != "deleted":
+                        # Accumulate the dir tree (okind passed in — no extra DB hit, §6.4.1),
+                        # but ONLY for okinds that actually flow through the EmbedConsumer. A
+                        # non-pipeline okind (binary, image with [description] off, table_schema
+                        # with [summary] off) takes the inline tail and never fires
+                        # on_embed_succeeded, so counting it would leave its parent dir's pending
+                        # stuck and the job's reduce phase would never finish.
+                        okind = plugin.object_kind_of(ch.uri)
+                        if self._routes_to_pipeline(okind):
+                            self._reduce.on_yield_object_change(job_id, ch.uri, okind)
             finally:
                 stop_hb.set()
                 hb.cancel()
@@ -750,6 +896,10 @@ class Engine:
                     await hb
                 except (asyncio.CancelledError, Exception):  # noqa: BLE001
                     pass
+            # sync enumeration finished: finalize the dir tree (pushes ready leaves; the rest
+            # are pushed as Map file tasks succeed). Done for both inline and enqueue models so
+            # an in-process worker can drain the summaries later.
+            self._reduce.on_sync_done(job_id)
             if not process:
                 # enqueue model: stash staged state on the job; the worker commits it only
                 # after the job succeeds, so a failed background job doesn't
@@ -1047,6 +1197,9 @@ class Engine:
                 job_id,
             ),
         )
+        # job reached a terminal state: free the Reduce subsystem's in-memory dir tree (§6.4.6)
+        if self._reduce is not None:
+            self._reduce.evict_job(job_id)
 
     # --- standalone worker: poll DB queue, process queued jobs ---
     async def cancel_job(self, job_id: str) -> bool:
@@ -1147,7 +1300,7 @@ class Engine:
         return job["id"]
 
     def _resolve_concurrency(self, concurrency=None) -> int:
-        c = concurrency if concurrency is not None else self.cfg.worker.concurrency
+        c = concurrency if concurrency is not None else self.cfg.chunks_producer.concurrency
         if c == "auto":
             return max(1, (os.cpu_count() or 2))
         try:
@@ -1161,8 +1314,7 @@ class Engine:
 
         Each job is recovered independently and any error is LOGGED, never silently swallowed
         — a single un-recoverable job must not abort (and thus starve) the reclaim of every
-        other orphan, which is exactly how an unrecoverable orphan used to wedge crash-recovery
-        for all connectors."""
+        other orphan, which would wedge crash-recovery for all connectors."""
         cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
 
         # Fail stale 'preparing' jobs FIRST: one whose process died mid-enumeration never
@@ -1208,8 +1360,8 @@ class Engine:
                 # If the connector still has another in-flight enqueue (queued OR a non-stale
                 # 'preparing'), flipping this orphan to 'queued' would violate
                 # ux_jobs_one_pending. Hand its in-flight tasks to that job and fail the orphan
-                # instead — covers 'preparing' too (the guard used to only check 'queued', so a
-                # preparing sibling raised UNIQUE and silently aborted the whole reclaim pass).
+                # instead. The 'preparing' case matters: a preparing sibling holds the pending
+                # slot too, so without it the reclaim would raise UNIQUE and silently abort.
                 sibling = await self.meta.fetchone(
                     "SELECT id FROM connector_jobs WHERE connector_id=? "
                     "AND status IN ('queued', 'preparing') AND id<>? LIMIT 1",
@@ -1265,15 +1417,31 @@ class Engine:
 
         await asyncio.gather(*[_loop() for _ in range(n)])
 
-    async def _claim_batch(self, job_id: str, limit: int) -> list[dict]:
-        """Claim up to `limit` pending tasks. Each is taken with a conditional UPDATE
-        guarded on status='pending'; only rows this worker actually flipped (rowcount
-        == 1) are returned, so concurrent workers never double-process a task."""
+    async def _claim_batch(self, limit: int, connector_id: str) -> list[dict]:
+        """Claim up to `limit` pending tasks for ONE connector, ordered by priority then age,
+        so a worker coroutine picks up the highest-priority pending task across that connector's
+        jobs (a late high-priority job interleaves with an older one). The `change_kind !=
+        'dir_summary'` clause is a defensive guard: dir_summary is never enqueued as an
+        object_task — the Reduce subsystem (§3.5) owns it entirely — so it only excludes a
+        stray row.
+
+        Scoped to connector_id because the worker loop processes each claimed task with the
+        plugin bound to THIS connector. A global claim would hand another connector's task to
+        the wrong plugin, reading the wrong source; a true cross-connector worker pool needs
+        per-task plugin resolution, which is a separate change. Per-connector parallelism is
+        preserved: each connector's drain runs its own loop(s)."""
         rows = await self.meta.fetchall(
-            "SELECT * FROM object_tasks WHERE connector_job_id=? AND status='pending' "
+            "SELECT * FROM object_tasks WHERE status='pending' AND connector_id=? "
+            "AND change_kind != 'dir_summary' "
             "ORDER BY priority ASC, started_at ASC LIMIT ?",
-            (job_id, limit),
+            (connector_id, limit),
         )
+        return await self._claim_rows(rows)
+
+    async def _claim_rows(self, rows: list[dict]) -> list[dict]:
+        """Take each candidate row with a conditional UPDATE guarded on status='pending';
+        return only the rows this worker actually flipped (rowcount == 1), so concurrent
+        workers never double-process a task."""
         claimed = []
         for r in rows:
             won = await self.meta.execute_rowcount(
@@ -1319,11 +1487,12 @@ class Engine:
         — the object is recorded as status='skipped' and the breaker is left alone."""
         import asyncio as _a
 
-        max_r = self.cfg.worker.max_retries
+        max_r = self.cfg.object_task.max_retries
         for attempt in range(max_r + 1):
             try:
-                await self._index_object(plugin, connector_uri, task)
-                return None
+                # None = inline okind done (caller marks succeeded); "deferred" = pipeline
+                # okind whose completion is flipped async by the EmbedConsumer success hook.
+                return await self._index_object(plugin, connector_uri, task)
             except _PER_OBJECT_SKIP_ERRORS as e:
                 # Source vanished / type changed mid-sync. No point retrying (the file
                 # really is gone), and counting this toward the consecutive-fatal breaker
@@ -1365,12 +1534,18 @@ class Engine:
                     self._warn_object_failed(connector_uri, task, e)
                     return "retryable_exhausted"
                 if attempt < max_r:
+                    # A pipeline okind whose producer raised may have pumped partial chunks +
+                    # bookkeeping into the EmbedConsumer before failing. Reset that per-task
+                    # state so the re-pump below behaves like a fresh attempt (§6.1): runs
+                    # delete_by_object again and counts only the retry's chunks.
+                    if self._embed_consumer is not None:
+                        self._embed_consumer.on_task_retry(task["id"])
                     # exponential backoff capped at backoff_max_ms: a flat
                     # initial-only sleep ignored backoff_max_ms entirely and hammered a
                     # rate-limited provider at a fixed cadence.
                     delay_ms = min(
-                        self.cfg.worker.backoff_initial_ms * (2**attempt),
-                        self.cfg.worker.backoff_max_ms,
+                        self.cfg.object_task.backoff_initial_ms * (2**attempt),
+                        self.cfg.object_task.backoff_max_ms,
                     )
                     await _a.sleep(delay_ms / 1000)
                     continue
@@ -1423,20 +1598,25 @@ class Engine:
     async def _run_job(self, job_id: str, cid: str, connector_uri: str, plugin) -> str | None:
         """Returns None on normal completion, or a circuit-breaker reason string.
         Consecutive fatal failures abort the job."""
-        threshold = self.cfg.worker.consecutive_fatal_threshold
+        threshold = self.cfg.object_task.consecutive_fatal_threshold
         consec_fail = 0  # consecutive object failures (fatal OR retries exhausted)
         stop_hb = asyncio.Event()
         hb_task = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
         try:
             r = await self._run_job_loop(job_id, cid, connector_uri, plugin, threshold, consec_fail)
             if r is not None:
-                return r  # file phase aborted (cancel / circuit breaker)
-            if self.summary.enabled:
-                # phase 2: recursive directory summaries over the dirs this job touched,
-                # processed deepest-first so a parent folds in its children's summaries.
-                return await self._run_directory_summary_phase(
-                    job_id, cid, connector_uri, plugin, threshold
-                )
+                return r  # map phase aborted (cancel / circuit breaker)
+            # The pump enqueued every map task without blocking; wait for the
+            # EmbedConsumer to write them and flip their object_tasks status, so the job isn't
+            # finalized before its chunks are in Milvus (§6.1) and the dir tree's file
+            # notifications have all fired.
+            await self._await_map_drained(job_id)
+            if self.summary.enabled and self._reduce is not None:
+                # Reduce subsystem (§3.5): the dir tree was accumulated during sync and is
+                # driven bottom-up by the Map success notifications + the SummaryWorker pool.
+                # Block until every directory_summary for this job is computed AND persisted,
+                # so the job isn't marked succeeded before its summaries are in Milvus.
+                await self._reduce.await_reduce_done(job_id)
             return None
         finally:
             stop_hb.set()
@@ -1446,13 +1626,30 @@ class Engine:
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
                 pass
 
+    async def _await_map_drained(self, job_id: str) -> None:
+        """Block until this job has no still-running map tasks — i.e. the EmbedConsumer has
+        written every pumped task's chunks and the success hook flipped it to a terminal
+        status. The heartbeat (held by _run_job) stays warm meanwhile; the consumer's idle
+        flush guarantees forward progress so this can't wedge while the consumer is alive."""
+        while True:
+            row = await self.meta.fetchone(
+                "SELECT count(*) AS n FROM object_tasks "
+                "WHERE connector_job_id=? AND status='running'",
+                (job_id,),
+            )
+            if (row["n"] if row else 0) == 0:
+                return
+            await asyncio.sleep(0.05)
+
     async def _run_job_loop(
         self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int, consec_fail: int
     ) -> str | None:
+        # Map phase claims this connector's pending object_tasks. dir_summary is not an
+        # object_task — the Reduce subsystem owns it (§3.5), driven by the success notifications.
         while True:
             if await self._should_stop(job_id, cid):
                 return "cancelled"
-            tasks = await self._claim_batch(job_id, limit=64)
+            tasks = await self._claim_batch(64, cid)
             if not tasks:
                 break
             for t in tasks:
@@ -1465,6 +1662,7 @@ class Engine:
                     return "cancelled"
                 r = await self._process_with_retry(plugin, connector_uri, t)
                 if r is None:
+                    # inline okind (deleted/renamed/binary/metadata-only) done synchronously.
                     # only flip a task we still own: a conditional UPDATE means a task that
                     # was cancelled out from under us (remove/cancel) is NOT revived to succeeded.
                     await self.meta.execute(
@@ -1472,6 +1670,10 @@ class Engine:
                         "WHERE id=? AND status='running'",
                         (_now(), t["id"]),
                     )
+                    consec_fail = 0
+                elif r == "deferred":
+                    # pipeline okind: chunks enqueued; the EmbedConsumer success hook flips this
+                    # task to 'succeeded' once they're written. The pump does NOT block or mark.
                     consec_fail = 0
                 elif r == "skipped":
                     # Per-object local event (source vanished / type changed); the row was
@@ -1504,131 +1706,6 @@ class Engine:
                         )
                         return "circuit_breaker_tripped"
         return None
-
-    # --- phase 2: recursive directory summaries ---
-    @staticmethod
-    def _ancestor_dirs(relpath: str) -> set[str]:
-        """All ancestor directory relpaths of a file object_uri, incl. the root '/'.
-        '/src/connectors/file/plugin.py' -> {'/', '/src', '/src/connectors', '/src/connectors/file'}."""
-        parts = [p for p in relpath.split("/") if p]
-        dirs = {"/"}
-        cur = ""
-        for seg in parts[:-1]:  # drop the file leaf
-            cur = f"{cur}/{seg}"
-            dirs.add(cur)
-        return dirs
-
-    async def _run_directory_summary_phase(
-        self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int
-    ) -> str | None:
-        """Enqueue a directory_summary task for every directory this job touched (ancestors
-        of its changed objects). priority=-depth so the shared run loop processes them
-        deepest-first; since tasks run sequentially, a parent always runs after all its
-        descendants, so its summary can fold in the children's already-written summaries."""
-        rows = await self.meta.fetchall(
-            "SELECT DISTINCT object_uri FROM object_tasks "
-            "WHERE connector_job_id=? AND change_kind != 'dir_summary'",
-            (job_id,),
-        )
-        dirs: set[str] = set()
-        for r in rows:
-            dirs |= self._ancestor_dirs(r["object_uri"])
-        if not self.cfg.summary.dir_recursive:
-            dirs &= {"/"}  # non-recursive: only the connector root
-        for d in dirs:
-            depth = len([p for p in d.split("/") if p])
-            await self.meta.execute(
-                "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
-                " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
-                (uuid.uuid4().hex, job_id, cid, d, None, "dir_summary", "pending", -depth),
-            )
-        return await self._run_job_loop(job_id, cid, connector_uri, plugin, threshold, 0)
-
-    async def _read_text_capped(self, plugin, relpath: str, cap: int) -> str:
-        """Read at most `cap` bytes (bounded so a huge file can't blow up the summary input)."""
-        buf = bytearray()
-        async for chunk in plugin.read(relpath):
-            buf += chunk
-            if len(buf) >= cap:
-                break
-        return bytes(buf[:cap]).decode("utf-8", errors="replace")
-
-    async def _dir_child_text(self, plugin, connector_uri: str, child_rel: str, etype: str) -> str:
-        """Content excerpt fed into a directory summary for one direct child entry:
-        md/code raw, pdf/html/docx -> cached converted_md, image -> cached VLM text (only
-        when include_image_desc), capped at per_file_max_kb. Reuses phase-1 artifacts so we
-        don't re-convert or re-call the VLM."""
-        ns = self.ns
-        cap = self.cfg.summary.per_file_max_kb * 1024
-        full_uri = connector_uri + child_rel
-        okind = plugin.object_kind_of(child_rel)
-        ext = os.path.splitext(child_rel)[1].lower()
-        if okind == "image":
-            if not self.cfg.summary.include_image_desc:
-                return ""
-            data = await asyncio.to_thread(
-                self.artifact_cache.get_artifact, ns, full_uri, "vlm_text"
-            )
-            return data.decode("utf-8", errors="replace")[:cap] if data else ""
-        if okind == "document" and ext in CONVERT_EXTS:
-            data = await asyncio.to_thread(
-                self.artifact_cache.get_artifact, ns, full_uri, "converted_md"
-            )
-            return data.decode("utf-8", errors="replace")[:cap] if data else ""
-        if okind in ("document", "code"):
-            return await self._read_text_capped(plugin, child_rel, cap)
-        return ""  # binary / text_blob / structured: skip
-
-    async def _summarize_directory(self, plugin, connector_uri: str, relpath: str) -> None:
-        """Build a directory's LLM summary from its direct children — file content excerpts
-        plus the already-computed summaries of its sub-directories — then upsert one
-        directory_summary chunk. Empty input purges any stale summary instead."""
-        ns = self.ns
-        full_uri = connector_uri + relpath
-        budget = self.cfg.summary.max_input_kb * 1024
-        try:
-            entries = await plugin.list(relpath)
-        except Exception:  # noqa: BLE001 - vanished dir: purge and move on
-            await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-            return
-        parts: list[str] = []
-        base = relpath.rstrip("/")
-        for e in entries:
-            child_rel = f"{base}/{e.name}"
-            if e.type == "dir":
-                chs = await asyncio.to_thread(
-                    self.milvus.get_chunks_by_object, ns, connector_uri, connector_uri + child_rel
-                )
-                sub = next(
-                    (c["content"] for c in chs if c.get("chunk_kind") == "directory_summary"), ""
-                )
-                if sub.strip():
-                    parts.append(f"## subdirectory {e.name}/\n{sub}")
-            else:
-                txt = await self._dir_child_text(plugin, connector_uri, child_rel, e.type)
-                if txt.strip():
-                    parts.append(f"## file {e.name}\n{txt}")
-        listing = "\n\n".join(parts)[:budget]
-        if not listing.strip():
-            await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-            return
-        summ = await self.summary.summarize(listing, "directory_summary")
-        await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-        if summ.strip():
-            vec = (await self.embed.batch_embed([summ]))[0]
-            row = {
-                "chunk_id": chunk_id(ns, connector_uri, full_uri, "directory_summary", None),
-                "namespace_id": ns,
-                "connector_uri": connector_uri,
-                "object_uri": full_uri,
-                "locator": None,
-                "content": summ[:65000],
-                "dense_vec": vec,
-                "chunk_kind": "directory_summary",
-                "metadata": {},
-                "indexed_at": int(time.time() * 1000),
-            }
-            await asyncio.to_thread(self.milvus.upsert, ns, [row])
 
     async def _read_text(self, plugin, relpath: str) -> str:
         return (await self._read_bytes(plugin, relpath)).decode("utf-8", errors="replace")
@@ -1666,8 +1743,10 @@ class Engine:
 
     async def _drop_artifacts(self, ns: str, object_uri: str) -> None:
         """Delete all cached artifacts of an object (bytes + artifact_cache rows) — on
-        object deletion so the cache doesn't retain orphaned bytes."""
-        for kind in ("converted_md", "vlm_text", "head_cache"):
+        object deletion so the cache doesn't retain orphaned bytes. 'raw_records' is the
+        message_stream materialization (jsonl); a deleted Slack/Gmail object would otherwise
+        leak it."""
+        for kind in ("converted_md", "vlm_text", "head_cache", "raw_records"):
             try:
                 await asyncio.to_thread(self.artifact_cache.delete_artifact, ns, object_uri, kind)
             except Exception:  # noqa: BLE001
@@ -1721,18 +1800,15 @@ class Engine:
         return evicted
 
     async def _index_object(self, plugin, connector_uri: str, task: dict) -> None:
-        """Real chunk/embed/Milvus. document/code -> body chunks;
-        other kinds carry no chunks in Phase 3 (image VLM / pdf converter -> Phase 6).
-        per-object atomic: delete_by_object then upsert all of this object's chunks."""
+        """Handle one object_task. Change-kind branches (deleted / renamed) run inline here;
+        indexable objects that route to the pipeline are produced + embedded asynchronously
+        (returns 'deferred'); everything else falls to the metadata-only tail. Per-object
+        atomic: delete_by_object then upsert all of this object's chunks (§6.1)."""
         relpath = task["object_uri"]
         kind = task["change_kind"]
         cid = task["connector_id"]
         ns = self.ns
         full_uri = connector_uri + relpath
-
-        if kind == "dir_summary":
-            await self._summarize_directory(plugin, connector_uri, relpath)
-            return
 
         if kind == "deleted":
             await self.meta.execute(
@@ -1836,336 +1912,34 @@ class Engine:
 
         if not indexable:
             pass  # binary / opted-out: metadata-only, no chunk/embed (gated below)
-        elif okind in ("document", "code"):
-            ext = os.path.splitext(relpath)[1].lower()
-            if okind == "document" and ext in CONVERT_EXTS:
-                raw = await self._read_bytes(plugin, relpath)
-                text = await self.converter.convert(raw, ext)
-                await self._put_artifact(ns, full_uri, "converted_md", text.encode())
-            else:
-                text = await self._read_text(plugin, relpath)
-                if connector_uri.startswith(("web://", "github://")):
-                    await self._put_artifact(ns, full_uri, "converted_md", text.encode())
-            ocfg = plugin.ctx.object_config_for(relpath)
-            pairs = chunk_body(text, okind, ext, self.cfg.chunk.chunk_size)
-            chunk_max = ocfg.chunk_max
-            partial = len(pairs) > chunk_max
-            if partial:
-                pairs = pairs[:chunk_max]
-            if pairs:
-                vecs = await self.embed.batch_embed([p[0] for p in pairs])
-                now_ms = int(time.time() * 1000)
-                content_truncated = False
-                rows = []
-                for (ctext, lines), vec in zip(pairs, vecs):
-                    # Body chunks: the per-chunk identity is the line range,
-                    # stored as the reserved "lines" key inside locator.
-                    loc = {"lines": lines}
-                    capped, was_trunc = _cap_content(ctext)
-                    content_truncated = content_truncated or was_trunc
-                    rows.append(
-                        {
-                            "chunk_id": chunk_id(ns, connector_uri, full_uri, "body", loc),
-                            "namespace_id": ns,
-                            "connector_uri": connector_uri,
-                            "object_uri": full_uri,
-                            "locator": loc,
-                            "content": capped,
-                            "dense_vec": vec,
-                            "chunk_kind": "body",
-                            "metadata": {},
-                            "indexed_at": now_ms,
-                        }
-                    )
-                # No per-file summary: a whole-file LLM summary is only meaningful at the
-                # directory level (see the recursive directory-summary phase), not per file.
-                await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-                await asyncio.to_thread(self.milvus.upsert, ns, rows)
-                chunk_count = len(rows)
-                search_status = "partial" if (partial or content_truncated) else "indexed"
-
-        elif okind == "image" and self.cfg.vlm.enabled:
-            ext = os.path.splitext(relpath)[1].lower()
-            raw = await self._read_bytes(plugin, relpath)
-            desc = await self.vlm.describe(raw, ext)
-            await self._put_artifact(ns, full_uri, "vlm_text", desc.encode())
-            if desc.strip():
-                vec = (await self.embed.batch_embed([desc]))[0]
-                row = {
-                    "chunk_id": chunk_id(ns, connector_uri, full_uri, "vlm_description", None),
-                    "namespace_id": ns,
-                    "connector_uri": connector_uri,
-                    "object_uri": full_uri,
-                    "locator": None,
-                    "content": desc[:65000],
-                    "dense_vec": vec,
-                    "chunk_kind": "vlm_description",
-                    "metadata": {},
-                    "indexed_at": int(time.time() * 1000),
-                }
-                await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-                await asyncio.to_thread(self.milvus.upsert, ns, [row])
-                chunk_count = 1
-                search_status = "indexed"
-        # image kind with vlm.enabled=False falls through: object is recorded as
-        # metadata-only (ls/cat list it), no vision API call, no vlm_description
-        # chunk in Milvus. Symmetric with summary.enabled gating the directory
-        # summary pipeline — avoids the surprise bill where every image in a big
-        # ingest fired a vision call just because [vlm] provider happened to be
-        # configured.
-
-        elif okind == "message_stream":
-            ocfg = plugin.ctx.object_config_for(relpath)
-            records = plugin.read_records(relpath)
-            if records is not None and ocfg.text_fields:
-                # message_stream is auto-aggregated by thread: messages with the same
-                # group_by value (slack thread_ts / gmail threadId / generic thread_id) are
-                # joined in order. A short thread becomes one chunk; a long thread is split
-                # at message boundaries into size-bounded sub-chunks with a small overlap,
-                # so embedding vectors stay focused and a reply keeps the prior context it
-                # might reference.
-                cfg_key = ocfg.group_by
-                group_key = cfg_key or "thread"
-                _THREAD_KEYS = ("thread_ts", "threadId", "thread_id", "thread")
-                groups: dict = {}
-                order: list = []
-                async for rec in records:
-                    if cfg_key:
-                        gk = rec.get(cfg_key)
-                    else:
-                        gk = next((rec[k] for k in _THREAD_KEYS if rec.get(k)), None)
-                    gk = gk or rec.get("ts") or rec.get("id") or str(len(order))
-                    if gk not in groups:
-                        groups[gk] = []
-                        order.append(gk)
-                    groups[gk].append(rec)
-                    if len(order) >= ocfg.chunk_max:
-                        break
-                pairs: list[tuple[str, dict | None]] = []
-                content_truncated = False
-                for gk in order:
-                    rendered = [
-                        _render_record(m, ocfg.text_fields, ocfg.render_template)
-                        for m in groups[gk]
-                    ]
-                    rendered = [r for r in rendered if r.strip()]
-                    sub = _split_thread(rendered)
-                    if len(sub) == 1:
-                        # short thread: keep the existing single-chunk locator shape so
-                        # existing search/cat semantics are preserved.
-                        capped, was_trunc = _cap_content(sub[0][2])
-                        content_truncated = content_truncated or was_trunc
-                        pairs.append((capped, {group_key: gk}))
-                    else:
-                        # long thread: tag each sub-chunk with its position WITHIN the
-                        # thread (0..N-1) so callers can stitch / cite a specific window.
-                        for sub_i, (s, e, text) in enumerate(sub):
-                            capped, was_trunc = _cap_content(text)
-                            content_truncated = content_truncated or was_trunc
-                            pairs.append(
-                                (
-                                    capped,
-                                    {group_key: gk, "chunk_index": sub_i, "msg_range": [s, e]},
-                                )
-                            )
-                if pairs:
-                    vecs = await self.embed.batch_embed([p[0] for p in pairs])
-                    now_ms = int(time.time() * 1000)
-                    rows = [
-                        {
-                            "chunk_id": chunk_id(
-                                ns, connector_uri, full_uri, "thread_aggregate", loc
-                            ),
-                            "namespace_id": ns,
-                            "connector_uri": connector_uri,
-                            "object_uri": full_uri,
-                            "locator": loc,
-                            "content": ctext,
-                            "dense_vec": vec,
-                            "chunk_kind": "thread_aggregate",
-                            "metadata": {},
-                            "indexed_at": now_ms,
-                        }
-                        for (ctext, loc), vec in zip(pairs, vecs)
-                    ]
-                    await asyncio.to_thread(
-                        self.milvus.delete_by_object, ns, connector_uri, full_uri
-                    )
-                    await asyncio.to_thread(self.milvus.upsert, ns, rows)
-                    chunk_count = len(rows)
-                    search_status = "partial" if content_truncated else "indexed"
-
-        elif okind in ("table_rows", "record_collection"):
-            ocfg = plugin.ctx.object_config_for(relpath)
-            records = plugin.read_records(relpath)
-            if records is not None and ocfg.text_fields:
-                # Always per-row: each record renders to one chunk via text_fields. The
-                # JSONPath-lite resolver supports nested arrays (`comments[].body`) so
-                # record_collection (issues / mongo docs) works the same way as table_rows.
-                pairs: list[tuple[str, dict | None, dict]] = []
-                head_buf: list[str] = []  # first N raw records -> head_cache artifact
-                partial = False
-                i = 0
-                # Track whether each configured text_field's KEY ever appears in a record, to
-                # tell a schema mismatch (key absent everywhere -> the documented field_missing)
-                # apart from a legitimately empty/null value (key present). Membership-only, so
-                # present-but-empty never trips it.
-                text_top_keys = {f: _field_top_key(f) for f in ocfg.text_fields}
-                seen_field_keys: set[str] = set()
-                async for rec in records:
-                    if len(head_buf) < _HEAD_CACHE_N:
-                        head_buf.append(json.dumps(rec, default=str, ensure_ascii=False))
-                    if isinstance(rec, dict):
-                        for f, tk in text_top_keys.items():
-                            if tk in rec:
-                                seen_field_keys.add(f)
-                    loc = (
-                        {f: _resolve_path(rec, f) for f in ocfg.locator_fields}
-                        if ocfg.locator_fields
-                        else {"_row": i}
-                    )
-                    meta = (
-                        {f: _resolve_path(rec, f) for f in ocfg.metadata_fields}
-                        if ocfg.metadata_fields
-                        else {}
-                    )
-                    text = _render_record(rec, ocfg.text_fields, ocfg.render_template)
-                    if text.strip():
-                        pairs.append((text, loc, meta))
-                    i += 1
-                    if len(pairs) >= ocfg.chunk_max:
-                        partial = True
-                        break
-                # release the record generator (cursor/connection) before the slow embed
-                # batch, and so a chunk_max break doesn't leak a held connection.
-                await records.aclose()
-                # Schema mismatch: records exist but NONE of the configured text_fields' keys
-                # are present in any of them -> would silently index 0 chunks. Surface the
-                # documented field_missing so the user fixes [[objects]] instead of guessing.
-                # (A partial config where at least one text_field key is present still indexes.)
-                if i > 0 and ocfg.text_fields and not seen_field_keys:
-                    raise ValueError(
-                        f"field_missing: configured text_fields "
-                        f"{list(ocfg.text_fields)} are absent from every record"
-                    )
-                if head_buf:  # pre-cache first rows so `head` is fast without re-querying
-                    await self._put_artifact(
-                        ns, full_uri, "head_cache", ("\n".join(head_buf)).encode()
-                    )
-                if pairs:
-                    vecs = await self.embed.batch_embed([p[0] for p in pairs])
-                    now_ms = int(time.time() * 1000)
-                    content_truncated = False
-                    rows = []
-                    for (ctext, loc, meta), vec in zip(pairs, vecs):
-                        capped, was_trunc = _cap_content(ctext)
-                        content_truncated = content_truncated or was_trunc
-                        rows.append(
-                            {
-                                "chunk_id": chunk_id(ns, connector_uri, full_uri, "row_text", loc),
-                                "namespace_id": ns,
-                                "connector_uri": connector_uri,
-                                "object_uri": full_uri,
-                                "locator": loc,
-                                "content": capped,
-                                "dense_vec": vec,
-                                "chunk_kind": "row_text",
-                                "metadata": meta,
-                                "indexed_at": now_ms,
-                            }
-                        )
-                    await asyncio.to_thread(
-                        self.milvus.delete_by_object, ns, connector_uri, full_uri
-                    )
-                    await asyncio.to_thread(self.milvus.upsert, ns, rows)
-                    chunk_count = len(rows)
-                    # partial if chunk_max truncated, the connector capped the read, OR a field
-                    # was truncated to _CONTENT_MAX (its tail is unsearchable) — recall-incomplete.
-                    was_capped = plugin.ctx.was_partial(relpath)
-                    search_status = (
-                        "partial" if (partial or was_capped or content_truncated) else "indexed"
-                    )
-
-        elif okind == "table_schema" and self.summary.enabled:
-            # schema_summary chunk: an LLM description of the table/collection schema
-            records = plugin.read_records(relpath)
-            schema_obj = None
-            if records is not None:
-                try:
-                    async for r in records:
-                        schema_obj = r
-                        break
-                finally:
-                    # Mirror the record_collection (line ~1952), cat (~2526/2553/2567) and
-                    # estimate paths: breaking after the first record does NOT close the async
-                    # generator, so a table_schema connector that yields from inside
-                    # `async with pool.acquire()` would pin a pool connection; aclose() releases it.
-                    aclose = getattr(records, "aclose", None)
-                    if aclose is not None:
-                        await aclose()
-            if schema_obj is not None:
-                import json as _json
-
-                summ = await self.summary.summarize(
-                    _json.dumps(schema_obj, default=str), "schema_summary"
-                )
-                if summ.strip():
-                    vec = (await self.embed.batch_embed([summ]))[0]
-                    row = {
-                        "chunk_id": chunk_id(ns, connector_uri, full_uri, "schema_summary", None),
-                        "namespace_id": ns,
-                        "connector_uri": connector_uri,
-                        "object_uri": full_uri,
-                        "locator": None,
-                        "content": summ[:65000],
-                        "dense_vec": vec,
-                        "chunk_kind": "schema_summary",
-                        "metadata": {},
-                        "indexed_at": int(time.time() * 1000),
-                    }
-                    await asyncio.to_thread(
-                        self.milvus.delete_by_object, ns, connector_uri, full_uri
-                    )
-                    await asyncio.to_thread(self.milvus.upsert, ns, [row])
-                    chunk_count = 1
-                    search_status = "indexed"
+        elif self._routes_to_pipeline(okind):
+            # Pipeline path (§3.1 / §3.2): document/code via TextChunksProducer, image via
+            # ImageChunksProducer, etc. The Chunk stream is embedded + upserted by the process-
+            # level EmbedConsumer; delete_by_object is done once by the consumer (first chunk).
+            # The objects-table row + on_object_indexed are written by _on_pipeline_object_indexed
+            # when the consumer reports the task done, so stash the per-object context and
+            # return before the shared inline tail.
+            self._pending_finalize[full_uri] = (cid, relpath, st, indexable, plugin, task["id"])
+            await self._index_via_pipeline(
+                plugin, connector_uri, relpath, full_uri, okind, task
+            )
+            # "deferred": the producer chunks are enqueued; the EmbedConsumer success hook
+            # (_on_pipeline_object_indexed) writes the objects row + flips status when they land.
+            # _run_job_loop must NOT mark this task succeeded — its chunks aren't written yet.
+            return "deferred"
 
         # Directory summaries are NOT produced here per enumerated object. They are built
-        # bottom-up in a dedicated phase after all files are indexed (see
-        # _run_directory_summary_phase / _summarize_directory), so a parent folder's summary
-        # can fold in its children's summaries.
+        # bottom-up by the independent Reduce subsystem (engine/reduce/, §3.5) from the
+        # in-memory dir tree, so a parent folder's summary can fold in its children's summaries.
 
+        # Inline tail — only reached for NON-pipeline okinds (pipeline okinds return early
+        # above; their objects row is written by _on_pipeline_object_indexed).
         if chunk_count == 0:
             # A rebuild that produced no chunks (object became binary / indexable=false /
-            # document emptied / empty VLM or summary) must
-            # still purge chunks from a previous index, else search keeps returning stale
-            # content. The per-kind branches only delete when they have new rows to upsert,
-            # so cover the zero-chunk case here (rebuild = delete-by-object + insert).
+            # document emptied / empty VLM or summary) must still purge chunks from a previous
+            # index, else search keeps returning stale content.
             await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
-        await self.meta.execute(
-            "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
-            " fingerprint, indexable, last_seen, search_status, chunk_count, indexed_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(connector_id, object_uri) DO UPDATE SET "
-            " type=excluded.type, media_type=excluded.media_type, size_hint=excluded.size_hint, "
-            " fingerprint=excluded.fingerprint, indexable=excluded.indexable, last_seen=excluded.last_seen, "
-            " search_status=excluded.search_status, chunk_count=excluded.chunk_count, indexed_at=excluded.indexed_at",
-            (
-                cid,
-                relpath,
-                os.path.dirname(relpath) or "/",
-                st.type,
-                st.media_type,
-                st.size_hint,
-                st.fingerprint,
-                1 if indexable else 0,
-                _now(),
-                search_status,
-                chunk_count,
-                _now(),
-            ),
-        )
-
+        await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
         await plugin.on_object_indexed(relpath)
 
     # --- search ---
@@ -2298,7 +2072,7 @@ class Engine:
                 if okind in ("document", "code", "text_blob"):
                     ext = os.path.splitext(rel)[1].lower()
                     text = await self._read_text(plugin, rel)
-                    texts = [t for t, _ in chunk_body(text, okind, ext, self.cfg.chunk.chunk_size)]
+                    texts = [t for t, _ in chunk_body(text, okind, ext, self.cfg.chunking.chunk_size)]
                 elif okind in ("table_rows", "record_collection", "message_stream"):
                     ocfg = plugin.ctx.object_config_for(rel)
                     records = plugin.read_records(rel)
@@ -2306,7 +2080,7 @@ class Engine:
                     if records is not None and ocfg.text_fields:
                         try:
                             async for rec in records:
-                                t = _render_record(rec, ocfg.text_fields, ocfg.render_template)
+                                t = render_record(rec, ocfg.text_fields, ocfg.render_template)
                                 if t.strip():
                                     texts.append(t)
                                 sampled += 1
@@ -2578,8 +2352,8 @@ class Engine:
         if not present:
             return False
         # resolve with the SAME JSONPath-lite used to WRITE the locator (engine indexing:
-        # {f: _resolve_path(rec, f)}); plain rec.get() couldn't reopen a nested locator key.
-        return all(str(_resolve_path(rec, k)) == str(locator.get(k)) for k in present)
+        # {f: resolve_path(rec, f)}); plain rec.get() couldn't reopen a nested locator key.
+        return all(str(resolve_path(rec, k)) == str(locator.get(k)) for k in present)
 
     async def cat(
         self,
@@ -2781,10 +2555,10 @@ class Engine:
             await plugin.close()
 
     def _warn_if_huge_export(self, uri: str, text: str) -> None:
-        """Single-host export materializes the whole object in memory; warn on
-        anything over 100 MB so the operator sees the cost before the next OOM
-        rather than after. Streaming export is the proper fix — tracked in
-        TODO #10."""
+        """Single-host export materializes the whole object in memory; warn on anything over
+        100 MB so the operator sees the cost before the next OOM rather than after. A streaming
+        export path is the proper fix but is deferred — objects this large are rare on the
+        single-host deployment this guard covers, and the warning makes the cost explicit."""
         size = len(text.encode("utf-8", errors="ignore")) if text else 0
         if size > 100 * 1024 * 1024:
             print(

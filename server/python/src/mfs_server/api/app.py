@@ -90,7 +90,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         # CS (postgres) deployments run a dedicated `mfs-server worker`; skip there unless
         # explicitly turned on, so API replicas don't also do indexing work.
         worker_task = None
-        if cfg.worker.in_process and eng.meta.backend == "sqlite":
+        if cfg.server.in_process_jobrunner and eng.meta.backend == "sqlite":
             worker_task = asyncio.create_task(eng.run_worker_forever(concurrency=1))
         try:
             yield

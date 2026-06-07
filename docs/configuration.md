@@ -100,7 +100,7 @@ The wizard walks these sections in order:
 | Section | TOML fields | Default behavior | When to change it |
 |---|---|---|---|
 | `embedding` | `[embedding] provider`, `model`, `dim` | Local ONNX provider, `gpahal/bge-m3-onnx-int8`, 1024 dimensions. | Use hosted or local alternatives when you have the required extra dependencies and credentials. |
-| `vlm` | `[summary] enabled`, `include_image_desc`, `provider`, `model`; `[vlm] provider`, `model` | Off by default. Image objects can be listed without generating image summaries. | Enable when you need image descriptions in the searchable index and accept the provider cost. |
+| `description` | `[summary] enabled`, `include_image_description`, `provider`, `model`; `[description] provider`, `model` | Off by default. Image objects can be listed without generating image descriptions. | Enable when you need image descriptions in the searchable index and accept the provider cost. |
 | `milvus` | `[milvus] uri`, `token` | Milvus Lite under `$MFS_HOME/milvus.db`. | Set an HTTP(S) URI for Milvus or Zilliz Cloud. |
 | `database` | `[database] backend`, `dsn` | SQLite. The same backend feeds metadata and the transformation-cache lookup table. | Use Postgres when multiple server processes need shared relational state. |
 | `cache` | `[artifact_cache] backend`, `root`, S3-compatible fields | Local filesystem under `$MFS_HOME/cache`. | Use S3, MinIO, R2, or GCS-compatible storage for shared artifact blobs. |
@@ -130,8 +130,8 @@ backends:
 | Metadata SQLite path | `$MFS_HOME/metadata.db`. |
 | Transformation cache SQLite path | `$MFS_HOME/transformation_cache.db`. |
 | Artifact cache | Local filesystem at `$MFS_HOME/cache`, `max_size_gb = 10.0`, `eviction = "lru"`. |
-| Worker | `in_process = true`, `concurrency = "auto"`, `max_retries = 3`. |
-| Chunking | `default_chunk_max = 1000000`, `chunk_size = 2048`. |
+| Job runner | `[server] in_process_jobrunner = true`, `[chunks_producer] concurrency = 8`, `[object_task] max_retries = 3`. |
+| Chunking | `[chunking] chunk_size = 2048`, `default_chunk_max = 1000000`. |
 | Search | `over_fetch_ratio = 3`, `max_partitions_per_query = 32`. |
 
 ## Auth Modes

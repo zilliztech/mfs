@@ -1,8 +1,12 @@
 """VLM client: image bytes -> description text, memoized in transformation cache.
 
-Multi-provider (openai/anthropic/gemini); the configured vlm.provider drives
-the lookup. Result is stored as a vlm_text artifact + indexed as a
-vlm_description chunk.
+Multi-provider (openai/anthropic/gemini); the configured [description].provider drives
+the lookup. Result is stored as a vlm_text artifact + indexed as a vlm_description chunk.
+
+This client holds NO concurrency control of its own: the [description].concurrency ceiling
+is enforced by the shared DescriptionConcurrencyGate (engine/producers/base.py) at every
+call site (ImageChunksProducer, the Reduce SummaryWorker), so a single process-wide budget
+governs in-flight VLM calls regardless of where describe() is invoked (§5.5).
 """
 
 from __future__ import annotations
@@ -26,9 +30,9 @@ _MIME = {
 
 class CachingVlmClient:
     def __init__(self, cfg: ServerConfig, tx_cache: TransformationCache):
-        self.model = cfg.vlm.model
-        self.prompt = cfg.vlm.prompt
-        self.provider = cfg.vlm.provider
+        self.model = cfg.description.model
+        self.prompt = cfg.description.prompt
+        self.provider = cfg.description.provider
         self.version = "1"
         self.tx_cache = tx_cache
         # Lazy: server boots w/o any LLM key.
@@ -45,32 +49,33 @@ class CachingVlmClient:
         return _MIME.get(ext.lower(), "image/png")
 
     async def describe(self, data: bytes, ext: str) -> str:
-        key = cache_key(sha1_hex(data), "vlm", self.provider, self.model, self.version)
-        cached = await self.tx_cache.batch_get([key])
-        if cached[key] is not None:
+        h = sha1_hex(data)
+        # The prompt is part of the cache identity: changing [description].prompt must
+        # re-describe rather than return a description produced under the old prompt.
+        key = cache_key(
+            h, "vlm", self.provider, self.model, self.version,
+            config=sha1_hex(self.prompt.encode()),
+        )
+        ran = False
+
+        async def _compute() -> bytes:
+            nonlocal ran
+            ran = True
+            llm = self._ensure_llm()
+            desc = await llm.vision(
+                self.prompt, data, self.mime_for(ext), model=self.model, max_tokens=400
+            )
+            return desc.encode()
+
+        # get_or_compute holds a per-key lock so concurrent callers that all miss the same
+        # image (Map ImageChunksProducer + Reduce SummaryWorker) fire the provider EXACTLY
+        # once (§3.4), instead of each issuing the expensive VLM call.
+        out = await self.tx_cache.get_or_compute(
+            key, _compute, kind="vlm", input_hash=h,
+            provider=self.provider, model=self.model, model_version=self.version,
+        )
+        if ran:
+            self.api_calls += 1
+        else:
             self.cache_hits += 1
-            return cached[key].decode("utf-8", errors="replace")
-        llm = self._ensure_llm()
-        desc = await llm.vision(
-            self.prompt,
-            data,
-            self.mime_for(ext),
-            model=self.model,
-            max_tokens=400,
-        )
-        self.api_calls += 1
-        await self.tx_cache.batch_put(
-            [
-                {
-                    "cache_key": key,
-                    "kind": "vlm",
-                    "input_hash": sha1_hex(data),
-                    "provider": self.provider,
-                    "model": self.model,
-                    "model_version": self.version,
-                    "output_bytes": desc.encode(),
-                    "output_size": len(desc.encode()),
-                }
-            ]
-        )
-        return desc
+        return out.decode("utf-8", errors="replace")
