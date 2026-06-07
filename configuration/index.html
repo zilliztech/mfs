@@ -1898,9 +1898,9 @@ token when the container is removed.</p>
 <td>Use hosted or local alternatives when you have the required extra dependencies and credentials.</td>
 </tr>
 <tr>
-<td><code>vlm</code></td>
-<td><code>[summary] enabled</code>, <code>include_image_desc</code>, <code>provider</code>, <code>model</code>; <code>[vlm] provider</code>, <code>model</code></td>
-<td>Off by default. Image objects can be listed without generating image summaries.</td>
+<td><code>description</code></td>
+<td><code>[summary] enabled</code>, <code>include_image_description</code>, <code>provider</code>, <code>model</code>; <code>[description] provider</code>, <code>model</code></td>
+<td>Off by default. Image objects can be listed without generating image descriptions.</td>
 <td>Enable when you need image descriptions in the searchable index and accept the provider cost.</td>
 </tr>
 <tr>
@@ -1989,12 +1989,12 @@ backends:</p>
 <td>Local filesystem at <code>$MFS_HOME/cache</code>, <code>max_size_gb = 10.0</code>, <code>eviction = "lru"</code>.</td>
 </tr>
 <tr>
-<td>Worker</td>
-<td><code>in_process = true</code>, <code>concurrency = "auto"</code>, <code>max_retries = 3</code>.</td>
+<td>Job runner</td>
+<td><code>[server] in_process_jobrunner = true</code>, <code>[chunks_producer] concurrency = 8</code>, <code>[object_task] max_retries = 3</code>.</td>
 </tr>
 <tr>
 <td>Chunking</td>
-<td><code>default_chunk_max = 1000000</code>, <code>chunk_size = 2048</code>.</td>
+<td><code>[chunking] chunk_size = 2048</code>, <code>default_chunk_max = 1000000</code>.</td>
 </tr>
 <tr>
 <td>Search</td>
