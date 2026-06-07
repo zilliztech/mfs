@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.datastructures import Headers
 
 from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
@@ -77,6 +78,37 @@ _STATUS_CODE = {
 }
 
 
+def _auth_failure(headers: Headers, expected_token: str) -> tuple[int, dict] | None:
+    values = headers.getlist("authorization")
+    if len(values) > 1:
+        return (
+            400,
+            {
+                "code": "bad_request",
+                "detail": "duplicate Authorization header",
+                "suggestions": ["send exactly one Authorization: Bearer <token> header"],
+            },
+        )
+    if len(values) != 1:
+        return _unauthorized()
+
+    scheme, sep, token = values[0].partition(" ")
+    if sep != " " or scheme.lower() != "bearer" or token != expected_token:
+        return _unauthorized()
+    return None
+
+
+def _unauthorized() -> tuple[int, dict]:
+    return (
+        401,
+        {
+            "code": "unauthorized",
+            "detail": "missing or invalid bearer token",
+            "suggestions": ["set a profile token (Authorization: Bearer <token>)"],
+        },
+    )
+
+
 def create_app(cfg: ServerConfig | None = None) -> FastAPI:
     cfg = cfg or load_server_config()
 
@@ -120,15 +152,9 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
             returns no data) — see deployments/."""
             if request.url.path == "/healthz":
                 return await call_next(request)
-            if request.headers.get("authorization", "") != f"Bearer {cfg.auth_token}":
-                return JSONResponse(
-                    status_code=401,
-                    content={
-                        "code": "unauthorized",
-                        "detail": "missing or invalid bearer token",
-                        "suggestions": ["set a profile token (Authorization: Bearer <token>)"],
-                    },
-                )
+            if failure := _auth_failure(request.headers, cfg.auth_token):
+                status_code, content = failure
+                return JSONResponse(status_code=status_code, content=content)
             return await call_next(request)
 
     @app.exception_handler(HTTPException)
