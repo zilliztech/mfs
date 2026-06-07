@@ -314,6 +314,53 @@ fn remote_path(base: &str, path: &str) -> String {
     path.to_string()
 }
 
+fn uploaded_local_path_from_status(
+    status: &Value,
+    client_id: &str,
+    abs_path: &str,
+) -> Option<String> {
+    let prefix = format!("file://{client_id}");
+    let mut best: Option<(usize, String)> = None;
+    for connector in status["connectors"].as_array()? {
+        let root_uri = connector["root_uri"].as_str().unwrap_or("");
+        if !root_uri.starts_with(&prefix) {
+            continue;
+        }
+        let root_path = &root_uri[prefix.len()..];
+        let matches = abs_path == root_path
+            || abs_path.starts_with(&format!("{}/", root_path.trim_end_matches('/')));
+        if !matches {
+            continue;
+        }
+        let suffix = if abs_path == root_path {
+            ""
+        } else {
+            &abs_path[root_path.len()..]
+        };
+        let mapped = format!("{root_uri}{suffix}");
+        if best
+            .as_ref()
+            .map_or(true, |(len, _)| root_path.len() > *len)
+        {
+            best = Some((root_path.len(), mapped));
+        }
+    }
+    best.map(|(_, mapped)| mapped)
+}
+
+fn resolve_path_arg(client: &reqwest::blocking::Client, base: &str, path: &str) -> String {
+    if let Ok(abs) = std::fs::canonicalize(path) {
+        let abs_path = abs.to_string_lossy().to_string();
+        if let Ok(status) = get(client, &format!("{base}/v1/status"), &[]) {
+            if let Some(mapped) = uploaded_local_path_from_status(&status, &client_id(), &abs_path)
+            {
+                return mapped;
+            }
+        }
+    }
+    remote_path(base, path)
+}
+
 fn with_auth(rb: reqwest::blocking::RequestBuilder) -> reqwest::blocking::RequestBuilder {
     match auth_token() {
         Some(t) if !t.is_empty() => rb.bearer_auth(t),
@@ -489,7 +536,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 ("top_k", top_k.to_string()),
             ];
             if let Some(p) = path {
-                q.push(("path", remote_path(base, p)));
+                q.push(("path", resolve_path_arg(client, base, p)));
             }
             if let Some(k) = kind {
                 q.push(("kind", k.clone()));
@@ -527,7 +574,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
                 &format!("{base}/v1/grep"),
                 &[
                     ("pattern", pattern.clone()),
-                    ("path", remote_path(base, path)),
+                    ("path", resolve_path_arg(client, base, path)),
                 ],
             )?;
             if cli.json {
@@ -551,7 +598,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             let v = get(
                 client,
                 &format!("{base}/v1/ls"),
-                &[("path", remote_path(base, path))],
+                &[("path", resolve_path_arg(client, base, path))],
             )?;
             if cli.json {
                 println!("{v}");
@@ -560,7 +607,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             print_entries(&v);
         }
         Cmd::Tree { path, depth } => {
-            let rp = remote_path(base, path);
+            let rp = resolve_path_arg(client, base, path);
             if cli.json {
                 let v = tree_json(client, base, &rp, *depth)?;
                 println!("{v}");
@@ -577,7 +624,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             peek,
             skim,
         } => {
-            let mut q = vec![("path", remote_path(base, path))];
+            let mut q = vec![("path", resolve_path_arg(client, base, path))];
             if let Some(r) = range {
                 q.push(("range", r.clone()));
             }
@@ -608,7 +655,10 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             let v = get(
                 client,
                 &format!("{base}/v1/head"),
-                &[("path", remote_path(base, path)), ("n", lines.to_string())],
+                &[
+                    ("path", resolve_path_arg(client, base, path)),
+                    ("n", lines.to_string()),
+                ],
             )?;
             if cli.json {
                 println!("{v}");
@@ -620,7 +670,10 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             let v = get(
                 client,
                 &format!("{base}/v1/tail"),
-                &[("path", remote_path(base, path)), ("n", lines.to_string())],
+                &[
+                    ("path", resolve_path_arg(client, base, path)),
+                    ("n", lines.to_string()),
+                ],
             )?;
             if cli.json {
                 println!("{v}");
@@ -635,7 +688,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
             let v = get(
                 client,
                 &format!("{base}/v1/export"),
-                &[("path", remote_path(base, path))],
+                &[("path", resolve_path_arg(client, base, path))],
             )?;
             let text = v["content"].as_str().unwrap_or("");
             let partial = v["partial"].as_bool().unwrap_or(false);
@@ -1055,16 +1108,13 @@ fn remove_connector(
         ))?
     {
         if json {
-            println!(
-                "{}",
-                serde_json::json!({"removed": false, "aborted": true})
-            );
+            println!("{}", serde_json::json!({"removed": false, "aborted": true}));
         } else {
             println!("aborted.");
         }
         return Ok(());
     }
-    let target = remote_path(base, target); // local path -> upload identity when remote
+    let target = resolve_path_arg(client, base, target); // local path -> upload identity when available
     let resp = with_auth(
         client
             .delete(format!("{base}/v1/connectors"))
@@ -1409,6 +1459,55 @@ mod tests {
         assert_eq!(
             serde_json::from_str::<Value>(&remove_output(&response, true)).unwrap(),
             response
+        );
+    }
+
+    #[test]
+    fn uploaded_local_path_maps_exact_root_and_child() {
+        let status = json!({
+            "connectors": [
+                {"root_uri": "file://local/tmp/project"},
+                {"root_uri": "file://cid-1/tmp/project"}
+            ]
+        });
+
+        assert_eq!(
+            uploaded_local_path_from_status(&status, "cid-1", "/tmp/project"),
+            Some("file://cid-1/tmp/project".to_string())
+        );
+        assert_eq!(
+            uploaded_local_path_from_status(&status, "cid-1", "/tmp/project/src/lib.rs"),
+            Some("file://cid-1/tmp/project/src/lib.rs".to_string())
+        );
+    }
+
+    #[test]
+    fn uploaded_local_path_prefers_longest_matching_root() {
+        let status = json!({
+            "connectors": [
+                {"root_uri": "file://cid-1/tmp/project"},
+                {"root_uri": "file://cid-1/tmp/project/subdir"}
+            ]
+        });
+
+        assert_eq!(
+            uploaded_local_path_from_status(&status, "cid-1", "/tmp/project/subdir/a.txt"),
+            Some("file://cid-1/tmp/project/subdir/a.txt".to_string())
+        );
+    }
+
+    #[test]
+    fn uploaded_local_path_ignores_local_and_other_clients() {
+        let status = json!({
+            "connectors": [
+                {"root_uri": "file://local/tmp/project"},
+                {"root_uri": "file://other-client/tmp/project"}
+            ]
+        });
+
+        assert_eq!(
+            uploaded_local_path_from_status(&status, "cid-1", "/tmp/project/a.txt"),
+            None
         );
     }
 }
