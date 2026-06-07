@@ -57,10 +57,11 @@ class _FakeTx:
         return await compute_fn()
 
 
-def _coord(files, *, include_image_desc=False):
+def _coord(files, *, include_image_desc=False, description_enabled=True):
     cfg = ServerConfig()
     cfg.summary.enabled = True
     cfg.summary.include_image_description = include_image_desc
+    cfg.description.enabled = description_enabled
     coord = ReduceCoordinator(
         cfg, tx_cache=_FakeTx(), summary=_FakeSummary(),
         vlm=_FakeVlm(), converter=_FakeConverter(), chunks_q=asyncio.Queue(),
@@ -129,3 +130,17 @@ async def test_image_child_described_and_folded():
     # its description folded into the directory summary input.
     assert coord.vlm.calls == 1
     assert "image description" in coord.summary.inputs[0]
+
+
+async def test_image_child_skipped_when_description_disabled():
+    # finding (15): with [description] off there is no VLM provider/budget, so a folded-in
+    # image must NOT trigger a describe() call even if include_image_description is on.
+    coord = _coord(
+        {"/d/pic.png": b"\x89PNGbytes"}, include_image_desc=True, description_enabled=False
+    )
+    b = coord.builders["j"]
+    b.add("/d/pic.png", "image")
+    b.sync_done = True
+
+    await fold_and_summarize(coord, "j", "/d")
+    assert coord.vlm.calls == 0  # VLM never invoked

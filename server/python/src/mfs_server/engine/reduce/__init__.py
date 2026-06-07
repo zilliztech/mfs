@@ -54,6 +54,9 @@ class ReduceCoordinator:
     ):
         self.cfg = cfg
         self.enabled = bool(cfg.summary.enabled)  # master switch (§7.2 [summary].enabled)
+        # whether VLM descriptions exist at all; a folded-in image must not trigger a VLM call
+        # when [description] is off (no provider/budget for it).
+        self.description_enabled = bool(cfg.description.enabled)
         self.do_dir = bool(cfg.summary.dir)  # run recursive directory summaries
         self.do_file = bool(cfg.summary.file)  # run per-file summaries (§6.4.7, default off)
         self.recursive = True  # directory summaries are always recursive bottom-up now

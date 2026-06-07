@@ -27,7 +27,10 @@ async def _child_text(coord, job_id: str, child_uri: str, okind: str) -> str:
     cap = coord.cfg.summary.per_file_max_kb * 1024
     ext = os.path.splitext(child_uri)[1].lower()
     if okind == "image":
-        if not coord.cfg.summary.include_image_description:
+        # Fold an image only when descriptions are produced at all ([description] on) AND the
+        # directory summary opts into them. With [description] off there is no VLM provider /
+        # budget, so firing describe() here would error or stall.
+        if not coord.description_enabled or not coord.cfg.summary.include_image_description:
             return ""
         raw = await read_bytes(plugin, child_uri)
         # share the description gate so a folded-in image draws from the same VLM in-flight
