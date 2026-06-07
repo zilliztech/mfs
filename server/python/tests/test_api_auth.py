@@ -79,3 +79,26 @@ def test_validation_errors_use_documented_envelope(tmp_path) -> None:
         "detail": "query.q: Field required",
         "suggestions": ["fix request shape"],
     }
+
+
+def test_framework_http_errors_use_documented_envelope(tmp_path) -> None:
+    cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
+    app = create_app(cfg)
+    client = TestClient(app)
+
+    missing = client.get("/v1/does-not-exist", headers={"Authorization": "Bearer expected"})
+    wrong_method = client.post("/v1/status", headers={"Authorization": "Bearer expected"})
+
+    assert missing.status_code == 404
+    assert missing.json() == {
+        "code": "not_found",
+        "detail": "Not Found",
+        "suggestions": ["check the URI"],
+    }
+    assert wrong_method.status_code == 405
+    assert wrong_method.headers["allow"] == "GET"
+    assert wrong_method.json() == {
+        "code": "method_not_allowed",
+        "detail": "Method Not Allowed",
+        "suggestions": [],
+    }

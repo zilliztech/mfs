@@ -14,6 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import ClientDisconnect
 
 from ..config import ServerConfig, load_server_config
@@ -74,6 +75,7 @@ _CODE_SUGGESTIONS = {
 _STATUS_CODE = {
     400: "bad_request",
     404: "not_found",
+    405: "method_not_allowed",
     409: "conflict",
     422: "validation_error",
     499: "client_closed_request",
@@ -233,8 +235,8 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
                 return JSONResponse(status_code=status_code, content=content)
             return await call_next(request)
 
-    @app.exception_handler(HTTPException)
-    async def _http_exc(_request: Request, exc: HTTPException) -> JSONResponse:
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_exc(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
         """Wrap HTTPException into the {code, detail, suggestions} envelope.
         When `detail` is already a canonical code, surface it as `code`; otherwise derive
         `code` from the HTTP status and keep the human string as `detail`."""
@@ -247,6 +249,7 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
                 "detail": detail,
                 "suggestions": _CODE_SUGGESTIONS.get(code, []),
             },
+            headers=getattr(exc, "headers", None),
         )
 
     @app.exception_handler(RequestValidationError)
