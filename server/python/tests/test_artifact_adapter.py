@@ -96,3 +96,22 @@ async def test_adapter_put_enforces_size_cap(tmp_path):
     )
     assert (row["total"] or 0) <= max_bytes  # eviction kept the cache under budget
     await eng.meta.close()
+
+
+async def test_drop_artifacts_purges_raw_records(tmp_path):
+    # finding (13): deleting an object must purge ALL its artifact kinds, including the
+    # message_stream raw_records jsonl, else a Slack/Gmail object delete leaks it.
+    eng = await _build_engine(tmp_path, max_size_gb=1.0)
+    uri = "slack://team/chan"
+    for kind in ("converted_md", "vlm_text", "head_cache", "raw_records"):
+        await eng._put_artifact(eng.ns, uri, kind, b"data-" + kind.encode())
+
+    await eng._drop_artifacts(eng.ns, uri)
+
+    rows = await eng.meta.fetchall(
+        "SELECT artifact_kind FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
+        (eng.ns, uri),
+    )
+    assert rows == []  # every kind, raw_records included, removed from the index
+    assert eng.artifact_cache.get_artifact(eng.ns, uri, "raw_records") is None  # bytes gone too
+    await eng.meta.close()

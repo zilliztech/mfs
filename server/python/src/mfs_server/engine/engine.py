@@ -1743,8 +1743,10 @@ class Engine:
 
     async def _drop_artifacts(self, ns: str, object_uri: str) -> None:
         """Delete all cached artifacts of an object (bytes + artifact_cache rows) — on
-        object deletion so the cache doesn't retain orphaned bytes."""
-        for kind in ("converted_md", "vlm_text", "head_cache"):
+        object deletion so the cache doesn't retain orphaned bytes. 'raw_records' is the
+        message_stream materialization (jsonl); a deleted Slack/Gmail object would otherwise
+        leak it."""
+        for kind in ("converted_md", "vlm_text", "head_cache", "raw_records"):
             try:
                 await asyncio.to_thread(self.artifact_cache.delete_artifact, ns, object_uri, kind)
             except Exception:  # noqa: BLE001
