@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from mfs_server.connectors.base import ObjectConfig
 from mfs_server.engine.producers import Chunk, EndOfTask, ObjectTask, RecordCollectionProducer
 
@@ -93,14 +91,17 @@ async def test_head_cache_artifact_written(tmp_path):
     assert head is not None and b'"number": 1' in head
 
 
-async def test_field_missing_raises(tmp_path):
-    # records exist but none carry any configured text_field key -> field_missing
+async def test_field_missing_yields_partial_eot(tmp_path):
+    # records exist but none carry any configured text_field key -> 0 chunks. The producer must
+    # NOT raise (that would leave the EmbedConsumer without an EndOfTask, leaking per-task
+    # state); it emits a partial EndOfTask so the engine records it partial / not-indexed.
     recs = [{"number": 1, "other": "x"}, {"number": 2, "other": "y"}]
     plugin = FakePlugin(records={"/issues": recs})
     ctx = build_ctx(artifacts=FakeArtifactStore(tmp_path))
     ocfg = ObjectConfig(text_fields=["title", "body"], locator_fields=["number"])
-    with pytest.raises(ValueError, match="field_missing"):
-        await collect(RecordCollectionProducer(ctx), _task(plugin, ocfg))
+    items = await collect(RecordCollectionProducer(ctx), _task(plugin, ocfg))
+    assert all(isinstance(x, EndOfTask) for x in items)  # no chunks
+    assert len(items) == 1 and items[-1].partial is True
 
 
 async def test_connector_partial_flag_propagates(tmp_path):

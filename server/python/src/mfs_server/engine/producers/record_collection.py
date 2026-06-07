@@ -91,14 +91,21 @@ class RecordCollectionProducer:
                 await aclose()
 
         # Schema mismatch: records exist but NONE of the configured text_fields' keys are
-        # present in any of them -> would silently index 0 chunks. Surface field_missing
-        # so the user fixes [[objects]] instead of guessing. (When a chunk was emitted a
-        # field key was necessarily present, so seen_field_keys is non-empty.)
+        # present in any of them -> we produced 0 chunks. Do NOT raise: a producer that raises
+        # mid-stream leaves the EmbedConsumer without an EndOfTask, leaking its per-task pending
+        # state and wedging the task. Emit a partial EndOfTask so the engine records the object
+        # as partial / not-indexed, and log the misconfiguration so the user can fix
+        # [[objects]].text_fields. (When a chunk was emitted a field key was necessarily
+        # present, so seen_field_keys is non-empty and this branch is skipped.)
         if i > 0 and ocfg.text_fields and not seen_field_keys:
-            raise ValueError(
-                f"field_missing: configured text_fields {list(ocfg.text_fields)} "
-                "are absent from every record"
+            print(
+                f"mfs-server: WARNING {full_uri}: configured text_fields "
+                f"{list(ocfg.text_fields)} are absent from every record (indexed 0 chunks) — "
+                "check [[objects]].text_fields",
+                flush=True,
             )
+            yield EndOfTask(partial=True)
+            return
         if head_buf:
             await self.ctx.artifacts.put_artifact(
                 ns, full_uri, "head_cache", ("\n".join(head_buf)).encode()
