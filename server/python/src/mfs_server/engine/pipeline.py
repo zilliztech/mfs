@@ -169,19 +169,36 @@ class EmbedConsumer:
         return self._task
 
     async def run(self, chunks_q: asyncio.Queue) -> None:
-        """Consume loop: accumulate chunks, flush on batch_size or idle, finalize tasks."""
+        """Consume loop: accumulate chunks, flush on batch_size or idle, finalize tasks.
+
+        Every unit of work (idle flush, consume) is guarded: a transient failure (DB hiccup
+        in a callback, a Milvus upsert error) is logged and the loop keeps draining rather
+        than dying. A dead consumer task would wedge every later chunk, so resilience here is
+        a hard requirement (§5.2)."""
         self._q = chunks_q
         idle_s = self._idle_ms / 1000.0
         while True:
             try:
                 item = await asyncio.wait_for(chunks_q.get(), timeout=idle_s)
             except asyncio.TimeoutError:
-                await self._flush()  # idle: write what we have so small jobs don't stall
+                await self._safe_flush()  # idle: write what we have so small jobs don't stall
                 continue
             if item is _SHUTDOWN:
-                await self._flush()
+                await self._safe_flush()
                 break
-            await self._consume(item)
+            try:
+                await self._consume(item)
+            except Exception as e:  # noqa: BLE001 — never let one bad item kill the consumer
+                print(f"mfs-server: WARNING embed consumer consume failed: {e}", flush=True)
+
+    async def _safe_flush(self) -> None:
+        """_flush that logs (never raises) — for the loop's idle/shutdown drains, so a failed
+        write doesn't terminate the consumer. _flush itself preserves the batch on failure, so
+        the next flush retries it (nothing is lost)."""
+        try:
+            await self._flush()
+        except Exception as e:  # noqa: BLE001
+            print(f"mfs-server: WARNING embed consumer flush failed: {e}", flush=True)
 
     async def shutdown(self) -> None:
         """Signal the loop to drain its pending batch and stop; await the run task."""
@@ -233,8 +250,12 @@ class EmbedConsumer:
     async def _flush(self) -> None:
         if not self._batch:
             return
+        # Keep the batch in place until Milvus acks the upsert. If embed/upsert raises we
+        # re-raise WITHOUT clearing, so the chunks (and their pending bookkeeping) survive and
+        # the next flush retries them — a transient write error must not silently drop data
+        # (§6.1). No concurrent appender can grow it mid-flush: _flush only runs inside the
+        # single run() loop.
         batch = self._batch
-        self._batch = []
 
         # 1. tx_cache lookup for vectors, embed only the misses (§6.3), cache them back.
         keys = [self._cache_key(ch) for _, ch in batch]
@@ -256,7 +277,8 @@ class EmbedConsumer:
             counts[env.task_id] = counts.get(env.task_id, 0) + 1
         await self._milvus.upsert(rows)
 
-        # 3. decrement pending only AFTER the write is acknowledged, then finalize.
+        # 3. write acked: clear the batch, then decrement pending and finalize.
+        self._batch = []
         for tid, n in counts.items():
             self._pending[tid] = self._pending.get(tid, 0) - n
             await self._maybe_finalize(tid)
@@ -273,10 +295,18 @@ class EmbedConsumer:
     async def _fire_success(
         self, task_uri: str, job_id: Optional[str], chunk_count: int, partial: bool
     ) -> None:
+        # Each callback is isolated: a DB hiccup in one hook (e.g. the objects-table writer)
+        # must not skip the others or bubble up and kill the consumer. Log and continue.
         for cb in self._on_succeeded:
-            res = cb(task_uri, job_id, chunk_count, partial)
-            if asyncio.iscoroutine(res):
-                await res
+            try:
+                res = cb(task_uri, job_id, chunk_count, partial)
+                if asyncio.iscoroutine(res):
+                    await res
+            except Exception as e:  # noqa: BLE001
+                print(
+                    f"mfs-server: WARNING embed success hook failed for {task_uri}: {e}",
+                    flush=True,
+                )
 
     def _cleanup(self, task_id: str) -> None:
         self._pending.pop(task_id, None)

@@ -241,3 +241,65 @@ async def test_success_callback_carries_chunk_count_and_partial():
     assert seen["c://x/T1"] == (3, False)
     assert seen["c://x/T2"] == (1, True)
     assert seen["c://x/T3"] == (1, True)
+
+
+async def test_raising_callback_does_not_skip_others_or_kill_consumer():
+    # A registered success hook that raises must NOT stop the other hooks from firing, and the
+    # consumer must keep draining later tasks (a dead consumer would wedge the whole pipeline).
+    c, embedder, milvus, tx = _consumer(batch_size=1)
+    order: list[str] = []
+
+    def boom(uri, job, count, partial):
+        order.append(f"boom:{uri}")
+        raise RuntimeError("callback DB hiccup")
+
+    def ok(uri, job, count, partial):
+        order.append(f"ok:{uri}")
+
+    c.register_on_succeeded(boom)
+    c.register_on_succeeded(ok)
+    q = make_chunks_q(1)
+    c.start(q)
+
+    # T1: the raising hook fires, then the second hook still runs.
+    await q.put(_chunk_env("T1", "a"))
+    await q.put(_eot_env("T1"))
+    # T2: arrives AFTER T1's hook raised — proves the consumer is still alive and draining.
+    await q.put(_chunk_env("T2", "b"))
+    await q.put(_eot_env("T2"))
+    await c.shutdown()
+
+    assert order == ["boom:c://x/T1", "ok:c://x/T1", "boom:c://x/T2", "ok:c://x/T2"]
+    assert c._pending == {}  # both tasks finalized + cleaned up despite the raising hook
+
+
+async def test_upsert_failure_preserves_batch_then_succeeds_on_retry():
+    # finding (4): a failed milvus.upsert must not drop chunks or pending bookkeeping. The
+    # batch is retried on the next flush and nothing is lost.
+    c, embedder, milvus, tx = _consumer(batch_size=10, idle_ms=30)
+    calls = {"n": 0}
+
+    async def flaky_upsert(rows):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("milvus transient error")
+        flaky_upsert.last = rows
+
+    milvus.upsert = AsyncMock(side_effect=flaky_upsert)
+    seen: list[tuple] = []
+    c.register_on_succeeded(lambda uri, job, count, partial: seen.append((uri, count)))
+    q = make_chunks_q(10)
+    c.start(q)
+
+    await q.put(_chunk_env("T", "a"))
+    await q.put(_chunk_env("T", "b"))
+    await q.put(_eot_env("T"))
+    # below batch_size, so the batch flushes on the idle timer: flush #1 raises (caught),
+    # the batch is preserved, flush #2 (next idle tick) retries and succeeds.
+    await asyncio.sleep(0.15)
+    await c.shutdown()
+
+    assert calls["n"] == 2  # first flush failed, retried once
+    assert len(flaky_upsert.last) == 2  # both chunks survived the failed flush
+    assert seen == [("c://x/T", 2)]  # task finalized exactly once with both chunks counted
+    assert c._pending == {}
