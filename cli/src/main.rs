@@ -8,6 +8,114 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+type CliResult<T> = Result<T, CliError>;
+
+#[derive(Debug, Clone)]
+struct CliError {
+    code: String,
+    detail: String,
+    suggestions: Vec<String>,
+    status: Option<u16>,
+}
+
+impl CliError {
+    fn new(code: impl Into<String>, detail: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            detail: detail.into(),
+            suggestions: Vec::new(),
+            status: None,
+        }
+    }
+
+    fn request(detail: impl Into<String>) -> Self {
+        Self::new("request_error", detail)
+    }
+
+    fn invalid_response(detail: impl Into<String>) -> Self {
+        Self::new("invalid_response", detail)
+    }
+
+    fn from_error_envelope(status: reqwest::StatusCode, v: &Value) -> Self {
+        let code = v
+            .get("code")
+            .and_then(|c| c.as_str())
+            .filter(|c| !c.is_empty())
+            .unwrap_or("error")
+            .to_string();
+        let detail = v
+            .get("detail")
+            .and_then(|d| d.as_str())
+            .unwrap_or("request failed")
+            .to_string();
+        let suggestions = v
+            .get("suggestions")
+            .and_then(|s| s.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        Self {
+            code,
+            detail,
+            suggestions,
+            status: Some(status.as_u16()),
+        }
+    }
+
+    fn to_json(&self) -> Value {
+        let mut v = serde_json::json!({
+            "code": self.code,
+            "detail": self.detail,
+            "suggestions": self.suggestions,
+        });
+        if let Some(status) = self.status {
+            v["status"] = serde_json::json!(status);
+        }
+        v
+    }
+
+    fn display_message(&self) -> String {
+        let header = if let Some(status) = self.status {
+            let status_text = reqwest::StatusCode::from_u16(status)
+                .map(|s| s.to_string())
+                .unwrap_or_else(|_| status.to_string());
+            if self.code.is_empty() {
+                format!("{status_text}: {}", self.detail)
+            } else {
+                format!("{status_text} [{}]: {}", self.code, self.detail)
+            }
+        } else {
+            self.detail.clone()
+        };
+        if self.suggestions.is_empty() {
+            header
+        } else {
+            format!("{header}\n  try: {}", self.suggestions.join(", "))
+        }
+    }
+}
+
+impl From<String> for CliError {
+    fn from(detail: String) -> Self {
+        CliError::new("cli_error", detail)
+    }
+}
+
+impl From<&str> for CliError {
+    fn from(detail: &str) -> Self {
+        CliError::new("cli_error", detail)
+    }
+}
+
+impl std::fmt::Display for CliError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.display_message())
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "mfs", version, about = "Multi-source File-like Search")]
 struct Cli {
@@ -412,12 +520,16 @@ fn main() {
     let client = reqwest::blocking::Client::new();
     let base = base_url();
     if let Err(e) = run(&cli, &client, &base) {
-        eprintln!("error: {e}");
+        if cli.json {
+            println!("{}", e.to_json());
+        } else {
+            eprintln!("error: {}", e.display_message());
+        }
         std::process::exit(1);
     }
 }
 
-fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), String> {
+fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<()> {
     match &cli.cmd {
         Cmd::Add {
             target,
@@ -797,23 +909,59 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> Result<(), 
         Cmd::Remove { target, yes } => {
             return remove_connector(client, base, target, *yes, cli.json)
         }
-        Cmd::Profile { action } => return profile_cmd(action),
+        Cmd::Profile { action } => return profile_cmd(action).map_err(Into::into),
         Cmd::Config { action } => match action {
             ConfigAction::Show => {
-                println!("endpoint: {base}");
                 let cfg = load_client_cfg();
-                println!(
-                    "active profile: {}",
-                    cfg.active.as_deref().unwrap_or("(none)")
-                );
-                println!("client_id: {}", client_id());
-                match get(client, &format!("{base}/v1/server/info"), &[]) {
-                    Ok(v) => println!("server: {}", serde_json::to_string(&v).unwrap_or_default()),
-                    Err(e) => println!("server: unreachable ({e})"),
+                let id = client_id();
+                match (
+                    cli.json,
+                    get(client, &format!("{base}/v1/server/info"), &[]),
+                ) {
+                    (true, Ok(server)) => {
+                        println!(
+                            "{}",
+                            serde_json::json!({
+                                "endpoint": base,
+                                "active_profile": cfg.active,
+                                "client_id": id,
+                                "server": server,
+                            })
+                        );
+                    }
+                    (true, Err(e)) => {
+                        println!(
+                            "{}",
+                            serde_json::json!({
+                                "endpoint": base,
+                                "active_profile": cfg.active,
+                                "client_id": id,
+                                "server_error": e.to_json(),
+                            })
+                        );
+                    }
+                    (false, Ok(v)) => {
+                        println!("endpoint: {base}");
+                        println!(
+                            "active profile: {}",
+                            cfg.active.as_deref().unwrap_or("(none)")
+                        );
+                        println!("client_id: {id}");
+                        println!("server: {}", serde_json::to_string(&v).unwrap_or_default());
+                    }
+                    (false, Err(e)) => {
+                        println!("endpoint: {base}");
+                        println!(
+                            "active profile: {}",
+                            cfg.active.as_deref().unwrap_or("(none)")
+                        );
+                        println!("client_id: {id}");
+                        println!("server: unreachable ({})", e.display_message());
+                    }
                 }
             }
         },
-        Cmd::Serve { action } => return serve_cmd(action),
+        Cmd::Serve { action } => return serve_cmd(action).map_err(Into::into),
     }
     Ok(())
 }
@@ -917,7 +1065,7 @@ fn upload_path(
     full: bool,
     resend_all: bool,
     json: bool,
-) -> Result<String, String> {
+) -> CliResult<String> {
     use std::io::Write;
     let root = std::path::Path::new(target);
     let client_id = client_id(); // stable UUID identity, not the hostname
@@ -1058,7 +1206,7 @@ fn wait_for_job(
     base: &str,
     job_id: &str,
     json: bool,
-) -> Result<(), String> {
+) -> CliResult<()> {
     let v = poll_job_until_done(
         || get_job(client, base, job_id),
         || std::thread::sleep(std::time::Duration::from_millis(1000)),
@@ -1080,8 +1228,8 @@ const JOB_WAIT_MAX_TRANSIENT_ERRORS: usize = 300;
 
 #[derive(Debug)]
 enum JobPollError {
-    Transient(String),
-    Terminal(String),
+    Transient(CliError),
+    Terminal(CliError),
 }
 
 fn get_job(
@@ -1091,11 +1239,11 @@ fn get_job(
 ) -> Result<Value, JobPollError> {
     let resp = with_auth(client.get(format!("{base}/v1/jobs/{job_id}")))
         .send()
-        .map_err(|e| JobPollError::Transient(e.to_string()))?;
+        .map_err(|e| JobPollError::Transient(CliError::request(e.to_string())))?;
     parse(resp).map_err(JobPollError::Terminal)
 }
 
-fn poll_job_until_done<F, S>(mut poll: F, mut sleep: S) -> Result<Value, String>
+fn poll_job_until_done<F, S>(mut poll: F, mut sleep: S) -> CliResult<Value>
 where
     F: FnMut() -> Result<Value, JobPollError>,
     S: FnMut(),
@@ -1110,9 +1258,9 @@ where
             Err(JobPollError::Transient(e)) => {
                 transient_errors += 1;
                 if transient_errors > JOB_WAIT_MAX_TRANSIENT_ERRORS {
-                    return Err(format!(
+                    return Err(CliError::request(format!(
                         "job poll failed after {JOB_WAIT_MAX_TRANSIENT_ERRORS} retries: {e}"
-                    ));
+                    )));
                 }
                 sleep();
                 continue;
@@ -1122,10 +1270,13 @@ where
         match v["status"].as_str().unwrap_or("") {
             "succeeded" => return Ok(v),
             "failed" | "cancelled" => {
-                return Err(format!(
-                    "job {}: {}",
-                    v["status"].as_str().unwrap_or("?"),
-                    v["error"].as_str().unwrap_or("")
+                return Err(CliError::new(
+                    "job_failed",
+                    format!(
+                        "job {}: {}",
+                        v["status"].as_str().unwrap_or("?"),
+                        v["error"].as_str().unwrap_or("")
+                    ),
                 ));
             }
             _ => sleep(),
@@ -1146,7 +1297,7 @@ fn remove_connector(
     target: &str,
     yes: bool,
     json: bool,
-) -> Result<(), String> {
+) -> CliResult<()> {
     // remove is destructive (drops the index, artifacts, and all metadata); confirm unless -y.
     if !yes
         && !confirm(&format!(
@@ -1197,7 +1348,7 @@ fn tree(
     path: &str,
     depth: u32,
     prefix: &str,
-) -> Result<(), String> {
+) -> CliResult<()> {
     if depth == 0 {
         return Ok(());
     }
@@ -1228,7 +1379,7 @@ fn tree_json(
     base: &str,
     path: &str,
     depth: u32,
-) -> Result<Value, String> {
+) -> CliResult<Value> {
     let mut root = get(
         client,
         &format!("{base}/v1/ls"),
@@ -1254,9 +1405,9 @@ fn expand_tree_entries<F>(
     entries: Vec<Value>,
     depth: u32,
     fetch_child: &mut F,
-) -> Result<Vec<Value>, String>
+) -> CliResult<Vec<Value>>
 where
-    F: FnMut(&str) -> Result<Value, String>,
+    F: FnMut(&str) -> CliResult<Value>,
 {
     if depth == 0 {
         return Ok(Vec::new());
@@ -1406,51 +1557,27 @@ fn pid_alive(pid: u32) -> bool {
         .unwrap_or(false)
 }
 
-fn get(
-    client: &reqwest::blocking::Client,
-    url: &str,
-    q: &[(&str, String)],
-) -> Result<Value, String> {
+fn get(client: &reqwest::blocking::Client, url: &str, q: &[(&str, String)]) -> CliResult<Value> {
     let resp = with_auth(client.get(url).query(q))
         .send()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| CliError::request(e.to_string()))?;
     parse(resp)
 }
 
-fn post(client: &reqwest::blocking::Client, url: &str, body: &Value) -> Result<Value, String> {
+fn post(client: &reqwest::blocking::Client, url: &str, body: &Value) -> CliResult<Value> {
     let resp = with_auth(client.post(url).json(body))
         .send()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| CliError::request(e.to_string()))?;
     parse(resp)
 }
 
-fn parse(resp: reqwest::blocking::Response) -> Result<Value, String> {
+fn parse(resp: reqwest::blocking::Response) -> CliResult<Value> {
     let status = resp.status();
-    let v: Value = resp.json().map_err(|e| e.to_string())?;
+    let v: Value = resp
+        .json()
+        .map_err(|e| CliError::invalid_response(e.to_string()))?;
     if !status.is_success() {
-        // The server returns a stable {code, detail, suggestions: [...]} envelope
-        // for every error (see api/app.py _http_exc). Surface all three so users
-        // see the recovery hint without having to read --json output.
-        let code = v.get("code").and_then(|c| c.as_str()).unwrap_or("");
-        let detail = v
-            .get("detail")
-            .and_then(|d| d.as_str())
-            .unwrap_or("request failed");
-        let suggestions: Vec<&str> = v
-            .get("suggestions")
-            .and_then(|s| s.as_array())
-            .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect())
-            .unwrap_or_default();
-        let header = if code.is_empty() {
-            format!("{status}: {detail}")
-        } else {
-            format!("{status} [{code}]: {detail}")
-        };
-        return Err(if suggestions.is_empty() {
-            header
-        } else {
-            format!("{header}\n  try: {}", suggestions.join(", "))
-        });
+        return Err(CliError::from_error_envelope(status, &v));
     }
     Ok(v)
 }
@@ -1466,13 +1593,15 @@ mod tests {
             json!({"name": "README.md", "path": "file://root/README.md", "type": "file"}),
             json!({"name": "notes", "path": "file://root/notes", "type": "dir"}),
         ];
-        let mut fetch_child = |path: &str| match path {
-            "file://root/notes" => Ok(json!({
-                "entries": [
-                    {"name": "search.md", "path": "file://root/notes/search.md", "type": "file"}
-                ]
-            })),
-            _ => Err(format!("unexpected path {path}")),
+        let mut fetch_child = |path: &str| -> CliResult<Value> {
+            match path {
+                "file://root/notes" => Ok(json!({
+                    "entries": [
+                        {"name": "search.md", "path": "file://root/notes/search.md", "type": "file"}
+                    ]
+                })),
+                _ => Err(format!("unexpected path {path}").into()),
+            }
         };
 
         let expanded = expand_tree_entries(root_entries, 2, &mut fetch_child).unwrap();
@@ -1488,7 +1617,7 @@ mod tests {
     fn expand_tree_entries_respects_depth_one() {
         let root_entries =
             vec![json!({"name": "notes", "path": "file://root/notes", "type": "dir"})];
-        let mut fetch_child = |_path: &str| -> Result<Value, String> {
+        let mut fetch_child = |_path: &str| -> CliResult<Value> {
             panic!("depth one should not fetch child directories")
         };
 
@@ -1509,6 +1638,32 @@ mod tests {
     }
 
     #[test]
+    fn cli_error_preserves_server_envelope_for_json() {
+        let err = CliError::from_error_envelope(
+            reqwest::StatusCode::UNAUTHORIZED,
+            &json!({
+                "code": "unauthorized",
+                "detail": "missing or invalid bearer token",
+                "suggestions": ["set a profile token"]
+            }),
+        );
+
+        assert_eq!(
+            err.to_json(),
+            json!({
+                "code": "unauthorized",
+                "detail": "missing or invalid bearer token",
+                "suggestions": ["set a profile token"],
+                "status": 401
+            })
+        );
+        assert_eq!(
+            err.display_message(),
+            "401 Unauthorized [unauthorized]: missing or invalid bearer token\n  try: set a profile token"
+        );
+    }
+
+    #[test]
     fn poll_job_retries_transient_errors_until_success() {
         let mut calls = 0;
         let mut sleeps = 0;
@@ -1517,7 +1672,9 @@ mod tests {
             || {
                 calls += 1;
                 if calls < 3 {
-                    Err(JobPollError::Transient("connection reset".to_string()))
+                    Err(JobPollError::Transient(CliError::request(
+                        "connection reset",
+                    )))
                 } else {
                     Ok(json!({
                         "status": "succeeded",
@@ -1543,14 +1700,15 @@ mod tests {
         let mut sleeps = 0;
 
         let err = poll_job_until_done(
-            || Err(JobPollError::Terminal("401 [unauthorized]".to_string())),
+            || Err(JobPollError::Terminal(CliError::new("unauthorized", "401"))),
             || {
                 sleeps += 1;
             },
         )
         .unwrap_err();
 
-        assert_eq!(err, "401 [unauthorized]");
+        assert_eq!(err.code, "unauthorized");
+        assert_eq!(err.detail, "401");
         assert_eq!(sleeps, 0);
     }
 
