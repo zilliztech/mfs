@@ -982,7 +982,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
         Cmd::Remove { target, yes } => {
             return remove_connector(client, base, target, *yes, cli.json)
         }
-        Cmd::Profile { action } => return profile_cmd(action),
+        Cmd::Profile { action } => return profile_cmd(action, cli.json),
         Cmd::Config { action } => match action {
             ConfigAction::Show => {
                 let cfg = load_client_cfg()?;
@@ -1505,21 +1505,11 @@ where
     Ok(expanded)
 }
 
-fn profile_cmd(action: &ProfileAction) -> CliResult<()> {
+fn profile_cmd(action: &ProfileAction, json: bool) -> CliResult<()> {
     let mut cfg = load_client_cfg()?;
     match action {
         ProfileAction::List => {
-            for (name, p) in &cfg.profiles {
-                let marker = if cfg.active.as_deref() == Some(name) {
-                    "*"
-                } else {
-                    " "
-                };
-                println!("{marker} {name:12} {}", p.url);
-            }
-            if cfg.profiles.is_empty() {
-                println!("(no profiles; using {})", base_url()?);
-            }
+            println!("{}", profile_list_output(&cfg, &base_url()?, json));
         }
         ProfileAction::Add { name, url, token } => {
             cfg.profiles.insert(
@@ -1533,10 +1523,22 @@ fn profile_cmd(action: &ProfileAction) -> CliResult<()> {
                 cfg.active = Some(name.clone());
             }
             save_client_cfg(&cfg)?;
-            println!(
-                "profile '{name}' -> {url}{}",
-                if token.is_some() { " (token set)" } else { "" }
-            );
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "name": name,
+                        "url": url,
+                        "active_profile": cfg.active,
+                        "token_set": token.is_some(),
+                    })
+                );
+            } else {
+                println!(
+                    "profile '{name}' -> {url}{}",
+                    if token.is_some() { " (token set)" } else { "" }
+                );
+            }
         }
         ProfileAction::Use { name } => {
             if !cfg.profiles.contains_key(name) {
@@ -1547,10 +1549,54 @@ fn profile_cmd(action: &ProfileAction) -> CliResult<()> {
             }
             cfg.active = Some(name.clone());
             save_client_cfg(&cfg)?;
-            println!("active profile: {name}");
+            if json {
+                println!("{}", serde_json::json!({"active_profile": name}));
+            } else {
+                println!("active profile: {name}");
+            }
         }
     }
     Ok(())
+}
+
+fn profile_list_output(cfg: &ClientConfig, endpoint: &str, json: bool) -> String {
+    if json {
+        let profiles: Vec<Value> = cfg
+            .profiles
+            .iter()
+            .map(|(name, p)| {
+                serde_json::json!({
+                    "name": name,
+                    "url": p.url,
+                    "active": cfg.active.as_deref() == Some(name.as_str()),
+                    "token_set": p.token.as_deref().is_some_and(|t| !t.is_empty()),
+                })
+            })
+            .collect();
+        return serde_json::json!({
+            "active_profile": cfg.active,
+            "endpoint": endpoint,
+            "profiles": profiles,
+        })
+        .to_string();
+    }
+
+    if cfg.profiles.is_empty() {
+        return format!("(no profiles; using {endpoint})");
+    }
+
+    cfg.profiles
+        .iter()
+        .map(|(name, p)| {
+            let marker = if cfg.active.as_deref() == Some(name) {
+                "*"
+            } else {
+                " "
+            };
+            format!("{marker} {name:12} {}", p.url)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn serve_cmd(action: &ServeAction) -> Result<(), String> {
@@ -1768,6 +1814,44 @@ mod tests {
         let token = resolve_profile_token_with("env:MFS_TEST_MISSING", |_| None);
 
         assert_eq!(token, "");
+    }
+
+    #[test]
+    fn profile_list_json_handles_empty_profiles() {
+        let cfg = ClientConfig::default();
+
+        let out = profile_list_output(&cfg, "http://127.0.0.1:13619", true);
+        let v: Value = serde_json::from_str(&out).unwrap();
+
+        assert_eq!(v["active_profile"], Value::Null);
+        assert_eq!(v["endpoint"], "http://127.0.0.1:13619");
+        assert_eq!(v["profiles"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn profile_list_json_never_prints_profile_token() {
+        let secret = "profile-secret-token";
+        let mut cfg = ClientConfig {
+            active: Some("prod".to_string()),
+            client_id: Some("cid-test".to_string()),
+            profiles: BTreeMap::new(),
+        };
+        cfg.profiles.insert(
+            "prod".to_string(),
+            Profile {
+                url: "https://mfs.example.com".to_string(),
+                token: Some(secret.to_string()),
+            },
+        );
+
+        let out = profile_list_output(&cfg, "https://mfs.example.com", true);
+        let v: Value = serde_json::from_str(&out).unwrap();
+
+        assert!(!out.contains(secret));
+        assert_eq!(v["active_profile"], "prod");
+        assert_eq!(v["profiles"][0]["name"], "prod");
+        assert_eq!(v["profiles"][0]["active"], true);
+        assert_eq!(v["profiles"][0]["token_set"], true);
     }
 
     #[test]
