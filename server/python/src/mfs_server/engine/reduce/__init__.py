@@ -41,6 +41,11 @@ from .worker import run_summary_worker
 
 __all__ = ["ReduceCoordinator", "build_reduce_subsystem"]
 
+# Map task statuses that are final and will NOT flow through the EmbedConsumer again, so
+# crash recovery must pre-decrement their parent's pending for every one of them — not just
+# 'succeeded', else a failed/cancelled/skipped child would wedge the dir forever.
+_TERMINAL_TASK_STATUSES = ("succeeded", "failed", "cancelled", "skipped")
+
 
 class ReduceCoordinator:
     def __init__(
@@ -71,6 +76,10 @@ class ReduceCoordinator:
         # per-job completion: {"total": int, "persisted": int, "event": asyncio.Event}
         self._completion: dict[str, dict] = {}
         self._file_summary_candidates: dict[str, list] = {}  # file_summary opt-in (§6.4.7)
+        # Map files whose success landed BEFORE on_sync_done (the global-claim pump can finalize
+        # a task while enumeration is still running). Their parent decrement is replayed at
+        # sync-done so it is never lost (§6.4.4).
+        self._early_succeeded: dict[str, list[str]] = {}
         self._tasks: list[asyncio.Task] = []
 
     # --- lifecycle ---
@@ -123,7 +132,11 @@ class ReduceCoordinator:
         builder = self.builders.get(job_id)
         if builder is None:
             return
-        builder.finalize(self.queue)
+        builder.finalize(self.queue)  # flips sync_done; pushes already-complete (empty) leaves
+        # Replay any file successes that landed before enumeration finished: now that the tree
+        # is complete their parent decrements can be applied (and may push a now-ready leaf).
+        for relpath in self._early_succeeded.pop(job_id, []):
+            self._notify_parent(job_id, builder, relpath)
         st = self._completion.get(job_id)
         if st is not None:
             st["total"] = len(builder.tree)
@@ -154,7 +167,14 @@ class ReduceCoordinator:
             return
         # otherwise a Map file task succeeded -> notify its parent dir
         if not builder.sync_done:
-            return  # more children may still be added before finalize
+            # The file finished before enumeration completed. Stash it instead of dropping the
+            # decrement; on_sync_done replays it once the tree is complete (§6.4.4).
+            self._early_succeeded.setdefault(job_id, []).append(relpath)
+            return
+        self._notify_parent(job_id, builder, relpath)
+
+    def _notify_parent(self, job_id: str, builder: DirTreeBuilder, relpath: str) -> None:
+        """Decrement a file's parent dir pending; push the parent when it reaches zero."""
         parent = posixpath.dirname(relpath) or "/"
         node = builder.tree.get(parent)
         if node is None:
@@ -214,6 +234,7 @@ class ReduceCoordinator:
         self.job_plugins.pop(job_id, None)
         self._completion.pop(job_id, None)
         self._file_summary_candidates.pop(job_id, None)
+        self._early_succeeded.pop(job_id, None)
         self.queue.evict_job(job_id)
 
     # --- crash recovery (§6.4.5) ---
@@ -239,9 +260,11 @@ class ReduceCoordinator:
         self.job_plugins[job_id] = plugin
         builder.sync_done = True
         persisted = 0
-        # files already indexed: their parent no longer waits on them
+        # files already in a terminal state: their parent no longer waits on them. ALL terminal
+        # statuses count (not just 'succeeded') — a failed/cancelled/skipped child will never
+        # flow through Map again, so leaving its pending up would wedge the dir forever.
         for uri, _, status in objects:
-            if status == "succeeded":
+            if status in _TERMINAL_TASK_STATUSES:
                 node = builder.tree.get(posixpath.dirname(uri) or "/")
                 if node is not None:
                     node.pending -= 1

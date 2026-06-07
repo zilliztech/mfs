@@ -880,10 +880,15 @@ class Engine:
                         ),
                     )
                     if ch.kind != "deleted":
-                        # accumulate the dir tree (okind passed in — no extra DB hit, §6.4.1)
-                        self._reduce.on_yield_object_change(
-                            job_id, ch.uri, plugin.object_kind_of(ch.uri)
-                        )
+                        # Accumulate the dir tree (okind passed in — no extra DB hit, §6.4.1),
+                        # but ONLY for okinds that actually flow through the EmbedConsumer. A
+                        # non-pipeline okind (binary, image with [description] off, table_schema
+                        # with [summary] off) takes the inline tail and never fires
+                        # on_embed_succeeded, so counting it would leave its parent dir's pending
+                        # stuck and the job's reduce phase would never finish.
+                        okind = plugin.object_kind_of(ch.uri)
+                        if self._routes_to_pipeline(okind):
+                            self._reduce.on_yield_object_change(job_id, ch.uri, okind)
             finally:
                 stop_hb.set()
                 hb.cancel()
