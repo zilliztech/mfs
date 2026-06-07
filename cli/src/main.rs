@@ -341,7 +341,7 @@ enum ServeAction {
 }
 
 // ---------- profile (client.toml) ----------
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Debug)]
 struct ClientConfig {
     active: Option<String>,
     /// Stable client identity (UUID), generated once. Survives hostname/container churn
@@ -353,11 +353,11 @@ struct ClientConfig {
 }
 
 /// Load (or generate + persist) the stable client_id from client.toml.
-fn client_id() -> String {
-    let mut cfg = load_client_cfg();
+fn client_id() -> CliResult<String> {
+    let mut cfg = load_client_cfg()?;
     if let Some(id) = &cfg.client_id {
         if !id.is_empty() {
-            return id.clone();
+            return Ok(id.clone());
         }
     }
     let id = std::fs::read_to_string("/proc/sys/kernel/random/uuid")
@@ -366,11 +366,11 @@ fn client_id() -> String {
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| format!("cid-{}", std::process::id()));
     cfg.client_id = Some(id.clone());
-    let _ = save_client_cfg(&cfg);
-    id
+    save_client_cfg(&cfg)?;
+    Ok(id)
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct Profile {
     url: String,
     /// Bearer token for remote auth; literal or `env:VAR`.
@@ -379,31 +379,41 @@ struct Profile {
 }
 
 /// Active Bearer token: $MFS_API_TOKEN, else the active profile's token (env: resolved).
-fn auth_token() -> Option<String> {
+fn auth_token() -> CliResult<Option<String>> {
     if let Ok(t) = std::env::var("MFS_API_TOKEN") {
         if !t.is_empty() {
-            return Some(t);
+            return Ok(Some(t));
         }
     }
-    let cfg = load_client_cfg();
-    if let Some(raw) = cfg
-        .active
-        .as_ref()
-        .and_then(|a| cfg.profiles.get(a))
-        .and_then(|p| p.token.clone())
-    {
-        return Some(match raw.strip_prefix("env:") {
-            Some(var) => std::env::var(var).unwrap_or_default(),
-            None => raw,
-        });
+    let cfg = load_client_cfg()?;
+    if let Some(active) = cfg.active.as_ref() {
+        let profile = cfg
+            .profiles
+            .get(active)
+            .ok_or_else(|| missing_profile_error(active))?;
+        if let Some(raw) = profile.token.clone() {
+            return Ok(Some(resolve_profile_token_with(&raw, |var| {
+                std::env::var(var).ok()
+            })));
+        }
     }
     // Fall back to the local server's auto-generated token: `mfs-server
     // run` writes ~/.mfs/server.token, so a CLI on the same host authenticates to its
     // loopback server with zero configuration.
-    std::fs::read_to_string(mfs_home().join("server.token"))
+    Ok(std::fs::read_to_string(mfs_home().join("server.token"))
         .ok()
         .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+        .filter(|s| !s.is_empty()))
+}
+
+fn resolve_profile_token_with<F>(raw: &str, lookup_env: F) -> String
+where
+    F: FnOnce(&str) -> Option<String>,
+{
+    match raw.strip_prefix("env:") {
+        Some(var) => lookup_env(var).unwrap_or_default(),
+        None => raw.to_string(),
+    }
 }
 
 /// A remote endpoint (non-loopback) means the server can't see local paths. Rewrite an
@@ -413,13 +423,13 @@ fn is_remote(base: &str) -> bool {
     !(base.contains("127.0.0.1") || base.contains("localhost") || base.contains("[::1]"))
 }
 
-fn remote_path(base: &str, path: &str) -> String {
+fn remote_path(base: &str, path: &str) -> CliResult<String> {
     if is_remote(base) {
         if let Ok(abs) = std::fs::canonicalize(path) {
-            return format!("file://{}{}", client_id(), abs.to_string_lossy());
+            return Ok(format!("file://{}{}", client_id()?, abs.to_string_lossy()));
         }
     }
-    path.to_string()
+    Ok(path.to_string())
 }
 
 fn uploaded_local_path_from_status(
@@ -456,24 +466,30 @@ fn uploaded_local_path_from_status(
     best.map(|(_, mapped)| mapped)
 }
 
-fn resolve_path_arg(client: &reqwest::blocking::Client, base: &str, path: &str) -> String {
+fn resolve_path_arg(
+    client: &reqwest::blocking::Client,
+    base: &str,
+    path: &str,
+) -> CliResult<String> {
     if let Ok(abs) = std::fs::canonicalize(path) {
         let abs_path = abs.to_string_lossy().to_string();
         if let Ok(status) = get(client, &format!("{base}/v1/status"), &[]) {
-            if let Some(mapped) = uploaded_local_path_from_status(&status, &client_id(), &abs_path)
+            if let Some(mapped) = uploaded_local_path_from_status(&status, &client_id()?, &abs_path)
             {
-                return mapped;
+                return Ok(mapped);
             }
         }
     }
     remote_path(base, path)
 }
 
-fn with_auth(rb: reqwest::blocking::RequestBuilder) -> reqwest::blocking::RequestBuilder {
-    match auth_token() {
+fn with_auth(
+    rb: reqwest::blocking::RequestBuilder,
+) -> CliResult<reqwest::blocking::RequestBuilder> {
+    Ok(match auth_token()? {
         Some(t) if !t.is_empty() => rb.bearer_auth(t),
         _ => rb,
-    }
+    })
 }
 
 fn mfs_home() -> PathBuf {
@@ -487,38 +503,94 @@ fn client_cfg_path() -> PathBuf {
     mfs_home().join("client.toml")
 }
 
-fn load_client_cfg() -> ClientConfig {
+fn client_config_error(code: &str, detail: impl Into<String>) -> CliError {
+    CliError::new(code, detail)
+}
+
+fn parse_client_cfg(text: &str, path: &std::path::Path) -> CliResult<ClientConfig> {
+    toml::from_str(text).map_err(|e| {
+        client_config_error(
+            "client_config_invalid",
+            format!("parse {}: {e}", path.display()),
+        )
+    })
+}
+
+fn load_client_cfg() -> CliResult<ClientConfig> {
     let p = client_cfg_path();
-    std::fs::read_to_string(p)
-        .ok()
-        .and_then(|s| toml::from_str(&s).ok())
-        .unwrap_or_default()
-}
-
-fn save_client_cfg(cfg: &ClientConfig) -> Result<(), String> {
-    let dir = mfs_home();
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let s = toml::to_string_pretty(cfg).map_err(|e| e.to_string())?;
-    std::fs::write(client_cfg_path(), s).map_err(|e| e.to_string())
-}
-
-fn base_url() -> String {
-    if let Ok(u) = std::env::var("MFS_API_URL") {
-        return u;
+    match std::fs::read_to_string(&p) {
+        Ok(s) => parse_client_cfg(&s, &p),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(ClientConfig::default()),
+        Err(e) => Err(client_config_error(
+            "client_config_error",
+            format!("read {}: {e}", p.display()),
+        )),
     }
-    let cfg = load_client_cfg();
-    if let Some(active) = &cfg.active {
-        if let Some(p) = cfg.profiles.get(active) {
-            return p.url.clone();
+}
+
+fn save_client_cfg(cfg: &ClientConfig) -> CliResult<()> {
+    let dir = mfs_home();
+    std::fs::create_dir_all(&dir).map_err(|e| {
+        client_config_error(
+            "client_config_error",
+            format!("create {}: {e}", dir.display()),
+        )
+    })?;
+    let s = toml::to_string_pretty(cfg)
+        .map_err(|e| client_config_error("client_config_error", e.to_string()))?;
+    let p = client_cfg_path();
+    std::fs::write(&p, s).map_err(|e| {
+        client_config_error("client_config_error", format!("write {}: {e}", p.display()))
+    })
+}
+
+fn missing_profile_error(name: &str) -> CliError {
+    CliError::new(
+        "client_profile_missing",
+        format!("active profile not found in client config: {name}"),
+    )
+}
+
+fn profile_url_from_cfg(cfg: &ClientConfig) -> CliResult<Option<String>> {
+    match cfg.active.as_ref() {
+        Some(active) => {
+            let p = cfg
+                .profiles
+                .get(active)
+                .ok_or_else(|| missing_profile_error(active))?;
+            Ok(Some(p.url.clone()))
+        }
+        None => Ok(None),
+    }
+}
+
+fn base_url() -> CliResult<String> {
+    if let Ok(u) = std::env::var("MFS_API_URL") {
+        if !u.is_empty() {
+            return Ok(u);
         }
     }
-    "http://127.0.0.1:13619".to_string()
+    let cfg = load_client_cfg()?;
+    if let Some(url) = profile_url_from_cfg(&cfg)? {
+        return Ok(url);
+    }
+    Ok("http://127.0.0.1:13619".to_string())
 }
 
 fn main() {
     let cli = Cli::parse();
     let client = reqwest::blocking::Client::new();
-    let base = base_url();
+    let base = match base_url() {
+        Ok(base) => base,
+        Err(e) => {
+            if cli.json {
+                println!("{}", e.to_json());
+            } else {
+                eprintln!("error: {}", e.display_message());
+            }
+            std::process::exit(1);
+        }
+    };
     if let Err(e) = run(&cli, &client, &base) {
         if cli.json {
             println!("{}", e.to_json());
@@ -648,7 +720,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                 ("top_k", top_k.to_string()),
             ];
             if let Some(p) = path {
-                q.push(("path", resolve_path_arg(client, base, p)));
+                q.push(("path", resolve_path_arg(client, base, p)?));
             }
             if let Some(k) = kind {
                 q.push(("kind", k.clone()));
@@ -686,7 +758,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                 &format!("{base}/v1/grep"),
                 &[
                     ("pattern", pattern.clone()),
-                    ("path", resolve_path_arg(client, base, path)),
+                    ("path", resolve_path_arg(client, base, path)?),
                 ],
             )?;
             if cli.json {
@@ -710,7 +782,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             let v = get(
                 client,
                 &format!("{base}/v1/ls"),
-                &[("path", resolve_path_arg(client, base, path))],
+                &[("path", resolve_path_arg(client, base, path)?)],
             )?;
             if cli.json {
                 println!("{v}");
@@ -719,7 +791,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             print_entries(&v);
         }
         Cmd::Tree { path, depth } => {
-            let rp = resolve_path_arg(client, base, path);
+            let rp = resolve_path_arg(client, base, path)?;
             if cli.json {
                 let v = tree_json(client, base, &rp, *depth)?;
                 println!("{v}");
@@ -736,7 +808,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             peek,
             skim,
         } => {
-            let mut q = vec![("path", resolve_path_arg(client, base, path))];
+            let mut q = vec![("path", resolve_path_arg(client, base, path)?)];
             if let Some(r) = range {
                 q.push(("range", r.clone()));
             }
@@ -768,7 +840,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                 client,
                 &format!("{base}/v1/head"),
                 &[
-                    ("path", resolve_path_arg(client, base, path)),
+                    ("path", resolve_path_arg(client, base, path)?),
                     ("n", lines.to_string()),
                 ],
             )?;
@@ -783,7 +855,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                 client,
                 &format!("{base}/v1/tail"),
                 &[
-                    ("path", resolve_path_arg(client, base, path)),
+                    ("path", resolve_path_arg(client, base, path)?),
                     ("n", lines.to_string()),
                 ],
             )?;
@@ -800,7 +872,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             let v = get(
                 client,
                 &format!("{base}/v1/export"),
-                &[("path", resolve_path_arg(client, base, path))],
+                &[("path", resolve_path_arg(client, base, path)?)],
             )?;
             let text = v["content"].as_str().unwrap_or("");
             let partial = v["partial"].as_bool().unwrap_or(false);
@@ -909,11 +981,11 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
         Cmd::Remove { target, yes } => {
             return remove_connector(client, base, target, *yes, cli.json)
         }
-        Cmd::Profile { action } => return profile_cmd(action).map_err(Into::into),
+        Cmd::Profile { action } => return profile_cmd(action),
         Cmd::Config { action } => match action {
             ConfigAction::Show => {
-                let cfg = load_client_cfg();
-                let id = client_id();
+                let cfg = load_client_cfg()?;
+                let id = client_id()?;
                 match (
                     cli.json,
                     get(client, &format!("{base}/v1/server/info"), &[]),
@@ -1068,8 +1140,8 @@ fn upload_path(
 ) -> CliResult<String> {
     use std::io::Write;
     let root = std::path::Path::new(target);
-    let client_id = client_id(); // stable UUID identity, not the hostname
-                                 // absolute path is the connector's stable identity file://<client_id><abs>
+    let client_id = client_id()?; // stable UUID identity, not the hostname
+                                  // absolute path is the connector's stable identity file://<client_id><abs>
     let abs_root = std::fs::canonicalize(root)
         .map_err(|e| e.to_string())?
         .to_string_lossy()
@@ -1184,9 +1256,9 @@ fn upload_path(
                 ("full", &full.to_string()),
             ])
             .body(data),
-    )
+    )?
     .send()
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| CliError::request(e.to_string()))?;
     let v = parse(resp)?;
     if !json {
         println!(
@@ -1238,6 +1310,7 @@ fn get_job(
     job_id: &str,
 ) -> Result<Value, JobPollError> {
     let resp = with_auth(client.get(format!("{base}/v1/jobs/{job_id}")))
+        .map_err(JobPollError::Terminal)?
         .send()
         .map_err(|e| JobPollError::Transient(CliError::request(e.to_string())))?;
     parse(resp).map_err(JobPollError::Terminal)
@@ -1311,14 +1384,14 @@ fn remove_connector(
         }
         return Ok(());
     }
-    let target = resolve_path_arg(client, base, target); // local path -> upload identity when available
+    let target = resolve_path_arg(client, base, target)?; // local path -> upload identity when available
     let resp = with_auth(
         client
             .delete(format!("{base}/v1/connectors"))
             .query(&[("target", target.as_str())]),
-    )
+    )?
     .send()
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| CliError::request(e.to_string()))?;
     let v = parse(resp)?;
     println!("{}", remove_output(&v, json));
     Ok(())
@@ -1431,8 +1504,8 @@ where
     Ok(expanded)
 }
 
-fn profile_cmd(action: &ProfileAction) -> Result<(), String> {
-    let mut cfg = load_client_cfg();
+fn profile_cmd(action: &ProfileAction) -> CliResult<()> {
+    let mut cfg = load_client_cfg()?;
     match action {
         ProfileAction::List => {
             for (name, p) in &cfg.profiles {
@@ -1444,7 +1517,7 @@ fn profile_cmd(action: &ProfileAction) -> Result<(), String> {
                 println!("{marker} {name:12} {}", p.url);
             }
             if cfg.profiles.is_empty() {
-                println!("(no profiles; using {})", base_url());
+                println!("(no profiles; using {})", base_url()?);
             }
         }
         ProfileAction::Add { name, url, token } => {
@@ -1466,7 +1539,10 @@ fn profile_cmd(action: &ProfileAction) -> Result<(), String> {
         }
         ProfileAction::Use { name } => {
             if !cfg.profiles.contains_key(name) {
-                return Err(format!("no such profile: {name}"));
+                return Err(CliError::new(
+                    "client_profile_missing",
+                    format!("no such profile: {name}"),
+                ));
             }
             cfg.active = Some(name.clone());
             save_client_cfg(&cfg)?;
@@ -1558,14 +1634,14 @@ fn pid_alive(pid: u32) -> bool {
 }
 
 fn get(client: &reqwest::blocking::Client, url: &str, q: &[(&str, String)]) -> CliResult<Value> {
-    let resp = with_auth(client.get(url).query(q))
+    let resp = with_auth(client.get(url).query(q))?
         .send()
         .map_err(|e| CliError::request(e.to_string()))?;
     parse(resp)
 }
 
 fn post(client: &reqwest::blocking::Client, url: &str, body: &Value) -> CliResult<Value> {
-    let resp = with_auth(client.post(url).json(body))
+    let resp = with_auth(client.post(url).json(body))?
         .send()
         .map_err(|e| CliError::request(e.to_string()))?;
     parse(resp)
@@ -1661,6 +1737,36 @@ mod tests {
             err.display_message(),
             "401 Unauthorized [unauthorized]: missing or invalid bearer token\n  try: set a profile token"
         );
+    }
+
+    #[test]
+    fn parse_client_cfg_reports_invalid_toml() {
+        let err =
+            parse_client_cfg("active = [\n", std::path::Path::new("/tmp/client.toml")).unwrap_err();
+
+        assert_eq!(err.code, "client_config_invalid");
+        assert!(err.detail.contains("/tmp/client.toml"));
+    }
+
+    #[test]
+    fn active_profile_must_exist() {
+        let cfg = ClientConfig {
+            active: Some("missing".to_string()),
+            client_id: Some("cid-test".to_string()),
+            profiles: BTreeMap::new(),
+        };
+
+        let err = profile_url_from_cfg(&cfg).unwrap_err();
+
+        assert_eq!(err.code, "client_profile_missing");
+        assert!(err.detail.contains("missing"));
+    }
+
+    #[test]
+    fn missing_env_profile_token_resolves_to_empty_token() {
+        let token = resolve_profile_token_with("env:MFS_TEST_MISSING", |_| None);
+
+        assert_eq!(token, "");
     }
 
     #[test]
