@@ -7,9 +7,36 @@ quantized BGE-M3 multilingual export.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
+from contextlib import suppress
 from functools import partial
 from pathlib import Path
+
+
+def _infer_max_length(session, default: int = 8192) -> int:
+    try:
+        for inp in session.get_inputs():
+            if inp.name != "input_ids":
+                continue
+            shape = getattr(inp, "shape", None) or []
+            if len(shape) > 1 and isinstance(shape[1], int) and shape[1] > 0:
+                return min(default, shape[1])
+    except Exception:
+        pass
+    return default
+
+
+def _tokenizer_config_max_length(path: str | None, default: int) -> int:
+    if not path:
+        return default
+    try:
+        value = json.loads(Path(path).read_text()).get("model_max_length")
+    except Exception:
+        return default
+    if isinstance(value, int) and 0 < value < 1_000_000_000:
+        return min(default, value)
+    return default
 
 
 class OnnxEmbedding:
@@ -47,14 +74,18 @@ class OnnxEmbedding:
         # Try offline first (local cache only, no network requests).
         # local_files_only=True skips HEAD calls — critical for sandboxed /
         # offline environments where DNS is blocked.
-        tok_path, model_path = self._download_model_files(model, hf_hub_download, list_repo_files)
+        tok_path, model_path, tok_cfg_path = self._download_model_files(
+            model, hf_hub_download, list_repo_files
+        )
 
         self._tokenizer = Tokenizer.from_file(tok_path)
         self._tokenizer.enable_padding(pad_id=1, pad_token="<pad>")
-        self._tokenizer.enable_truncation(max_length=8192)
 
         self._session = ort.InferenceSession(model_path)
+        self._input_names = [i.name for i in self._session.get_inputs()]
         self._output_names = [o.name for o in self._session.get_outputs()]
+        max_length = _tokenizer_config_max_length(tok_cfg_path, _infer_max_length(self._session))
+        self._tokenizer.enable_truncation(max_length=max_length)
         self._has_dense_vecs = "dense_vecs" in self._output_names
         self._model = model
 
@@ -85,17 +116,22 @@ class OnnxEmbedding:
                     continue
             if model_path is None:
                 raise FileNotFoundError("No cached ONNX model found")
-            # Best-effort: cache the external data file too
-            import contextlib
-
-            with contextlib.suppress(Exception):
+            tok_cfg_path = None
+            with suppress(Exception):
                 hf_hub_download(model, onnx_file + "_data", local_files_only=True, **kw)
-            return tok_path, model_path
+            with suppress(Exception):
+                tok_cfg_path = hf_hub_download(
+                    model, "tokenizer_config.json", local_files_only=True, **kw
+                )
+            return tok_path, model_path, tok_cfg_path
         except Exception:
             pass
 
         # --- Attempt 2: online download (first run or cache evicted) ---
         tok_path = hf_hub_download(model, "tokenizer.json", **kw)
+        tok_cfg_path = None
+        with suppress(Exception):
+            tok_cfg_path = hf_hub_download(model, "tokenizer_config.json", **kw)
         repo_files = list_repo_files(model)
         onnx_files = [f for f in repo_files if f.endswith(".onnx")]
         if not onnx_files:
@@ -112,7 +148,7 @@ class OnnxEmbedding:
         if data_file in repo_files:
             hf_hub_download(model, data_file, **kw)
         model_path = hf_hub_download(model, onnx_file, **kw)
-        return tok_path, model_path
+        return tok_path, model_path, tok_cfg_path
 
     @property
     def model_name(self) -> str:
@@ -141,6 +177,8 @@ class OnnxEmbedding:
             "input_ids": input_ids,
             "attention_mask": attention_mask,
         }
+        if "token_type_ids" in self._input_names:
+            feed["token_type_ids"] = np.zeros_like(input_ids)
         outputs = self._session.run(None, feed)
 
         if self._has_dense_vecs:
