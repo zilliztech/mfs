@@ -1943,6 +1943,24 @@ class Engine:
         await plugin.on_object_indexed(relpath)
 
     # --- search ---
+    async def _has_registered_search_scope(self, connector_uri: str | None) -> bool:
+        """Return whether a search scope can match registered connector-owned chunks.
+
+        Searching an empty namespace, or a path that resolves to an unregistered connector
+        URI, cannot produce hits. Fast-pathing that case avoids cold-starting the query
+        embedder for a guaranteed-empty result.
+        """
+        if connector_uri is None:
+            row = await self.meta.fetchone(
+                "SELECT id FROM connectors WHERE namespace_id=? LIMIT 1", (self.ns,)
+            )
+        else:
+            row = await self.meta.fetchone(
+                "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=? LIMIT 1",
+                (self.ns, connector_uri),
+            )
+        return row is not None
+
     async def search(
         self,
         query: str,
@@ -1964,6 +1982,8 @@ class Engine:
         effective = top_k * self.cfg.search.over_fetch_ratio if mode == "hybrid" else top_k
         if effective > MILVUS_MAX_RESULT_WINDOW:
             raise ValueError("top_k_too_large")
+        if not await self._has_registered_search_scope(connector_uri):
+            return []
         expr = build_filter(self.ns, connector_uri, object_prefix, chunk_kinds)
         if mode == "keyword":
             hits = await asyncio.to_thread(self.milvus.sparse_search, self.ns, query, top_k, expr)
