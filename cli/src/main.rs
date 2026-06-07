@@ -1059,22 +1059,68 @@ fn wait_for_job(
     job_id: &str,
     json: bool,
 ) -> Result<(), String> {
+    let v = poll_job_until_done(
+        || get_job(client, base, job_id),
+        || std::thread::sleep(std::time::Duration::from_millis(1000)),
+    )?;
+    if json {
+        println!("{v}");
+    } else {
+        println!(
+            "done: {} of {} objects indexed, {} failed",
+            v["succeeded_objects"].as_i64().unwrap_or(0),
+            v["total_objects"].as_i64().unwrap_or(0),
+            v["failed_objects"].as_i64().unwrap_or(0)
+        );
+    }
+    Ok(())
+}
+
+const JOB_WAIT_MAX_TRANSIENT_ERRORS: usize = 300;
+
+#[derive(Debug)]
+enum JobPollError {
+    Transient(String),
+    Terminal(String),
+}
+
+fn get_job(
+    client: &reqwest::blocking::Client,
+    base: &str,
+    job_id: &str,
+) -> Result<Value, JobPollError> {
+    let resp = with_auth(client.get(format!("{base}/v1/jobs/{job_id}")))
+        .send()
+        .map_err(|e| JobPollError::Transient(e.to_string()))?;
+    parse(resp).map_err(JobPollError::Terminal)
+}
+
+fn poll_job_until_done<F, S>(mut poll: F, mut sleep: S) -> Result<Value, String>
+where
+    F: FnMut() -> Result<Value, JobPollError>,
+    S: FnMut(),
+{
+    let mut transient_errors = 0;
     loop {
-        let v = get(client, &format!("{base}/v1/jobs/{job_id}"), &[])?;
-        match v["status"].as_str().unwrap_or("") {
-            "succeeded" => {
-                if json {
-                    println!("{v}");
-                } else {
-                    println!(
-                        "done: {} of {} objects indexed, {} failed",
-                        v["succeeded_objects"].as_i64().unwrap_or(0),
-                        v["total_objects"].as_i64().unwrap_or(0),
-                        v["failed_objects"].as_i64().unwrap_or(0)
-                    );
-                }
-                return Ok(());
+        let v = match poll() {
+            Ok(v) => {
+                transient_errors = 0;
+                v
             }
+            Err(JobPollError::Transient(e)) => {
+                transient_errors += 1;
+                if transient_errors > JOB_WAIT_MAX_TRANSIENT_ERRORS {
+                    return Err(format!(
+                        "job poll failed after {JOB_WAIT_MAX_TRANSIENT_ERRORS} retries: {e}"
+                    ));
+                }
+                sleep();
+                continue;
+            }
+            Err(JobPollError::Terminal(e)) => return Err(e),
+        };
+        match v["status"].as_str().unwrap_or("") {
+            "succeeded" => return Ok(v),
             "failed" | "cancelled" => {
                 return Err(format!(
                     "job {}: {}",
@@ -1082,7 +1128,7 @@ fn wait_for_job(
                     v["error"].as_str().unwrap_or("")
                 ));
             }
-            _ => std::thread::sleep(std::time::Duration::from_millis(1000)),
+            _ => sleep(),
         }
     }
 }
@@ -1460,6 +1506,52 @@ mod tests {
             serde_json::from_str::<Value>(&remove_output(&response, true)).unwrap(),
             response
         );
+    }
+
+    #[test]
+    fn poll_job_retries_transient_errors_until_success() {
+        let mut calls = 0;
+        let mut sleeps = 0;
+
+        let result = poll_job_until_done(
+            || {
+                calls += 1;
+                if calls < 3 {
+                    Err(JobPollError::Transient("connection reset".to_string()))
+                } else {
+                    Ok(json!({
+                        "status": "succeeded",
+                        "succeeded_objects": 3,
+                        "total_objects": 3,
+                        "failed_objects": 0
+                    }))
+                }
+            },
+            || {
+                sleeps += 1;
+            },
+        )
+        .unwrap();
+
+        assert_eq!(result["status"], "succeeded");
+        assert_eq!(calls, 3);
+        assert_eq!(sleeps, 2);
+    }
+
+    #[test]
+    fn poll_job_does_not_retry_terminal_errors() {
+        let mut sleeps = 0;
+
+        let err = poll_job_until_done(
+            || Err(JobPollError::Terminal("401 [unauthorized]".to_string())),
+            || {
+                sleeps += 1;
+            },
+        )
+        .unwrap_err();
+
+        assert_eq!(err, "401 [unauthorized]");
+        assert_eq!(sleeps, 0);
     }
 
     #[test]
