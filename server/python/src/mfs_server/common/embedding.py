@@ -18,6 +18,8 @@ from ..storage.ids import cache_key, sha1_hex
 from ..storage.transformation_cache import TransformationCache
 from .embeddings import get_provider
 
+_STARTUP_PRELOAD_PROVIDERS = {"onnx", "local"}
+
 
 def encode_vec(v: list[float]) -> bytes:
     return array.array("f", v).tobytes()
@@ -36,8 +38,8 @@ class CachingEmbeddingClient:
         self.version = "1"
         self.dim = cfg.embedding.dim
         self.tx_cache = tx_cache
-        # Lazy: built on first call so the server boots even without the
-        # provider's SDK / credentials (browse / ls / cat / grep don't need it).
+        # Lazy unless the server/worker startup path explicitly preloads a local
+        # downloadable provider. Browse / ls / cat / grep callers still do not need it.
         self._provider: Any = None
         self._dim_warned = False
         self.api_calls = 0
@@ -54,14 +56,19 @@ class CachingEmbeddingClient:
             self._warn_dim_mismatch_once()
         return self._provider
 
+    def should_preload_on_server_start(self) -> bool:
+        return self.provider_name in _STARTUP_PRELOAD_PROVIDERS
+
+    def preload_provider(self) -> None:
+        self._ensure_provider()
+
     def _warn_dim_mismatch_once(self) -> None:
         """Warn (once) if cfg.embedding.dim — which names the Milvus collection — doesn't
         match the provider's actual output dim. Deferred to the first provider build (not
-        server boot) so a cold start never downloads the model just to read .dimension; the
-        provider stays lazy (browse / ls / cat need no embedding). A stale dim after a
-        provider swap still surfaces hard at search/index time via the embedding_dim_mismatch
-        envelope — this is the friendly early heads-up that fires once the model is loaded
-        anyway. Never fatal."""
+        provider preload) so lightweight Engine users do not download the model just to read
+        .dimension. A stale dim after a provider swap still surfaces hard at search/index
+        time via the embedding_dim_mismatch envelope — this is the friendly early heads-up
+        that fires once the model is loaded anyway. Never fatal."""
         if self._dim_warned:
             return
         self._dim_warned = True

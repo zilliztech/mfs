@@ -76,9 +76,9 @@ wizard to keep the local defaults:
 | Image summaries / VLM | Off |
 
 !!! note "First ONNX run"
-    The first local embedding run may download the ONNX model into
-    `$MFS_HOME/onnx-cache/`. Keep that directory if you want later indexing runs
-    to reuse the model.
+    `mfs-server run` preloads the default local ONNX embedding model. If it is
+    not already cached, startup downloads it into `$MFS_HOME/onnx-cache/`.
+    Keep that directory if you want later runs to reuse the model.
 
 By default, `mfs-server run` binds to `127.0.0.1:13619`. Leave this terminal
 open.
@@ -120,8 +120,7 @@ environment settings, see [Configuration](configuration.md).
 
 ## 4. Create a small folder to index
 
-Use a tiny folder first. This keeps the first model download and indexing run
-easy to reason about:
+Use a tiny folder first. This keeps the first indexing run easy to reason about:
 
 ```bash
 mkdir -p /tmp/mfs-quickstart/notes

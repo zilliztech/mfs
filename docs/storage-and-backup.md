@@ -51,7 +51,7 @@ image and Compose file set `MFS_HOME=/data`.
 | `$MFS_HOME/transformation_cache.db` | SQLite transformation cache for conversion, embedding, VLM, and summary lookup data. | Optional for correctness; useful for recovery speed and cost control. | Can be rebuilt by recomputation after the server is stopped. |
 | `$MFS_HOME/cache/` | Local artifact cache root. Holds artifact bytes and local upload staging. | Back up if artifacts or upload-mode staged bytes matter. | Do not delete blindly. See [Artifact Cache Boundary](#artifact-cache-boundary). |
 | `$MFS_HOME/milvus.db` | Milvus Lite vector database when no remote Milvus/Zilliz URI is configured. | Critical if you want search to work after restore without a full re-index. | Delete only as part of a full local reset or a planned full re-index. |
-| `$MFS_HOME/onnx-cache/` | Cached files for the default local ONNX embedding model. | Optional; keep it to avoid first-run downloads. | Can be removed after stopping the server if you accept a later model download. |
+| `$MFS_HOME/onnx-cache/` | Cached files for the default local ONNX embedding model. | Optional; keep it to avoid startup downloads. | Can be removed after stopping the server if you accept a later model download. |
 
 !!! warning "Back up state as a set"
     Metadata, Milvus chunks, artifact rows, and local artifact bytes can refer to

@@ -114,8 +114,8 @@ def _wizard_embedding(current: EmbeddingConfig, step: int, total: int) -> dict[s
 
     ui.section(
         "Embedding",
-        "Default is local ONNX (no API key, multilingual BGE-M3 int8, ~600 MB on\n"
-        "first use). Pick another provider to opt out.",
+        "Default is local ONNX (no API key, multilingual BGE-M3 int8, ~600 MB\n"
+        "downloaded during setup probe or server startup preload). Pick another provider to opt out.",
         step=step,
         total=total,
     )
@@ -136,9 +136,9 @@ def _wizard_embedding(current: EmbeddingConfig, step: int, total: int) -> dict[s
     elif provider != "onnx":
         ui.info(f"Provider {provider!r} needs: uv sync --extra {provider}")
 
-    # Probe the actual provider for the real dimension. For ONNX this triggers
-    # the model download on first run (HF Hub shows its own progress bar). For
-    # OpenAI/Voyage well-known models this is a pure table lookup (<1ms).
+    # Probe the actual provider for the real dimension. For ONNX this may trigger
+    # the model download before the later server startup preload. For OpenAI/Voyage
+    # well-known models this is a pure table lookup (<1ms).
     ui.note("Detecting embedding dimension from the provider…")
     dim, err = _probe_dimension(provider, model)
     if dim is not None:
@@ -365,7 +365,9 @@ def _build_runners(
 ) -> dict[str, Callable[[ServerConfig], dict[str, Any]]]:
     return {
         "embedding": lambda c: _wizard_embedding(c.embedding, step_of["embedding"], total),
-        "description": lambda c: _wizard_vlm(c.summary, c.description, step_of["description"], total),
+        "description": lambda c: _wizard_vlm(
+            c.summary, c.description, step_of["description"], total
+        ),
         "milvus": lambda c: _wizard_milvus(
             c.milvus, env_resolved=milvus_from_env, step=step_of["milvus"], total=total
         ),

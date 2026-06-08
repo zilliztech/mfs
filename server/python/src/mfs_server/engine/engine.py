@@ -211,22 +211,32 @@ class Engine:
         self._job_watcher = None
         self._job_watcher_task: asyncio.Task | None = None
 
-    async def startup(self) -> None:
+    async def startup(self, *, preload_local_models: bool = False) -> None:
         load_builtin()
         await self.meta.connect()
         await self.meta.init_schema()
         await self.tx_cache.connect()
         self.milvus.connect()
         self.milvus.ensure_collection(self.ns)
+        if preload_local_models:
+            await self._preload_startup_models()
         self._build_pipeline()
         await self._recover_reduce()
         # ConnectorJobWatcher runs in this same event loop as the EmbedConsumer + SummaryWorker
         # pool, finalizing jobs out-of-band (§5.7).
         self._job_watcher = ConnectorJobWatcher(self.meta, self._reduce)
         self._job_watcher_task = asyncio.create_task(self._job_watcher.run())
-        # NB: the embedding dim-mismatch warning is deferred to the first provider build
-        # (CachingEmbeddingClient._warn_dim_mismatch_once) so boot never downloads/loads the
-        # model just to read .dimension — the provider stays lazy and cold start is fast.
+
+    async def _preload_startup_models(self) -> None:
+        if not self.embed.should_preload_on_server_start():
+            return
+        print(
+            f"mfs-server: preloading embedding provider "
+            f"{self.embed.provider_name}/{self.embed.model}",
+            flush=True,
+        )
+        await asyncio.to_thread(self.embed.preload_provider)
+        print("mfs-server: embedding provider ready", flush=True)
 
     async def shutdown(self) -> None:
         if self._job_watcher is not None:

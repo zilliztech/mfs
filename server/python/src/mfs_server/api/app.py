@@ -197,13 +197,13 @@ def _reject_unknown_query_params(request: Request, allowed: set[str]) -> None:
         raise HTTPException(422, f"unknown query parameter(s): {joined}")
 
 
-def create_app(cfg: ServerConfig | None = None) -> FastAPI:
+def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = False) -> FastAPI:
     cfg = cfg or load_server_config()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         eng = Engine(cfg)
-        await eng.startup()
+        await eng.startup(preload_local_models=preload_local_models)
         app.state.engine = eng
         # AIO (sqlite/single-binary): there is no separate worker process, so an enqueued
         # (--no-process) job would sit 'queued' forever. Drain it with one in-process worker.

@@ -55,12 +55,12 @@ models.
 
 | Provider | Default model | Default or detected dimension | Dependency | Runtime requirement | First-run behavior |
 |---|---|---|---|---|---|
-| `onnx` | `gpahal/bge-m3-onnx-int8` | 1024 in the default config; probed from the model by setup | Core | No API key | The first provider probe or embedding call downloads model files when they are not already cached under `$MFS_HOME/onnx-cache/`. |
+| `onnx` | `gpahal/bge-m3-onnx-int8` | 1024 in the default config; probed from the model by setup | Core | No API key | `mfs-server run` and `mfs-server worker` preload the model at startup; if files are not cached under `$MFS_HOME/onnx-cache/`, startup downloads them. |
 | `openai` | `text-embedding-3-small` | 1536 for the default model | Core | `OPENAI_API_KEY`; `OPENAI_BASE_URL` is optional | No local model download. Unknown model dimensions may require a trial embedding call. |
 | `gemini` | `gemini-embedding-001` | 768 for the default model | `uv sync --extra gemini` or `all-providers` | `GOOGLE_API_KEY`, or Vertex AI auth with `GOOGLE_GENAI_USE_VERTEXAI=true` | Known model dimensions use a local table; unknown models require a trial embedding call. |
 | `voyage` | `voyage-3-lite` | 512 for the default model | `uv sync --extra voyage` or `all-providers` | `VOYAGE_API_KEY` | Known model dimensions use a local table; unknown models require a trial embedding call. |
 | `ollama` | `nomic-embed-text` | Detected by a trial embed against the selected Ollama model | `uv sync --extra ollama` or `all-providers` | Running Ollama server; `OLLAMA_HOST` can point at a non-default host | The selected model must be available to the Ollama server before dimension probing and embedding can succeed. |
-| `local` | `all-MiniLM-L6-v2` | Detected from sentence-transformers model metadata | `uv sync --extra local` | No API key | Loads the sentence-transformers model on the detected device: CUDA, MPS, then CPU. |
+| `local` | `all-MiniLM-L6-v2` | Detected from sentence-transformers model metadata | `uv sync --extra local` | No API key | `mfs-server run` and `mfs-server worker` preload the sentence-transformers model on the detected device: CUDA, MPS, then CPU. |
 
 Prefer the setup wizard when switching providers:
 
@@ -192,13 +192,15 @@ For how these chunks appear as `ResultEnvelope.source`, `locator`,
 
 ## Where Provider Errors Show Up
 
-Provider SDKs and credentials are loaded lazily. A server can start even when an
-optional provider dependency or API key is missing; the failure appears when the
-provider is first used.
+Hosted provider SDKs and credentials are loaded lazily. Local downloadable
+embedding providers (`onnx` and `local`) are preloaded by `mfs-server run` and
+`mfs-server worker`, so missing dependencies or failed downloads stop startup
+before the service begins accepting work.
 
 | Operation | Provider used | Failure surface |
 |---|---|---|
 | `mfs-server setup --section embedding` | Selected embedding provider | Dimension probe can fail; install the extra, export credentials, start local services, or enter a verified dimension manually. |
+| `mfs-server run` / `mfs-server worker` | `onnx` or `local` embedding provider | Startup blocks while the model is loaded or downloaded; failure stops the process. |
 | `mfs add ...` indexing | Embedding provider, and summary/VLM provider when those features are enabled | `mfs job show JOB_ID`, `mfs connector inspect TARGET`, and the provider-related codes in [Troubleshooting](troubleshooting.md#canonical-error-codes). |
 | `mfs search QUERY PATH --mode semantic` | Embedding provider for the query vector | Search can fail if the selected embedding provider is unavailable. |
 | `mfs search QUERY PATH --mode hybrid` | Embedding provider for the dense half plus Milvus BM25 for the keyword half | Hybrid search can fail before querying Milvus if query embedding fails. |

@@ -153,7 +153,8 @@ class MilvusConfig(StrictConfigModel):
 
 class EmbeddingConfig(StrictConfigModel):
     # Default = local ONNX (no API key required). Model downloads from the
-    # Hugging Face Hub on first use and is cached under $MFS_HOME/onnx-cache/.
+    # Hugging Face Hub during server/worker startup preload when not already
+    # cached under $MFS_HOME/onnx-cache/.
     # bge-m3 is multilingual (100+ langs) and int8-quantized for CPU. Switch
     # to "openai" for the hosted embedding API; the setup wizard walks the
     # user through both paths.

@@ -52,7 +52,7 @@ MFS keeps server-owned state under `MFS_HOME`. In a source run, the default is
 | Transformation cache | `$MFS_HOME/transformation_cache.db` | `/data/transformation_cache.db` | Stores transformation-cache lookup data when SQLite is used. |
 | Artifact cache | `$MFS_HOME/cache` | `/data/cache` | Stores local artifact-cache blobs by default. |
 | Milvus Lite database | `$MFS_HOME/milvus.db` | `/data/milvus.db` | Default vector database when no remote Milvus/Zilliz URI is configured. |
-| ONNX model cache | `$MFS_HOME/onnx-cache/` | `/data/onnx-cache/` | The default local embedding model is downloaded on first embedding use and should be kept across restarts. |
+| ONNX model cache | `$MFS_HOME/onnx-cache/` | `/data/onnx-cache/` | The default local embedding model is preloaded at server/worker startup and should be kept across restarts. |
 
 !!! warning "Mount `/data` for containers"
     For Docker and Compose, mount `/data` to a persistent volume. Without it,
@@ -371,7 +371,7 @@ state:
 |---|---|
 | The v0.4 beta publishes the CLI; the server is run from source or a local Docker image. | Pin the CLI version and build the server image from the same checkout you are testing. |
 | The HTTP API may shift before v0.4 stable. | Avoid long-lived unpinned integrations against the beta API. |
-| The default local ONNX model downloads on first embedding use. | Persist `$MFS_HOME/onnx-cache/` or `/data/onnx-cache/` to avoid repeated downloads. |
+| The default local ONNX model preloads at server/worker startup. | Persist `$MFS_HOME/onnx-cache/` or `/data/onnx-cache/` to avoid repeated downloads. |
 | Docker and Compose isolate the server filesystem from host paths. | Use `mfs add --upload` unless the target path is mounted and you pass the server-visible path. |
 | Compose and Helm assets mention `MFS_MILVUS_*`, but server config reads `MILVUS_*` and `ZILLIZ_*`. | Use verified runtime variable names or `server.toml`; treat the deployment asset names as a mismatch until aligned. |
 | The Helm chart renders an api/worker split that the deployment notes describe as post-v0.4 direction. | Use the all-in-one topology for runnable v0.4 operations; use Helm rendering for review or future topology validation. |

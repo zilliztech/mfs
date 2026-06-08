@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
         cfg = load_server_config(args.config)
         _ensure_auth_token(cfg)
         host, _, port = args.bind.partition(":")
-        app = create_app(cfg)
+        app = create_app(cfg, preload_local_models=True)
         uvicorn.run(app, host=host, port=int(port or "13619"))
         return 0
 
@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         eng = Engine(cfg)
 
         async def run() -> None:
-            await eng.startup()
+            await eng.startup(preload_local_models=True)
             print(
                 f"mfs-server worker: polling queue (metadata={cfg.metadata.backend}, "
                 f"concurrency={args.concurrency})",

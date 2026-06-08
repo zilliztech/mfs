@@ -78,8 +78,8 @@ uv run mfs-server setup            # all sections, press Enter to accept default
 uv run mfs-server setup --section embedding   # change a single section later
 
 # starts on 127.0.0.1:13619 by default (matches the CLI's default endpoint).
-# First `mfs add` downloads the multilingual BGE-M3 int8 ONNX model into
-# $MFS_HOME/onnx-cache/ (one-time, ~600 MB).
+# Startup preloads the default multilingual BGE-M3 int8 ONNX model into
+# $MFS_HOME/onnx-cache/ if it is not already cached (one-time, ~600 MB).
 uv run mfs-server run
 ```
 
