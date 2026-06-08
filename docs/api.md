@@ -270,7 +270,7 @@ curl -G -sS -H "Authorization: Bearer $MFS_TOKEN" \
 | `ProbeRequest` | `target`, `config` | Used by probe and estimate endpoints. |
 | `ProbeResponse` | `target`, `type`, `ok`, `detail` | Reports whether the server can probe the connector target. |
 | `EstimateResponse` | `target`, `type`, `objects`, `sampled_objects`, `est_chunks`, `est_tokens` | Zero-billing pre-flight estimate based on metadata and local dry-run work. |
-| `RemoveResponse` | `target`, `removed` | Reports whether connector removal was applied. |
+| `RemoveResponse` | `target`, `removed` | Returned after a registered connector root is removed. Child paths and unregistered targets return an error envelope. |
 
 ## Errors
 

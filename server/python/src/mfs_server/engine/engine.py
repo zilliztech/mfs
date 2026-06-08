@@ -14,6 +14,7 @@ import os
 import re
 import time
 import uuid
+from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 
 from ..common.converter import CONVERT_EXTS, CachingConverterClient
@@ -367,7 +368,9 @@ class Engine:
                 ]
                 self._reduce.recover_job(job_id, connector_uri, plugin, objects, [])
             except Exception as e:  # noqa: BLE001
-                print(f"mfs-server: WARNING reduce recovery for job {job_id} failed: {e}", flush=True)
+                print(
+                    f"mfs-server: WARNING reduce recovery for job {job_id} failed: {e}", flush=True
+                )
 
     async def _on_pipeline_object_indexed(
         self, task_uri: str, job_id: str | None, chunk_count: int = 0, partial: bool = False
@@ -781,6 +784,10 @@ class Engine:
         # merge user config OVER the resolved defaults so a local path keeps its
         # auto {root, client_id} while still accepting [[objects]]/schemas/credential_ref.
         cfg_dict = {**default_config, **config} if config is not None else default_config
+        existing_connector = await self.meta.fetchone(
+            "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=?",
+            (self.ns, connector_uri),
+        )
         cid = await self.register_or_get_connector(
             connector_uri, ctype, cfg_dict, overwrite_config=update_config
         )
@@ -799,9 +806,15 @@ class Engine:
         )
 
         job_id = await self._open_sync_job(cid, process)
-        return await self._drain_job(
-            job_id, cid, connector_uri, ctype, stored_cfg, full, since, process
-        )
+        try:
+            return await self._drain_job(
+                job_id, cid, connector_uri, ctype, stored_cfg, full, since, process
+            )
+        except Exception:
+            if existing_connector is None:
+                with suppress(Exception):
+                    await self.remove_connector(connector_uri)
+            raise
 
     async def _open_sync_job(self, cid: str, process: bool) -> str:
         """Reserve the one-in-flight-sync slot for a connector and inherit
@@ -1948,9 +1961,7 @@ class Engine:
             # when the consumer reports the task done, so stash the per-object context and
             # return before the shared inline tail.
             self._pending_finalize[full_uri] = (cid, relpath, st, indexable, plugin, task["id"])
-            await self._index_via_pipeline(
-                plugin, connector_uri, relpath, full_uri, okind, task
-            )
+            await self._index_via_pipeline(plugin, connector_uri, relpath, full_uri, okind, task)
             # "deferred": the producer chunks are enqueued; the EmbedConsumer success hook
             # (_on_pipeline_object_indexed) writes the objects row + flips status when they land.
             # _run_job_loop must NOT mark this task succeeded — its chunks aren't written yet.
@@ -2120,7 +2131,9 @@ class Engine:
                 if okind in ("document", "code", "text_blob"):
                     ext = os.path.splitext(rel)[1].lower()
                     text = await self._read_text(plugin, rel)
-                    texts = [t for t, _ in chunk_body(text, okind, ext, self.cfg.chunking.chunk_size)]
+                    texts = [
+                        t for t, _ in chunk_body(text, okind, ext, self.cfg.chunking.chunk_size)
+                    ]
                 elif okind in ("table_rows", "record_collection", "message_stream"):
                     ocfg = plugin.ctx.object_config_for(rel)
                     records = plugin.read_records(rel)
@@ -2237,7 +2250,14 @@ class Engine:
             (self.ns, connector_uri),
         )
         if not row:
-            return False
+            match = await self._match_connector(target)
+            if match is None:
+                raise ValueError("remove_requires_connector_root")
+            matched, rel = match
+            if rel != "/":
+                raise ValueError("remove_requires_connector_root")
+            row = matched
+            connector_uri = matched["root_uri"]
         cid = row["id"]
         # preempt any in-flight sync. Mark 'removing' (new syncs ->
         # connector_removing; a running worker observes it at its next task boundary via

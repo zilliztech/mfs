@@ -317,11 +317,12 @@ mfs-server connector list        # on-disk toml view (admin)
 mfs job list                     # recent ingest jobs
 mfs job show <job_id>            # one job's state and error field
 mfs job cancel <job_id>          # cancel a queued/running job
-mfs remove <uri>                 # drop a connector + its index data (DESTRUCTIVE)
+mfs remove <root-uri>            # drop a connector + its index data (DESTRUCTIVE)
 ```
 
-`mfs remove <uri>` permanently removes that connector AND its indexed
-chunks from Milvus. ALWAYS confirm with the user before running it.
+`mfs remove <root-uri>` permanently removes that connector AND its indexed
+chunks from Milvus. Use the registered connector root, not a child object path.
+ALWAYS confirm with the user before running it.
 
 ## Anti-patterns to flag back to the user
 

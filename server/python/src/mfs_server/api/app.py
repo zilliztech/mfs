@@ -54,6 +54,9 @@ _CODE_SUGGESTIONS = {
     "since_unsupported": ["drop --since"],
     "sync_already_running": ["mfs job list", "mfs job cancel JOB_ID"],
     "connector_removing": ["wait for removal to finish, then retry"],
+    "remove_requires_connector_root": [
+        "pass the registered connector root from `mfs connector list` or `mfs connector inspect`"
+    ],
     "connector_unhealthy": ["check credentials/connectivity"],
     "embedding_auth_failed": ["fix the embedding provider API key, then `mfs add` again"],
     "embedding_quota_exceeded": [
@@ -392,7 +395,10 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
         tags=["connectors"],
     )
     async def remove(target: str) -> RemoveResponse:
-        return RemoveResponse(target=target, removed=await eng().remove_connector(target))
+        try:
+            return RemoveResponse(target=target, removed=await eng().remove_connector(target))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
 
     @app.post(
         "/v1/upload", response_model=AddResponse, operation_id="uploadSource", tags=["ingest"]

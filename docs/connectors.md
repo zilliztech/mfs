@@ -97,7 +97,7 @@ These commands are the current v0.4 `mfs` CLI forms.
 | List registered connectors | `mfs connector list` | Reads connector rows from `/v1/status`. |
 | Inspect one connector | `mfs connector inspect <target>` | Calls `/v1/connectors/inspect?target=...` and prints JSON. |
 | Update connector config | `mfs connector update <target> --config <file.toml>` | Applies config to an existing connector and queues a sync through `/v1/add` with `update: true`. |
-| Remove a connector | `mfs connector remove <target>` | Prompts before deleting MFS-owned connector metadata, artifacts, and index data. |
+| Remove a connector | `mfs connector remove <target>` | Prompts before deleting MFS-owned connector metadata, artifacts, and index data. Target must be a registered connector root, not a child path. |
 | Remove through the alias | `mfs remove <target>` | Alias for `mfs connector remove <target>`. `-y` or `--yes` skips the prompt. |
 | List jobs | `mfs job list` | Shows recent ingest jobs. |
 | Show one job | `mfs job show <job_id>` | Use the job id returned by add or update. |
@@ -195,7 +195,7 @@ same lifecycle directly:
 | `POST /v1/connectors/probe` | `mfs connector probe` | Accepts `target` and optional `config`; returns `target`, `type`, `ok`, and `detail`. |
 | `POST /v1/connectors/estimate` | Automatic from `mfs add` for external targets unless `--yes` is set | Accepts the same `target` and optional `config` shape as probe; returns object, chunk, and token estimates. |
 | `GET /v1/connectors/inspect?target=...` | `mfs connector inspect` | Returns a JSON summary for the requested connector. |
-| `DELETE /v1/connectors?target=...` | `mfs connector remove`, `mfs remove` | Returns the requested `target` and whether it was removed. |
+| `DELETE /v1/connectors?target=...` | `mfs connector remove`, `mfs remove` | Removes a registered connector root. Child paths and unregistered targets return an error. |
 
 ## Search and browse after ingest
 

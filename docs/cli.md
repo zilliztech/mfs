@@ -254,7 +254,7 @@ catalog and connector-specific TOML guidance, see [Connectors](connectors.md).
 | `mfs connector update TARGET --config FILE` | Queue a sync with `update: true` and the new config. |
 | `mfs connector list` | Print registered connector rows from `/v1/status`. |
 | `mfs connector inspect TARGET` | Print the connector inspection JSON summary. |
-| `mfs connector remove TARGET` | Remove a connector after confirmation. |
+| `mfs connector remove TARGET` | Remove a registered connector root after confirmation. |
 | `mfs connector remove TARGET --yes` | Remove without confirmation. |
 | `mfs remove TARGET` | Alias for `mfs connector remove TARGET`. |
 
@@ -271,7 +271,9 @@ mfs connector remove web://docs
 
 !!! warning "Connector removal"
     Removal deletes the connector's MFS-owned metadata, artifacts, and index
-    entries. It does not delete data in the source system.
+    entries. It does not delete data in the source system. Pass the registered
+    connector root from `mfs connector list` or `mfs connector inspect`; child
+    paths and unregistered targets are rejected.
 
 ## Profiles
 
