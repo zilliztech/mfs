@@ -105,3 +105,18 @@ async def test_empty_document_yields_only_end_of_task(tmp_path):
         TextChunksProducer(ctx), _task("/empty.md", "file:///r", "document", plugin)
     )
     assert len(items) == 1 and isinstance(items[0], EndOfTask)
+
+
+async def test_pathological_no_delimiter_input_is_force_split(tmp_path):
+    # A 5M-char document with NO heading / paragraph / sentence delimiter must NOT fall
+    # through every recursive level into one giant chunk (which then blew up the embedder).
+    # The whitespace + delimiter-less force-split fallback levels bound every chunk.
+    blob = "a" * 5_000_000  # no newline, period, space, or heading anywhere
+    plugin = FakePlugin(data={"/big.md": blob.encode()})
+    ctx = build_ctx(artifacts=FakeArtifactStore(tmp_path), chunk_size=2048)
+    items = await collect(TextChunksProducer(ctx), _task("/big.md", "file:///r", "document", plugin))
+    chunks = [x for x in items if isinstance(x, Chunk)]
+
+    assert len(chunks) > 1  # the document was split, not emitted whole
+    assert max(len(c.content) for c in chunks) < 50_000  # no single oversized chunk
+    assert isinstance(items[-1], EndOfTask)

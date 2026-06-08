@@ -33,11 +33,21 @@ from .base import (
 # Heading-first recursive rules for markdown / document content. RecursiveChunker
 # falls through level by level: split on headings first, then paragraphs, then
 # sentences, so a heading keeps its surrounding context in one chunk.
+#
+# The last two levels mirror Chonkie's DEFAULT fallback and are NOT optional: without
+# them a pathological input with no heading/paragraph/sentence delimiter (e.g. a crawled
+# page that is one continuous multi-megabyte run of text) would fall through every level
+# and emit a SINGLE chunk of the whole document. That one giant chunk then hit the embedder
+# as a single item and blew up memory allocation. The whitespace level splits on spaces;
+# the delimiter-less level is a force-split that honors chunk_size as a HARD cap, so no chunk
+# can exceed chunk_size regardless of how delimiter-free the input is.
 _MARKDOWN_RULES = RecursiveRules(
     levels=[
         RecursiveLevel(delimiters=["\n# ", "\n## ", "\n### "]),
         RecursiveLevel(delimiters=["\n\n"]),
         RecursiveLevel(delimiters=[". ", "! ", "? "]),
+        RecursiveLevel(delimiters=None, whitespace=True),
+        RecursiveLevel(delimiters=None, whitespace=False),
     ]
 )
 
