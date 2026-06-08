@@ -515,34 +515,45 @@ mfs cat discord://community/channels/general__987654321/messages.jsonl --locator
 **URI shape:** `gmail://<alias>/labels/<label>__<id>/messages.jsonl`. Message
 records are grouped by Gmail `threadId` by the framework preset.
 
-**Obtain credentials:** Gmail uses **Google OAuth 2.0** with a downloaded
-credentials JSON:
+**Obtain credentials:** Gmail uses a **user OAuth token JSON** — the
+`token.json` produced by Google's OAuth flow, containing
+`refresh_token` / `client_id` / `client_secret`. Service-account keys
+are not supported by the current plugin.
 
 1. Open <https://console.cloud.google.com> → create or pick a project.
 2. **APIs & Services → Library → Gmail API** → click **Enable**.
 3. **APIs & Services → Credentials → Create Credentials → OAuth client
-   ID** → Application type: **Desktop app** → name it → **Download JSON**.
-4. Save the file somewhere the server can read it
-   (e.g. `~/.mfs/gmail-credentials.json`).
-5. The first `mfs add` opens a browser to authorize; the resulting
-   `token.json` is cached next to the credentials file.
+   ID** → Application type: **Desktop app** → **Download JSON** (this
+   is the client credentials file, not the token yet).
+4. Run Google's OAuth flow once on a machine with a browser (e.g. the
+   `google-auth-oauthlib` `InstalledAppFlow.run_local_server` snippet)
+   requesting scope `https://www.googleapis.com/auth/gmail.readonly`.
+   The flow writes a `token.json` next to the client JSON.
+5. Copy `token.json` to the server and reference it from the connector
+   TOML.
 
 Required OAuth scope: `https://www.googleapis.com/auth/gmail.readonly`. The
 connector only calls `messages.list` + `messages.get`; it doesn't send or
 modify mail.
 
+If you also configure the [`gdrive`](#gdrive) connector, request
+`https://www.googleapis.com/auth/drive.readonly` in the same consent
+step — the same `token.json` then drives both connectors.
+
 **Minimum config:**
 
 ```toml
-token = "env:GMAIL_ACCESS_TOKEN"
+token = "file:/home/x/.mfs/gmail-token.json"
 labels = ["INBOX"]
 max_read_rows = 5000
 ```
 
-The current plugin builds `google.oauth2.credentials.Credentials` from the
-configured `token` value when it is a string, or from
-`Credentials.from_authorized_user_info` when the parsed TOML value is an object.
-Probe the connector in the target server before syncing.
+The plugin builds `google.oauth2.credentials.Credentials` from the
+configured `token` value when it is a string (bare access token), or from
+`Credentials.from_authorized_user_info` when the parsed TOML value is an
+object (inline token JSON). The most common form is the `file:`
+reference above. Probe the connector in the target server before
+syncing.
 
 **Start:**
 
@@ -1137,36 +1148,41 @@ mfs export s3://acme-docs/engineering/rfc/rfc-001.pdf /tmp/rfc-001.pdf
 **URI shape:** `gdrive://<alias>/<folder>/<file>`. Google-native Docs, Sheets,
 and Slides are exported to text or CSV-like content by the plugin.
 
-**Obtain credentials:** Google Drive uses **OAuth credentials**. Two flows:
-
-**Service account** (recommended for shared / production access):
+**Obtain credentials:** Google Drive uses a **user OAuth token JSON** —
+the `token.json` produced by Google's OAuth flow, containing
+`refresh_token` / `client_id` / `client_secret`. Service-account keys
+are not supported by the current plugin.
 
 1. GCP Console → **APIs & Services → Library** → enable **Google Drive
    API**.
-2. **Credentials → Create Credentials → Service account** → name + role
-   (`Viewer` is enough for drive read).
-3. On the service account → **Keys → Add key → JSON** → download.
-4. **Share** each Drive folder you want indexed with the service account's
-   email (`<account>@<project>.iam.gserviceaccount.com`). Without that
-   share, the account can't see the folder.
+2. **Credentials → Create Credentials → OAuth client ID** → Application
+   type: **Desktop app** → **Download JSON** (the client credentials
+   file).
+3. Run Google's OAuth flow once on a machine with a browser (e.g. the
+   `google-auth-oauthlib` `InstalledAppFlow.run_local_server` snippet)
+   requesting scope `https://www.googleapis.com/auth/drive.readonly`.
+   The flow writes a `token.json` next to the client JSON.
+4. Copy `token.json` to the server and reference it from the connector
+   TOML. The authorized user must already be able to see the files /
+   folders you want indexed (own files + files explicitly shared with
+   them).
 
-**User OAuth** (a single user's visibility):
-
-1. Same GCP console: OAuth client ID, application type **Desktop app**,
-   download the JSON.
-2. First-run browser flow on a machine with a display; resulting
-   `token.json` is cached next to credentials.
+If you also configure the [`gmail`](#gmail) connector, request
+`https://www.googleapis.com/auth/gmail.readonly` in the same consent
+step — the same `token.json` then drives both connectors.
 
 **Minimum config:**
 
 ```toml
-token = "env:GDRIVE_ACCESS_TOKEN"
+token = "file:/home/x/.mfs/gdrive-token.json"
 ```
 
-The current plugin builds `google.oauth2.credentials.Credentials` from the
-configured `token` value when it is a string, or from
-`Credentials.from_authorized_user_info` when the parsed TOML value is an object.
-Probe the connector in the target server before syncing.
+The plugin builds `google.oauth2.credentials.Credentials` from the
+configured `token` value when it is a string (bare access token), or from
+`Credentials.from_authorized_user_info` when the parsed TOML value is an
+object (inline token JSON). The most common form is the `file:`
+reference above. Probe the connector in the target server before
+syncing.
 
 **Start:**
 
@@ -1185,7 +1201,12 @@ mfs export gdrive://engineering/Product/Design.pdf /tmp/design.pdf
 
 **Common pitfalls:**
 
-- The credential can only see files shared with it.
+- The authorized user can only see files they own or that are
+  explicitly shared with them.
+- Headless server: the OAuth flow needs a browser the first time. Run
+  it on a workstation, then copy `token.json` to the server.
+- 401/403s usually mean the token was revoked or the consent did not
+  include `drive.readonly`. Re-run the OAuth flow.
 - Google-native files are exported; comments are not indexed.
 - The current plugin does not expose a folder-token scope field; it walks files
   visible to the credential.

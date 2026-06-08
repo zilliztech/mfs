@@ -4,31 +4,31 @@ URI: `gdrive://<alias>`.
 
 ## How to obtain credentials
 
-Google Drive uses **OAuth credentials**.
-
-Two flows:
-
-### Service account (recommended for shared access)
+Google Drive uses a **user OAuth token JSON** (the `token.json` produced
+by Google's OAuth flow — contains `refresh_token`, `client_id`,
+`client_secret`). Service-account keys are not supported by the current
+plugin.
 
 1. GCP Console → **APIs & Services → Library** → enable **Google Drive
    API**.
-2. **Credentials → Create Credentials → Service account** → name +
-   role (`Viewer` is enough for drive read).
-3. Service account → **Keys** → Add key → JSON. Download.
-4. **Share** the Drive folder(s) you want indexed with the service
-   account's email (`...@<project>.iam.gserviceaccount.com`).
+2. **Credentials → Create Credentials → OAuth client ID** → Application
+   type: **Desktop app** → download the client JSON.
+3. Run Google's OAuth flow once on a machine with a browser (e.g. the
+   `google-auth-oauthlib` `InstalledAppFlow.run_local_server` snippet)
+   requesting scope
+   `https://www.googleapis.com/auth/drive.readonly`. The flow writes a
+   `token.json` next to the client JSON.
+4. Copy `token.json` to the server and point `token` at it.
 
-### User OAuth (one user's view)
-
-1. Same console, OAuth client ID (Desktop app).
-2. First-run browser flow on a machine with a display.
-3. `token.json` cached next to credentials.
+If you also want gmail, add `https://www.googleapis.com/auth/gmail.readonly`
+to the same consent step — the resulting `token.json` then works for
+both connectors. See [[gmail]].
 
 ## Required toml fields
 
 | key | what |
 |---|---|
-| `token` | path to credentials JSON (use `file:/abs/path.json` to be explicit) |
+| `token` | path to the user OAuth token JSON (use `file:/abs/path/token.json` to be explicit) |
 
 ## URI tree
 
@@ -37,12 +37,13 @@ gdrive://<alias>/
 └── (files and folders the credential can see)
 ```
 
-Shape depends on what's shared with the service account / OAuth user.
+Shape depends on what the authorized user can see in Drive (own files +
+files explicitly shared with them).
 
 ## env: example
 
 ```toml
-token = "file:/home/zhangchen/.mfs/gdrive-sa.json"
+token = "file:/home/zhangchen/.mfs/gdrive-token.json"
 ```
 
 ```bash
@@ -51,9 +52,11 @@ mfs add gdrive://acme-engineering --config /tmp/mfs-gdrive.toml
 
 ## Pitfalls
 
-- **Nothing shared → empty tree**: the service account can't see
-  anything not explicitly shared with it. ASK the user to confirm
-  sharing was done.
+- **Headless server**: the OAuth flow needs a browser the first time.
+  Run it on a workstation, then copy `token.json` to the server.
+- **Token revoked / scope mismatch**: 401/403s usually mean the token
+  was revoked or the consent didn't include `drive.readonly`. Re-run
+  the OAuth flow.
 - **Google Docs as native format**: Google Doc / Sheet / Slide files
   appear in Drive but their content needs the Workspace APIs to
   export. The connector exports them as plain text on the fly.

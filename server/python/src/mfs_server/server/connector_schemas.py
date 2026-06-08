@@ -86,14 +86,20 @@ SCHEMAS: dict[str, ConnectorSchema] = {
     ),
     "gdrive": ConnectorSchema(
         scheme="gdrive",
-        summary="Google Drive folders / files (requires OAuth credentials).",
+        summary="Google Drive folders / files (Google user OAuth token).",
         uri_hint="gdrive://my-drive",
         fields=[
             ConnectorField(
                 "token",
-                "OAuth credentials path or env:VAR_NAME",
+                "Path to OAuth token JSON (e.g. file:/abs/path/token.json)",
                 secret=True,
-                help="A service-account JSON file path or env:GOOGLE_APPLICATION_CREDENTIALS.",
+                help=(
+                    "User OAuth token JSON containing refresh_token / client_id / client_secret "
+                    "(the token.json produced by the Google OAuth flow), not a service-account key. "
+                    "Scope must include https://www.googleapis.com/auth/drive.readonly. "
+                    "The same token.json can be shared with the gmail connector if it was also "
+                    "consented to gmail.readonly."
+                ),
             ),
         ],
     ),
@@ -369,10 +375,21 @@ SCHEMAS: dict[str, ConnectorSchema] = {
     ),
     "gmail": ConnectorSchema(
         scheme="gmail",
-        summary="Gmail threads — uses Google OAuth.",
+        summary="Gmail threads (Google user OAuth token).",
         uri_hint="gmail://inbox",
         fields=[
-            ConnectorField("token", "OAuth credentials file path", secret=True),
+            ConnectorField(
+                "token",
+                "Path to OAuth token JSON (e.g. file:/abs/path/token.json)",
+                secret=True,
+                help=(
+                    "User OAuth token JSON containing refresh_token / client_id / client_secret "
+                    "(the token.json produced by the Google OAuth flow), not a service-account key. "
+                    "Scope must include https://www.googleapis.com/auth/gmail.readonly. "
+                    "The same token.json can be shared with the gdrive connector if it was also "
+                    "consented to drive.readonly."
+                ),
+            ),
             ConnectorField(
                 "labels",
                 "Labels to index (comma-separated, empty = all)",

@@ -5,27 +5,34 @@ URI: `gmail://<alias>` (alias is your Gmail account nickname; common:
 
 ## How to obtain credentials
 
-Gmail uses **Google OAuth 2.0** with a downloaded credentials JSON.
+Gmail uses a **user OAuth token JSON** (the `token.json` produced by
+Google's OAuth flow — contains `refresh_token`, `client_id`,
+`client_secret`). The plugin reads only this token; it doesn't run an
+OAuth dance for you.
 
 1. Go to <https://console.cloud.google.com> → create or pick a project.
 2. **APIs & Services → Library → Gmail API** → Enable.
 3. **APIs & Services → Credentials → Create Credentials → OAuth client
-   ID** → Application type: Desktop app → name it → Download JSON.
-4. Save the file (e.g. `~/.mfs/gmail-credentials.json`).
-5. First-time `mfs add` will open a browser to authorize; the resulting
-   `token.json` is cached next to credentials.
+   ID** → Application type: **Desktop app** → download the client JSON.
+4. Run Google's OAuth flow once on a machine with a browser (e.g. the
+   `google-auth-oauthlib` `InstalledAppFlow.run_local_server` snippet),
+   requesting scope
+   `https://www.googleapis.com/auth/gmail.readonly`. The flow writes a
+   `token.json` next to the client JSON.
+5. Copy `token.json` to the server and point `token` at it.
 
-Required OAuth scopes:
-- `https://www.googleapis.com/auth/gmail.readonly`
+The connector calls `messages.list` + `messages.get` only; it does not
+send or modify mail.
 
-The connector reads `messages.list` + `messages.get`; doesn't send or
-modify.
+If you also want gdrive, add `https://www.googleapis.com/auth/drive.readonly`
+to the same consent step — the resulting `token.json` then works for
+both connectors. See [[gdrive]].
 
 ## Required toml fields
 
 | key | what |
 |---|---|
-| `token` | path to the OAuth credentials file (e.g. `/home/x/.mfs/gmail-credentials.json`) — NOT the value, the file path. Use `file:/abs/path/to.json` to be explicit. |
+| `token` | path to the user OAuth token JSON (use `file:/abs/path/token.json` to be explicit) |
 
 ## Optional
 
@@ -37,24 +44,22 @@ modify.
 ## env: example
 
 ```toml
-token = "file:/home/zhangchen/.mfs/gmail-credentials.json"
+token = "file:/home/zhangchen/.mfs/gmail-token.json"
 labels = ["INBOX", "Engineering"]
 max_read_rows = 5000
 ```
 
 ```bash
 mfs add gmail://work --config /tmp/mfs-gmail.toml
-# first run opens a browser for OAuth consent
-# subsequent runs use the cached token.json
 ```
 
 ## Pitfalls
 
-- **First-run browser opens** — on a headless server, can't do this.
-  Run the OAuth dance on a workstation first, then copy
-  `credentials.json` + `token.json` to the server.
-- **Token expiry**: Google refresh tokens are long-lived but can be
-  revoked. Re-run the OAuth dance if connector starts 401-ing.
+- **Headless server**: the OAuth flow needs a browser the first time.
+  Run it on a workstation, then copy `token.json` to the server.
+- **Token revoked / scope mismatch**: 401/403s usually mean the token
+  was revoked or the consent didn't include `gmail.readonly`. Re-run
+  the OAuth flow.
 - **Label names**: Gmail's "system" labels are `INBOX`, `SENT`,
   `DRAFT`, `TRASH`, `SPAM`, `IMPORTANT`. User labels are case-sensitive
   and exact-match.
