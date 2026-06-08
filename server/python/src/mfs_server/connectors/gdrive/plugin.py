@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import json
 import mimetypes
 import os
 from collections.abc import AsyncIterator
@@ -69,6 +70,15 @@ class GDrivePlugin(ConnectorPlugin):
     async def connect(self) -> None:
         def build_svc():
             tok = self._cfg("token") or {}
+            # `file:` refs resolve to file text via engine._resolve_ref. Try to
+            # JSON-parse so a token.json mounted from disk works the same as an
+            # inline TOML table; fall back to treating the string as a bare
+            # access token (the other documented form).
+            if isinstance(tok, str):
+                try:
+                    tok = json.loads(tok)
+                except json.JSONDecodeError:
+                    pass
             creds = (
                 Credentials.from_authorized_user_info(tok)
                 if isinstance(tok, dict)
