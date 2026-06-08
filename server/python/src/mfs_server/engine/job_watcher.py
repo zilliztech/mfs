@@ -80,9 +80,7 @@ class ConnectorJobWatcher:
 
     # --- running jobs -> completion / failure ---
     async def _sweep_running_jobs(self) -> None:
-        running = await self.meta.fetchall(
-            "SELECT id FROM connector_jobs WHERE status='running'"
-        )
+        running = await self.meta.fetchall("SELECT id FROM connector_jobs WHERE status='running'")
         for row in running:
             job_id = row["id"]
             counts = await self.meta.fetchall(

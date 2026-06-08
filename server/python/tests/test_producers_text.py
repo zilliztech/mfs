@@ -47,7 +47,9 @@ async def test_code_chunks_have_line_locators(tmp_path):
 async def test_markdown_rules_split_on_heading(tmp_path):
     plugin = FakePlugin(data={"/doc.md": _MD.encode()})
     ctx = build_ctx(artifacts=FakeArtifactStore(tmp_path), chunk_size=64)
-    items = await collect(TextChunksProducer(ctx), _task("/doc.md", "file:///r", "document", plugin))
+    items = await collect(
+        TextChunksProducer(ctx), _task("/doc.md", "file:///r", "document", plugin)
+    )
     chunks = [x for x in items if isinstance(x, Chunk)]
 
     # heading-first rules keep each heading at a chunk boundary rather than buried
@@ -99,5 +101,7 @@ async def test_web_text_persists_converted_md(tmp_path):
 async def test_empty_document_yields_only_end_of_task(tmp_path):
     plugin = FakePlugin(data={"/empty.md": b"   \n  "})
     ctx = build_ctx(artifacts=FakeArtifactStore(tmp_path))
-    items = await collect(TextChunksProducer(ctx), _task("/empty.md", "file:///r", "document", plugin))
+    items = await collect(
+        TextChunksProducer(ctx), _task("/empty.md", "file:///r", "document", plugin)
+    )
     assert len(items) == 1 and isinstance(items[0], EndOfTask)

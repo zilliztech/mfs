@@ -56,7 +56,11 @@ class CachingSummaryClient:
         # max_tokens is part of the cache identity: a different output budget yields a
         # different summary, so it must not return one cached under another budget.
         key = cache_key(
-            h, "summary", self.provider, self.model, self.version,
+            h,
+            "summary",
+            self.provider,
+            self.model,
+            self.version,
             config=str(self.max_tokens),
         )
         ran = False
@@ -74,8 +78,13 @@ class CachingSummaryClient:
         # per-key lock: concurrent callers that miss the same input (TableSchemaProducer +
         # Reduce SummaryWorker) compute it once (§3.4).
         out = await self.tx_cache.get_or_compute(
-            key, _compute, kind="summary", input_hash=h,
-            provider=self.provider, model=self.model, model_version=self.version,
+            key,
+            _compute,
+            kind="summary",
+            input_hash=h,
+            provider=self.provider,
+            model=self.model,
+            model_version=self.version,
         )
         if ran:
             self.api_calls += 1

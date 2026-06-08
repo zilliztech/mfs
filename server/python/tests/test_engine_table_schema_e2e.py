@@ -31,14 +31,20 @@ class _FakeSchemaPlugin:
         return None
 
     async def stat(self, rel):
-        return PathStat(path=rel, type="file", media_type="application/x-schema",
-                        size_hint=1, fingerprint="fp:" + rel)
+        return PathStat(
+            path=rel,
+            type="file",
+            media_type="application/x-schema",
+            size_hint=1,
+            fingerprint="fp:" + rel,
+        )
 
     def object_kind_of(self, rel):
         return "table_schema"
 
     async def read(self, rel, range=None):
         import json
+
         yield json.dumps(self._schemas[rel]).encode()
 
     def read_records(self, rel, range=None):
@@ -63,6 +69,7 @@ class _FakeEmbed:
 
     def _key(self, text):
         import hashlib
+
         return "k:" + hashlib.sha1(text.encode()).hexdigest()
 
     async def _embed_api(self, texts):
@@ -152,7 +159,9 @@ async def test_table_schema_routes_to_pipeline(tmp_path):
     assert rows[0]["object_uri"] == "postgres://db/public.users"
     assert llm.calls == 1
 
-    row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/public.users'")
+    row = await eng.meta.fetchone(
+        "SELECT status FROM object_tasks WHERE object_uri='/public.users'"
+    )
     assert row["status"] == "succeeded"
     await eng.meta.close()
 
@@ -173,8 +182,12 @@ async def test_table_schema_summary_disabled_metadata_only(tmp_path):
     # summary off: no routing, no LLM call, metadata-only
     assert llm.calls == 0
     assert eng.milvus.upserts == []
-    obj = await eng.meta.fetchone("SELECT search_status, chunk_count FROM objects WHERE object_uri='/public.users'")
+    obj = await eng.meta.fetchone(
+        "SELECT search_status, chunk_count FROM objects WHERE object_uri='/public.users'"
+    )
     assert obj["search_status"] == "not_indexed" and obj["chunk_count"] == 0
-    row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/public.users'")
+    row = await eng.meta.fetchone(
+        "SELECT status FROM object_tasks WHERE object_uri='/public.users'"
+    )
     assert row["status"] == "succeeded"
     await eng.meta.close()

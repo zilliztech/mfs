@@ -46,8 +46,13 @@ class CachingConverterClient:
         # same document hash concurrently; with the lock the (expensive) conversion runs once
         # (§3.4).
         out = await self.tx_cache.get_or_compute(
-            key, _compute, kind="convert", input_hash=h,
-            provider=self.provider, model=self.default, model_version=self.version,
+            key,
+            _compute,
+            kind="convert",
+            input_hash=h,
+            provider=self.provider,
+            model=self.default,
+            model_version=self.version,
         )
         if ran:
             self.api_calls += 1

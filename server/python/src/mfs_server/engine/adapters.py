@@ -49,9 +49,7 @@ class MilvusSinkAdapter:
         await asyncio.to_thread(self._milvus.upsert, self._ns, rows)
 
     async def delete_by_object(self, connector_uri: str, object_uri: str) -> None:
-        await asyncio.to_thread(
-            self._milvus.delete_by_object, self._ns, connector_uri, object_uri
-        )
+        await asyncio.to_thread(self._milvus.delete_by_object, self._ns, connector_uri, object_uri)
 
 
 class TxCacheAdapter:
@@ -118,7 +116,9 @@ class ArtifactStoreAdapter:
         self._read = read_fn
         self._artifact_path = artifact_path_fn
 
-    async def put_artifact(self, namespace_id: str, object_uri: str, kind: str, data: bytes) -> None:
+    async def put_artifact(
+        self, namespace_id: str, object_uri: str, kind: str, data: bytes
+    ) -> None:
         await self._put(namespace_id, object_uri, kind, data)
 
     async def get_artifact(self, namespace_id: str, object_uri: str, kind: str) -> Optional[bytes]:

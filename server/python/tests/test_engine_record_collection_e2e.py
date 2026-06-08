@@ -42,14 +42,20 @@ class _FakeRecordPlugin:
         return None
 
     async def stat(self, rel):
-        return PathStat(path=rel, type="file", media_type="application/x-collection",
-                        size_hint=1, fingerprint="fp:" + rel)
+        return PathStat(
+            path=rel,
+            type="file",
+            media_type="application/x-collection",
+            size_hint=1,
+            fingerprint="fp:" + rel,
+        )
 
     def object_kind_of(self, rel):
         return self._okind
 
     async def read(self, rel, range=None):
         import json
+
         for r in self._records[rel]:
             yield (json.dumps(r) + "\n").encode()
 
@@ -78,6 +84,7 @@ class _FakeEmbed:
 
     def _key(self, text):
         import hashlib
+
         return "k:" + hashlib.sha1(text.encode()).hexdigest()
 
     async def _embed_api(self, texts):
@@ -134,10 +141,12 @@ async def _seed(eng, *, job_id, cid, object_uri):
 
 async def test_record_collection_routes_to_pipeline(tmp_path):
     eng = await _build_engine(tmp_path)
-    records = {"/issues": [
-        {"number": 1, "title": "bug", "body": "broken", "state": "open"},
-        {"number": 2, "title": "feat", "body": "shiny", "state": "closed"},
-    ]}
+    records = {
+        "/issues": [
+            {"number": 1, "title": "bug", "body": "broken", "state": "open"},
+            {"number": 2, "title": "feat", "body": "shiny", "state": "closed"},
+        ]
+    }
     plugin = _FakeRecordPlugin(records)
     job_id, cid, connector_uri = "job1", "cA", "mongo://db"
     await _seed(eng, job_id=job_id, cid=cid, object_uri="/issues")
@@ -171,9 +180,11 @@ async def test_record_collection_routes_to_pipeline(tmp_path):
 
 async def test_table_rows_uses_same_record_producer(tmp_path):
     eng = await _build_engine(tmp_path)
-    records = {"/public.users": [
-        {"number": 7, "title": "alice", "body": "admin"},
-    ]}
+    records = {
+        "/public.users": [
+            {"number": 7, "title": "alice", "body": "admin"},
+        ]
+    }
     plugin = _FakeRecordPlugin(records, okind="table_rows")  # table_rows -> same producer
     job_id, cid, connector_uri = "job2", "cB", "postgres://db"
     await _seed(eng, job_id=job_id, cid=cid, object_uri="/public.users")
@@ -187,7 +198,9 @@ async def test_table_rows_uses_same_record_producer(tmp_path):
     rows = [r for batch in eng.milvus.upserts for r in batch]
     assert len(rows) == 1 and rows[0]["chunk_kind"] == "row_text"
     assert rows[0]["locator"]["number"] == 7
-    row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/public.users'")
+    row = await eng.meta.fetchone(
+        "SELECT status FROM object_tasks WHERE object_uri='/public.users'"
+    )
     assert row["status"] == "succeeded"
     await eng.meta.close()
 
@@ -196,9 +209,7 @@ async def test_streaming_emits_multiple_batches(tmp_path):
     # small embed batch_size + many records -> the pipeline embeds/upserts in several batches
     # as records stream through, rather than buffering the whole collection then one upsert.
     eng = await _build_engine(tmp_path, batch_size=10, idle_ms=50)
-    records = {"/issues": [
-        {"number": i, "title": f"t{i}", "body": f"b{i}"} for i in range(25)
-    ]}
+    records = {"/issues": [{"number": i, "title": f"t{i}", "body": f"b{i}"} for i in range(25)]}
     plugin = _FakeRecordPlugin(records)
     job_id, cid, connector_uri = "job3", "cC", "mongo://db"
     await _seed(eng, job_id=job_id, cid=cid, object_uri="/issues")

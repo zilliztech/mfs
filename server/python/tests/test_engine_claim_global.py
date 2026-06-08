@@ -33,8 +33,13 @@ class _FakeDocPlugin:
         return None
 
     async def stat(self, rel):
-        return PathStat(path=rel, type="file", media_type="text/markdown",
-                        size_hint=len(self._texts[rel]), fingerprint="fp:" + rel)
+        return PathStat(
+            path=rel,
+            type="file",
+            media_type="text/markdown",
+            size_hint=len(self._texts[rel]),
+            fingerprint="fp:" + rel,
+        )
 
     def object_kind_of(self, rel):
         return "document"
@@ -60,6 +65,7 @@ class _FakeEmbed:
 
     def _key(self, text):
         import hashlib
+
         return "k:" + hashlib.sha1(text.encode()).hexdigest()
 
     async def _embed_api(self, texts):
@@ -132,8 +138,10 @@ async def test_single_loop_drains_other_jobs_tasks(tmp_path):
     # global proof: jobB's tasks were drained by the jobA-owned loop
     rows = await eng.meta.fetchall("SELECT object_uri, connector_job_id, status FROM object_tasks")
     assert {r["object_uri"]: r["status"] for r in rows} == {
-        "/a1.md": "succeeded", "/b1.md": "succeeded",
-        "/a2.md": "succeeded", "/b2.md": "succeeded",
+        "/a1.md": "succeeded",
+        "/b1.md": "succeeded",
+        "/a2.md": "succeeded",
+        "/b2.md": "succeeded",
     }
     assert {r["connector_job_id"] for r in rows} == {"jobA", "jobB"}
     # deterministic global order (priority, started_at) -> interleaved across the two jobs
@@ -176,11 +184,21 @@ async def test_concurrent_loops_drain_both_jobs(tmp_path):
     t = 0
     for i in range(4):  # interleave A and B insertions
         t += 1
-        await _seed(eng, job_id="jobA", cid=cid, object_uri=f"/a{i}.md",
-                    started_at=f"2026-01-01T00:00:{t:02d}")
+        await _seed(
+            eng,
+            job_id="jobA",
+            cid=cid,
+            object_uri=f"/a{i}.md",
+            started_at=f"2026-01-01T00:00:{t:02d}",
+        )
         t += 1
-        await _seed(eng, job_id="jobB", cid=cid, object_uri=f"/b{i}.md",
-                    started_at=f"2026-01-01T00:00:{t:02d}")
+        await _seed(
+            eng,
+            job_id="jobB",
+            cid=cid,
+            object_uri=f"/b{i}.md",
+            started_at=f"2026-01-01T00:00:{t:02d}",
+        )
 
     # concurrency = 2: two loops claim from the global pending pool (conditional UPDATE keeps
     # them from double-claiming). Both own jobA; with the global claim they together drain

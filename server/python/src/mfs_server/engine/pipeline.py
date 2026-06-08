@@ -243,7 +243,9 @@ class EmbedConsumer:
             await self._milvus.delete_by_object(env.connector_uri, env.task_uri)
             self._deleted.add(tid)
         self._pending[tid] = self._pending.get(tid, 0) + 1
-        self._count[tid] = self._count.get(tid, 0) + 1  # cumulative: every received chunk is written
+        self._count[tid] = (
+            self._count.get(tid, 0) + 1
+        )  # cumulative: every received chunk is written
         if chunk.partial:
             self._partial[tid] = True
         self._batch.append((env, chunk))

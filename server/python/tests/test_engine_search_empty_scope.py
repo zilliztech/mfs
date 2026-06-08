@@ -46,11 +46,14 @@ async def test_search_empty_namespace_returns_without_query_backend(tmp_path):
 async def test_search_unregistered_scope_returns_without_query_backend(tmp_path):
     eng = await _build_engine(tmp_path)
     try:
-        assert await eng.search(
-            "mfs-e2e-empty-query",
-            connector_uri="file://local/mfs-e2e-empty",
-            object_prefix=None,
-            top_k=3,
-        ) == []
+        assert (
+            await eng.search(
+                "mfs-e2e-empty-query",
+                connector_uri="file://local/mfs-e2e-empty",
+                object_prefix=None,
+                top_k=3,
+            )
+            == []
+        )
     finally:
         await eng.meta.close()

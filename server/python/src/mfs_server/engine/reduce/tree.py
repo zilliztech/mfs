@@ -78,7 +78,11 @@ class DirTreeBuilder:
                 node.pending += 1
             # link the direct sub-dir of d that lies on this object's ancestor chain
             for sub in ancestors:
-                if sub != d and (posixpath.dirname(sub) or "/") == d and sub not in node.children_dirs:
+                if (
+                    sub != d
+                    and (posixpath.dirname(sub) or "/") == d
+                    and sub not in node.children_dirs
+                ):
                     node.children_dirs.append(sub)
                     node.pending += 1
 

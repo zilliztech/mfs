@@ -63,8 +63,12 @@ def _coord(files, *, include_image_desc=False, description_enabled=True):
     cfg.summary.include_image_description = include_image_desc
     cfg.description.enabled = description_enabled
     coord = ReduceCoordinator(
-        cfg, tx_cache=_FakeTx(), summary=_FakeSummary(),
-        vlm=_FakeVlm(), converter=_FakeConverter(), chunks_q=asyncio.Queue(),
+        cfg,
+        tx_cache=_FakeTx(),
+        summary=_FakeSummary(),
+        vlm=_FakeVlm(),
+        converter=_FakeConverter(),
+        chunks_q=asyncio.Queue(),
     )
     coord.register_job("j", "file:///r", _FakePlugin(files))
     return coord

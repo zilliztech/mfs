@@ -53,7 +53,11 @@ class CachingVlmClient:
         # The prompt is part of the cache identity: changing [description].prompt must
         # re-describe rather than return a description produced under the old prompt.
         key = cache_key(
-            h, "vlm", self.provider, self.model, self.version,
+            h,
+            "vlm",
+            self.provider,
+            self.model,
+            self.version,
             config=sha1_hex(self.prompt.encode()),
         )
         ran = False
@@ -71,8 +75,13 @@ class CachingVlmClient:
         # image (Map ImageChunksProducer + Reduce SummaryWorker) fire the provider EXACTLY
         # once (§3.4), instead of each issuing the expensive VLM call.
         out = await self.tx_cache.get_or_compute(
-            key, _compute, kind="vlm", input_hash=h,
-            provider=self.provider, model=self.model, model_version=self.version,
+            key,
+            _compute,
+            kind="vlm",
+            input_hash=h,
+            provider=self.provider,
+            model=self.model,
+            model_version=self.version,
         )
         if ran:
             self.api_calls += 1

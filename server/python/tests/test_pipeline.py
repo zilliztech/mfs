@@ -22,23 +22,32 @@ from mfs_server.engine.producers.base import Chunk, EndOfTask
 # --- helpers ---
 
 
-def _chunk_env(task_id, content="x", *, connector_uri="c://x", job="job1", kind="body", locator=None):
+def _chunk_env(
+    task_id, content="x", *, connector_uri="c://x", job="job1", kind="body", locator=None
+):
     uri = f"{connector_uri}/{task_id}"
     ch = Chunk(content=content, chunk_kind=kind, locator=locator, uri=uri, connector_job_id=job)
-    return TaskEnvelope(task_id=task_id, task_uri=uri, connector_uri=connector_uri, job_id=job, payload=ch)
+    return TaskEnvelope(
+        task_id=task_id, task_uri=uri, connector_uri=connector_uri, job_id=job, payload=ch
+    )
 
 
 def _eot_env(task_id, *, connector_uri="c://x", job="job1", partial=False):
     uri = f"{connector_uri}/{task_id}"
     return TaskEnvelope(
-        task_id=task_id, task_uri=uri, connector_uri=connector_uri, job_id=job,
+        task_id=task_id,
+        task_uri=uri,
+        connector_uri=connector_uri,
+        job_id=job,
         payload=EndOfTask(partial=partial),
     )
 
 
 def _mocks(*, hit=False):
     embedder = AsyncMock()
-    embedder.batch_embed = AsyncMock(side_effect=lambda texts: [[float(i)] for i in range(len(texts))])
+    embedder.batch_embed = AsyncMock(
+        side_effect=lambda texts: [[float(i)] for i in range(len(texts))]
+    )
     milvus = AsyncMock()
     milvus.upsert = AsyncMock()
     milvus.delete_by_object = AsyncMock()

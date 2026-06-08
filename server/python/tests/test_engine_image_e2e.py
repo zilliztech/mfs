@@ -42,8 +42,11 @@ class _FakeImagePlugin:
 
     async def stat(self, rel):
         return PathStat(
-            path=rel, type="file", media_type="image/png",
-            size_hint=len(self._files[rel]), fingerprint="fp:" + rel,
+            path=rel,
+            type="file",
+            media_type="image/png",
+            size_hint=len(self._files[rel]),
+            fingerprint="fp:" + rel,
         )
 
     def object_kind_of(self, rel):
@@ -115,7 +118,9 @@ async def _build_engine(tmp_path, *, vlm_enabled=True, vlm_concurrency=10, llm_d
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "art")
     cfg.description.enabled = vlm_enabled
-    cfg.description.concurrency = vlm_concurrency  # description_gate cap ([description].concurrency)
+    cfg.description.concurrency = (
+        vlm_concurrency  # description_gate cap ([description].concurrency)
+    )
     eng = Engine(cfg)
     eng.embed = _FakeEmbed()
     eng.milvus = _FakeMilvus()
@@ -170,7 +175,8 @@ async def test_image_routes_through_pipeline(tmp_path):
 
     task_rows = await eng.meta.fetchall("SELECT object_uri, status FROM object_tasks")
     assert {r["object_uri"]: r["status"] for r in task_rows} == {
-        "/a.png": "succeeded", "/b.png": "succeeded"
+        "/a.png": "succeeded",
+        "/b.png": "succeeded",
     }
     obj = await eng.meta.fetchall("SELECT object_uri, search_status, chunk_count FROM objects")
     assert all(o["search_status"] == "indexed" and o["chunk_count"] == 1 for o in obj)
@@ -244,6 +250,8 @@ async def test_vlm_disabled_falls_back_to_metadata_only(tmp_path):
     assert eng.milvus.upserts == []
     row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/c.png'")
     assert row["status"] == "succeeded"
-    obj = await eng.meta.fetchone("SELECT search_status, chunk_count FROM objects WHERE object_uri='/c.png'")
+    obj = await eng.meta.fetchone(
+        "SELECT search_status, chunk_count FROM objects WHERE object_uri='/c.png'"
+    )
     assert obj["search_status"] == "not_indexed" and obj["chunk_count"] == 0
     await eng.meta.close()

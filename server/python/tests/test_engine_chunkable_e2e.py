@@ -42,8 +42,11 @@ class _FakeFilePlugin:
     async def stat(self, rel):
         data = self._files[rel]
         return PathStat(
-            path=rel, type="file", media_type="text/markdown",
-            size_hint=len(data.encode()), fingerprint="fp:" + rel,
+            path=rel,
+            type="file",
+            media_type="text/markdown",
+            size_hint=len(data.encode()),
+            fingerprint="fp:" + rel,
         )
 
     def object_kind_of(self, rel):
@@ -152,7 +155,9 @@ async def test_chunkable_path_drains_through_pipeline(tmp_path):
     assert all(r["chunk_kind"] == "body" for r in all_rows)
     assert all(r["dense_vec"] == [0.1, 0.2, 0.3] for r in all_rows)
     assert {r["object_uri"] for r in all_rows} == {
-        "file:///repo/readme.md", "file:///repo/guide.md", "file:///repo/api.md"
+        "file:///repo/readme.md",
+        "file:///repo/guide.md",
+        "file:///repo/api.md",
     }
 
     # markdown heading boundaries preserved: each doc split into >1 chunk and headings start
@@ -178,7 +183,9 @@ async def test_chunkable_path_drains_through_pipeline(tmp_path):
     # every task transitioned to 'succeeded'
     rows = await eng.meta.fetchall("SELECT object_uri, status FROM object_tasks")
     assert {r["object_uri"]: r["status"] for r in rows} == {
-        "/readme.md": "succeeded", "/guide.md": "succeeded", "/api.md": "succeeded"
+        "/readme.md": "succeeded",
+        "/guide.md": "succeeded",
+        "/api.md": "succeeded",
     }
 
     # objects table rows written by the shared _index_object tail
@@ -211,8 +218,12 @@ async def test_empty_document_marks_not_indexed_and_purges(tmp_path):
     # zero chunks: still marked succeeded, objects row not_indexed, stale chunks purged
     row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/empty.md'")
     assert row["status"] == "succeeded"
-    obj = await eng.meta.fetchone("SELECT search_status, chunk_count FROM objects WHERE object_uri='/empty.md'")
+    obj = await eng.meta.fetchone(
+        "SELECT search_status, chunk_count FROM objects WHERE object_uri='/empty.md'"
+    )
     assert obj["search_status"] == "not_indexed" and obj["chunk_count"] == 0
-    assert ("file:///repo", "file:///repo/empty.md") in [(cu, ou) for _, cu, ou in eng.milvus.deletes]
+    assert ("file:///repo", "file:///repo/empty.md") in [
+        (cu, ou) for _, cu, ou in eng.milvus.deletes
+    ]
     assert eng.milvus.upserts == []  # nothing embedded for an empty doc
     await eng.meta.close()

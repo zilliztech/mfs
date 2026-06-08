@@ -49,8 +49,16 @@ _TERMINAL_TASK_STATUSES = ("succeeded", "failed", "cancelled", "skipped")
 
 class ReduceCoordinator:
     def __init__(
-        self, cfg, *, tx_cache, summary, vlm, converter, chunks_q,
-        description_gate=None, summary_gate=None,
+        self,
+        cfg,
+        *,
+        tx_cache,
+        summary,
+        vlm,
+        converter,
+        chunks_q,
+        description_gate=None,
+        summary_gate=None,
     ):
         self.cfg = cfg
         self.enabled = bool(cfg.summary.enabled)  # master switch (§7.2 [summary].enabled)
@@ -159,7 +167,7 @@ class ReduceCoordinator:
         if builder is None:
             return
         cu = builder.connector_uri
-        relpath = task_uri[len(cu):] if task_uri.startswith(cu) else task_uri
+        relpath = task_uri[len(cu) :] if task_uri.startswith(cu) else task_uri
         if relpath in builder.tree:
             # a directory_summary chunk for this job was just persisted
             st = self._completion.get(job_id)
@@ -187,7 +195,9 @@ class ReduceCoordinator:
             self.queue.push(job_id, parent, node.depth)
 
     # --- worker callback: emit a dir summary into chunks_q ---
-    async def emit_dir_summary(self, job_id: str, connector_uri: str, dir_uri: str, summ: str) -> None:
+    async def emit_dir_summary(
+        self, job_id: str, connector_uri: str, dir_uri: str, summ: str
+    ) -> None:
         """Emit one directory as a per-object task into chunks_q: a directory_summary Chunk
         (when non-empty) plus an EndOfTask. The EmbedConsumer delete-then-upserts it (per-object
         atomic) exactly like a Map chunk; an empty summary becomes a chunk-less task that just
@@ -196,16 +206,29 @@ class ReduceCoordinator:
         task_id = f"reduce:{job_id}:{dir_uri}"
         if summ and summ.strip():
             chunk = Chunk(
-                content=summ, chunk_kind="directory_summary", locator=None,
-                uri=full_uri, connector_job_id=job_id,
+                content=summ,
+                chunk_kind="directory_summary",
+                locator=None,
+                uri=full_uri,
+                connector_job_id=job_id,
             )
             await self.chunks_q.put(
-                TaskEnvelope(task_id=task_id, task_uri=full_uri, connector_uri=connector_uri,
-                             job_id=job_id, payload=chunk)
+                TaskEnvelope(
+                    task_id=task_id,
+                    task_uri=full_uri,
+                    connector_uri=connector_uri,
+                    job_id=job_id,
+                    payload=chunk,
+                )
             )
         await self.chunks_q.put(
-            TaskEnvelope(task_id=task_id, task_uri=full_uri, connector_uri=connector_uri,
-                         job_id=job_id, payload=EndOfTask())
+            TaskEnvelope(
+                task_id=task_id,
+                task_uri=full_uri,
+                connector_uri=connector_uri,
+                job_id=job_id,
+                payload=EndOfTask(),
+            )
         )
 
     # --- completion + teardown ---

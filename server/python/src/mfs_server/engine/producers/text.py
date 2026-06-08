@@ -58,7 +58,10 @@ def _chunk_document(content: str, chunk_size: int) -> list[tuple[str, list[int]]
         if not c.text.strip():
             continue
         out.append(
-            (c.text, [_offset_to_line(content, c.start_index), _offset_to_line(content, c.end_index)])
+            (
+                c.text,
+                [_offset_to_line(content, c.start_index), _offset_to_line(content, c.end_index)],
+            )
         )
     return out
 

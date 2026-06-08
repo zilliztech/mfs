@@ -35,8 +35,13 @@ class _FakeFilePlugin:
         return None
 
     async def stat(self, rel):
-        return PathStat(path=rel, type="file", media_type="text/markdown",
-                        size_hint=len(self._files[rel]), fingerprint="fp:" + rel)
+        return PathStat(
+            path=rel,
+            type="file",
+            media_type="text/markdown",
+            size_hint=len(self._files[rel]),
+            fingerprint="fp:" + rel,
+        )
 
     def object_kind_of(self, rel):
         # .bin files are binary (non-pipeline): they must NOT be folded into the dir tree
@@ -62,6 +67,7 @@ class _FakeEmbed:
 
     def _key(self, text):
         import hashlib
+
         return "k:" + hashlib.sha1(text.encode()).hexdigest()
 
     async def _embed_api(self, texts):
@@ -150,9 +156,7 @@ async def test_dir_summary_reduce_subsystem(tmp_path):
     rows = [r for batch in eng.milvus.upserts for r in batch]
     dir_rows = [r for r in rows if r["chunk_kind"] == "directory_summary"]
     # three directory summaries: sub1, sub2, root
-    assert {r["object_uri"] for r in dir_rows} == {
-        "file:///r/sub1", "file:///r/sub2", "file:///r/"
-    }
+    assert {r["object_uri"] for r in dir_rows} == {"file:///r/sub1", "file:///r/sub2", "file:///r/"}
     # bottom-up: the root summary is emitted/persisted AFTER both leaf summaries
     order = [r["object_uri"] for r in dir_rows]
     assert order[-1] == "file:///r/"
@@ -220,7 +224,8 @@ async def test_binary_file_does_not_wedge_reduce(tmp_path):
     # the binary was indexed metadata-only (no chunks), the doc produced a body chunk
     statuses = await eng.meta.fetchall("SELECT object_uri, status FROM object_tasks")
     assert {s["object_uri"]: s["status"] for s in statuses} == {
-        "/sub/a.md": "succeeded", "/sub/data.bin": "succeeded"
+        "/sub/a.md": "succeeded",
+        "/sub/data.bin": "succeeded",
     }
     await eng._reduce.stop()
     await eng.meta.close()

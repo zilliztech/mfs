@@ -69,6 +69,7 @@ def test_finalize_pushes_only_ready_true_leaves():
     b.add("/withfile/f.md", "document")
     # manufacture an empty leaf dir (no sub-dirs, no files) to prove finalize pushes it
     from mfs_server.engine.reduce.tree import DirNode
+
     b.tree["/empty"] = DirNode(parent="/", depth=1)
     q = _FakeQueue()
     b.finalize(q)

@@ -47,14 +47,20 @@ class _FakeSlackPlugin:
         return None
 
     async def stat(self, rel):
-        return PathStat(path=rel, type="file", media_type="application/x-slack-channel",
-                        size_hint=1, fingerprint="fp:" + rel)
+        return PathStat(
+            path=rel,
+            type="file",
+            media_type="application/x-slack-channel",
+            size_hint=1,
+            fingerprint="fp:" + rel,
+        )
 
     def object_kind_of(self, rel):
         return "message_stream"
 
     async def read(self, rel, range=None):
         import json
+
         for r in self._records[rel]:
             yield (json.dumps(r) + "\n").encode()
 
@@ -81,6 +87,7 @@ class _FakeEmbed:
 
     def _key(self, text):
         import hashlib
+
         return "k:" + hashlib.sha1(text.encode()).hexdigest()
 
     async def _embed_api(self, texts):
@@ -174,7 +181,9 @@ async def test_message_stream_routes_through_pipeline(tmp_path):
     # task + objects row
     row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/general'")
     assert row["status"] == "succeeded"
-    obj = await eng.meta.fetchone("SELECT search_status, chunk_count FROM objects WHERE object_uri='/general'")
+    obj = await eng.meta.fetchone(
+        "SELECT search_status, chunk_count FROM objects WHERE object_uri='/general'"
+    )
     assert obj["search_status"] == "indexed" and obj["chunk_count"] == 2
 
     # raw_records jsonl GC'd after the task succeeded (§5.4)
@@ -185,9 +194,11 @@ async def test_message_stream_routes_through_pipeline(tmp_path):
 async def test_long_thread_splits_into_subchunks(tmp_path):
     eng = await _build_engine(tmp_path)
     big = "word " * 80  # ~400 chars rendered per message -> exceeds the thread sub-chunk cap
-    records = {"/general": [
-        {"user": f"U{i}", "text": big, "thread_ts": "T", "ts": str(i)} for i in range(10)
-    ]}
+    records = {
+        "/general": [
+            {"user": f"U{i}", "text": big, "thread_ts": "T", "ts": str(i)} for i in range(10)
+        ]
+    }
     plugin = _FakeSlackPlugin(records)
     job_id, cid, connector_uri = "job2", "cB", "slack://acme"
     await eng.meta.execute(
