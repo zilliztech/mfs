@@ -383,16 +383,33 @@ class Engine:
                 )
 
     async def _on_pipeline_object_indexed(
-        self, task_uri: str, job_id: str | None, chunk_count: int = 0, partial: bool = False
+        self,
+        task_uri: str,
+        job_id: str | None,
+        chunk_count: int = 0,
+        partial: bool = False,
+        error: str | None = None,
     ) -> None:
-        """EmbedConsumer success hook: write the `objects` row, commit the connector's
-        file_state cursor, and flip object_tasks to 'succeeded' for a pipeline-path object — now
-        that the EmbedConsumer knows its final chunk_count + partial flag. Skips tasks it has no
-        stashed context for (e.g. a Reduce directory_summary success, which has no objects row)."""
+        """EmbedConsumer finalize hook: write the `objects` row and set the object_tasks status
+        for a pipeline-path object — now that the EmbedConsumer knows its final chunk_count +
+        partial flag. When `error` is set the flush dropped this task's chunks: record it failed
+        (objects.search_status='failed', object_tasks.last_error) and do NOT advance the
+        connector cursor, so a later sync can retry. Skips tasks it has no stashed context for
+        (e.g. a Reduce directory_summary success, which has no objects row)."""
         ctx = self._pending_finalize.pop(task_uri, None)
         if ctx is None:
             return
         cid, relpath, st, indexable, plugin, task_id = ctx
+        if error is not None:
+            # Embed/upsert failed for this object. Record it failed and leave the cursor where
+            # it was (on_object_indexed not called) so the object isn't treated as committed.
+            await self._write_object_row(cid, relpath, st, indexable, "failed", chunk_count)
+            await self.meta.execute(
+                "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? "
+                "WHERE id=? AND status='running'",
+                (_now(), str(error)[:300], task_id),
+            )
+            return
         if chunk_count == 0:
             search_status = "not_indexed"
         elif partial:

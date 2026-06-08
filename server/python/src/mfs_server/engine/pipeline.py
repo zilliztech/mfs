@@ -111,11 +111,15 @@ class _Shutdown:
 
 _SHUTDOWN = _Shutdown()
 
-# Success hook: (task_uri, job_id, chunk_count, partial). chunk_count is the total number of
-# chunks written for the object; partial is True if any chunk's content was capped or the task
-# was truncated (EndOfTask.partial). Callers derive search_status from these without the
-# producer returning them inline (§6.1).
-SuccessCallback = Callable[[str, Optional[str], int, bool], Union[None, Awaitable[None]]]
+# Success hook: (task_uri, job_id, chunk_count, partial, error). chunk_count is the total number
+# of chunks received for the object; partial is True if any chunk's content was capped, the task
+# was truncated (EndOfTask.partial), or a flush dropped some of its chunks. error is None on a
+# clean finalize, or "<ExcType>: <msg>" when an embed/upsert flush failed for this task — the
+# callback uses it to record a failed status + last_error. Callers derive search_status from
+# these without the producer returning them inline (§6.1).
+SuccessCallback = Callable[
+    [str, Optional[str], int, bool, Optional[str]], Union[None, Awaitable[None]]
+]
 
 
 class EmbedConsumer:
@@ -149,6 +153,9 @@ class EmbedConsumer:
         # decremented, unlike _pending) + an OR of every chunk's / the EndOfTask's partial flag.
         self._count: dict[str, int] = {}
         self._partial: dict[str, bool] = {}
+        # task_id -> "<ExcType>: <msg>" recorded when a flush dropped this task's chunks, so
+        # finalize can mark the object failed + attach last_error.
+        self._task_errors: dict[str, str] = {}
 
         self._on_succeeded: list[SuccessCallback] = []
         self._q: Optional[asyncio.Queue] = None
@@ -156,9 +163,11 @@ class EmbedConsumer:
 
     # --- registration ---
     def register_on_succeeded(self, callback: SuccessCallback) -> None:
-        """Add a per-task success hook, invoked as callback(task_uri, job_id, chunk_count,
-        partial) when a task's chunks are all written + its EndOfTask was seen (Map → Reduce
-        notification §6.4.4; objects-table update). Callbacks may ignore the trailing args."""
+        """Add a per-task finalize hook, invoked as callback(task_uri, job_id, chunk_count,
+        partial, error) when a task reaches a terminal state — either all its chunks were
+        written + its EndOfTask was seen (error is None), or a flush dropped its chunks (error
+        carries the exception). Map → Reduce notification §6.4.4; objects-table update.
+        Callbacks may ignore the trailing args."""
         self._on_succeeded.append(callback)
 
     # --- lifecycle ---
@@ -224,6 +233,7 @@ class EmbedConsumer:
         self._eot.pop(task_id, None)
         self._deleted.discard(task_id)
         self._meta.pop(task_id, None)
+        self._task_errors.pop(task_id, None)
 
     # --- consume ---
     async def _consume(self, env: TaskEnvelope) -> None:
@@ -270,37 +280,70 @@ class EmbedConsumer:
     async def _flush(self) -> None:
         if not self._batch:
             return
-        # Keep the batch in place until Milvus acks the upsert. If embed/upsert raises we
-        # re-raise WITHOUT clearing, so the chunks (and their pending bookkeeping) survive and
-        # the next flush retries them — a transient write error must not silently drop data
-        # (§6.1). No concurrent appender can grow it mid-flush: _flush only runs inside the
-        # single run() loop.
+        # No concurrent appender can grow it mid-flush: _flush only runs inside the single
+        # run() loop, so this snapshot IS the whole pending batch.
         batch = self._batch
+        try:
+            # 1. tx_cache lookup for vectors, embed only the misses (§6.3), cache them back.
+            keys = [self._cache_key(ch) for _, ch in batch]
+            cached = await self._tx_cache.batch_get(keys) or {}
+            miss_idx = [i for i, k in enumerate(keys) if cached.get(k) is None]
+            if miss_idx:
+                new_vecs = await self._embedder.batch_embed(
+                    [batch[i][1].content for i in miss_idx]
+                )
+                put: dict[str, list[float]] = {}
+                for j, i in enumerate(miss_idx):
+                    cached[keys[i]] = new_vecs[j]
+                    put[keys[i]] = new_vecs[j]
+                await self._tx_cache.batch_put(put)
 
-        # 1. tx_cache lookup for vectors, embed only the misses (§6.3), cache them back.
-        keys = [self._cache_key(ch) for _, ch in batch]
-        cached = await self._tx_cache.batch_get(keys) or {}
-        miss_idx = [i for i, k in enumerate(keys) if cached.get(k) is None]
-        if miss_idx:
-            new_vecs = await self._embedder.batch_embed([batch[i][1].content for i in miss_idx])
-            put: dict[str, list[float]] = {}
-            for j, i in enumerate(miss_idx):
-                cached[keys[i]] = new_vecs[j]
-                put[keys[i]] = new_vecs[j]
-            await self._tx_cache.batch_put(put)
-
-        # 2. one upsert for the whole (cross-task, cross-kind) batch — idempotent by
-        #    chunk_id PK (§5.3 / §6.2). delete_by_object already ran per task on receipt.
-        rows = [self._build_row(env, ch, cached[keys[i]]) for i, (env, ch) in enumerate(batch)]
-        counts: dict[str, int] = {}
-        for env, _ in batch:
-            counts[env.task_id] = counts.get(env.task_id, 0) + 1
-        await self._milvus.upsert(rows)
+            # 2. one upsert for the whole (cross-task, cross-kind) batch — idempotent by
+            #    chunk_id PK (§5.3 / §6.2). delete_by_object already ran per task on receipt.
+            rows = [self._build_row(env, ch, cached[keys[i]]) for i, (env, ch) in enumerate(batch)]
+            counts: dict[str, int] = {}
+            for env, _ in batch:
+                counts[env.task_id] = counts.get(env.task_id, 0) + 1
+            await self._milvus.upsert(rows)
+        except BaseException as exc:  # noqa: BLE001
+            # Agnostic failure handling: we do NOT inspect the exception type or message, do NOT
+            # retry, and do NOT split the batch. Any failure (an OOM embed, a Milvus error, a
+            # cancellation) structurally releases this batch's per-task bookkeeping so the tasks
+            # finalize as failed and the run() loop keeps draining — the alternative is a wedged
+            # consumer where pending never reaches zero and the task is stuck 'running' forever.
+            await self._fail_batch(batch, exc)
+            return
 
         # 3. write acked: clear the batch, then decrement pending and finalize.
         self._batch = []
         for tid, n in counts.items():
             self._pending[tid] = self._pending.get(tid, 0) - n
+            await self._maybe_finalize(tid)
+
+    async def _fail_batch(self, batch: list[tuple[TaskEnvelope, Chunk]], exc: BaseException) -> None:
+        """Drop a failed flush batch and release each task's bookkeeping so it can finalize."""
+        affected: list[str] = []
+        seen: set[str] = set()
+        for env, _ in batch:
+            if env.task_id not in seen:
+                seen.add(env.task_id)
+                affected.append(env.task_id)
+        print(
+            f"mfs-server: WARNING embed flush failed for {len(batch)} chunk(s) across "
+            f"{len(affected)} task(s); dropping the batch and finalizing them as failed: {exc!r}",
+            flush=True,
+        )
+        # The whole batch is discarded (these chunks are NOT written). Decrement each chunk's
+        # pending (clamped at 0 — never negative), flag the task partial, and record the raw
+        # error so finalize can attach it as last_error.
+        self._batch = []
+        msg = f"{type(exc).__name__}: {exc}"
+        for env, _ in batch:
+            tid = env.task_id
+            self._pending[tid] = max(0, self._pending.get(tid, 0) - 1)
+            self._partial[tid] = True
+            self._task_errors.setdefault(tid, msg)
+        for tid in affected:
             await self._maybe_finalize(tid)
 
     # --- finalize ---
@@ -309,17 +352,23 @@ class EmbedConsumer:
             env = self._meta[task_id]
             chunk_count = self._count.get(task_id, 0)
             partial = self._partial.get(task_id, False)
-            await self._fire_success(env.task_uri, env.job_id, chunk_count, partial)
+            error = self._task_errors.get(task_id)
+            await self._fire_success(env.task_uri, env.job_id, chunk_count, partial, error)
             self._cleanup(task_id)
 
     async def _fire_success(
-        self, task_uri: str, job_id: Optional[str], chunk_count: int, partial: bool
+        self,
+        task_uri: str,
+        job_id: Optional[str],
+        chunk_count: int,
+        partial: bool,
+        error: Optional[str] = None,
     ) -> None:
         # Each callback is isolated: a DB hiccup in one hook (e.g. the objects-table writer)
         # must not skip the others or bubble up and kill the consumer. Log and continue.
         for cb in self._on_succeeded:
             try:
-                res = cb(task_uri, job_id, chunk_count, partial)
+                res = cb(task_uri, job_id, chunk_count, partial, error)
                 if asyncio.iscoroutine(res):
                     await res
             except Exception as e:  # noqa: BLE001
@@ -335,6 +384,7 @@ class EmbedConsumer:
         self._meta.pop(task_id, None)
         self._count.pop(task_id, None)
         self._partial.pop(task_id, None)
+        self._task_errors.pop(task_id, None)
 
     # --- overridable hooks (the adapters in adapters.py supply the real ones) ---
     def _cache_key(self, chunk: Chunk) -> str:

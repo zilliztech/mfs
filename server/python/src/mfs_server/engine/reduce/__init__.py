@@ -156,11 +156,17 @@ class ReduceCoordinator:
 
     # --- EmbedConsumer success hook (Map→Reduce notify §6.4.4 + dir persist accounting) ---
     def on_embed_succeeded(
-        self, task_uri: str, job_id: Optional[str], chunk_count: int = 0, partial: bool = False
+        self,
+        task_uri: str,
+        job_id: Optional[str],
+        chunk_count: int = 0,
+        partial: bool = False,
+        error: Optional[str] = None,
     ) -> None:
-        # chunk_count / partial are unused here (Reduce only needs the parent-pending notify),
-        # but accepted so the single success-hook signature carries them for the objects-table
-        # updater.
+        # chunk_count / partial / error are unused here (Reduce only needs the parent-pending
+        # notify), but accepted so the single finalize-hook signature carries them for the
+        # objects-table updater. A failed file still reached a terminal state, so its parent
+        # dir must still be decremented (same as success) or the dir summary would wedge.
         if not self.enabled or job_id is None:
             return
         builder = self.builders.get(job_id)

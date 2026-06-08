@@ -133,8 +133,8 @@ async def test_end_of_task_zero_pending_invokes_all_callbacks():
     await q.put(_chunk_env("T", "a"))
     await q.put(_eot_env("T"))  # pending still 1 (chunk unflushed); finalize waits for write
     await c.shutdown()  # drain flush writes the chunk -> pending 0 + eot seen -> success
-    cb1.assert_awaited_once_with("c://x/T", "job1", 1, False)  # 1 chunk, not partial
-    cb2.assert_awaited_once_with("c://x/T", "job1", 1, False)
+    cb1.assert_awaited_once_with("c://x/T", "job1", 1, False, None)  # 1 chunk, not partial, no err
+    cb2.assert_awaited_once_with("c://x/T", "job1", 1, False, None)
 
 
 async def test_zero_chunk_task_finalizes_and_still_deletes():
@@ -145,7 +145,7 @@ async def test_zero_chunk_task_finalizes_and_still_deletes():
     c.start(q)
     await q.put(_eot_env("EMPTY"))  # no chunks at all (e.g. emptied document)
     await c.shutdown()
-    cb.assert_awaited_once_with("c://x/EMPTY", "job1", 0, False)  # zero chunks
+    cb.assert_awaited_once_with("c://x/EMPTY", "job1", 0, False, None)  # zero chunks, no err
     # a zero-chunk rebuild must still purge any prior index
     milvus.delete_by_object.assert_awaited_once_with("c://x", "c://x/EMPTY")
     embedder.batch_embed.assert_not_called()
@@ -225,11 +225,13 @@ async def test_partial_flag_round_trips_into_row():
 
 
 async def test_success_callback_carries_chunk_count_and_partial():
-    # the success hook receives (task_uri, job_id, chunk_count, partial); chunk_count is
+    # the success hook receives (task_uri, job_id, chunk_count, partial, error); chunk_count is
     # cumulative across flushes and partial ORs every chunk's + the EndOfTask's flag.
     c, embedder, milvus, tx = _consumer(batch_size=2)  # forces T1 across two flushes
     seen: dict[str, tuple] = {}
-    c.register_on_succeeded(lambda uri, job, count, partial: seen.update({uri: (count, partial)}))
+    c.register_on_succeeded(
+        lambda uri, job, count, partial, error=None: seen.update({uri: (count, partial)})
+    )
     q = make_chunks_q(2)
     c.start(q)
 
@@ -258,11 +260,11 @@ async def test_raising_callback_does_not_skip_others_or_kill_consumer():
     c, embedder, milvus, tx = _consumer(batch_size=1)
     order: list[str] = []
 
-    def boom(uri, job, count, partial):
+    def boom(uri, job, count, partial, error=None):
         order.append(f"boom:{uri}")
         raise RuntimeError("callback DB hiccup")
 
-    def ok(uri, job, count, partial):
+    def ok(uri, job, count, partial, error=None):
         order.append(f"ok:{uri}")
 
     c.register_on_succeeded(boom)
@@ -282,36 +284,63 @@ async def test_raising_callback_does_not_skip_others_or_kill_consumer():
     assert c._pending == {}  # both tasks finalized + cleaned up despite the raising hook
 
 
-async def test_upsert_failure_preserves_batch_then_succeeds_on_retry():
-    # finding (4): a failed milvus.upsert must not drop chunks or pending bookkeeping. The
-    # batch is retried on the next flush and nothing is lost.
+async def test_embed_failure_drops_batch_and_finalizes_failed_without_wedge():
+    # A failing embed must NOT wedge the consumer: the batch is dropped, the affected task's
+    # pending is released, it finalizes failed (partial=True + error), and the run() loop keeps
+    # draining the NEXT task. No retry, no error-string inspection.
+    # batch_size=1 makes each chunk flush as it is consumed, so ordering is deterministic:
+    # T1's flush fails before T2 is ever embedded.
+    c, embedder, milvus, tx = _consumer(batch_size=1)
+    finals: list[tuple] = []
+    c.register_on_succeeded(lambda uri, job, count, partial, error: finals.append((uri, partial, error)))
+
+    boom = {"armed": True}
+
+    async def flaky_embed(texts):
+        if boom["armed"]:
+            boom["armed"] = False  # only the FIRST embed call (T1) blows up
+            raise MemoryError("simulated 118 GB allocation")
+        return [[float(i)] for i in range(len(texts))]
+
+    embedder.batch_embed = AsyncMock(side_effect=flaky_embed)
+    q = make_chunks_q(1)
+    c.start(q)
+
+    # T1: embed raises on its flush -> batch dropped, T1 finalized failed on its EndOfTask.
+    await q.put(_chunk_env("T1", "a"))
+    await q.put(_eot_env("T1"))
+    # T2: processed after T1 failed -> proves the consumer is still alive and draining.
+    await q.put(_chunk_env("T2", "b"))
+    await q.put(_eot_env("T2"))
+    await c.shutdown()
+
+    by_uri = {u: (partial, error) for (u, partial, error) in finals}
+    assert by_uri["c://x/T1"][0] is True  # failed task flagged partial
+    assert "MemoryError" in by_uri["c://x/T1"][1]  # raw error propagated (type name only)
+    assert by_uri["c://x/T2"] == (False, None)  # next task processed normally, no error
+    assert c._pending == {} and c._task_errors == {}  # all per-task state released
+    milvus.upsert.assert_awaited_once()  # only T2 was written; the failed T1 batch was dropped
+
+
+async def test_upsert_failure_drops_batch_and_finalizes_failed():
+    # Symmetry with the embed-failure path: a failing milvus.upsert also drops the batch and
+    # finalizes the affected task failed rather than wedging.
     c, embedder, milvus, tx = _consumer(batch_size=10, idle_ms=30)
-    calls = {"n": 0}
-
-    async def flaky_upsert(rows):
-        calls["n"] += 1
-        if calls["n"] == 1:
-            raise RuntimeError("milvus transient error")
-        flaky_upsert.last = rows
-
-    milvus.upsert = AsyncMock(side_effect=flaky_upsert)
-    seen: list[tuple] = []
-    c.register_on_succeeded(lambda uri, job, count, partial: seen.append((uri, count)))
+    finals: list[tuple] = []
+    c.register_on_succeeded(lambda uri, job, count, partial, error: finals.append((uri, partial, error)))
+    milvus.upsert = AsyncMock(side_effect=RuntimeError("milvus write error"))
     q = make_chunks_q(10)
     c.start(q)
 
     await q.put(_chunk_env("T", "a"))
     await q.put(_chunk_env("T", "b"))
     await q.put(_eot_env("T"))
-    # below batch_size, so the batch flushes on the idle timer: flush #1 raises (caught),
-    # the batch is preserved, flush #2 (next idle tick) retries and succeeds.
-    await asyncio.sleep(0.15)
     await c.shutdown()
 
-    assert calls["n"] == 2  # first flush failed, retried once
-    assert len(flaky_upsert.last) == 2  # both chunks survived the failed flush
-    assert seen == [("c://x/T", 2)]  # task finalized exactly once with both chunks counted
-    assert c._pending == {}
+    assert len(finals) == 1
+    uri, partial, error = finals[0]
+    assert uri == "c://x/T" and partial is True and "RuntimeError" in error
+    assert c._pending == {} and c._task_errors == {}
 
 
 async def test_on_task_retry_resets_per_task_state():
@@ -320,7 +349,9 @@ async def test_on_task_retry_resets_per_task_state():
     # and counts only its own chunks.
     c, embedder, milvus, tx = _consumer(batch_size=10, idle_ms=30)
     seen: dict[str, tuple] = {}
-    c.register_on_succeeded(lambda uri, job, count, partial: seen.update({uri: (count, partial)}))
+    c.register_on_succeeded(
+        lambda uri, job, count, partial, error=None: seen.update({uri: (count, partial)})
+    )
     q = make_chunks_q(10)
     c.start(q)
 
