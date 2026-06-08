@@ -1991,8 +1991,11 @@ always imported. The other built-ins are imported lazily and may be skipped in a
 server environment that does not have that connector's optional dependencies.
 Always probe the connector on the target server before queueing a large sync.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>&lt;scheme://alias&gt;<span class="w"> </span>--config<span class="w"> </span>./connector.toml
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>&lt;scheme://alias&gt;<span class="w"> </span>--config<span class="w"> </span>./connector.toml<span class="w"> </span>--wait
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>&lt;scheme://alias&gt;<span class="w"> </span>--config<span class="w"> </span>./connector.toml
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
 </code></pre></div>
+<p><code>mfs add</code> returns a job id immediately. Wait until that job reaches <code>succeeded</code>
+before relying on the search or browse examples below.</p>
 <div class="admonition note">
 <p class="admonition-title">Config and secret references</p>
 <p>Connector TOML is loaded by the CLI and sent as the API <code>config</code> object.
@@ -2123,7 +2126,7 @@ same-host paths is <code>file://local/abs/path</code>. Uploaded remote paths use
 <p><strong>Minimum config:</strong> no TOML for the simple case. Optional TOML can set
 <code>max_file_bytes</code> and <code>[[objects]]</code> rules such as <code>indexable = false</code>.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>./docs<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>./docs
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;release checklist&quot;</span><span class="w"> </span>./docs<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>
@@ -2148,7 +2151,7 @@ converted to markdown, and exposed under <code>pages/</code>.</p>
 </code></pre></div>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml<span class="w"> </span>--wait
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;installation&quot;</span><span class="w"> </span>web://docs
@@ -2202,7 +2205,7 @@ current plugin reads that environment variable directly when building GitHub
 API headers.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>github://zilliztech/mfs<span class="w"> </span>--config<span class="w"> </span>./github.toml
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>github://zilliztech/mfs<span class="w"> </span>--config<span class="w"> </span>./github.toml<span class="w"> </span>--wait
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>github://zilliztech/mfs<span class="w"> </span>--config<span class="w"> </span>./github.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;connector registry&quot;</span><span class="w"> </span>github://zilliztech/mfs/server/python
@@ -2253,7 +2256,7 @@ plus <code>SELECT</code> on its tables.</p>
 </code></pre></div>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml<span class="w"> </span>--wait
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO migration&quot;</span><span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl
@@ -2298,7 +2301,7 @@ create a dedicated read-only user:</p>
 </code></pre></div>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>mysql://prod-db<span class="w"> </span>--config<span class="w"> </span>./mysql.toml
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mysql://prod-db<span class="w"> </span>--config<span class="w"> </span>./mysql.toml<span class="w"> </span>--wait
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mysql://prod-db<span class="w"> </span>--config<span class="w"> </span>./mysql.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing bug&quot;</span><span class="w"> </span>mysql://prod-db/tickets/rows.jsonl
@@ -2341,7 +2344,7 @@ connector only needs <code>find()</code> over the in-scope collections.</p>
 </code></pre></div>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml<span class="w"> </span>--wait
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund escalation&quot;</span><span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl
@@ -2394,7 +2397,7 @@ when the user revokes access.</p>
 apply <code>text_fields</code>, grouping, and locators.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml<span class="w"> </span>--wait
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>slack://acme/channels/eng-backend__C012345/messages.jsonl
@@ -2447,7 +2450,7 @@ server's numeric ID).</p>
 <p>No <code>[[objects]]</code> is required because the <code>discord.messages</code> preset applies.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>discord://community<span class="w"> </span>--config<span class="w"> </span>./discord.toml
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>discord://community<span class="w"> </span>--config<span class="w"> </span>./discord.toml<span class="w"> </span>--wait
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>discord://community<span class="w"> </span>--config<span class="w"> </span>./discord.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>discord://community
@@ -2491,7 +2494,7 @@ configured <code>token</code> value when it is a string, or from
 Probe the connector in the target server before syncing.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml
-<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml<span class="w"> </span>--wait
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;contract renewal&quot;</span><span class="w"> </span>gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl
@@ -2540,7 +2543,7 @@ each page or database with the integration:</p>
 Pages render as markdown documents without per-record config.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>notion://workspace<span class="w"> </span>--config<span class="w"> </span>./notion.toml
-<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>notion://workspace<span class="w"> </span>--config<span class="w"> </span>./notion.toml<span class="w"> </span>--wait
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>notion://workspace<span class="w"> </span>--config<span class="w"> </span>./notion.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;launch checklist&quot;</span><span class="w"> </span>notion://workspace/pages
@@ -2597,7 +2600,7 @@ projects look empty if the user can't see them.</p>
 </code></pre></div>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml
-<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml<span class="w"> </span>--wait
+<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO regression&quot;</span><span class="w"> </span>jira://acme/projects/ENG/issues.jsonl
@@ -2636,7 +2639,7 @@ projects visible to them in the Linear UI).</p>
 </code></pre></div>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml
-<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml<span class="w"> </span>--wait
+<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing migration&quot;</span><span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl
@@ -2676,7 +2679,7 @@ the current plugin reads <code>email</code> when building Zendesk Basic auth. Pr
 target config before syncing.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>zendesk://acme<span class="w"> </span>--config<span class="w"> </span>./zendesk.toml
-<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>zendesk://acme<span class="w"> </span>--config<span class="w"> </span>./zendesk.toml<span class="w"> </span>--wait
+<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>zendesk://acme<span class="w"> </span>--config<span class="w"> </span>./zendesk.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing dispute&quot;</span><span class="w"> </span>zendesk://acme/tickets/records.jsonl
@@ -2725,7 +2728,7 @@ and the plugin skips the username/password/security-token login flow.</p>
 instead of username/password/security-token login.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml
-<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml<span class="w"> </span>--wait
+<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;renewal risk&quot;</span><span class="w"> </span>salesforce://acme/Account/records.jsonl
@@ -2769,7 +2772,7 @@ instead of username/password/security-token login.</p>
 </code></pre></div>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
-<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml<span class="w"> </span>--wait
+<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;customer health&quot;</span><span class="w"> </span>hubspot://acme/contacts/records.jsonl
@@ -2823,7 +2826,7 @@ datasets to be indexed.</p>
 environment, such as <code>GOOGLE_APPLICATION_CREDENTIALS</code>.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
-<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml<span class="w"> </span>--wait
+<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund event&quot;</span><span class="w"> </span>bigquery://analytics/events/tables/user_events/rows.jsonl
@@ -2881,7 +2884,7 @@ default key-pair mode. If the key is encrypted, set
 <code>private_key_passphrase_ref</code>.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
-<a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml<span class="w"> </span>--wait
+<a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing event&quot;</span><span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
@@ -2946,7 +2949,7 @@ Cloudflare R2, GCS S3 interop, and MinIO via <code>endpoint_url</code>.</p>
 endpoint.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
-<a id="__codelineno-61-2" name="__codelineno-61-2" href="#__codelineno-61-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml<span class="w"> </span>--wait
+<a id="__codelineno-61-2" name="__codelineno-61-2" href="#__codelineno-61-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;retention policy&quot;</span><span class="w"> </span>s3://acme-docs/engineering/rfc/
@@ -2992,7 +2995,7 @@ configured <code>token</code> value when it is a string, or from
 Probe the connector in the target server before syncing.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
-<a id="__codelineno-64-2" name="__codelineno-64-2" href="#__codelineno-64-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml<span class="w"> </span>--wait
+<a id="__codelineno-64-2" name="__codelineno-64-2" href="#__codelineno-64-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;roadmap&quot;</span><span class="w"> </span>gdrive://engineering/Product/
@@ -3075,7 +3078,7 @@ resulting <code>oauth.json</code> to <code>$MFS_HOME/feishu.oauth.json</code> by
 </code></pre></div>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
-<a id="__codelineno-70-2" name="__codelineno-70-2" href="#__codelineno-70-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml<span class="w"> </span>--wait
+<a id="__codelineno-70-2" name="__codelineno-70-2" href="#__codelineno-70-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-71-1" name="__codelineno-71-1" href="#__codelineno-71-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>feishu://workspace/chats/

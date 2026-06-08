@@ -1751,7 +1751,7 @@ models.</p>
 <td>1024 in the default config; probed from the model by setup</td>
 <td>Core</td>
 <td>No API key</td>
-<td>The first provider probe or embedding call downloads model files when they are not already cached under <code>$MFS_HOME/onnx-cache/</code>.</td>
+<td><code>mfs-server run</code> and <code>mfs-server worker</code> preload the model at startup; if files are not cached under <code>$MFS_HOME/onnx-cache/</code>, startup downloads them.</td>
 </tr>
 <tr>
 <td><code>openai</code></td>
@@ -1791,7 +1791,7 @@ models.</p>
 <td>Detected from sentence-transformers model metadata</td>
 <td><code>uv sync --extra local</code></td>
 <td>No API key</td>
-<td>Loads the sentence-transformers model on the detected device: CUDA, MPS, then CPU.</td>
+<td><code>mfs-server run</code> and <code>mfs-server worker</code> preload the sentence-transformers model on the detected device: CUDA, MPS, then CPU.</td>
 </tr>
 </tbody>
 </table>
@@ -1810,7 +1810,7 @@ lets you enter the dimension manually. Only hand-edit <code>dim</code> when you 
 provider model's output size.</p>
 <p>After changing the embedding provider or model, re-index sources you depend on
 so query vectors and indexed vectors come from the same embedding space:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--force-index<span class="w"> </span>--wait<span class="w"> </span>TARGET
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--force-index<span class="w"> </span>TARGET
 </code></pre></div>
 <h2 id="summary-and-vlm-providers">Summary and VLM Providers<a class="headerlink" href="#summary-and-vlm-providers" title="Permanent link">&para;</a></h2>
 <p>Text summary and image-description clients use the LLM provider registry.</p>
@@ -1965,9 +1965,10 @@ For how these chunks appear as <code>ResultEnvelope.source</code>, <code>locator
 <code>metadata.chunk_kind</code>, and <code>metadata.fields</code>, see
 <a href="../content-model/">Content Model</a>.</p>
 <h2 id="where-provider-errors-show-up">Where Provider Errors Show Up<a class="headerlink" href="#where-provider-errors-show-up" title="Permanent link">&para;</a></h2>
-<p>Provider SDKs and credentials are loaded lazily. A server can start even when an
-optional provider dependency or API key is missing; the failure appears when the
-provider is first used.</p>
+<p>Hosted provider SDKs and credentials are loaded lazily. Local downloadable
+embedding providers (<code>onnx</code> and <code>local</code>) are preloaded by <code>mfs-server run</code> and
+<code>mfs-server worker</code>, so missing dependencies or failed downloads stop startup
+before the service begins accepting work.</p>
 <table>
 <thead>
 <tr>
@@ -1981,6 +1982,11 @@ provider is first used.</p>
 <td><code>mfs-server setup --section embedding</code></td>
 <td>Selected embedding provider</td>
 <td>Dimension probe can fail; install the extra, export credentials, start local services, or enter a verified dimension manually.</td>
+</tr>
+<tr>
+<td><code>mfs-server run</code> / <code>mfs-server worker</code></td>
+<td><code>onnx</code> or <code>local</code> embedding provider</td>
+<td>Startup blocks while the model is loaded or downloaded; failure stops the process.</td>
 </tr>
 <tr>
 <td><code>mfs add ...</code> indexing</td>

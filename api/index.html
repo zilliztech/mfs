@@ -2442,7 +2442,7 @@ OpenAPI. The server also accepts <code>kind</code> as a comma-separated chunk-ki
 <tr>
 <td><code>RemoveResponse</code></td>
 <td><code>target</code>, <code>removed</code></td>
-<td>Reports whether connector removal was applied.</td>
+<td>Returned after a registered connector root is removed. Child paths and unregistered targets return an error envelope.</td>
 </tr>
 </tbody>
 </table>
@@ -2482,7 +2482,7 @@ the runtime validation handler returns:</p>
 <tr>
 <td><code>validation_error</code></td>
 <td>422</td>
-<td>Malformed request shape.</td>
+<td>Malformed request shape, invalid enum value, or unknown query parameter.</td>
 </tr>
 <tr>
 <td><code>not_found</code></td>

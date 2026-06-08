@@ -1695,13 +1695,13 @@ Use the field names and command flow as the stable parts.</p>
 <tr>
 <td>Yes</td>
 <td>CLI and <code>mfs-server</code> run on the same host, or both see the same mounted path</td>
-<td><code>mfs add --wait PATH</code></td>
+<td><code>mfs add PATH</code></td>
 <td>The original path, or the <code>file://local...</code> URI from results</td>
 </tr>
 <tr>
 <td>No</td>
 <td>Docker container, remote VM, or different host</td>
-<td><code>mfs add --upload --wait PATH</code></td>
+<td><code>mfs add --upload PATH</code></td>
 <td>The uploaded <code>file://CLIENT_ID...</code> connector URI shown by <code>mfs connector list</code></td>
 </tr>
 </tbody>
@@ -1739,18 +1739,20 @@ can read the path you pass to <code>mfs add</code>.</p>
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="s">Cat reopens exact evidence by path, range, or locator.</span>
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="s">EOF</span>
 <a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>mfs<span class="w"> </span>add<span class="w"> </span>--wait<span class="w"> </span>/tmp/mfs-examples/local
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;default API endpoint&quot;</span><span class="w"> </span>/tmp/mfs-examples/local<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>mfs<span class="w"> </span>cat<span class="w"> </span>/tmp/mfs-examples/local/README.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:6
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>mfs<span class="w"> </span>add<span class="w"> </span>/tmp/mfs-examples/local
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;default API endpoint&quot;</span><span class="w"> </span>/tmp/mfs-examples/local<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>mfs<span class="w"> </span>cat<span class="w"> </span>/tmp/mfs-examples/local/README.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:6
 </code></pre></div>
 <p>Expected shape:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>done: ... objects indexed, ... failed
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>file://local/tmp/mfs-examples/local/README.md  score=...
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>   The default API endpoint is 127.0.0.1:13619.
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a># MFS local example
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>{&quot;id&quot;:&quot;JOB_ID&quot;,&quot;status&quot;:&quot;succeeded&quot;,...}
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>file://local/tmp/mfs-examples/local/README.md  score=...
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>   The default API endpoint is 127.0.0.1:13619.
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a># MFS local example
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>...
 </code></pre></div>
 <p>Next: <a href="../getting-started/">Quickstart</a>, <a href="../cli/">CLI Reference</a>, and
 <a href="../search-and-browse/">Search and Browse</a>.</p>
@@ -1783,14 +1785,16 @@ the persistent <code>/data</code> volume:</p>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="s">The CLI sends changed files and the server indexes the staged copy.</span>
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="s">EOF</span>
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>--wait<span class="w"> </span>/tmp/mfs-examples/upload
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>/tmp/mfs-examples/upload
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
 </code></pre></div>
 <p>Expected shape:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>uploaded 1 changed, 0 renamed, 0 deleted
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>done: ... objects indexed, ... failed
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>file       active   file://CLIENT_ID/tmp/mfs-examples/upload
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>{&quot;id&quot;:&quot;JOB_ID&quot;,&quot;status&quot;:&quot;succeeded&quot;,...}
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>file       active   file://CLIENT_ID/tmp/mfs-examples/upload
 </code></pre></div>
 <p>Use the displayed connector URI for search and browse if the bare host path is
 not resolved:</p>

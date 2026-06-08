@@ -1690,11 +1690,6 @@ search does not yet match the content you just added.</p>
 <td><code>POST /v1/add</code></td>
 </tr>
 <tr>
-<td>Queue and wait from the CLI</td>
-<td><code>mfs add --wait TARGET</code></td>
-<td>Poll <code>GET /v1/jobs/{job_id}</code></td>
-</tr>
-<tr>
 <td>Check server-level counts</td>
 <td><code>mfs status</code></td>
 <td><code>GET /v1/status</code></td>
@@ -1721,13 +1716,11 @@ search does not yet match the content you just added.</p>
 </tr>
 </tbody>
 </table>
-<p><code>mfs add</code> queues work by default. Without <code>--wait</code>, it returns after the server
-has a job id:</p>
+<p><code>mfs add</code> queues work and returns after the server has a job id:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
 </code></pre></div>
-<p>With <code>--wait</code>, the CLI still uses the job API. It polls
-<code>/v1/jobs/{job_id}</code> until the job reaches <code>succeeded</code>, <code>failed</code>, or
-<code>cancelled</code>.</p>
+<p>Use <code>mfs job show JOB_ID</code> or <code>mfs job list</code> to inspect progress until the job
+reaches <code>succeeded</code>, <code>failed</code>, or <code>cancelled</code>.</p>
 <h2 id="lifecycle">Lifecycle<a class="headerlink" href="#lifecycle" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart LR
   add["mfs add&lt;br/&gt;or API add/upload"] --&gt; mode{"processing mode"}
@@ -1800,11 +1793,6 @@ direct client.</p>
 <td>Rust CLI <code>mfs add</code></td>
 <td>Sends <code>process=false</code> to <code>/v1/add</code> and returns a <code>job_id</code>; upload mode also sends <code>process=false</code> to the file-upload endpoint.</td>
 <td>A worker drains the queued job.</td>
-</tr>
-<tr>
-<td>Rust CLI <code>mfs add --wait</code></td>
-<td>Same queued request, then polls <code>/v1/jobs/{job_id}</code> until terminal.</td>
-<td>Same as <code>mfs add</code>; <code>--wait</code> is polling, not inline indexing.</td>
 </tr>
 <tr>
 <td>Direct API with <code>process=false</code></td>
@@ -1980,7 +1968,7 @@ check <code>search_status</code>, or use <code>mfs connector inspect TARGET</cod
 <tbody>
 <tr>
 <td><a href="../getting-started/">Quickstart</a></td>
-<td>First local <code>mfs add --wait</code> checkpoint.</td>
+<td>First local <code>mfs add</code> checkpoint.</td>
 </tr>
 <tr>
 <td><a href="../content-model/">Content Model</a></td>

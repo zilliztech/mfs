@@ -1849,9 +1849,9 @@ SDK integrations against the generated contract plus the running server.</p>
 <li>Connector management, file manifest/upload steps, <code>head</code>, <code>tail</code>, <code>export</code>,
   and <code>listJobs</code> are part of the OpenAPI surface but are not all exposed as
   generated SDK methods in the current checked-in clients.</li>
-<li>Generated SDK READMEs and generated API docs say authorization is not required
-  because the OpenAPI spec does not model bearer auth. The running server is
-  authoritative for auth behavior.</li>
+<li>Older generated SDK READMEs and generated API docs may say authorization is
+  not required. Treat that as stale generated text; the OpenAPI contract now
+  models bearer auth and the running server remains authoritative for auth behavior.</li>
 <li>Generated TypeScript runtime defaults to <code>http://127.0.0.1:8765</code>; the
   documented <code>mfs-server run</code> and <code>mfs-server api</code> default bind is
   <code>127.0.0.1:13619</code>. Set the base URL explicitly.</li>
@@ -1896,7 +1896,7 @@ SDK integrations against the generated contract plus the running server.</p>
 <tbody>
 <tr>
 <td>The top-level <code>README.md</code> and <code>cli/README.md</code> still include older quickstart commands such as <code>mfs status file://...</code>, <code>--connector-uri</code>, and <code>mfs connector ls</code>.</td>
-<td>Follow <a href="../getting-started/">Quickstart</a>, <a href="../cli/">CLI Reference</a>, <a href="../connectors/">Connectors</a>, and <a href="../troubleshooting/">Troubleshooting</a> for current v0.4 command forms such as <code>mfs add --wait</code>, <code>mfs search QUERY PATH</code>, <code>mfs connector list</code>, and <code>mfs job show</code>.</td>
+<td>Follow <a href="../getting-started/">Quickstart</a>, <a href="../cli/">CLI Reference</a>, <a href="../connectors/">Connectors</a>, and <a href="../troubleshooting/">Troubleshooting</a> for current v0.4 command forms such as <code>mfs add</code>, <code>mfs search QUERY PATH</code>, <code>mfs connector list</code>, and <code>mfs job show</code>.</td>
 </tr>
 <tr>
 <td>Beta labels are not uniform across repository snippets: the docs install the CLI from <code>v0.4.0-beta.2</code>, server and SDK package metadata in the repo show <code>0.4.0-beta.3</code>, and some deployment README examples still use <code>0.4.0-beta.1</code> image tags.</td>

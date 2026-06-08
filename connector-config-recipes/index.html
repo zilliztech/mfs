@@ -1851,7 +1851,7 @@ connector fetches HTTP responses and exposes converted markdown under
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">max_pages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml<span class="w"> </span>--wait
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>mfs<span class="w"> </span>ls<span class="w"> </span>web://docs/pages/docs.example.com
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;installation&quot;</span><span class="w"> </span>web://docs
@@ -1870,7 +1870,7 @@ where document/code/image object kinds are enough.</p>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">secret_access_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_SECRET_ACCESS_KEY&quot;</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml<span class="w"> </span>--wait
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>mfs<span class="w"> </span>tree<span class="w"> </span>s3://acme-docs<span class="w"> </span>-L<span class="w"> </span><span class="m">2</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;retention policy&quot;</span><span class="w"> </span>s3://acme-docs/engineering/rfc/
@@ -1897,7 +1897,7 @@ from the reference.</p>
 <a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;priority&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updated_at&quot;</span><span class="p">]</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml<span class="w"> </span>--wait
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>mfs<span class="w"> </span>head<span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl<span class="w"> </span>-n<span class="w"> </span><span class="m">5</span>
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO migration&quot;</span><span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl
@@ -1922,7 +1922,7 @@ and locators. The example uses MongoDB documents.</p>
 <a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updatedAt&quot;</span><span class="p">]</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml<span class="w"> </span>--wait
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>mfs<span class="w"> </span>head<span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl<span class="w"> </span>-n<span class="w"> </span><span class="m">5</span>
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund escalation&quot;</span><span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl
@@ -1939,7 +1939,7 @@ indexed separately.</p>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml<span class="w"> </span>--wait
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>slack://acme<span class="w"> </span>--config<span class="w"> </span>./slack.toml
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>mfs<span class="w"> </span>ls<span class="w"> </span>slack://acme/channels
 <a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>slack://acme
@@ -1971,9 +1971,11 @@ scopes and be a member of those private channels.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>TARGET<span class="w"> </span>--config<span class="w"> </span>./connector.toml
 </code></pre></div>
 <ol>
-<li>Add and wait for a first sync when you want an immediate pass/fail result.</li>
+<li>Add the source, capture the returned job id, and inspect the first sync
+   when you want an immediate pass/fail result.</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET<span class="w"> </span>--config<span class="w"> </span>./connector.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET<span class="w"> </span>--config<span class="w"> </span>./connector.toml
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
 </code></pre></div>
 <p>For external targets, the CLI runs a pre-flight estimate and asks for
    confirmation unless <code>--yes</code> is set. Use <code>--yes</code> only after you already
@@ -1990,9 +1992,9 @@ scopes and be a member of those private channels.</p>
    Use <code>--since</code> only for connectors with a supported cursor kind; unsupported schemes
    return <code>since_unsupported</code>.</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET<span class="w"> </span>--wait
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET<span class="w"> </span>--since<span class="w"> </span><span class="m">2026</span>-06-01<span class="w"> </span>--wait
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET<span class="w"> </span>--force-index<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET<span class="w"> </span>--since<span class="w"> </span><span class="m">2026</span>-06-01
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET<span class="w"> </span>--force-index
 </code></pre></div>
 <ol>
 <li>Inspect the connector and the job before changing fields again.</li>

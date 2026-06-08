@@ -1848,7 +1848,7 @@ image and Compose file set <code>MFS_HOME=/data</code>.</p>
 <tr>
 <td><code>$MFS_HOME/onnx-cache/</code></td>
 <td>Cached files for the default local ONNX embedding model.</td>
-<td>Optional; keep it to avoid first-run downloads.</td>
+<td>Optional; keep it to avoid startup downloads.</td>
 <td>Can be removed after stopping the server if you accept a later model download.</td>
 </tr>
 </tbody>
@@ -2193,7 +2193,7 @@ build, or plan a fresh database and re-index.</p>
 </tr>
 <tr>
 <td>Re-upload and rebuild an upload-mode connector</td>
-<td><code>mfs add --force-upload --wait PATH</code></td>
+<td><code>mfs add --force-upload PATH</code></td>
 <td>Re-sends file bytes and forces a full re-index through upload mode.</td>
 <td>Do not remove local upload staging for an active connector unless you are ready to re-upload.</td>
 </tr>

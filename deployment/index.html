@@ -1921,7 +1921,7 @@ split, but the chart notes describe that split as a post-v0.4 direction.</p>
 <td>ONNX model cache</td>
 <td><code>$MFS_HOME/onnx-cache/</code></td>
 <td><code>/data/onnx-cache/</code></td>
-<td>The default local embedding model is downloaded on first embedding use and should be kept across restarts.</td>
+<td>The default local embedding model is preloaded at server/worker startup and should be kept across restarts.</td>
 </tr>
 </tbody>
 </table>
@@ -2027,7 +2027,7 @@ configured.</p>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>http://127.0.0.1:13619/v1/server/info
 </code></pre></div>
 <p>For same-host paths, let the server read the path directly:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--wait<span class="w"> </span>/path/to/project
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>/path/to/project
 </code></pre></div>
 <p>Use upload mode only when the server process cannot read the path you pass to
 the CLI.</p>
@@ -2091,19 +2091,19 @@ these modes deliberately:</p>
 <tbody>
 <tr>
 <td>The path exists only on the host</td>
-<td><code>mfs add --upload --wait /path/on/host</code></td>
+<td><code>mfs add --upload /path/on/host</code></td>
 </tr>
 <tr>
 <td>The path is mounted into the container and you pass the server-visible path</td>
-<td><code>mfs add --no-upload --wait /path/in/container</code></td>
+<td><code>mfs add --no-upload /path/in/container</code></td>
 </tr>
 <tr>
 <td>You need to resend every file</td>
-<td><code>mfs add --force-upload --wait /path/on/host</code></td>
+<td><code>mfs add --force-upload /path/on/host</code></td>
 </tr>
 <tr>
 <td>Bytes are already staged but you want a full re-index</td>
-<td><code>mfs add --force-index --wait /path/on/host</code></td>
+<td><code>mfs add --force-index /path/on/host</code></td>
 </tr>
 </tbody>
 </table>
@@ -2448,7 +2448,7 @@ state:</p>
 <td>Avoid long-lived unpinned integrations against the beta API.</td>
 </tr>
 <tr>
-<td>The default local ONNX model downloads on first embedding use.</td>
+<td>The default local ONNX model preloads at server/worker startup.</td>
 <td>Persist <code>$MFS_HOME/onnx-cache/</code> or <code>/data/onnx-cache/</code> to avoid repeated downloads.</td>
 </tr>
 <tr>
@@ -2529,15 +2529,16 @@ state:</p>
 <a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>mfs<span class="w"> </span>status
 <a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>
 <a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a><span class="c1"># 4. Same host or shared path:</span>
-<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>mfs<span class="w"> </span>add<span class="w"> </span>--wait<span class="w"> </span>/tmp/mfs-quickstart
-<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>
-<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a><span class="c1"># For Docker or a remote server, use upload instead:</span>
-<a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a><span class="c1"># mfs add --upload --wait /tmp/mfs-quickstart</span>
-<a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a>
-<a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a><span class="c1"># 5. Verify retrieval and exact reads.</span>
-<a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;FastAPI server default endpoint&quot;</span><span class="w"> </span>/tmp/mfs-quickstart<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
-<a id="__codelineno-16-22" name="__codelineno-16-22" href="#__codelineno-16-22"></a>mfs<span class="w"> </span>ls<span class="w"> </span>/tmp/mfs-quickstart
-<a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a>mfs<span class="w"> </span>cat<span class="w"> </span>/tmp/mfs-quickstart/README.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:20
+<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>mfs<span class="w"> </span>add<span class="w"> </span>/tmp/mfs-quickstart
+<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
+<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a>
+<a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a><span class="c1"># For Docker or a remote server, use upload instead:</span>
+<a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a><span class="c1"># mfs add --upload /tmp/mfs-quickstart</span>
+<a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a>
+<a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a><span class="c1"># 5. Verify retrieval and exact reads.</span>
+<a id="__codelineno-16-22" name="__codelineno-16-22" href="#__codelineno-16-22"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;FastAPI server default endpoint&quot;</span><span class="w"> </span>/tmp/mfs-quickstart<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
+<a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a>mfs<span class="w"> </span>ls<span class="w"> </span>/tmp/mfs-quickstart
+<a id="__codelineno-16-24" name="__codelineno-16-24" href="#__codelineno-16-24"></a>mfs<span class="w"> </span>cat<span class="w"> </span>/tmp/mfs-quickstart/README.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:20
 </code></pre></div>
 
 </details>

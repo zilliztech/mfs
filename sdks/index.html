@@ -1741,9 +1741,9 @@ relying on generated methods for those operations.</p>
 <p class="admonition-title">Generated README caveats</p>
 <p>The generated README files and generated package internals may mention
 <code>0.4.0</code>, while the checked-in package metadata currently says
-<code>0.4.0-beta.3</code>. OpenAPI-derived generator output may also say endpoints do
-not require authorization because the spec has no security scheme. Treat
-that as generator scaffolding; the running server is authoritative for auth.
+<code>0.4.0-beta.3</code>. If older generated output says endpoints do not require
+authorization, treat that as stale generator scaffolding; the OpenAPI
+contract declares bearer auth and the running server is authoritative for auth.
 The checked-in SDK README files and <code>sdks/*/docs/README.md</code> entries include
 a small runtime overlay before the generated examples and model pages.</p>
 </div>

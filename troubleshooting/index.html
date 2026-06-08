@@ -1905,27 +1905,27 @@ not only the first line. For the grouped code-to-recovery matrix, see
 <tbody>
 <tr>
 <td>CLI and server share the same filesystem path</td>
-<td><code>mfs add --no-upload --wait PATH</code></td>
+<td><code>mfs add --no-upload PATH</code></td>
 <td>Forces the server to read <code>PATH</code> directly. Use this for a real shared mount.</td>
 </tr>
 <tr>
 <td>Server is in Docker, on another VM, or cannot read the client path</td>
-<td><code>mfs add --upload --wait PATH</code></td>
+<td><code>mfs add --upload PATH</code></td>
 <td>Scans the client tree, uploads changed files, and indexes the server-side staged copy.</td>
 </tr>
 <tr>
 <td>You want to force upload even on the same host</td>
-<td><code>mfs add --upload --wait PATH</code></td>
+<td><code>mfs add --upload PATH</code></td>
 <td>Useful when the endpoint is local but the server process is isolated from the client path.</td>
 </tr>
 <tr>
 <td>You need to resend every file</td>
-<td><code>mfs add --force-upload --wait PATH</code></td>
+<td><code>mfs add --force-upload PATH</code></td>
 <td>Resends all file bytes and forces a full re-index.</td>
 </tr>
 <tr>
 <td>Bytes are already staged but you need a full re-index</td>
-<td><code>mfs add --force-index --wait PATH</code></td>
+<td><code>mfs add --force-index PATH</code></td>
 <td>Re-indexes without forcing every file to be re-uploaded.</td>
 </tr>
 </tbody>
@@ -1961,9 +1961,9 @@ known token instead of relying on the auto-generated <code>/data/server.token</c
 </thead>
 <tbody>
 <tr>
-<td><code>mfs add --no-upload --wait ./repo</code> fails in Docker</td>
+<td><code>mfs add --no-upload ./repo</code> fails in Docker</td>
 <td>The container cannot read the host path <code>./repo</code>.</td>
-<td>Use <code>mfs add --upload --wait ./repo</code>, or mount a shared path into the container and pass the server-visible path.</td>
+<td>Use <code>mfs add --upload ./repo</code>, or mount a shared path into the container and pass the server-visible path.</td>
 </tr>
 <tr>
 <td>Connector config uses <code>localhost</code> but the source is on the host</td>
@@ -1983,11 +1983,11 @@ known token instead of relying on the auto-generated <code>/data/server.token</c
 </tbody>
 </table>
 <h2 id="jobs-and-indexing">Jobs and Indexing<a class="headerlink" href="#jobs-and-indexing" title="Permanent link">&para;</a></h2>
-<p><code>mfs add</code> queues work and returns a job id unless <code>--wait</code> is used. <code>--wait</code>
-polls the job until it succeeds, fails, or is cancelled.
+<p><code>mfs add</code> queues work and returns a job id immediately. Use <code>mfs job show</code> or
+<code>mfs job list</code> to follow progress until it succeeds, fails, or is cancelled.
 For the focused lifecycle guide, see <a href="../jobs/">Jobs and Indexing Progress</a>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>--wait<span class="w"> </span>PATH
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>--no-upload<span class="w"> </span>--wait<span class="w"> </span>PATH
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>PATH
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>--no-upload<span class="w"> </span>PATH
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mfs<span class="w"> </span>job<span class="w"> </span>list
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>mfs<span class="w"> </span>job<span class="w"> </span>cancel<span class="w"> </span>JOB_ID
@@ -2186,7 +2186,7 @@ not.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>mfs<span class="w"> </span>connector<span class="w"> </span>inspect<span class="w"> </span>TARGET
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>TARGET<span class="w"> </span>--config<span class="w"> </span>./connector.toml
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET<span class="w"> </span>--config<span class="w"> </span>./connector.toml<span class="w"> </span>--wait
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>mfs<span class="w"> </span>add<span class="w"> </span>TARGET<span class="w"> </span>--config<span class="w"> </span>./connector.toml
 </code></pre></div>
 <p>For non-local targets, <code>mfs add</code> runs a zero-billing estimate unless <code>--yes</code> is
 set. The estimate reads metadata and uses a local chunker/tokenizer dry run; it

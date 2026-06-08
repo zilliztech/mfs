@@ -2134,7 +2134,7 @@ connector-specific pitfalls.</p>
 </tr>
 <tr>
 <td>Add a local path</td>
-<td><code>mfs add ./docs --wait</code></td>
+<td><code>mfs add ./docs</code></td>
 <td>Bare paths are accepted. If the server runs on another machine, the CLI may bundle and upload the tree unless <code>--no-upload</code> is set.</td>
 </tr>
 <tr>
@@ -2148,9 +2148,9 @@ connector-specific pitfalls.</p>
 <td>Useful for automation after you understand the estimated object, chunk, and token counts.</td>
 </tr>
 <tr>
-<td>Wait for an add job</td>
-<td><code>mfs add s3://docs --config ./s3.toml --wait</code></td>
-<td><code>mfs add</code> normally returns after queueing a job. <code>--wait</code> polls the job to a terminal state.</td>
+<td>Inspect an add job</td>
+<td><code>mfs job show JOB_ID</code></td>
+<td><code>mfs add</code> returns after queueing a job. Use the job id to inspect terminal state.</td>
 </tr>
 <tr>
 <td>Re-sync with a cursor/date</td>
@@ -2180,7 +2180,7 @@ connector-specific pitfalls.</p>
 <tr>
 <td>Remove a connector</td>
 <td><code>mfs connector remove &lt;target&gt;</code></td>
-<td>Prompts before deleting MFS-owned connector metadata, artifacts, and index data.</td>
+<td>Prompts before deleting MFS-owned connector metadata, artifacts, and index data. Target must be a registered connector root, not a child path.</td>
 </tr>
 <tr>
 <td>Remove through the alias</td>
@@ -2307,7 +2307,7 @@ same lifecycle directly:</p>
 <tr>
 <td><code>DELETE /v1/connectors?target=...</code></td>
 <td><code>mfs connector remove</code>, <code>mfs remove</code></td>
-<td>Returns the requested <code>target</code> and whether it was removed.</td>
+<td>Removes a registered connector root. Child paths and unregistered targets return an error.</td>
 </tr>
 </tbody>
 </table>

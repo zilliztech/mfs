@@ -690,10 +690,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-add-the-folder-and-wait-for-indexing" class="md-nav__link">
+  <a href="#5-add-the-folder-and-watch-indexing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Add the folder and wait for indexing
+        5. Add the folder and watch indexing
       
     </span>
   </a>
@@ -1652,10 +1652,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-add-the-folder-and-wait-for-indexing" class="md-nav__link">
+  <a href="#5-add-the-folder-and-watch-indexing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Add the folder and wait for indexing
+        5. Add the folder and watch indexing
       
     </span>
   </a>
@@ -1747,8 +1747,8 @@ search, and browsing.</p>
 <td>No manual token is needed when CLI and server share <code>$MFS_HOME</code>.</td>
 </tr>
 <tr>
-<td>Folder indexed</td>
-<td><code>mfs add --wait &lt;path&gt;</code> ends with <code>done: ... objects indexed, ... failed</code>.</td>
+<td>Folder queued</td>
+<td><code>mfs add &lt;path&gt;</code> returns a queued job id.</td>
 </tr>
 <tr>
 <td>Search and browse work</td>
@@ -1817,9 +1817,9 @@ wizard to keep the local defaults:</p>
 </table>
 <div class="admonition note">
 <p class="admonition-title">First ONNX run</p>
-<p>The first local embedding run may download the ONNX model into
-<code>$MFS_HOME/onnx-cache/</code>. Keep that directory if you want later indexing runs
-to reuse the model.</p>
+<p><code>mfs-server run</code> preloads the default local ONNX embedding model. If it is
+not already cached, startup downloads it into <code>$MFS_HOME/onnx-cache/</code>.
+Keep that directory if you want later runs to reuse the model.</p>
 </div>
 <p>By default, <code>mfs-server run</code> binds to <code>127.0.0.1:13619</code>. Leave this terminal
 open.</p>
@@ -1846,8 +1846,7 @@ not need <code>MFS_API_TOKEN</code>.</p>
 <p>For persistent remote profiles, see <a href="../cli/">CLI Reference</a>. For server and
 environment settings, see <a href="../configuration/">Configuration</a>.</p>
 <h2 id="4-create-a-small-folder-to-index">4. Create a small folder to index<a class="headerlink" href="#4-create-a-small-folder-to-index" title="Permanent link">&para;</a></h2>
-<p>Use a tiny folder first. This keeps the first model download and indexing run
-easy to reason about:</p>
+<p>Use a tiny folder first. This keeps the first indexing run easy to reason about:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>/tmp/mfs-quickstart/notes
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>cat<span class="w"> </span>&gt;<span class="w"> </span>/tmp/mfs-quickstart/README.md<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="s"># MFS quickstart notes</span>
@@ -1864,21 +1863,22 @@ easy to reason about:</p>
 <a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="s">Use mfs cat with --range to verify exact context.</span>
 <a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="s">EOF</span>
 </code></pre></div>
-<h2 id="5-add-the-folder-and-wait-for-indexing">5. Add the folder and wait for indexing<a class="headerlink" href="#5-add-the-folder-and-wait-for-indexing" title="Permanent link">&para;</a></h2>
+<h2 id="5-add-the-folder-and-watch-indexing">5. Add the folder and watch indexing<a class="headerlink" href="#5-add-the-folder-and-watch-indexing" title="Permanent link">&para;</a></h2>
 <p>For a local first run, let the server read the same host path:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--wait<span class="w"> </span>/tmp/mfs-quickstart
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>/tmp/mfs-quickstart
 </code></pre></div>
 <p>Expected checkpoint:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>done: 2 of 2 objects indexed, 0 failed
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
 </code></pre></div>
-<p>The exact counts can differ if you add more files. The important signal is that
-the job reaches <code>succeeded</code> and <code>failed</code> is <code>0</code>.</p>
+<p>The job id differs per run. The important signal is that <code>mfs job show JOB_ID</code>
+eventually reaches <code>succeeded</code> and <code>failed_objects</code> is <code>0</code>.</p>
 <p>You can inspect server state at any point:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mfs<span class="w"> </span>status
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mfs<span class="w"> </span>job<span class="w"> </span>list
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
 </code></pre></div>
-<p>For job ids, <code>--wait</code>, and progress states, see
+<p>For job ids and progress states, see
 <a href="../jobs/">Jobs and Indexing Progress</a>.</p>
 <h2 id="6-search-browse-and-read">6. Search, browse, and read<a class="headerlink" href="#6-search-browse-and-read" title="Permanent link">&para;</a></h2>
 <p>Search within the indexed folder:</p>
@@ -1911,7 +1911,7 @@ source:</p>
 filesystem.</p>
 <p>Use upload mode when the server cannot read the client path, such as a Docker
 server, a remote VM, or a different host:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>--wait<span class="w"> </span>/tmp/mfs-quickstart
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>/tmp/mfs-quickstart
 </code></pre></div>
 <p>Upload mode scans the client folder, sends changed files to the server, and
 indexes the staged copy. Use <code>--force-upload</code> only when you need to resend every
@@ -1927,11 +1927,11 @@ want a full re-index.</p>
 <tbody>
 <tr>
 <td>CLI and server run on the same host and share paths</td>
-<td><code>mfs add --wait /path/to/folder</code></td>
+<td><code>mfs add /path/to/folder</code></td>
 </tr>
 <tr>
 <td>Server runs in Docker or on another host</td>
-<td><code>mfs add --upload --wait /path/to/folder</code></td>
+<td><code>mfs add --upload /path/to/folder</code></td>
 </tr>
 <tr>
 <td>Remote endpoint is set in <code>MFS_API_URL</code> and the target is a local path</td>
@@ -1939,7 +1939,7 @@ want a full re-index.</p>
 </tr>
 <tr>
 <td>Server can read a shared mounted path even though endpoint looks remote</td>
-<td><code>mfs add --no-upload --wait /shared/path</code></td>
+<td><code>mfs add --no-upload /shared/path</code></td>
 </tr>
 </tbody>
 </table>

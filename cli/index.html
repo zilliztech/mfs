@@ -2006,7 +2006,7 @@ or connector URI.</p>
 steps, see <a href="../troubleshooting/">Troubleshooting</a>.</p>
 <h2 id="add-and-sync">Add and Sync<a class="headerlink" href="#add-and-sync" title="Permanent link">&para;</a></h2>
 <p><code>mfs add TARGET</code> registers or syncs a local path or connector URI. The command
-queues a job by default and returns immediately unless <code>--wait</code> is set.</p>
+always queues a job and returns immediately with a job id.</p>
 <table>
 <thead>
 <tr>
@@ -2032,10 +2032,6 @@ queues a job by default and returns immediately unless <code>--wait</code> is se
 <td>Visible alias for <code>--force-index</code>.</td>
 </tr>
 <tr>
-<td><code>--wait</code></td>
-<td>Poll the returned job until it succeeds, fails, or is cancelled.</td>
-</tr>
-<tr>
 <td><code>--upload</code></td>
 <td>Bundle and upload a local tree even when the endpoint is loopback.</td>
 </tr>
@@ -2054,15 +2050,15 @@ queues a job by default and returns immediately unless <code>--wait</code> is se
 </tbody>
 </table>
 <p>Local same-host example:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--wait<span class="w"> </span>./repo
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>./repo
 </code></pre></div>
 <p>Container or remote server example:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_URL</span><span class="o">=</span>http://127.0.0.1:13619
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>cat<span class="w"> </span>/path/to/server.token<span class="k">)</span><span class="s2">&quot;</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>--wait<span class="w"> </span>./repo
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>mfs<span class="w"> </span>add<span class="w"> </span>--upload<span class="w"> </span>./repo
 </code></pre></div>
 <p>External connector example:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml<span class="w"> </span>--wait
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml
 </code></pre></div>
 <p>When <code>TARGET</code> is not an existing local path and <code>--yes</code> is not set, <code>mfs add</code>
 first calls <code>/v1/connectors/estimate</code>, prints discovered objects plus estimated
@@ -2076,21 +2072,18 @@ client hostname. If they differ, it uploads by default. <code>--upload</code> an
 Docker and Compose examples.</p>
 </div>
 <h3 id="add-output">Add Output<a class="headerlink" href="#add-output" title="Permanent link">&para;</a></h3>
-<p>Without <code>--wait</code>, human output is a queued job line:</p>
+<p>Human output is a queued job line:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
 </code></pre></div>
 <p>With <code>--json</code>, the queued output is:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span><span class="nt">&quot;job_id&quot;</span><span class="p">:</span><span class="s2">&quot;JOB_ID&quot;</span><span class="p">}</span>
 </code></pre></div>
-<p>With <code>--wait</code>, successful human output is:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>done: 2 of 2 objects indexed, 0 failed
-</code></pre></div>
 <p>For job status meanings, worker behavior, and recovery steps, see
 <a href="../jobs/">Jobs and Indexing Progress</a>.</p>
 <h2 id="search">Search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h2>
 <p><code>mfs search</code> requires either a scoped <code>PATH</code> or <code>--all</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;rate limit handler&quot;</span><span class="w"> </span>./repo<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;where is the retry budget documented&quot;</span><span class="w"> </span>--all<span class="w"> </span>--top-k<span class="w"> </span><span class="m">20</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;rate limit handler&quot;</span><span class="w"> </span>./repo<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;where is the retry budget documented&quot;</span><span class="w"> </span>--all<span class="w"> </span>--top-k<span class="w"> </span><span class="m">20</span>
 </code></pre></div>
 <table>
 <thead>
@@ -2109,7 +2102,7 @@ Docker and Compose examples.</p>
 <tr>
 <td><code>--mode MODE</code></td>
 <td><code>hybrid</code></td>
-<td>Search mode sent to the server, commonly <code>hybrid</code>, <code>semantic</code>, or <code>keyword</code>.</td>
+<td>Search mode sent to the server: <code>hybrid</code>, <code>semantic</code>, or <code>keyword</code>.</td>
 </tr>
 <tr>
 <td><code>--top-k N</code></td>
@@ -2131,7 +2124,7 @@ Docker and Compose examples.</p>
 <p>Human output prints one line per hit with source and score, followed by the
 first 100 characters of snippet content when present.</p>
 <p>Use JSON when you need locators:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mfs<span class="w"> </span>--json<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;connector auth config&quot;</span><span class="w"> </span>./server<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>--json<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;connector auth config&quot;</span><span class="w"> </span>./server<span class="w"> </span>--top-k<span class="w"> </span><span class="m">5</span>
 </code></pre></div>
 <p>Search JSON includes fields such as <code>source</code>, <code>content</code>, <code>score</code>, <code>locator</code>,
 and <code>metadata</code>. Feed <code>source</code> and <code>locator</code> back to <code>cat</code> before quoting or
@@ -2139,11 +2132,11 @@ editing behavior.</p>
 <h2 id="grep">Grep<a class="headerlink" href="#grep" title="Permanent link">&para;</a></h2>
 <p><code>mfs grep PATTERN PATH</code> performs keyword/full-text search through the server.
 The CLI sends <code>pattern</code> and <code>path</code> to <code>/v1/grep</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>mfs<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;MFS_API_TOKEN&quot;</span><span class="w"> </span>./server
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>mfs<span class="w"> </span>--json<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;Authorization: Bearer&quot;</span><span class="w"> </span>./docs
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mfs<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;MFS_API_TOKEN&quot;</span><span class="w"> </span>./server
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mfs<span class="w"> </span>--json<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;Authorization: Bearer&quot;</span><span class="w"> </span>./docs
 </code></pre></div>
 <p>Human output prints:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>SOURCE: matching content preview
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>SOURCE: matching content preview
 </code></pre></div>
 <p>JSON output exposes match locators and the server's <code>via</code> field when present.</p>
 <h2 id="browse-and-read">Browse and Read<a class="headerlink" href="#browse-and-read" title="Permanent link">&para;</a></h2>
@@ -2189,13 +2182,13 @@ The CLI sends <code>pattern</code> and <code>path</code> to <code>/v1/grep</code
 </tbody>
 </table>
 <p>Examples:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mfs<span class="w"> </span>ls<span class="w"> </span>./repo
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mfs<span class="w"> </span>tree<span class="w"> </span>./repo<span class="w"> </span>-L<span class="w"> </span><span class="m">3</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./repo/README.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod/public/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>mfs<span class="w"> </span>head<span class="w"> </span>./repo/README.md<span class="w"> </span>-n<span class="w"> </span><span class="m">20</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>mfs<span class="w"> </span>tail<span class="w"> </span>./repo/logs/app.log<span class="w"> </span>--lines<span class="w"> </span><span class="m">80</span>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>./repo/logs/app.log<span class="w"> </span>/tmp/app.log
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mfs<span class="w"> </span>ls<span class="w"> </span>./repo
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>mfs<span class="w"> </span>tree<span class="w"> </span>./repo<span class="w"> </span>-L<span class="w"> </span><span class="m">3</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./repo/README.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod/public/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>mfs<span class="w"> </span>head<span class="w"> </span>./repo/README.md<span class="w"> </span>-n<span class="w"> </span><span class="m">20</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>mfs<span class="w"> </span>tail<span class="w"> </span>./repo/logs/app.log<span class="w"> </span>--lines<span class="w"> </span><span class="m">80</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>./repo/logs/app.log<span class="w"> </span>/tmp/app.log
 </code></pre></div>
 <p><code>mfs cat --meta</code> prints the raw JSON response instead of only <code>content</code>.
 <code>mfs cat --peek</code> sends <code>density=peek</code>; <code>mfs cat --skim</code> sends <code>density=skim</code>.</p>
@@ -2203,9 +2196,9 @@ The CLI sends <code>pattern</code> and <code>path</code> to <code>/v1/grep</code
 <code>cat</code>. See <a href="../search-and-browse/">Search and Browse</a> for locator reopening
 patterns.</p>
 <h2 id="jobs">Jobs<a class="headerlink" href="#jobs" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mfs<span class="w"> </span>job<span class="w"> </span>list
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>mfs<span class="w"> </span>job<span class="w"> </span>cancel<span class="w"> </span>JOB_ID
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>mfs<span class="w"> </span>job<span class="w"> </span>list
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>mfs<span class="w"> </span>job<span class="w"> </span>cancel<span class="w"> </span>JOB_ID
 </code></pre></div>
 <table>
 <thead>
@@ -2264,7 +2257,7 @@ catalog and connector-specific TOML guidance, see <a href="../connectors/">Conne
 </tr>
 <tr>
 <td><code>mfs connector remove TARGET</code></td>
-<td>Remove a connector after confirmation.</td>
+<td>Remove a registered connector root after confirmation.</td>
 </tr>
 <tr>
 <td><code>mfs connector remove TARGET --yes</code></td>
@@ -2277,24 +2270,26 @@ catalog and connector-specific TOML guidance, see <a href="../connectors/">Conne
 </tbody>
 </table>
 <p>Examples:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>mfs<span class="w"> </span>connector<span class="w"> </span>add<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>mfs<span class="w"> </span>connector<span class="w"> </span>update<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>mfs<span class="w"> </span>connector<span class="w"> </span>inspect<span class="w"> </span>web://docs
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>mfs<span class="w"> </span>connector<span class="w"> </span>remove<span class="w"> </span>web://docs
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>mfs<span class="w"> </span>connector<span class="w"> </span>add<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>mfs<span class="w"> </span>connector<span class="w"> </span>update<span class="w"> </span>web://docs<span class="w"> </span>--config<span class="w"> </span>./web.toml
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>mfs<span class="w"> </span>connector<span class="w"> </span>list
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>mfs<span class="w"> </span>connector<span class="w"> </span>inspect<span class="w"> </span>web://docs
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>mfs<span class="w"> </span>connector<span class="w"> </span>remove<span class="w"> </span>web://docs
 </code></pre></div>
 <div class="admonition warning">
 <p class="admonition-title">Connector removal</p>
 <p>Removal deletes the connector's MFS-owned metadata, artifacts, and index
-entries. It does not delete data in the source system.</p>
+entries. It does not delete data in the source system. Pass the registered
+connector root from <code>mfs connector list</code> or <code>mfs connector inspect</code>; child
+paths and unregistered targets are rejected.</p>
 </div>
 <h2 id="profiles">Profiles<a class="headerlink" href="#profiles" title="Permanent link">&para;</a></h2>
 <p>Profiles are local CLI endpoint records in <code>$MFS_HOME/client.toml</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>mfs<span class="w"> </span>profile<span class="w"> </span>list
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>mfs<span class="w"> </span>profile<span class="w"> </span>add<span class="w"> </span>prod<span class="w"> </span>https://mfs.example.com<span class="w"> </span>--token<span class="w"> </span>env:MFS_API_TOKEN
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>mfs<span class="w"> </span>profile<span class="w"> </span>use<span class="w"> </span>prod
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>mfs<span class="w"> </span>config<span class="w"> </span>show
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>mfs<span class="w"> </span>profile<span class="w"> </span>list
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>mfs<span class="w"> </span>profile<span class="w"> </span>add<span class="w"> </span>prod<span class="w"> </span>https://mfs.example.com<span class="w"> </span>--token<span class="w"> </span>env:MFS_API_TOKEN
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>mfs<span class="w"> </span>profile<span class="w"> </span>use<span class="w"> </span>prod
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>mfs<span class="w"> </span>config<span class="w"> </span>show
 </code></pre></div>
 <table>
 <thead>
@@ -2373,15 +2368,15 @@ and <code>uv run mfs-server run</code> control.</p>
 Use it for search, grep, list/tree, cat/head/tail, add queueing, and job lists
 when another program needs raw fields.</p>
 <p>The CLI parses server error envelopes:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="p">{</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">&quot;code&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;object_too_large_for_cat&quot;</span><span class="p">,</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">  </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span><span class="nt">&quot;suggestions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;head&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;cat --range&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;export&quot;</span><span class="p">]</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="p">{</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">&quot;code&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;object_too_large_for_cat&quot;</span><span class="p">,</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span><span class="nt">&quot;suggestions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;head&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;cat --range&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;export&quot;</span><span class="p">]</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="p">}</span>
 </code></pre></div>
 <p>Human error output includes recovery hints:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>error: 400 Bad Request [object_too_large_for_cat]: ...
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>  try: head, cat --range, export
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>error: 400 Bad Request [object_too_large_for_cat]: ...
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>  try: head, cat --range, export
 </code></pre></div>
 <p>Clients should switch on <code>code</code>, not <code>detail</code>. See
 <a href="../troubleshooting/">Troubleshooting</a> and <a href="../api/">HTTP API</a> for the canonical
@@ -2409,7 +2404,7 @@ error envelope and common recovery paths.</p>
 </tr>
 <tr>
 <td><a href="../jobs/">Jobs and Indexing Progress</a></td>
-<td>Job ids, <code>--wait</code>, status counts, workers, and recovery.</td>
+<td>Job ids, status counts, workers, and recovery.</td>
 </tr>
 <tr>
 <td><a href="../search-and-browse/">Search and Browse</a></td>
