@@ -735,6 +735,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tuning-embedding-for-low-ram-machines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning Embedding for Low-RAM Machines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#auth-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1641,6 +1652,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tuning-embedding-for-low-ram-machines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning Embedding for Low-RAM Machines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#auth-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2002,6 +2024,29 @@ backends:</p>
 </tr>
 </tbody>
 </table>
+<h2 id="tuning-embedding-for-low-ram-machines">Tuning Embedding for Low-RAM Machines<a class="headerlink" href="#tuning-embedding-for-low-ram-machines" title="Permanent link">&para;</a></h2>
+<p>The embedder processes chunks in batches, and the whole batch is held in memory
+while the model runs. The defaults are tuned for a machine with roughly 8 GB of
+RAM running the local ONNX <code>bge-m3</code> model:</p>
+<ul>
+<li><code>[embedding] batch_size = 100</code> — how many chunks are embedded per model call.</li>
+<li><code>[chunking] chunk_size = 2048</code> — the target (and hard cap) size of a single chunk.</li>
+</ul>
+<p>On a smaller machine a large batch of large chunks can exhaust memory. When that
+happens the failing object's task is recorded as <code>failed</code> and its <code>last_error</code>
+mentions the underlying cause — typically something like <code>memory</code>, <code>allocation</code>,
+<code>killed</code>, or <code>OOM</code>. The job still reaches a terminal state (it does not hang), and
+the other objects in the run continue.</p>
+<p>If you see such failures:</p>
+<ol>
+<li>Lower <code>[embedding] batch_size</code> — try <code>30</code>, then <code>10</code>.</li>
+<li>If a single very long chunk still fails repeatedly, also lower
+   <code>[chunking] chunk_size</code> (for example to <code>1024</code> or <code>512</code>).</li>
+<li>Re-index the affected connector so the failed objects are retried:
+   <code>mfs add &lt;target&gt; --force-index</code>.</li>
+</ol>
+<p>Inspect a job's per-object failures and their <code>last_error</code> with
+<code>mfs job show &lt;job_id&gt;</code>, or check the aggregate counts with <code>mfs status</code>.</p>
 <h2 id="auth-modes">Auth Modes<a class="headerlink" href="#auth-modes" title="Permanent link">&para;</a></h2>
 <p><code>/v1</code> endpoints require <code>Authorization: Bearer &lt;token&gt;</code> when <code>auth_token</code> is
 configured. <code>GET /healthz</code> is exempt so health probes work without secrets.</p>
