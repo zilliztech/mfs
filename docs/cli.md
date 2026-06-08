@@ -86,7 +86,7 @@ steps, see [Troubleshooting](troubleshooting.md).
 ## Add and Sync
 
 `mfs add TARGET` registers or syncs a local path or connector URI. The command
-queues a job by default and returns immediately unless `--wait` is set.
+always queues a job and returns immediately with a job id.
 
 | Option | Meaning |
 |---|---|
@@ -94,7 +94,6 @@ queues a job by default and returns immediately unless `--wait` is set.
 | `--since VALUE` | Send an incremental cursor or date for connectors with a time cursor. |
 | `--force-index` | Force a full re-index by ignoring caches and fingerprints. |
 | `--full` | Visible alias for `--force-index`. |
-| `--wait` | Poll the returned job until it succeeds, fails, or is cancelled. |
 | `--upload` | Bundle and upload a local tree even when the endpoint is loopback. |
 | `--force-upload` | Re-upload every file and force a full re-index. |
 | `--no-upload` | Never upload; ask the server to read the target path directly. |
@@ -103,7 +102,7 @@ queues a job by default and returns immediately unless `--wait` is set.
 Local same-host example:
 
 ```bash
-mfs add --wait ./repo
+mfs add ./repo
 ```
 
 Container or remote server example:
@@ -111,13 +110,13 @@ Container or remote server example:
 ```bash
 export MFS_API_URL=http://127.0.0.1:13619
 export MFS_API_TOKEN="$(cat /path/to/server.token)"
-mfs add --upload --wait ./repo
+mfs add --upload ./repo
 ```
 
 External connector example:
 
 ```bash
-mfs add postgres://prod-db --config ./postgres.toml --wait
+mfs add postgres://prod-db --config ./postgres.toml
 ```
 
 When `TARGET` is not an existing local path and `--yes` is not set, `mfs add`
@@ -133,7 +132,7 @@ a local chunker/tokenizer dry run and does not make embedding API calls.
 
 ### Add Output
 
-Without `--wait`, human output is a queued job line:
+Human output is a queued job line:
 
 ```text
 queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
@@ -143,12 +142,6 @@ With `--json`, the queued output is:
 
 ```json
 {"job_id":"JOB_ID"}
-```
-
-With `--wait`, successful human output is:
-
-```text
-done: 2 of 2 objects indexed, 0 failed
 ```
 
 For job status meanings, worker behavior, and recovery steps, see
@@ -166,7 +159,7 @@ mfs search "where is the retry budget documented" --all --top-k 20
 | Option | Default | Meaning |
 |---|---|---|
 | `--all` | off | Search the whole namespace instead of one scoped path. |
-| `--mode MODE` | `hybrid` | Search mode sent to the server, commonly `hybrid`, `semantic`, or `keyword`. |
+| `--mode MODE` | `hybrid` | Search mode sent to the server: `hybrid`, `semantic`, or `keyword`. |
 | `--top-k N` | `10` | Number of ranked candidates to request. |
 | `--kind KINDS` | unset | Comma-separated chunk-kind filter such as `body,row_text`. |
 | `--collapse` | off | Collapse multiple hits from the same source object. |
@@ -354,7 +347,7 @@ error envelope and common recovery paths.
 | [Quickstart](getting-started.md) | First local run and success checkpoints. |
 | [Configuration](configuration.md) | Endpoint, token, profile, and server config precedence. |
 | [Auth and Secrets](auth-and-secrets.md) | Server auth modes, CLI token precedence, connector credentials, and first auth recovery commands. |
-| [Jobs and Indexing Progress](jobs.md) | Job ids, `--wait`, status counts, workers, and recovery. |
+| [Jobs and Indexing Progress](jobs.md) | Job ids, status counts, workers, and recovery. |
 | [Search and Browse](search-and-browse.md) | Search, locate, and reopen exact evidence. |
 | [Connectors](connectors.md) | Connector catalog, TOML config, credentials, and lifecycle. |
 | [Deployment](deployment.md) | Source, Docker, Compose, and client/server upload mode. |

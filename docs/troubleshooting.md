@@ -103,11 +103,11 @@ For local paths, decide whether the server can read the same path directly.
 
 | Situation | Command | Interpretation |
 |---|---|---|
-| CLI and server share the same filesystem path | `mfs add --no-upload --wait PATH` | Forces the server to read `PATH` directly. Use this for a real shared mount. |
-| Server is in Docker, on another VM, or cannot read the client path | `mfs add --upload --wait PATH` | Scans the client tree, uploads changed files, and indexes the server-side staged copy. |
-| You want to force upload even on the same host | `mfs add --upload --wait PATH` | Useful when the endpoint is local but the server process is isolated from the client path. |
-| You need to resend every file | `mfs add --force-upload --wait PATH` | Resends all file bytes and forces a full re-index. |
-| Bytes are already staged but you need a full re-index | `mfs add --force-index --wait PATH` | Re-indexes without forcing every file to be re-uploaded. |
+| CLI and server share the same filesystem path | `mfs add --no-upload PATH` | Forces the server to read `PATH` directly. Use this for a real shared mount. |
+| Server is in Docker, on another VM, or cannot read the client path | `mfs add --upload PATH` | Scans the client tree, uploads changed files, and indexes the server-side staged copy. |
+| You want to force upload even on the same host | `mfs add --upload PATH` | Useful when the endpoint is local but the server process is isolated from the client path. |
+| You need to resend every file | `mfs add --force-upload PATH` | Resends all file bytes and forces a full re-index. |
+| Bytes are already staged but you need a full re-index | `mfs add --force-index PATH` | Re-indexes without forcing every file to be re-uploaded. |
 
 The CLI auto-selects upload for an existing local path when it can compare the
 server `machine_id` with the client hostname and they differ. `--upload` and
@@ -142,20 +142,20 @@ known token instead of relying on the auto-generated `/data/server.token`.
 
 | Symptom | Likely cause | Recovery |
 |---|---|---|
-| `mfs add --no-upload --wait ./repo` fails in Docker | The container cannot read the host path `./repo`. | Use `mfs add --upload --wait ./repo`, or mount a shared path into the container and pass the server-visible path. |
+| `mfs add --no-upload ./repo` fails in Docker | The container cannot read the host path `./repo`. | Use `mfs add --upload ./repo`, or mount a shared path into the container and pass the server-visible path. |
 | Connector config uses `localhost` but the source is on the host | Inside the container, `localhost` is the container itself. | Use a hostname or address reachable from the server container. |
 | Host CLI gets `401` against compose | The host token does not match the server token. | Set `MFS_API_TOKEN` to the compose token or restart compose with the intended `MFS_API_TOKEN`. |
 | Search after upload cannot find the bare host path | The endpoint is loopback, so the CLI may not rewrite the path to the upload connector identity. | Use the connector URI shown by `mfs connector list` or `mfs connector inspect TARGET`. |
 
 ## Jobs and Indexing
 
-`mfs add` queues work and returns a job id unless `--wait` is used. `--wait`
-polls the job until it succeeds, fails, or is cancelled.
+`mfs add` queues work and returns a job id immediately. Use `mfs job show` or
+`mfs job list` to follow progress until it succeeds, fails, or is cancelled.
 For the focused lifecycle guide, see [Jobs and Indexing Progress](jobs.md).
 
 ```bash
-mfs add --upload --wait PATH
-mfs add --no-upload --wait PATH
+mfs add --upload PATH
+mfs add --no-upload PATH
 mfs job list
 mfs job show JOB_ID
 mfs job cancel JOB_ID
@@ -263,7 +263,7 @@ not.
 mfs connector list
 mfs connector inspect TARGET
 mfs connector probe TARGET --config ./connector.toml
-mfs add TARGET --config ./connector.toml --wait
+mfs add TARGET --config ./connector.toml
 ```
 
 For non-local targets, `mfs add` runs a zero-billing estimate unless `--yes` is

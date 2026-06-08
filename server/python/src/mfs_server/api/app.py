@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -70,6 +71,7 @@ _CODE_SUGGESTIONS = {
         "the embedding dimension doesn't match this collection's vectors (the collection name encodes its dim)",
         "re-run `mfs-server setup --section embedding` to set the correct dim, or re-index into a fresh collection",
     ],
+    "validation_error": ["fix request shape"],
 }
 # HTTP status -> code when `detail` isn't already a canonical code (human strings).
 _STATUS_CODE = {
@@ -96,9 +98,7 @@ _OPENAPI_METHODS = {"get", "post", "put", "patch", "delete", "options", "head"}
 def _error_response_ref(description: str) -> dict:
     return {
         "description": description,
-        "content": {
-            "application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}
-        },
+        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
     }
 
 
@@ -185,6 +185,13 @@ def _unauthorized() -> tuple[int, dict]:
             "suggestions": ["set a profile token (Authorization: Bearer <token>)"],
         },
     )
+
+
+def _reject_unknown_query_params(request: Request, allowed: set[str]) -> None:
+    unknown = sorted({key for key, _ in request.query_params.multi_items()} - allowed)
+    if unknown:
+        joined = ", ".join(unknown)
+        raise HTTPException(422, f"unknown query parameter(s): {joined}")
 
 
 def create_app(cfg: ServerConfig | None = None) -> FastAPI:
@@ -443,13 +450,15 @@ def create_app(cfg: ServerConfig | None = None) -> FastAPI:
 
     @app.get("/v1/search", response_model=SearchResponse, operation_id="search", tags=["retrieval"])
     async def search(
+        request: Request,
         q: str,
         path: str | None = None,
-        mode: str = "hybrid",
+        mode: Literal["hybrid", "semantic", "keyword"] = "hybrid",
         top_k: int = 10,
         collapse: bool = False,
         kind: str | None = None,
     ) -> SearchResponse:
+        _reject_unknown_query_params(request, {"q", "path", "mode", "top_k", "collapse", "kind"})
         connector_uri = None
         object_prefix = None
         if path:

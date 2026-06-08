@@ -123,8 +123,8 @@ to the user, then write toml + run `mfs add`.
    ```bash
    mfs add <uri> --config /tmp/mfs-<alias>.toml
    ```
-   Capture the returned `job_id`. Add `--wait` when the user wants the
-   command itself to block until indexing reaches a terminal state.
+   Capture the returned `job_id`. `mfs add` always returns after queueing;
+   use `mfs job show` or `mfs job list` to watch terminal state.
 
 6. **Follow the job** until terminal state:
    ```bash

@@ -642,6 +642,10 @@ paths:
         required: false
         schema:
           type: string
+          enum:
+          - hybrid
+          - semantic
+          - keyword
           default: hybrid
           title: Mode
       - name: top_k

@@ -72,7 +72,7 @@ middleware, and the canonical protocol table.
 | `connector_removing` | 409 | The connector is being removed and cannot start new work. | Wait for removal to finish, then retry. | [Connectors](connectors.md) |
 | `connector_unhealthy` | 502 | The source is unreachable or credentials/connectivity failed. | Check server-side credentials and network reachability, then probe the connector. | [Connectors](connectors.md), [Troubleshooting: Connector Failures](troubleshooting.md#connector-failures) |
 | `field_missing` | 400 | A configured structured-source text field is absent. | Fix the connector `[[objects]]` config, then re-run add or update. | [Connector Reference](connector-reference.md) |
-| `upload_rejected` | 400 | Upload was required by topology, but upload was disabled. | Adjust the path mode or profile; for isolated servers use `mfs add --upload --wait PATH`. | [Troubleshooting: Upload or Shared Filesystem](troubleshooting.md#upload-or-shared-filesystem) |
+| `upload_rejected` | 400 | Upload was required by topology, but upload was disabled. | Adjust the path mode or profile; for isolated servers use `mfs add --upload PATH`. | [Troubleshooting: Upload or Shared Filesystem](troubleshooting.md#upload-or-shared-filesystem) |
 | `upload_not_applicable` | 400 | Upload was forced where shared-filesystem mode applies. | Adjust upload flags or profile for the current topology. | [Troubleshooting: Upload or Shared Filesystem](troubleshooting.md#upload-or-shared-filesystem) |
 
 ## Provider and Job Failure Codes

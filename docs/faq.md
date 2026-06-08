@@ -28,7 +28,8 @@ the exact source:
 
 ```bash
 mfs status
-mfs add --wait /path/to/folder
+mfs add /path/to/folder
+mfs job show JOB_ID
 mfs search "your query" /path/to/folder --top-k 5
 mfs cat /path/to/folder/file.md --range 1:80
 ```
@@ -80,13 +81,13 @@ examples.
 Use upload mode when the server process cannot read the client path:
 
 ```bash
-mfs add --upload --wait /path/on/client
+mfs add --upload /path/on/client
 ```
 
 Use shared-filesystem mode only when the server can read the same path:
 
 ```bash
-mfs add --no-upload --wait /shared/path
+mfs add --no-upload /shared/path
 ```
 
 For Docker and Compose all-in-one servers, host paths are usually not visible

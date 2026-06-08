@@ -13,8 +13,8 @@ next page to open when you need the details.
 
 | Server can read the client path? | Typical placement | Add command | Search scope to use later |
 |---|---|---|---|
-| Yes | CLI and `mfs-server` run on the same host, or both see the same mounted path | `mfs add --wait PATH` | The original path, or the `file://local...` URI from results |
-| No | Docker container, remote VM, or different host | `mfs add --upload --wait PATH` | The uploaded `file://CLIENT_ID...` connector URI shown by `mfs connector list` |
+| Yes | CLI and `mfs-server` run on the same host, or both see the same mounted path | `mfs add PATH` | The original path, or the `file://local...` URI from results |
+| No | Docker container, remote VM, or different host | `mfs add --upload PATH` | The uploaded `file://CLIENT_ID...` connector URI shown by `mfs connector list` |
 
 !!! warning "Do not mix path modes"
     Same-host shared-path indexing asks the server to read `PATH` directly.
@@ -51,7 +51,8 @@ Search returns candidates.
 Cat reopens exact evidence by path, range, or locator.
 EOF
 
-mfs add --wait /tmp/mfs-examples/local
+mfs add /tmp/mfs-examples/local
+mfs job show JOB_ID
 mfs search "default API endpoint" /tmp/mfs-examples/local --top-k 5
 mfs cat /tmp/mfs-examples/local/README.md --range 1:6
 ```
@@ -59,7 +60,8 @@ mfs cat /tmp/mfs-examples/local/README.md --range 1:6
 Expected shape:
 
 ```text
-done: ... objects indexed, ... failed
+queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
+{"id":"JOB_ID","status":"succeeded",...}
 
 file://local/tmp/mfs-examples/local/README.md  score=...
    The default API endpoint is 127.0.0.1:13619.
@@ -110,7 +112,8 @@ Upload mode is for Docker or remote servers that cannot read the client path.
 The CLI sends changed files and the server indexes the staged copy.
 EOF
 
-mfs add --upload --wait /tmp/mfs-examples/upload
+mfs add --upload /tmp/mfs-examples/upload
+mfs job show JOB_ID
 mfs connector list
 ```
 
@@ -118,7 +121,8 @@ Expected shape:
 
 ```text
 uploaded 1 changed, 0 renamed, 0 deleted
-done: ... objects indexed, ... failed
+queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
+{"id":"JOB_ID","status":"succeeded",...}
 
 file       active   file://CLIENT_ID/tmp/mfs-examples/upload
 ```

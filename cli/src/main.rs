@@ -140,9 +140,6 @@ enum Cmd {
         /// Force full re-index (ignore caches/fingerprints)
         #[arg(long, visible_alias = "full")]
         force_index: bool,
-        /// Block until indexing finishes (poll the job); default returns immediately
-        #[arg(long)]
-        wait: bool,
         /// Bundle + upload the tree to the server even on the same host (no shared fs)
         #[arg(long)]
         upload: bool,
@@ -608,7 +605,6 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             config,
             since,
             force_index,
-            wait,
             upload,
             force_upload,
             no_upload,
@@ -668,7 +664,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             };
             // add is async: the server enqueues and returns a job_id immediately; the
             // worker (in-process for the single-binary, dedicated in CS) drains it in the
-            // background. --wait polls the job to completion for scripts/CI that must block.
+            // background.
             let job_id = if do_upload {
                 // --force-upload re-sends every file AND forces a re-index; --force-index
                 // alone re-indexes the already-staged tree without re-sending bytes.
@@ -692,9 +688,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                 let v = post(client, &format!("{base}/v1/add"), &body)?;
                 v["job_id"].as_str().unwrap_or("").to_string()
             };
-            if *wait {
-                wait_for_job(client, base, &job_id, cli.json)?;
-            } else if cli.json {
+            if cli.json {
                 println!("{}", serde_json::json!({"job_id": job_id}));
             } else {
                 println!("queued (job {job_id}). Worker running in background — run `mfs status` to check progress.");
@@ -1272,92 +1266,6 @@ fn upload_path(
     Ok(v["job_id"].as_str().unwrap_or("").to_string())
 }
 
-/// Poll a sync job to a terminal state (for `mfs add --wait`). The HTTP request itself is
-/// short — we never hold a long connection open, so a slow index can't time the client out.
-fn wait_for_job(
-    client: &reqwest::blocking::Client,
-    base: &str,
-    job_id: &str,
-    json: bool,
-) -> CliResult<()> {
-    let v = poll_job_until_done(
-        || get_job(client, base, job_id),
-        || std::thread::sleep(std::time::Duration::from_millis(1000)),
-    )?;
-    if json {
-        println!("{v}");
-    } else {
-        println!(
-            "done: {} of {} objects indexed, {} failed",
-            v["succeeded_objects"].as_i64().unwrap_or(0),
-            v["total_objects"].as_i64().unwrap_or(0),
-            v["failed_objects"].as_i64().unwrap_or(0)
-        );
-    }
-    Ok(())
-}
-
-const JOB_WAIT_MAX_TRANSIENT_ERRORS: usize = 300;
-
-#[derive(Debug)]
-enum JobPollError {
-    Transient(CliError),
-    Terminal(CliError),
-}
-
-fn get_job(
-    client: &reqwest::blocking::Client,
-    base: &str,
-    job_id: &str,
-) -> Result<Value, JobPollError> {
-    let resp = with_auth(client.get(format!("{base}/v1/jobs/{job_id}")))
-        .map_err(JobPollError::Terminal)?
-        .send()
-        .map_err(|e| JobPollError::Transient(CliError::request(e.to_string())))?;
-    parse(resp).map_err(JobPollError::Terminal)
-}
-
-fn poll_job_until_done<F, S>(mut poll: F, mut sleep: S) -> CliResult<Value>
-where
-    F: FnMut() -> Result<Value, JobPollError>,
-    S: FnMut(),
-{
-    let mut transient_errors = 0;
-    loop {
-        let v = match poll() {
-            Ok(v) => {
-                transient_errors = 0;
-                v
-            }
-            Err(JobPollError::Transient(e)) => {
-                transient_errors += 1;
-                if transient_errors > JOB_WAIT_MAX_TRANSIENT_ERRORS {
-                    return Err(CliError::request(format!(
-                        "job poll failed after {JOB_WAIT_MAX_TRANSIENT_ERRORS} retries: {e}"
-                    )));
-                }
-                sleep();
-                continue;
-            }
-            Err(JobPollError::Terminal(e)) => return Err(e),
-        };
-        match v["status"].as_str().unwrap_or("") {
-            "succeeded" => return Ok(v),
-            "failed" | "cancelled" => {
-                return Err(CliError::new(
-                    "job_failed",
-                    format!(
-                        "job {}: {}",
-                        v["status"].as_str().unwrap_or("?"),
-                        v["error"].as_str().unwrap_or("")
-                    ),
-                ));
-            }
-            _ => sleep(),
-        }
-    }
-}
-
 /// Load a connector config TOML file and convert it to a JSON value for the /v1/add body.
 fn load_config_file(path: &str) -> Result<Value, String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("read {path}: {e}"))?;
@@ -1852,55 +1760,6 @@ mod tests {
         assert_eq!(v["profiles"][0]["name"], "prod");
         assert_eq!(v["profiles"][0]["active"], true);
         assert_eq!(v["profiles"][0]["token_set"], true);
-    }
-
-    #[test]
-    fn poll_job_retries_transient_errors_until_success() {
-        let mut calls = 0;
-        let mut sleeps = 0;
-
-        let result = poll_job_until_done(
-            || {
-                calls += 1;
-                if calls < 3 {
-                    Err(JobPollError::Transient(CliError::request(
-                        "connection reset",
-                    )))
-                } else {
-                    Ok(json!({
-                        "status": "succeeded",
-                        "succeeded_objects": 3,
-                        "total_objects": 3,
-                        "failed_objects": 0
-                    }))
-                }
-            },
-            || {
-                sleeps += 1;
-            },
-        )
-        .unwrap();
-
-        assert_eq!(result["status"], "succeeded");
-        assert_eq!(calls, 3);
-        assert_eq!(sleeps, 2);
-    }
-
-    #[test]
-    fn poll_job_does_not_retry_terminal_errors() {
-        let mut sleeps = 0;
-
-        let err = poll_job_until_done(
-            || Err(JobPollError::Terminal(CliError::new("unauthorized", "401"))),
-            || {
-                sleeps += 1;
-            },
-        )
-        .unwrap_err();
-
-        assert_eq!(err.code, "unauthorized");
-        assert_eq!(err.detail, "401");
-        assert_eq!(sleeps, 0);
     }
 
     #[test]

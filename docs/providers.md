@@ -86,7 +86,7 @@ After changing the embedding provider or model, re-index sources you depend on
 so query vectors and indexed vectors come from the same embedding space:
 
 ```bash
-mfs add --force-index --wait TARGET
+mfs add --force-index TARGET
 ```
 
 ## Summary and VLM Providers

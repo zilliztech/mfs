@@ -14,8 +14,12 @@ Always probe the connector on the target server before queueing a large sync.
 
 ```bash
 mfs connector probe <scheme://alias> --config ./connector.toml
-mfs add <scheme://alias> --config ./connector.toml --wait
+mfs add <scheme://alias> --config ./connector.toml
+mfs job show JOB_ID
 ```
+
+`mfs add` returns a job id immediately. Wait until that job reaches `succeeded`
+before relying on the search or browse examples below.
 
 !!! note "Config and secret references"
     Connector TOML is loaded by the CLI and sent as the API `config` object.
@@ -65,7 +69,7 @@ same-host paths is `file://local/abs/path`. Uploaded remote paths use
 **Start:**
 
 ```bash
-mfs add ./docs --wait
+mfs add ./docs
 ```
 
 **Search or browse:**
@@ -101,7 +105,7 @@ max_pages = 100
 
 ```bash
 mfs connector probe web://docs --config ./web.toml
-mfs add web://docs --config ./web.toml --wait
+mfs add web://docs --config ./web.toml
 ```
 
 **Search or browse:**
@@ -167,7 +171,7 @@ API headers.
 
 ```bash
 mfs connector probe github://zilliztech/mfs --config ./github.toml
-mfs add github://zilliztech/mfs --config ./github.toml --wait
+mfs add github://zilliztech/mfs --config ./github.toml
 ```
 
 **Search or browse:**
@@ -233,7 +237,7 @@ metadata_fields = ["status", "updated_at"]
 
 ```bash
 mfs connector probe postgres://prod-db --config ./postgres.toml
-mfs add postgres://prod-db --config ./postgres.toml --wait
+mfs add postgres://prod-db --config ./postgres.toml
 ```
 
 **Search or browse:**
@@ -296,7 +300,7 @@ locator_fields = ["id"]
 
 ```bash
 mfs connector probe mysql://prod-db --config ./mysql.toml
-mfs add mysql://prod-db --config ./mysql.toml --wait
+mfs add mysql://prod-db --config ./mysql.toml
 ```
 
 **Search or browse:**
@@ -358,7 +362,7 @@ metadata_fields = ["status"]
 
 ```bash
 mfs connector probe mongo://prod-cluster --config ./mongo.toml
-mfs add mongo://prod-cluster --config ./mongo.toml --wait
+mfs add mongo://prod-cluster --config ./mongo.toml
 ```
 
 **Search or browse:**
@@ -423,7 +427,7 @@ apply `text_fields`, grouping, and locators.
 
 ```bash
 mfs connector probe slack://acme --config ./slack.toml
-mfs add slack://acme --config ./slack.toml --wait
+mfs add slack://acme --config ./slack.toml
 ```
 
 **Search or browse:**
@@ -487,7 +491,7 @@ No `[[objects]]` is required because the `discord.messages` preset applies.
 
 ```bash
 mfs connector probe discord://community --config ./discord.toml
-mfs add discord://community --config ./discord.toml --wait
+mfs add discord://community --config ./discord.toml
 ```
 
 **Search or browse:**
@@ -544,7 +548,7 @@ Probe the connector in the target server before syncing.
 
 ```bash
 mfs connector probe gmail://work --config ./gmail.toml
-mfs add gmail://work --config ./gmail.toml --wait
+mfs add gmail://work --config ./gmail.toml
 ```
 
 **Search or browse:**
@@ -605,7 +609,7 @@ Pages render as markdown documents without per-record config.
 
 ```bash
 mfs connector probe notion://workspace --config ./notion.toml
-mfs add notion://workspace --config ./notion.toml --wait
+mfs add notion://workspace --config ./notion.toml
 ```
 
 **Search or browse:**
@@ -670,7 +674,7 @@ metadata_fields = ["status", "priority", "updated"]
 
 ```bash
 mfs connector probe jira://acme --config ./jira.toml
-mfs add jira://acme --config ./jira.toml --wait
+mfs add jira://acme --config ./jira.toml
 ```
 
 **Search or browse:**
@@ -721,7 +725,7 @@ metadata_fields = ["state", "priority", "updatedAt"]
 
 ```bash
 mfs connector probe linear://workspace --config ./linear.toml
-mfs add linear://workspace --config ./linear.toml --wait
+mfs add linear://workspace --config ./linear.toml
 ```
 
 **Search or browse:**
@@ -774,7 +778,7 @@ target config before syncing.
 
 ```bash
 mfs connector probe zendesk://acme --config ./zendesk.toml
-mfs add zendesk://acme --config ./zendesk.toml --wait
+mfs add zendesk://acme --config ./zendesk.toml
 ```
 
 **Search or browse:**
@@ -836,7 +840,7 @@ instead of username/password/security-token login.
 
 ```bash
 mfs connector probe salesforce://acme --config ./salesforce.toml
-mfs add salesforce://acme --config ./salesforce.toml --wait
+mfs add salesforce://acme --config ./salesforce.toml
 ```
 
 **Search or browse:**
@@ -889,7 +893,7 @@ locator_fields = ["id"]
 
 ```bash
 mfs connector probe hubspot://acme --config ./hubspot.toml
-mfs add hubspot://acme --config ./hubspot.toml --wait
+mfs add hubspot://acme --config ./hubspot.toml
 ```
 
 **Search or browse:**
@@ -954,7 +958,7 @@ environment, such as `GOOGLE_APPLICATION_CREDENTIALS`.
 
 ```bash
 mfs connector probe bigquery://analytics --config ./bigquery.toml
-mfs add bigquery://analytics --config ./bigquery.toml --wait
+mfs add bigquery://analytics --config ./bigquery.toml
 ```
 
 **Search or browse:**
@@ -1035,7 +1039,7 @@ default key-pair mode. If the key is encrypted, set
 
 ```bash
 mfs connector probe snowflake://analytics --config ./snowflake.toml
-mfs add snowflake://analytics --config ./snowflake.toml --wait
+mfs add snowflake://analytics --config ./snowflake.toml
 ```
 
 **Search or browse:**
@@ -1109,7 +1113,7 @@ endpoint.
 
 ```bash
 mfs connector probe s3://acme-docs --config ./s3.toml
-mfs add s3://acme-docs --config ./s3.toml --wait
+mfs add s3://acme-docs --config ./s3.toml
 ```
 
 **Search or browse:**
@@ -1168,7 +1172,7 @@ Probe the connector in the target server before syncing.
 
 ```bash
 mfs connector probe gdrive://engineering --config ./gdrive.toml
-mfs add gdrive://engineering --config ./gdrive.toml --wait
+mfs add gdrive://engineering --config ./gdrive.toml
 ```
 
 **Search or browse:**
@@ -1269,7 +1273,7 @@ python -m mfs_server.connectors.feishu.auth_login \
 
 ```bash
 mfs connector probe feishu://workspace --config ./feishu.toml
-mfs add feishu://workspace --config ./feishu.toml --wait
+mfs add feishu://workspace --config ./feishu.toml
 ```
 
 **Search or browse:**

@@ -78,12 +78,51 @@ def test_new_schema_toml_loads(tmp_path):
     assert cfg.server.in_process_jobrunner is False
 
 
+def test_unknown_top_level_config_section_fails(tmp_path):
+    path = _write(
+        tmp_path,
+        """
+        [databse]
+        backend = "sqlite"
+        """,
+    )
+
+    with pytest.raises(ValueError, match="server.toml has invalid config field"):
+        load_server_config(path, apply_env=False)
+
+    try:
+        load_server_config(path, apply_env=False)
+    except ValueError as e:
+        assert "databse" in str(e)
+        assert "Extra inputs are not permitted" in str(e)
+
+
+def test_unknown_nested_config_key_fails(tmp_path):
+    path = _write(
+        tmp_path,
+        """
+        [database]
+        backend = "sqlite"
+        unknown_key = true
+        """,
+    )
+
+    with pytest.raises(ValueError, match="server.toml has invalid config field"):
+        load_server_config(path, apply_env=False)
+
+    try:
+        load_server_config(path, apply_env=False)
+    except ValueError as e:
+        assert "database.unknown_key" in str(e)
+        assert "Extra inputs are not permitted" in str(e)
+
+
 @pytest.mark.parametrize(
     "block,needle",
     [
         ("[vlm]\nenabled = true\n", "[description]"),
         ("[worker]\nconcurrency = 4\n", "[chunks_producer]"),
-        ("[converter]\ndefault = \"markitdown\"\n", "[conversion]"),
+        ('[converter]\ndefault = "markitdown"\n', "[conversion]"),
         ("[chunk]\nchunk_size = 2048\n", "[chunking]"),
     ],
 )
@@ -114,7 +153,9 @@ def test_removed_keys_fail_loudly(tmp_path, block):
 
 
 def _coord(cfg):
-    return ReduceCoordinator(cfg, tx_cache=None, summary=None, vlm=None, converter=None, chunks_q=None)
+    return ReduceCoordinator(
+        cfg, tx_cache=None, summary=None, vlm=None, converter=None, chunks_q=None
+    )
 
 
 def test_summary_dir_file_toggles_reach_coordinator():

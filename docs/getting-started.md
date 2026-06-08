@@ -20,7 +20,7 @@ flowchart LR
 | CLI installed | `mfs --version` prints a v0.4 CLI version. |
 | Server running | `mfs status` returns a JSON object with `connectors` and `jobs`. |
 | Auth wired locally | No manual token is needed when CLI and server share `$MFS_HOME`. |
-| Folder indexed | `mfs add --wait <path>` ends with `done: ... objects indexed, ... failed`. |
+| Folder queued | `mfs add <path>` returns a queued job id. |
 | Search and browse work | `mfs search`, `mfs ls`, `mfs tree`, and `mfs cat` return content from the same folder. |
 
 ## 1. Install the Rust CLI
@@ -141,32 +141,33 @@ Use mfs cat with --range to verify exact context.
 EOF
 ```
 
-## 5. Add the folder and wait for indexing
+## 5. Add the folder and watch indexing
 
 For a local first run, let the server read the same host path:
 
 ```bash
-mfs add --wait /tmp/mfs-quickstart
+mfs add /tmp/mfs-quickstart
 ```
 
 Expected checkpoint:
 
 ```text
-done: 2 of 2 objects indexed, 0 failed
+queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
 ```
 
-The exact counts can differ if you add more files. The important signal is that
-the job reaches `succeeded` and `failed` is `0`.
+The job id differs per run. The important signal is that `mfs job show JOB_ID`
+eventually reaches `succeeded` and `failed_objects` is `0`.
 
 You can inspect server state at any point:
 
 ```bash
 mfs status
 mfs job list
+mfs job show JOB_ID
 mfs connector list
 ```
 
-For job ids, `--wait`, and progress states, see
+For job ids and progress states, see
 [Jobs and Indexing Progress](jobs.md).
 
 ## 6. Search, browse, and read
@@ -224,7 +225,7 @@ Use upload mode when the server cannot read the client path, such as a Docker
 server, a remote VM, or a different host:
 
 ```bash
-mfs add --upload --wait /tmp/mfs-quickstart
+mfs add --upload /tmp/mfs-quickstart
 ```
 
 Upload mode scans the client folder, sends changed files to the server, and
@@ -234,10 +235,10 @@ want a full re-index.
 
 | Situation | Command |
 |---|---|
-| CLI and server run on the same host and share paths | `mfs add --wait /path/to/folder` |
-| Server runs in Docker or on another host | `mfs add --upload --wait /path/to/folder` |
+| CLI and server run on the same host and share paths | `mfs add /path/to/folder` |
+| Server runs in Docker or on another host | `mfs add --upload /path/to/folder` |
 | Remote endpoint is set in `MFS_API_URL` and the target is a local path | The CLI auto-selects upload unless `--no-upload` is set. |
-| Server can read a shared mounted path even though endpoint looks remote | `mfs add --no-upload --wait /shared/path` |
+| Server can read a shared mounted path even though endpoint looks remote | `mfs add --no-upload /shared/path` |
 
 For deployment topologies, see [Deployment](deployment.md). If upload or auth
 does not behave as expected, see [Troubleshooting](troubleshooting.md).

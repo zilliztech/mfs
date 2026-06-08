@@ -97,7 +97,7 @@ mfs connector probe TARGET --config ./connector.toml
 
 | Mismatch | What to do |
 |---|---|
-| The top-level `README.md` and `cli/README.md` still include older quickstart commands such as `mfs status file://...`, `--connector-uri`, and `mfs connector ls`. | Follow [Quickstart](getting-started.md), [CLI Reference](cli.md), [Connectors](connectors.md), and [Troubleshooting](troubleshooting.md) for current v0.4 command forms such as `mfs add --wait`, `mfs search QUERY PATH`, `mfs connector list`, and `mfs job show`. |
+| The top-level `README.md` and `cli/README.md` still include older quickstart commands such as `mfs status file://...`, `--connector-uri`, and `mfs connector ls`. | Follow [Quickstart](getting-started.md), [CLI Reference](cli.md), [Connectors](connectors.md), and [Troubleshooting](troubleshooting.md) for current v0.4 command forms such as `mfs add`, `mfs search QUERY PATH`, `mfs connector list`, and `mfs job show`. |
 | Beta labels are not uniform across repository snippets: the docs install the CLI from `v0.4.0-beta.2`, server and SDK package metadata in the repo show `0.4.0-beta.3`, and some deployment README examples still use `0.4.0-beta.1` image tags. | Treat the repository as a v0.4 beta checkout and pin the exact artifact you test. Do not infer a single published server or SDK artifact from mixed example tags. |
 | OpenAPI does not model bearer auth, so generated SDK docs say no authorization is required. | Send `Authorization: Bearer <token>` whenever the target server has auth enabled; use [HTTP API](api.md) and [SDKs](sdks.md) for integration examples. |
 | `GET /v1/connectors/inspect` has an empty OpenAPI response schema. | Use it for human/operator inspection, but avoid scripting against fields that are not modeled. |

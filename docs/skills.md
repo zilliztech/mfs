@@ -12,11 +12,11 @@ agent needs a quick routing reminder before running `mfs` commands.
 | User intent | Use | Boundary | Current command shapes to expect |
 |---|---|---|---|
 | Search, grep, list, browse, read, reopen a search hit, or inspect exact evidence from a source that is already in MFS | [`mfs-find`][mfs-find-skill] | Read-only retrieval and browse work | `mfs search QUERY PATH`, `mfs search QUERY --all`, `mfs grep PATTERN PATH`, `mfs ls PATH --json`, `mfs cat PATH --range A:B`, `mfs cat PATH --locator JSON` |
-| Add a new local path or connector URI | [`mfs-ingest`][mfs-ingest-skill] | Mutating MFS metadata, artifacts, jobs, and indexes | `mfs add TARGET --config FILE`, `mfs add TARGET --wait`, `mfs add TARGET --upload --wait` |
+| Add a new local path or connector URI | [`mfs-ingest`][mfs-ingest-skill] | Mutating MFS metadata, artifacts, jobs, and indexes | `mfs add TARGET --config FILE`, `mfs add TARGET`, `mfs add TARGET --upload` |
 | Change an existing connector's TOML, credentials, object rules, or scope | [`mfs-ingest`][mfs-ingest-skill] | Mutating connector config and usually queueing a sync job | `mfs connector update TARGET --config FILE`, then `mfs job show JOB_ID` |
 | Re-sync or force a full re-index | [`mfs-ingest`][mfs-ingest-skill] | Mutating index state and potentially re-billing embeddings | `mfs add TARGET`, `mfs add TARGET --since VALUE`, `mfs add TARGET --force-index`, or `mfs add TARGET --full` |
 | Search returns weak or empty results | Start with [`mfs-find`][mfs-find-skill] | Diagnose query, scope, browse state, and job state before changing ingest | `mfs connector inspect TARGET`, `mfs ls PATH --json`, `mfs job list`, `mfs job show JOB_ID` |
-| The diagnosis points to bad connector config, missing credentials, zero indexed objects, or a required re-sync | Switch to [`mfs-ingest`][mfs-ingest-skill] | Mutating follow-up after a read-only diagnosis | `mfs connector probe TARGET --config FILE`, `mfs connector update TARGET --config FILE`, `mfs add TARGET --wait` |
+| The diagnosis points to bad connector config, missing credentials, zero indexed objects, or a required re-sync | Switch to [`mfs-ingest`][mfs-ingest-skill] | Mutating follow-up after a read-only diagnosis | `mfs connector probe TARGET --config FILE`, `mfs connector update TARGET --config FILE`, `mfs add TARGET` |
 | The user only asks what is registered | Either skill, depending on purpose | Inventory for query scope is read-only; inventory before add/update is ingest planning | `mfs status`, `mfs connector list`, `mfs connector inspect TARGET` |
 
 ## Routing Workflow

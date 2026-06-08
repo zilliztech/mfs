@@ -122,7 +122,7 @@ curl -H "Authorization: Bearer $(cat ${MFS_HOME:-$HOME/.mfs}/server.token)" \
 For same-host paths, let the server read the path directly:
 
 ```bash
-mfs add --wait /path/to/project
+mfs add /path/to/project
 ```
 
 Use upload mode only when the server process cannot read the path you pass to
@@ -201,10 +201,10 @@ these modes deliberately:
 
 | Situation | Command |
 |---|---|
-| The path exists only on the host | `mfs add --upload --wait /path/on/host` |
-| The path is mounted into the container and you pass the server-visible path | `mfs add --no-upload --wait /path/in/container` |
-| You need to resend every file | `mfs add --force-upload --wait /path/on/host` |
-| Bytes are already staged but you want a full re-index | `mfs add --force-index --wait /path/on/host` |
+| The path exists only on the host | `mfs add --upload /path/on/host` |
+| The path is mounted into the container and you pass the server-visible path | `mfs add --no-upload /path/in/container` |
+| You need to resend every file | `mfs add --force-upload /path/on/host` |
+| Bytes are already staged but you want a full re-index | `mfs add --force-index /path/on/host` |
 
 After upload, the registered connector identity may be the uploaded connector
 URI rather than the bare host path. Use these commands to inspect the current
@@ -408,10 +408,11 @@ export MFS_API_URL=http://127.0.0.1:13619
 mfs status
 
 # 4. Same host or shared path:
-mfs add --wait /tmp/mfs-quickstart
+mfs add /tmp/mfs-quickstart
+mfs job show JOB_ID
 
 # For Docker or a remote server, use upload instead:
-# mfs add --upload --wait /tmp/mfs-quickstart
+# mfs add --upload /tmp/mfs-quickstart
 
 # 5. Verify retrieval and exact reads.
 mfs search "FastAPI server default endpoint" /tmp/mfs-quickstart --top-k 5

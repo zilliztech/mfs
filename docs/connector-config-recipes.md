@@ -93,7 +93,7 @@ not a durable identity for mutable sources.
 
     ```bash
     mfs connector probe web://docs --config ./web.toml
-    mfs add web://docs --config ./web.toml --wait
+    mfs add web://docs --config ./web.toml
 
     mfs ls web://docs/pages/docs.example.com
     mfs search "installation" web://docs
@@ -118,7 +118,7 @@ not a durable identity for mutable sources.
 
     ```bash
     mfs connector probe s3://acme-docs --config ./s3.toml
-    mfs add s3://acme-docs --config ./s3.toml --wait
+    mfs add s3://acme-docs --config ./s3.toml
 
     mfs tree s3://acme-docs -L 2
     mfs search "retention policy" s3://acme-docs/engineering/rfc/
@@ -151,7 +151,7 @@ not a durable identity for mutable sources.
 
     ```bash
     mfs connector probe postgres://prod-db --config ./postgres.toml
-    mfs add postgres://prod-db --config ./postgres.toml --wait
+    mfs add postgres://prod-db --config ./postgres.toml
 
     mfs head postgres://prod-db/public/tickets/rows.jsonl -n 5
     mfs search "SSO migration" postgres://prod-db/public/tickets/rows.jsonl
@@ -182,7 +182,7 @@ not a durable identity for mutable sources.
 
     ```bash
     mfs connector probe mongo://prod-cluster --config ./mongo.toml
-    mfs add mongo://prod-cluster --config ./mongo.toml --wait
+    mfs add mongo://prod-cluster --config ./mongo.toml
 
     mfs head mongo://prod-cluster/support_threads/documents.jsonl -n 5
     mfs search "refund escalation" mongo://prod-cluster/support_threads/documents.jsonl
@@ -205,7 +205,7 @@ not a durable identity for mutable sources.
 
     ```bash
     mfs connector probe slack://acme --config ./slack.toml
-    mfs add slack://acme --config ./slack.toml --wait
+    mfs add slack://acme --config ./slack.toml
 
     mfs ls slack://acme/channels
     mfs search "deploy failed" slack://acme
@@ -235,10 +235,12 @@ not a durable identity for mutable sources.
    mfs connector probe TARGET --config ./connector.toml
    ```
 
-4. Add and wait for a first sync when you want an immediate pass/fail result.
+4. Add the source, capture the returned job id, and inspect the first sync
+   when you want an immediate pass/fail result.
 
    ```bash
-   mfs add TARGET --config ./connector.toml --wait
+   mfs add TARGET --config ./connector.toml
+   mfs job show JOB_ID
    ```
 
    For external targets, the CLI runs a pre-flight estimate and asks for
@@ -258,9 +260,9 @@ not a durable identity for mutable sources.
    return `since_unsupported`.
 
    ```bash
-   mfs add TARGET --wait
-   mfs add TARGET --since 2026-06-01 --wait
-   mfs add TARGET --force-index --wait
+   mfs add TARGET
+   mfs add TARGET --since 2026-06-01
+   mfs add TARGET --force-index
    ```
 
 7. Inspect the connector and the job before changing fields again.

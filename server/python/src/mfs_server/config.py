@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 if sys.version_info < (3, 11):
     import tomli as tomllib
@@ -42,7 +42,11 @@ def mfs_home() -> Path:
     return home
 
 
-class DatabaseConfig(BaseModel):
+class StrictConfigModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class DatabaseConfig(StrictConfigModel):
     """Single backend for all relational state.
 
     Covers metadata (connector registry, objects, queue, watch grants) and
@@ -55,7 +59,7 @@ class DatabaseConfig(BaseModel):
     dsn: str = ""  # postgres DSN; ignored for sqlite
 
 
-class MetadataConfig(BaseModel):
+class MetadataConfig(StrictConfigModel):
     """Per-store knobs for the metadata half.
 
     backend/dsn here override [database] for power users who want
@@ -68,7 +72,7 @@ class MetadataConfig(BaseModel):
     dsn: str = ""  # blank = inherit from [database]
 
 
-class TransformationCacheConfig(BaseModel):
+class TransformationCacheConfig(StrictConfigModel):
     """Transformation half of the outward Cache concept.
 
     Stores per-input KV: sha1(input) → bytes (embeddings, small summaries).
@@ -87,7 +91,7 @@ class TransformationCacheConfig(BaseModel):
     lookup_batch_size: int = 1000
 
 
-class ArtifactCacheConfig(BaseModel):
+class ArtifactCacheConfig(StrictConfigModel):
     """Artifact half of the outward Cache concept.
 
     Stores derived blobs per object: PDF→markdown conversions, VLM image
@@ -112,7 +116,7 @@ class ArtifactCacheConfig(BaseModel):
     eviction: str = "lru"
 
 
-class MilvusConfig(BaseModel):
+class MilvusConfig(StrictConfigModel):
     uri: str = ""  # ~/.mfs/milvus.db (Lite) | https://*.zillizcloud.com
     token: str = ""
     # Empty = mfs default (Strong; see MilvusStore._cl_kw for rationale).
@@ -147,7 +151,7 @@ class MilvusConfig(BaseModel):
     num_partitions: int = 64
 
 
-class EmbeddingConfig(BaseModel):
+class EmbeddingConfig(StrictConfigModel):
     # Default = local ONNX (no API key required). Model downloads from the
     # Hugging Face Hub on first use and is cached under $MFS_HOME/onnx-cache/.
     # bge-m3 is multilingual (100+ langs) and int8-quantized for CPU. Switch
@@ -161,7 +165,7 @@ class EmbeddingConfig(BaseModel):
     # idle flush is the internal constant _EMBED_FLUSH_IDLE_MS (engine/pipeline.py), not a knob.
 
 
-class SummaryConfig(BaseModel):
+class SummaryConfig(StrictConfigModel):
     """[summary] — directory / file summaries (Reduce subsystem, §3.5)."""
 
     # Master opt-in. §7.2's example omits this, but it is kept so the default stays OFF
@@ -174,12 +178,16 @@ class SummaryConfig(BaseModel):
     max_input_kb: int = 64  # total input budget fed to one summary (truncated)
     per_file_max_kb: int = 16  # per-file truncation cap so one big file can't eat the budget
     include_image_description: bool = False  # feed image VLM text into directory summaries
-    concurrency: int = 20  # SummaryWorker pool size + LLM in-flight ceiling (was the dead batch_size)
+    concurrency: int = (
+        20  # SummaryWorker pool size + LLM in-flight ceiling (was the dead batch_size)
+    )
     dir: bool = True  # run recursive bottom-up directory summaries (when enabled)
-    file: bool = False  # run per-file summaries (§6.4.7; default off — overlaps chunk recall, 2x cost)
+    file: bool = (
+        False  # run per-file summaries (§6.4.7; default off — overlaps chunk recall, 2x cost)
+    )
 
 
-class DescriptionConfig(BaseModel):
+class DescriptionConfig(StrictConfigModel):
     """[description] — image VLM description (renamed from [vlm]: 'vlm' was the model type,
     the business is image description)."""
 
@@ -192,19 +200,19 @@ class DescriptionConfig(BaseModel):
     concurrency: int = 10  # ConcurrencyGate: max in-flight VLM calls (was the dead batch_size)
 
 
-class ConversionConfig(BaseModel):
+class ConversionConfig(StrictConfigModel):
     """[conversion] — binary document -> markdown (renamed from [converter])."""
 
     default: str = "markitdown"
 
 
-class ChunksProducerConfig(BaseModel):
+class ChunksProducerConfig(StrictConfigModel):
     """[chunks_producer] — the process-global ChunksProducer pool (was [worker].concurrency)."""
 
     concurrency: str | int = 8  # in-process ChunksProducer coroutines (auto | <int>); default 8
 
 
-class ObjectTaskConfig(BaseModel):
+class ObjectTaskConfig(StrictConfigModel):
     """[object_task] — per-ObjectTask retry / circuit-breaker (was on [worker])."""
 
     max_retries: int = 3
@@ -213,7 +221,7 @@ class ObjectTaskConfig(BaseModel):
     consecutive_fatal_threshold: int = 5
 
 
-class ServerSectionConfig(BaseModel):
+class ServerSectionConfig(StrictConfigModel):
     """[server] — deployment mode (was [worker].in_process)."""
 
     # true: `mfs-server run` drains the queue in-process so an enqueued (--no-process) job
@@ -221,19 +229,19 @@ class ServerSectionConfig(BaseModel):
     in_process_jobrunner: bool = True
 
 
-class ChunkingConfig(BaseModel):
+class ChunkingConfig(StrictConfigModel):
     """[chunking] — text chunking knobs (renamed from [chunk])."""
 
     chunk_size: int = 2048  # chonkie token budget per chunk
     default_chunk_max: int = 1_000_000  # cap on chunks per object
 
 
-class SearchConfig(BaseModel):
+class SearchConfig(StrictConfigModel):
     over_fetch_ratio: int = 3
     max_partitions_per_query: int = 32
 
 
-class ServerConfig(BaseModel):
+class ServerConfig(StrictConfigModel):
     home: str = ""
     namespace: str = "default"
     auth_token: str = ""  # when set, /v1 requires Authorization: Bearer <token>
@@ -372,10 +380,22 @@ def _reject_renamed_config(data: dict[str, Any]) -> None:
         (sec, key) for (sec, key), _ in _REMOVED_KEYS.items() if key in (data.get(sec) or {})
     ]
     if bad_keys:
-        removed = "; ".join(f"[{sec}].{key} -> {_REMOVED_KEYS[(sec, key)]}" for sec, key in bad_keys)
+        removed = "; ".join(
+            f"[{sec}].{key} -> {_REMOVED_KEYS[(sec, key)]}" for sec, key in bad_keys
+        )
         raise ValueError(
             f"server.toml uses removed/renamed key(s): {removed}. Update them (no aliases pre-V1)."
         )
+
+
+def _format_config_validation_error(exc: ValidationError) -> str:
+    """Return a secret-safe config validation summary without echoing input values."""
+    parts = []
+    for err in exc.errors():
+        loc = ".".join(str(p) for p in err.get("loc", ()))
+        msg = err.get("msg", "invalid")
+        parts.append(f"{loc}: {msg}" if loc else msg)
+    return "; ".join(parts) or "invalid config"
 
 
 def _apply_env_overrides(cfg: ServerConfig) -> None:
@@ -511,7 +531,12 @@ def load_server_config(explicit: str | None = None, apply_env: bool = True) -> S
             data = tomllib.load(f)
     _migrate_legacy_blocks(data)
     _reject_renamed_config(data)
-    cfg = ServerConfig(**data)
+    try:
+        cfg = ServerConfig(**data)
+    except ValidationError as e:
+        raise ValueError(
+            f"server.toml has invalid config field(s): {_format_config_validation_error(e)}"
+        ) from e
     if apply_env:
         # IMPORTANT: env override runs BEFORE resolve_defaults so the override
         # can see "did the user explicitly set this in toml" (empty string ==

@@ -88,10 +88,10 @@ These commands are the current v0.4 `mfs` CLI forms.
 |---|---|---|
 | Check server, connectors, and jobs | `mfs status` | Prints the server status envelope. Do not pass a URI to `mfs status`. |
 | Probe without registering | `mfs connector probe <target> --config <file.toml>` | Calls `/v1/connectors/probe` with `target` and optional `config`. Use this after preparing or editing TOML. |
-| Add a local path | `mfs add ./docs --wait` | Bare paths are accepted. If the server runs on another machine, the CLI may bundle and upload the tree unless `--no-upload` is set. |
+| Add a local path | `mfs add ./docs` | Bare paths are accepted. If the server runs on another machine, the CLI may bundle and upload the tree unless `--no-upload` is set. |
 | Add an external connector | `mfs add postgres://prod-db --config ./postgres.toml` | For non-local targets, `mfs add` first runs a zero-billing estimate and asks for confirmation unless `-y` or `--yes` is set. |
 | Add without an interactive prompt | `mfs add web://docs --config ./web.toml --yes` | Useful for automation after you understand the estimated object, chunk, and token counts. |
-| Wait for an add job | `mfs add s3://docs --config ./s3.toml --wait` | `mfs add` normally returns after queueing a job. `--wait` polls the job to a terminal state. |
+| Inspect an add job | `mfs job show JOB_ID` | `mfs add` returns after queueing a job. Use the job id to inspect terminal state. |
 | Re-sync with a cursor/date | `mfs add <target> --since <cursor-or-date>` | Only connectors with a time cursor can use this meaningfully. |
 | Force a full re-index | `mfs add <target> --force-index` | Ignores caches and fingerprints. The CLI also exposes `--full` as an alias. |
 | List registered connectors | `mfs connector list` | Reads connector rows from `/v1/status`. |

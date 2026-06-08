@@ -302,7 +302,7 @@ Common codes include:
 | Code | HTTP status | Typical cause |
 |---|---|---|
 | `unauthorized` | 401 | Missing or invalid bearer token when auth is enabled. |
-| `validation_error` | 422 | Malformed request shape. |
+| `validation_error` | 422 | Malformed request shape, invalid enum value, or unknown query parameter. |
 | `not_found` | 404 | Missing path, object, connector, or job. |
 | `sync_already_running` | 409 | A sync is already in flight for the connector. |
 | `connector_removing` | 409 | Connector removal is already in progress. |

@@ -84,6 +84,41 @@ def test_validation_errors_use_documented_envelope(tmp_path) -> None:
     }
 
 
+def test_search_rejects_invalid_mode(tmp_path) -> None:
+    cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
+    app = create_app(cfg)
+    client = TestClient(app)
+
+    response = client.get(
+        "/v1/search?q=needle&mode=definitely_bad",
+        headers={"Authorization": "Bearer expected"},
+    )
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["code"] == "validation_error"
+    assert "query.mode" in body["detail"]
+    assert body["suggestions"] == ["fix request shape"]
+
+
+def test_search_rejects_unknown_query_params(tmp_path) -> None:
+    cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
+    app = create_app(cfg)
+    client = TestClient(app)
+
+    response = client.get(
+        "/v1/search?q=needle&offset=1",
+        headers={"Authorization": "Bearer expected"},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "code": "validation_error",
+        "detail": "unknown query parameter(s): offset",
+        "suggestions": ["fix request shape"],
+    }
+
+
 def test_framework_http_errors_use_documented_envelope(tmp_path) -> None:
     cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
     app = create_app(cfg)

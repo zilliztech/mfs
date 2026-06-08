@@ -8,23 +8,20 @@ search does not yet match the content you just added.
 | Need | CLI | HTTP API |
 |---|---|---|
 | Queue or sync a source | `mfs add TARGET` | `POST /v1/add` |
-| Queue and wait from the CLI | `mfs add --wait TARGET` | Poll `GET /v1/jobs/{job_id}` |
 | Check server-level counts | `mfs status` | `GET /v1/status` |
 | List recent jobs | `mfs job list` | `GET /v1/jobs?limit=...` |
 | Inspect one job | `mfs job show JOB_ID` | `GET /v1/jobs/{job_id}` |
 | Cancel work | `mfs job cancel JOB_ID` | `POST /v1/jobs/{job_id}/cancel` |
 | Inspect one connector's indexed objects | `mfs connector inspect TARGET` | `GET /v1/connectors/inspect?target=...` |
 
-`mfs add` queues work by default. Without `--wait`, it returns after the server
-has a job id:
+`mfs add` queues work and returns after the server has a job id:
 
 ```text
 queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
 ```
 
-With `--wait`, the CLI still uses the job API. It polls
-`/v1/jobs/{job_id}` until the job reaches `succeeded`, `failed`, or
-`cancelled`.
+Use `mfs job show JOB_ID` or `mfs job list` to inspect progress until the job
+reaches `succeeded`, `failed`, or `cancelled`.
 
 ## Lifecycle
 
@@ -60,7 +57,6 @@ flowchart LR
 | Caller | Current behavior | Worker requirement |
 |---|---|---|
 | Rust CLI `mfs add` | Sends `process=false` to `/v1/add` and returns a `job_id`; upload mode also sends `process=false` to the file-upload endpoint. | A worker drains the queued job. |
-| Rust CLI `mfs add --wait` | Same queued request, then polls `/v1/jobs/{job_id}` until terminal. | Same as `mfs add`; `--wait` is polling, not inline indexing. |
 | Direct API with `process=false` | Enqueue worker processing and return a `job_id`. | Run an in-process worker or standalone `mfs-server worker`. |
 | Direct API with `process=true` | Run indexing inline before returning the `job_id`. | The request does the processing. |
 
@@ -129,7 +125,7 @@ check `search_status`, or use `mfs connector inspect TARGET` for one connector.
 
 | Page | Use it for |
 |---|---|
-| [Quickstart](getting-started.md) | First local `mfs add --wait` checkpoint. |
+| [Quickstart](getting-started.md) | First local `mfs add` checkpoint. |
 | [Content Model](content-model.md) | How object tasks become chunks, result envelopes, and object `search_status`. |
 | [CLI Reference](cli.md) | Exact command flags and output shapes. |
 | [HTTP API](api.md) | Endpoint paths and schema fields. |

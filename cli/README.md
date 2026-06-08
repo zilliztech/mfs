@@ -33,13 +33,14 @@ endpoint). See the main repo for how to start it.
 
 ```bash
 mfs status                              # server up? connectors registered?
-mfs add --wait ./my-repo                # index a local directory and wait for completion
+mfs add ./my-repo                       # queue a local directory for indexing
+mfs job show JOB_ID                     # wait until status is succeeded
 
 mfs search "rate limit handler" ./my-repo --top-k 5
 mfs cat ./my-repo/src/throttle.go --range 42:78
 ```
 
-If you omit `--wait`, `mfs add` returns a queued job id:
+`mfs add` returns a queued job id immediately:
 
 ```bash
 mfs add ./my-repo
