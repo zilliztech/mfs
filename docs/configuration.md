@@ -134,6 +134,32 @@ backends:
 | Chunking | `[chunking] chunk_size = 2048`, `default_chunk_max = 1000000`. |
 | Search | `over_fetch_ratio = 3`, `max_partitions_per_query = 32`. |
 
+## Tuning Embedding for Low-RAM Machines
+
+The embedder processes chunks in batches, and the whole batch is held in memory
+while the model runs. The defaults are tuned for a machine with roughly 8 GB of
+RAM running the local ONNX `bge-m3` model:
+
+- `[embedding] batch_size = 100` — how many chunks are embedded per model call.
+- `[chunking] chunk_size = 2048` — the target (and hard cap) size of a single chunk.
+
+On a smaller machine a large batch of large chunks can exhaust memory. When that
+happens the failing object's task is recorded as `failed` and its `last_error`
+mentions the underlying cause — typically something like `memory`, `allocation`,
+`killed`, or `OOM`. The job still reaches a terminal state (it does not hang), and
+the other objects in the run continue.
+
+If you see such failures:
+
+1. Lower `[embedding] batch_size` — try `30`, then `10`.
+2. If a single very long chunk still fails repeatedly, also lower
+   `[chunking] chunk_size` (for example to `1024` or `512`).
+3. Re-index the affected connector so the failed objects are retried:
+   `mfs add <target> --force-index`.
+
+Inspect a job's per-object failures and their `last_error` with
+`mfs job show <job_id>`, or check the aggregate counts with `mfs status`.
+
 ## Auth Modes
 
 `/v1` endpoints require `Authorization: Bearer <token>` when `auth_token` is
