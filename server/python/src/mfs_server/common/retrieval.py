@@ -4,6 +4,7 @@ hybrid/semantic/keyword are dispatched in engine.search.
 
 from __future__ import annotations
 
+import json
 from typing import Optional
 
 
@@ -84,12 +85,41 @@ def to_envelope(hit: dict) -> dict:
     }
 
 
-def collapse_by_object(envelopes: list[dict]) -> list[dict]:
+# Locator keys that identify a sub-chunk WITHIN one object/record, not the
+# object/record itself: `lines` (a document body chunk's line range), `chunk_index`
+# / `msg_range` (the force-split / message-boundary sub-pieces of one record or thread).
+# Collapsing strips these so a long file / issue / thread split across many chunks
+# occupies a single result slot, while distinct records / threads (different PK or
+# group_by value in the locator) stay separate.
+_SUBCHUNK_LOCATOR_KEYS = frozenset({"lines", "chunk_index", "msg_range"})
+
+
+def _collapse_key(env: dict):
+    """Identity of the object-or-record an envelope belongs to: its source plus the
+    locator with the per-chunk sub-identity keys removed. A document collapses to its
+    source (only `lines` differs between its chunks); a record_collection / message_stream
+    collapses per record / thread (the PK / group_by survives in the locator)."""
+    loc = env.get("locator")
+    if not isinstance(loc, dict):
+        return (env.get("source"), None)
+    rest = tuple(
+        sorted(
+            (k, json.dumps(v, sort_keys=True, default=str))
+            for k, v in loc.items()
+            if k not in _SUBCHUNK_LOCATOR_KEYS
+        )
+    )
+    return (env.get("source"), rest)
+
+
+def collapse_results(envelopes: list[dict]) -> list[dict]:
+    """Keep only the top-ranked hit per object/record so one long file/issue/thread can't
+    monopolize the result window (its chunks share a _collapse_key)."""
     seen: set = set()
     out = []
     for e in envelopes:
-        s = e["source"]
-        if s not in seen:
-            seen.add(s)
+        k = _collapse_key(e)
+        if k not in seen:
+            seen.add(k)
             out.append(e)
     return out

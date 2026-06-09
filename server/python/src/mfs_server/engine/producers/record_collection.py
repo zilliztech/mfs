@@ -15,7 +15,6 @@ import json
 from typing import AsyncIterator
 
 from .base import (
-    CONTENT_MAX,
     Chunk,
     EndOfTask,
     HEAD_CACHE_N,
@@ -24,6 +23,7 @@ from .base import (
     ProducerContext,
 )
 from .render import field_top_key, render_record, resolve_path
+from .text import chunk_text_body
 
 
 class RecordCollectionProducer:
@@ -70,15 +70,25 @@ class RecordCollectionProducer:
                 text = render_record(rec, ocfg.text_fields, ocfg.render_template)
                 i += 1
                 if text.strip():
-                    yield Chunk(
-                        content=text,
-                        chunk_kind="row_text",
-                        locator=loc,
-                        metadata=meta,
-                        uri=full_uri,
-                        connector_job_id=task.connector_job_id,
-                        partial=len(text) > CONTENT_MAX,
-                    )
+                    # A single record can be huge when text_fields aggregate an array
+                    # (e.g. a jira issue = summary + description + comments[].body). Run it
+                    # through the SAME chunker as documents (force-split HARD cap) so it
+                    # becomes one or more <= chunk_size chunks instead of one giant chunk
+                    # that OOMs the embedder. The common case (small record) yields exactly
+                    # one part and keeps the original locator; only a record that actually
+                    # splits gets a chunk_index suffix to keep each chunk's locator unique.
+                    parts = chunk_text_body(text, "document", "", self.ctx.cfg.chunking.chunk_size)
+                    multi = len(parts) > 1
+                    for ci, (ctext, _lines) in enumerate(parts):
+                        yield Chunk(
+                            content=ctext,
+                            chunk_kind="row_text",
+                            locator={**loc, "chunk_index": ci} if multi else loc,
+                            metadata=meta,
+                            uri=full_uri,
+                            connector_job_id=task.connector_job_id,
+                            partial=False,
+                        )
                     emitted += 1
                     if emitted >= ocfg.chunk_max:
                         truncated = True

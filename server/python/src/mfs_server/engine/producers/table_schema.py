@@ -15,13 +15,13 @@ import json
 from typing import AsyncIterator
 
 from .base import (
-    CONTENT_MAX,
     Chunk,
     END_OF_TASK,
     ObjectTask,
     ProducedItem,
     ProducerContext,
 )
+from .text import chunk_text_body
 
 
 class TableSchemaProducer:
@@ -52,12 +52,19 @@ class TableSchemaProducer:
             async with self.ctx.summary_gate:
                 summ = await self.ctx.summary.summarize(text, "schema_summary")
             if summ.strip():
-                yield Chunk(
-                    content=summ,
-                    chunk_kind="schema_summary",
-                    locator=None,
-                    uri=full_uri,
-                    connector_job_id=task.connector_job_id,
-                    partial=len(summ) > CONTENT_MAX,
-                )
+                # A schema summary for a very wide table can be long; run it through the
+                # SAME document chunker (force-split HARD cap) so no chunk exceeds chunk_size
+                # and OOMs the embedder. The common case (short summary) yields one part with
+                # the original locator=None; only a split summary gets a chunk_index.
+                parts = chunk_text_body(summ, "document", "", self.ctx.cfg.chunking.chunk_size)
+                multi = len(parts) > 1
+                for ci, (ctext, _lines) in enumerate(parts):
+                    yield Chunk(
+                        content=ctext,
+                        chunk_kind="schema_summary",
+                        locator={"chunk_index": ci} if multi else None,
+                        uri=full_uri,
+                        connector_job_id=task.connector_job_id,
+                        partial=False,
+                    )
         yield END_OF_TASK
