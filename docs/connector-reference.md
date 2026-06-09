@@ -158,13 +158,14 @@ it for the org.
 ```toml
 repo = "zilliztech/mfs"
 branch = "main"
+token = "env:GITHUB_TOKEN"
 index_meta = true
 max_read_rows = 5000
 ```
 
-Set `GITHUB_TOKEN` in the server environment for authenticated requests. The
-current plugin reads that environment variable directly when building GitHub
-API headers.
+The plugin reads the `token` config field; author it as an `env:` reference
+(e.g. `token = "env:GITHUB_TOKEN"`) so the secret stays in the server
+environment, never in the TOML. `file:/abs/path` works too.
 
 **Start:**
 
@@ -186,7 +187,7 @@ mfs cat github://zilliztech/mfs/_meta/issues.jsonl --locator '{"number":42}'
 - Set `repo` explicitly in TOML. The current plugin reads `repo` from config
   instead of deriving it from the URI.
 - Issues, pulls, and PR diffs are opt-in through `index_meta = true`.
-- Private repositories need `GITHUB_TOKEN` in the server process environment.
+- Private repositories need a `token` (e.g. `token = "env:GITHUB_TOKEN"`).
 - Submodules are not followed as separate repository trees.
 
 ## `postgres`

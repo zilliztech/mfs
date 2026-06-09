@@ -194,7 +194,15 @@ SCHEMAS: dict[str, ConnectorSchema] = {
                 required=False,
             ),
             ConnectorField(
-                "credential_ref", "Private key reference (e.g. file:/path/to/key.p8)", secret=True
+                "auth_mode",
+                "Auth mode (key-pair, password, or pat)",
+                default="key-pair",
+                required=False,
+            ),
+            ConnectorField(
+                "credential_ref",
+                "Credential ref (key-pair: file:/path/key.p8; password/pat: env:VAR or file:)",
+                secret=True,
             ),
             ConnectorField(
                 "private_key_passphrase_ref",
@@ -233,7 +241,14 @@ SCHEMAS: dict[str, ConnectorSchema] = {
             ConnectorField("branch", "Branch (empty = repo default)", required=False),
             ConnectorField("token", "GitHub token (env:VAR_NAME supported)", secret=True),
             ConnectorField(
-                "max_read_rows", "Max files / issues", type="int", default="100000", required=False
+                "index_meta",
+                "Index issues + pull requests too (off by default)",
+                type="bool",
+                default="false",
+                required=False,
+            ),
+            ConnectorField(
+                "max_read_rows", "Max files / issues", type="int", default="5000", required=False
             ),
         ],
     ),
@@ -306,7 +321,7 @@ SCHEMAS: dict[str, ConnectorSchema] = {
             ConnectorField(
                 "base_url", "Base URL override (empty = subdomain default)", required=False
             ),
-            ConnectorField("username", "User email (used with /token suffix)"),
+            ConnectorField("email", "User email (used with /token suffix)"),
             ConnectorField("api_token", "API token", secret=True),
             ConnectorField(
                 "max_read_rows", "Max tickets", type="int", default="100000", required=False
@@ -390,11 +405,13 @@ SCHEMAS: dict[str, ConnectorSchema] = {
         fields=[
             ConnectorField("app_id", "App ID (from the Lark Developer console)"),
             ConnectorField("app_secret", "App secret", secret=True),
-            ConnectorField("region", "Region (cn or us)", default="cn", required=False),
+            ConnectorField(
+                "region", "Region (feishu or lark)", default="feishu", required=False
+            ),
             ConnectorField(
                 "auth",
-                "Auth mode (oauth = user-OAuth device flow, internal = app-only)",
-                default="oauth",
+                "Auth mode (tenant = app-only bot, user = user-OAuth device flow)",
+                default="tenant",
                 required=False,
             ),
             ConnectorField(

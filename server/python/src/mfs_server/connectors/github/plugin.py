@@ -1,6 +1,7 @@
 """GitHub connector — code tree + issues/PRs. httpx GitHub REST:
 /repos/{o}/{r} -> default_branch; /git/trees/{br}?recursive=1 -> blobs; raw.github-
-usercontent.com for content. Auth via GITHUB_TOKEN env (anonymous rate limit is low).
+usercontent.com for content. Auth via config `token` (e.g. token = "env:GITHUB_TOKEN";
+anonymous rate limit is low).
 
 The code tree maps to file-like paths (object_kind reuses file's ext mapping). The
 `_meta/` subtree exposes collaboration data:
@@ -69,7 +70,7 @@ class GitHubPlugin(ConnectorPlugin):
         return o, r
 
     def _headers(self) -> dict:
-        t = os.environ.get("GITHUB_TOKEN")
+        t = self._cfg("token")
         h = {"User-Agent": "mfs-github/0.4", "Accept": "application/vnd.github+json"}
         if t:
             h["Authorization"] = f"Bearer {t}"
@@ -98,7 +99,7 @@ class GitHubPlugin(ConnectorPlugin):
         if resp.status_code in (401, 403):
             return HealthStatus(
                 ok=False,
-                detail=f"auth failed (HTTP {resp.status_code}); check GITHUB_TOKEN",
+                detail=f"auth failed (HTTP {resp.status_code}); check the configured token",
             )
         if resp.status_code == 404:
             return HealthStatus(

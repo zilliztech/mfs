@@ -20,7 +20,7 @@ permissions.
 | key | what |
 |---|---|
 | `subdomain` | `acme` (the part before `.zendesk.com`) |
-| `username` | user email |
+| `email` | user email (gets the `/token` suffix appended automatically) |
 | `api_token` | the token (`env:ZENDESK_API_TOKEN` recommended) |
 
 ## Optional
@@ -48,7 +48,7 @@ the conversation surface.
 
 ```toml
 subdomain = "acme"
-username = "alice@acme.com"
+email = "alice@acme.com"
 api_token = "env:ZENDESK_API_TOKEN"
 max_read_rows = 50000
 ```

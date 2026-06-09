@@ -15,7 +15,7 @@ Developer Console, plus one of two auth modes.
 
 **Two auth modes — pick one**:
 
-### `auth = "internal"` (tenant / bot)
+### `auth = "tenant"` (tenant / bot)
 
 App acts as itself. Easier to set up, but limited visibility — only
 chats / docs the app has been explicitly added to or shared with.
@@ -30,7 +30,7 @@ chats / docs the app has been explicitly added to or shared with.
 - Add the bot to chats by mentioning it (`@bot-name`) or pinning it via
   group admin settings.
 
-### `auth = "oauth"` (user identity, recommended)
+### `auth = "user"` (user identity, recommended)
 
 App acts on behalf of a real user. Sees everything that user sees.
 Requires user-OAuth Device Flow login.
@@ -38,7 +38,7 @@ Requires user-OAuth Device Flow login.
 - Same scopes as above but as **User Scopes** (not Bot Scopes).
 - Run the auth flow once:
   ```bash
-  uv run python -m mfs_server.connectors.feishu.auth_login --app-id <id> --app-secret <secret> --region cn
+  uv run python -m mfs_server.connectors.feishu.auth_login --app-id <id> --app-secret <secret> --region feishu
   ```
   This opens a browser, user authorizes, and the resulting
   `oauth.json` lands at `$MFS_HOME/feishu.oauth.json` by default.
@@ -58,8 +58,8 @@ Requires user-OAuth Device Flow login.
 
 | key | default | meaning |
 |---|---|---|
-| `region` | `cn` | `cn` (api.feishu.cn) or `us` (api.larksuite.com) |
-| `auth` | `oauth` | `oauth` (user) or `internal` (tenant/bot) |
+| `region` | `feishu` | `feishu` (open.feishu.cn) or `lark` (open.larksuite.com) |
+| `auth` | `tenant` | `tenant` (bot / app-only) or `user` (user OAuth) |
 | `oauth_state_file` | `$MFS_HOME/feishu.oauth.json` | path to the OAuth state JSON |
 | `docs_folder_token` | _none_ | limits the docs subtree to one folder |
 | `extra_chats` | _none_ | extra chat IDs to include (`oc_xxx`) — for tenant mode where chat.list may miss some chats |
@@ -76,13 +76,13 @@ Two subtrees in one connector — chats AND docs. The docs subtree only
 appears when the app has docx read scope and is shared with the
 documents (or the user has access in OAuth mode).
 
-## env: example (OAuth mode)
+## env: example (user OAuth mode)
 
 ```toml
 app_id = "cli_a1b2c3d4e5f6"
 app_secret = "env:FEISHU_APP_SECRET"
-region = "cn"
-auth = "oauth"
+region = "feishu"
+auth = "user"
 oauth_state_file = "/home/zhangchen/.mfs/feishu.oauth.json"
 docs_folder_token = "fldcnXXXXXX"   # only docs under this folder
 ```
@@ -90,7 +90,7 @@ docs_folder_token = "fldcnXXXXXX"   # only docs under this folder
 ```bash
 export FEISHU_APP_SECRET=...
 # one-time OAuth setup:
-uv run python -m mfs_server.connectors.feishu.auth_login --app-id cli_... --app-secret $FEISHU_APP_SECRET --region cn
+uv run python -m mfs_server.connectors.feishu.auth_login --app-id cli_... --app-secret $FEISHU_APP_SECRET --region feishu
 # then:
 mfs add feishu://acme --config /tmp/mfs-feishu.toml
 ```
@@ -103,7 +103,7 @@ mfs add feishu://acme --config /tmp/mfs-feishu.toml
   copied to another host without atomic write, the rotated token
   becomes orphaned and login breaks. Always let the plugin own the
   file.
-- **Region mismatch**: `cn` and `us` are separate endpoints with
+- **Region mismatch**: `feishu` and `lark` are separate endpoints with
   separate app registries. App from one region can't auth against the
   other.
 - **Scope approval**: in larger orgs, an admin must approve the

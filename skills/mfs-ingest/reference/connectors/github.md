@@ -38,6 +38,7 @@ A **GitHub Personal Access Token (PAT)** with read scopes.
 |---|---|---|
 | `repo` | (from URI) | `owner/name`; if URI is `github://owner/repo`, this is auto-derived |
 | `branch` | repo default | branch to index |
+| `index_meta` | `false` | also index issues + PRs (`_meta/*.jsonl`); off by default |
 | `max_read_rows` | 5000 | per object kind (issues / PRs) cap |
 
 ## URI tree
@@ -52,13 +53,14 @@ github://owner/repo/
 The `code/` subtree mirrors the repo's tree; files are indexed
 per-content (chunked text/code). The two `_meta/*.jsonl` objects are
 record collections — one chunk per issue/PR with title + body +
-comments.
+comments. They only appear when `index_meta = true` (off by default).
 
 ## env: example
 
 ```toml
 token = "env:GITHUB_TOKEN"
 branch = "main"
+index_meta = true   # also index issues + PRs
 max_read_rows = 10000
 ```
 
