@@ -4,6 +4,8 @@ site_url: https://zilliztech.github.io/mfs/
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
   palette:
     scheme: slate
     primary: black

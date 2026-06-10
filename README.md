@@ -1,29 +1,35 @@
+<p align="center">
+  <img src="docs/assets/logo.png" alt="MFS logo" width="140" />
+</p>
+
 # MFS — Multi-source File-like Search
 
-> Agent-native file search CLI for large local workspaces, ideal for managing memory, skill, codebase and knowledgebase.
+**Search files, databases, and SaaS like one filesystem.**
 
-MFS exposes any heterogeneous data source — a codebase, a docs site, a
-database, a SaaS workspace — through the same shell verbs you already use
-on the filesystem: `ls`, `cat`, `tree`, `head`, `tail`, `grep`. On top of
-that, `mfs search` runs hybrid semantic + literal retrieval across one or
-many sources at once.
+MFS turns any heterogeneous data source — a code repo, a Postgres
+database, a Slack workspace, a Google Drive — into a file-like tree
+under a stable URI. The same shell verbs work everywhere: `ls`, `cat`,
+`tree`, `grep`, `head`, `tail`, plus `search` for hybrid semantic +
+keyword retrieval.
 
-It was designed to be the search/read surface for AI agents. Every command
-returns predictable structured output so an agent (or a human) can chain
-search → locate → browse without parsing prose.
+Defaults run entirely on your laptop. No API keys, no cloud account.
+Swap any layer for a hosted backend when you outgrow it.
 
-```
-        search                locate                  browse
-  ┌──────────────────┐   ┌──────────────────┐   ┌─────────────────────┐
-  │  semantic + BM25 │ → │ result has lines │ → │  cat --range / cat  │
-  │  finds candidate │   │  or a locator    │   │  --peek to confirm  │
-  │  files / rows    │   │  → reopen exact  │   │  context            │
-  └──────────────────┘   └──────────────────┘   └─────────────────────┘
-```
+<p align="center">
+  <img src="docs/assets/architecture.png" alt="MFS architecture: clients (CLI, SDKs) talk to mfs-server, which unifies many context sources (memory, skills, knowledge, messages, email, customers, project work, data records) into one searchable namespace" width="880" />
+</p>
 
-This is the **`v0.4.0-beta.2` release** — an early-access build. The CLI is
-shipped as a static binary; the server runs in dev mode from this repo.
-See [Status](#status) for what's stable and what isn't.
+## Why MFS
+
+- **One URI per source.** `postgres://prod-db/users/rows.jsonl` and
+  `~/repo/README.md` get the same `ls`, `cat`, `search` treatment.
+- **Hybrid search built in.** BM25 + dense-vector results merged in one
+  query — no mode picking.
+- **Zero-key local mode.** Defaults are ONNX embeddings + Milvus Lite +
+  SQLite. Runs offline.
+- **Designed for agents.** Every command takes `--json`; search results
+  carry a stable `source` + `locator` + `score`, so an agent can chain
+  `search` → `cat --locator` without parsing prose.
 
 ## Install the CLI
 
@@ -32,164 +38,117 @@ curl --proto '=https' --tlsv1.2 -LsSf \
   https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.2/mfs-cli-installer.sh | sh
 ```
 
-(The script name carries the crate name `mfs-cli`; the installed binary is `mfs`.)
+Or `cargo install mfs-cli --version 0.4.0-beta.2`.
 
-Or via cargo:
+Verify with `mfs --version`. Pre-built for Linux (x86_64 / ARM64) and
+macOS (Intel / Apple Silicon).
 
-```bash
-cargo install mfs-cli --version 0.4.0-beta.2
-```
+> macOS first launch may prompt about an unidentified developer. Run
+> `xattr -d com.apple.quarantine $(which mfs)` once after install, or
+> allow it in System Settings → Privacy & Security.
 
-The binary is named `mfs`. Verify:
+## Run the server
 
-```bash
-mfs --version
-```
-
-**Pre-built platforms**:
-
-- Linux x86_64 (musl, static)
-- Linux ARM64 (musl, static)
-- macOS x86_64 (Intel)
-- macOS ARM64 (Apple Silicon)
-
-> **macOS note**: the binary is **not yet code-signed**, so the first launch
-> may prompt "unidentified developer". Either allow it in System Settings →
-> Privacy & Security, or run `xattr -d com.apple.quarantine $(which mfs)`
-> once after install.
-
-## Run the server (dev mode)
-
-The server is a Python FastAPI app. For `v0.4.0-beta.2` it is **not** published
-to PyPI — clone the repo and run it from source:
+The CLI is a thin client; indexing and search live in a Python server.
+During the beta, run it from source:
 
 ```bash
 git clone https://github.com/zilliztech/mfs.git
 cd mfs/server/python
-
-# uv installs all required deps into a local venv
 uv sync
-
-# Optional: walk a 6-section wizard that writes ~/.mfs/server.toml. Every
-# section defaults to a self-contained local backend (ONNX embeddings,
-# Milvus Lite, SQLite, local fs). Plug in OpenAI / Zilliz Cloud / Postgres
-# only when you have credentials.
-uv run mfs-server setup            # all sections, press Enter to accept defaults
-uv run mfs-server setup --section embedding   # change a single section later
-
-# starts on 127.0.0.1:13619 by default (matches the CLI's default endpoint).
-# Startup preloads the default multilingual BGE-M3 int8 ONNX model into
-# $MFS_HOME/onnx-cache/ if it is not already cached (one-time, ~600 MB).
 uv run mfs-server run
 ```
 
-**Default backends are zero-key** — out of the box:
+The server binds to `127.0.0.1:13619`. Config, state, an auto-generated
+bearer token, and a local Milvus Lite database all live under `~/.mfs/`.
+First boot downloads the default embedding model (~600 MB) into
+`~/.mfs/onnx-cache/`.
 
-| What | Default |
-|---|---|
-| Embedding | local ONNX, `gpahal/bge-m3-onnx-int8` — multilingual, 1024-dim (no API key) |
-| VLM / image summary | OFF (opt-in via `mfs-server setup --section vlm`) |
-| Vector DB | Milvus Lite (file under `$MFS_HOME`) |
-| Metadata DB | SQLite (file under `$MFS_HOME`) |
-| Object store | Local filesystem (under `$MFS_HOME`) |
-| API auth | Auto-generated Bearer token at `$MFS_HOME/server.token` |
-
-Want to switch to OpenAI embeddings / Zilliz Cloud / Postgres / S3? Re-run
-`mfs-server setup --section <name>` and pick a different backend.
-
-**Connector extras** (optional — install only what you need):
+To swap any default — embedding provider, vector backend, storage layer:
 
 ```bash
-uv sync --extra pg          # postgres
-uv sync --extra slack       # Slack
-uv sync --extra all-connectors   # everything
+uv run mfs-server setup
 ```
 
-**Optional Rust hot-path acceleration** (`server-rs`): the server transparently
-uses a Rust extension for directory walks, parallel hashing, grep and tail
-when available. Without it, it falls back to pure Python — identical
-behaviour, just slower on big inputs. To install:
-
-```bash
-cd server-rs
-uv run --project ../server/python maturin develop --release
-```
+Press Enter through every section to keep the local defaults.
 
 ## Try it
 
-With the server running on `127.0.0.1:13619`:
+With the server running, in another terminal:
 
 ```bash
-mfs status                         # server up? connectors registered?
-mfs add ./my-repo                  # queue a local directory for indexing
-mfs job show JOB_ID                # wait until status is succeeded
+mfs add ./my-repo
+mfs job show <JOB_ID>     # wait until status is "succeeded"
 
 mfs search "rate limit handler" ./my-repo --top-k 5
 mfs cat ./my-repo/src/throttle.go --range 42:78
 ```
 
-`mfs add` returns a queued job id immediately:
+`mfs add` returns a job id immediately; the worker indexes in the
+background.
+
+Search results are candidates, not evidence — reopen with
+`mfs cat --range` or `mfs cat --locator` before you trust them.
+
+## Connectors
+
+Beyond local files, MFS includes 18 more connectors. Each exposes its
+source as a URI tree you can `ls`/`cat`/`search` like any filesystem:
+
+| Group | Schemes |
+|---|---|
+| Files & objects | `file`, `s3`, `gdrive` |
+| Databases | `postgres`, `mysql`, `mongo`, `bigquery`, `snowflake` |
+| Code & issues | `github`, `jira`, `linear` |
+| CRM & support | `hubspot`, `zendesk` |
+| Chat, mail, docs | `slack`, `discord`, `gmail`, `feishu`, `notion`, `web` |
+
+Each connector has its own credentials and TOML shape. Probe before
+adding:
 
 ```bash
-mfs add ./my-repo
-mfs job show JOB_ID
+mfs connector probe linear://workspace --config ./linear.toml
+mfs add linear://workspace --config ./linear.toml
 ```
 
-Beyond `file://`, MFS ships connectors for postgres, mysql, snowflake,
-mongo, github, jira, hubspot, notion, zendesk, slack, discord, gmail,
-feishu, s3, web — nineteen schemes in total. Run `mfs connector list`
-for registered sources and `mfs --help` for the full CLI surface.
-
-Use the MkDocs guides when you need the full runbook:
-
-| Guide | Start here for |
-|---|---|
-| [Quickstart](docs/getting-started.md) | First local run, checkpoints, and upload mode. |
-| [CLI Reference](docs/cli.md) | Current command forms, flags, jobs, and profiles. |
-| [Search and Browse](docs/search-and-browse.md) | Search, reopen exact evidence, and read narrow ranges. |
-| [Connectors](docs/connectors.md) | Connector catalog, TOML config, credentials, and lifecycle. |
-| [Configuration](docs/configuration.md) | Server defaults, auth, endpoint, token, and profile precedence. |
-| [Providers and Processing](docs/providers.md) | Embedding providers, setup extras, first-run cache behavior, and VLM/summary processing. |
-| [Deployment](docs/deployment.md) | Source, Docker, Compose, and beta deployment boundaries. |
-| [Troubleshooting](docs/troubleshooting.md) | Endpoint, auth, upload, indexing, and browse failures. |
-| [Development](docs/development.md) | Package boundaries, local setup, checks, and OpenAPI-to-SDK regeneration. |
+Per-connector setup: [docs/connector-reference.md](docs/connector-reference.md).
 
 ## For agents
 
-If you're an agent reading this, use the matching skill for the operation:
+Two skill packs drop directly into an agent runtime:
 
-- [`skills/mfs-find/SKILL.md`](skills/mfs-find/SKILL.md) for read-only search,
-  grep, browse, and cat workflows over registered sources.
-- [`skills/mfs-ingest/SKILL.md`](skills/mfs-ingest/SKILL.md) for adding or
-  updating sources, connector configuration, and ingest troubleshooting.
-
-## Status
-
-`v0.4.0-beta.2` is a **public beta** intended for evaluation and feedback.
-Concretely:
-
-- ✅ CLI: stable surface for the documented commands.
-- ✅ Server: 20-scheme connector matrix, hybrid search, rename detection,
-  incremental sync.
-- ⚠ Distribution: only the CLI is published. Server / SDK / Rust wheel
-  run from source.
-- ⚠ The HTTP API may still shift before `v0.4.0` stable — pin the version
-  in any scripts you write against the beta.
-
-Found a bug? Surprising behaviour? Open an issue at
-https://github.com/zilliztech/mfs/issues.
+- [`skills/mfs-find`](skills/mfs-find/SKILL.md) — search, grep, browse,
+  read across registered sources.
+- [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) — register a new
+  source, update TOML, re-sync, debug ingest.
 
 ## Docs
 
-- [`docs/`](docs/) — MkDocs source for the public documentation site
-- [`mkdocs.yml`](mkdocs.yml) — documentation site structure and theme config
-- [`skills/mfs-find/SKILL.md`](skills/mfs-find/SKILL.md) — agent search and
-  browse workflow
-- [`skills/mfs-ingest/SKILL.md`](skills/mfs-ingest/SKILL.md) — agent ingest and
-  connector workflow
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — dev setup, testing, lint, commit /
-  PR conventions
+Full guide at **[docs/](docs/)** (also served via MkDocs):
+
+- [Quickstart](docs/getting-started.md) — first local run, end to end.
+- [Search and Browse](docs/search-and-browse.md) — the search → locate →
+  read loop.
+- [Connectors](docs/connectors.md) — connector catalog and config.
+- [Configuration](docs/configuration.md) — server settings, env vars,
+  auth.
+- [Deployment](docs/deployment.md) — Docker, Compose, remote server.
+- [Troubleshooting](docs/troubleshooting.md) — when things break.
+
+## Status
+
+This is **`v0.4.0-beta.2`**, a public beta:
+
+- ✅ CLI: stable surface for documented commands.
+- ✅ Server: 19-scheme connector matrix, hybrid search, incremental
+  sync.
+- ⚠ Distribution: only the CLI is published. Server and SDKs run from
+  source.
+- ⚠ The HTTP API may still shift before `v0.4.0` stable — pin the
+  version in scripts.
+
+Found a bug? Open an issue: <https://github.com/zilliztech/mfs/issues>.
 
 ## License
 
-Apache-2.0. See [`LICENSE`](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE).
