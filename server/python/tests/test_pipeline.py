@@ -292,7 +292,9 @@ async def test_embed_failure_drops_batch_and_finalizes_failed_without_wedge():
     # T1's flush fails before T2 is ever embedded.
     c, embedder, milvus, tx = _consumer(batch_size=1)
     finals: list[tuple] = []
-    c.register_on_succeeded(lambda uri, job, count, partial, error: finals.append((uri, partial, error)))
+    c.register_on_succeeded(
+        lambda uri, job, count, partial, error: finals.append((uri, partial, error))
+    )
 
     boom = {"armed": True}
 
@@ -327,7 +329,9 @@ async def test_upsert_failure_drops_batch_and_finalizes_failed():
     # finalizes the affected task failed rather than wedging.
     c, embedder, milvus, tx = _consumer(batch_size=10, idle_ms=30)
     finals: list[tuple] = []
-    c.register_on_succeeded(lambda uri, job, count, partial, error: finals.append((uri, partial, error)))
+    c.register_on_succeeded(
+        lambda uri, job, count, partial, error: finals.append((uri, partial, error))
+    )
     milvus.upsert = AsyncMock(side_effect=RuntimeError("milvus write error"))
     q = make_chunks_q(10)
     c.start(q)

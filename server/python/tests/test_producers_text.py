@@ -114,7 +114,9 @@ async def test_pathological_no_delimiter_input_is_force_split(tmp_path):
     blob = "a" * 5_000_000  # no newline, period, space, or heading anywhere
     plugin = FakePlugin(data={"/big.md": blob.encode()})
     ctx = build_ctx(artifacts=FakeArtifactStore(tmp_path), chunk_size=2048)
-    items = await collect(TextChunksProducer(ctx), _task("/big.md", "file:///r", "document", plugin))
+    items = await collect(
+        TextChunksProducer(ctx), _task("/big.md", "file:///r", "document", plugin)
+    )
     chunks = [x for x in items if isinstance(x, Chunk)]
 
     assert len(chunks) > 1  # the document was split, not emitted whole
