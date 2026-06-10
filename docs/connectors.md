@@ -77,7 +77,7 @@ connector-specific pitfalls.
 | `slack` | Slack channels, messages, threads, and workspace users. | `slack://my-workspace` | `token` is required. `channel_types`, `oldest`, and `max_read_rows` control scope and size. | [details](connector-reference.md#slack) |
 | `discord` | Discord guild text channels and active threads. | `discord://my-guild` | Configure a bot `token`, `guild_id`, and optional `max_read_rows`. | [details](connector-reference.md#discord) |
 | `gmail` | Gmail messages grouped by `threadId` under labels. | `gmail://inbox` | `token` is an access token string or a TOML object accepted by `Credentials.from_authorized_user_info`. `labels` can restrict which labels are indexed. | [details](connector-reference.md#gmail) |
-| `feishu` | Feishu/Lark messenger chats and docs. | `feishu://my-workspace` | Current code uses `auth = "tenant"` or `"user"` and `region = "feishu"` or `"lark"`; optional fields narrow docs folders, chats, and docs. | [details](connector-reference.md#feishu) |
+| `feishu` | Feishu/Lark messenger chats and docs. | `feishu://my-workspace` | `auth = "user"` (default, OAuth — indexes everything you can see) or `"tenant"` (app-only bot); `region = "feishu"` or `"lark"`. | [details](connector-reference.md#feishu) |
 
 ## Lifecycle commands
 

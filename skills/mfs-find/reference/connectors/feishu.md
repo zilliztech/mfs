@@ -74,7 +74,7 @@ object; the content is the rendered markdown body.
   added to, and most p2p chats are unreachable in tenant mode (Feishu
   API limit). If "I know the chat exists but search returns nothing",
   switch to OAuth mode at ingest time.
-- **Region split**: `cn` (api.feishu.cn) and `us` (api.larksuite.com)
+- **Region split**: `feishu` (open.feishu.cn) and `lark` (open.larksuite.com)
   are separate; one connector covers one region.
 - **Doc rendering loses formatting**: tables, mentions, and inline
   links may flatten in the markdown export. Native docx features like

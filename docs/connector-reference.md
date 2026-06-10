@@ -1158,83 +1158,58 @@ mfs export gdrive://engineering/Product/Design.pdf /tmp/design.pdf
 `feishu://<alias>/docs/<title>__<doc-token>.md`.
 
 **Obtain credentials:** Feishu / Lark needs an **App ID** + **App Secret**
-from the Lark Developer Console, plus one of two auth modes.
+from the Lark Developer Console.
 
-Create the app:
+1. Go to <https://open.feishu.cn/app> (feishu / China) or
+   <https://open.larksuite.com/app> (lark / overseas).
+2. **Create Custom App** → name + icon. Note the **App ID** (`cli_...`) and
+   **App Secret**.
+3. **Permissions & Scopes** → add the read scopes below, then **Version
+   Management & Release** → request admin approval if your org requires it.
 
-1. Go to <https://open.feishu.cn/app> (CN) or
-   <https://open.larksuite.com/app> (US).
-2. **Create Custom App** → name + icon.
-3. Note the **App ID** (`cli_...`) and **App Secret**.
+### User mode (default, recommended)
 
-Then pick an auth mode:
+The app indexes everything the authorizing user can see. Add the scopes as
+**User Scopes**: `im:chat:readonly`, `im:message.group_msg:get_as_user`,
+`im:message.p2p_msg:get_as_user`, `drive:drive:readonly`,
+`docx:document:readonly`, `contact:user.id:readonly`.
 
-**Tenant / bot** (`auth = "tenant"`): the app acts as itself. Easier to set
-up, but only sees chats and docs explicitly shared with it.
+Add the connector — the wizard runs a one-time browser authorization inline:
 
-- Developer console → **Permissions & Scopes**, add as **Bot Scopes**:
-    - `im:message:readonly` — read messages
-    - `im:chat:readonly` — list chats
-    - `docx:document:readonly` — read docx documents
-    - `drive:drive:readonly` — list drive items
-- **Version Management & Release** → request approval from your tenant
-  admin.
-- Add the bot to each chat by mentioning it (`@bot-name`) or pinning it
-  via group admin settings.
+```bash
+mfs-server connector add feishu://workspace
+```
 
-**User OAuth** (`auth = "user"`, recommended for full visibility): the app
-acts on behalf of a real user and sees everything that user sees.
+Open the printed URL, approve, and the connector is ready. The token renews
+automatically afterwards; if the authorization later expires or is revoked,
+re-authorize with:
 
-- Same scopes as above but as **User Scopes**.
-- Run the bundled auth helper once on a machine with a browser:
+```bash
+mfs-server connector auth feishu://workspace
+```
 
-    ```bash
-    uv run python -m mfs_server.connectors.feishu.auth_login \
-      --app-id cli_a1b2c3d4 \
-      --app-secret <secret> \
-      --region cn
-    ```
+Minimum config (the wizard writes this; keep the secret as an env ref):
 
-    It opens a browser for the user to authorize, then writes the
-    resulting `oauth.json` to `$MFS_HOME/feishu.oauth.json` by default.
-- The plugin refreshes the token on every connect and atomically rotates
-  the refresh_token — Feishu refresh tokens are one-shot, so the plugin
-  must own R/W of that file. That's why `oauth_state_file` is a path, not
-  a `credential_ref`.
+```toml
+app_id = "cli_a1b2c3d4"
+app_secret = "env:FEISHU_APP_SECRET"
+region = "feishu"          # or "lark"
+auth = "user"
+```
 
-**Minimum config for tenant/bot mode:**
+### Tenant mode (app-only bot)
+
+Set `auth = "tenant"`. The app acts as itself and sees only chats it has been
+added to and docs/folders shared with it — add the bot to a chat by
+`@mentioning` it. Add the same scopes as **Bot Scopes**.
 
 ```toml
 app_id = "cli_a1b2c3d4"
 app_secret = "env:FEISHU_APP_SECRET"
 region = "feishu"
 auth = "tenant"
-docs_folder_token = "fldcn..."
+docs_folder_token = "fldcn..."   # optional: limit docs to one shared folder
 max_read_rows = 50000
-```
-
-**Minimum config for user OAuth mode:**
-
-```toml
-auth = "user"
-oauth_state_file = "/home/mfs/feishu.oauth.json"
-```
-
-Create the OAuth state file with the bundled helper:
-
-```bash
-python -m mfs_server.connectors.feishu.auth_login \
-  --app-id cli_a1b2c3d4 \
-  --app-secret-env FEISHU_APP_SECRET \
-  --region feishu \
-  --output /home/mfs/feishu.oauth.json
-```
-
-**Start:**
-
-```bash
-mfs connector probe feishu://workspace --config ./feishu.toml
-mfs add feishu://workspace --config ./feishu.toml
 ```
 
 **Search or browse:**
@@ -1242,15 +1217,15 @@ mfs add feishu://workspace --config ./feishu.toml
 ```bash
 mfs search "deploy failed" feishu://workspace/chats/
 mfs search "quarterly roadmap" feishu://workspace/docs/
-mfs cat feishu://workspace/chats/eng__oc_xxx/messages.jsonl --locator '{"message_id":"om_abc123"}'
 mfs cat feishu://workspace/docs/Roadmap__doccnxxx.md --range 1:80
 ```
 
-**Common pitfalls:**
+**Notes:**
 
-- Current code uses `auth = "tenant"` or `auth = "user"` and region values
-  `feishu` or `lark`.
-- Tenant mode only sees chats the bot is in and docs shared with the app.
-- User mode refresh tokens rotate; `oauth_state_file` must be writable by the
-  server process.
-- Only docx documents are exposed under `docs/` by the current plugin.
+- **p2p single chats** can't be auto-listed (Feishu API limit). Include them
+  with `extra_chats` — by `oc_...` chat id, or by the partner's `ou_...` open_id.
+- **docs:** only docx is indexed, and only those under `docs_folder_token` or
+  listed in `extra_docs`. Share a folder with the app once and new docs are
+  picked up on the next sync.
+- **region:** `feishu` and `lark` are separate registries — an app from one
+  can't authorize against the other.

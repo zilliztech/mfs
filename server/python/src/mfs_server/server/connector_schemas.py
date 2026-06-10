@@ -416,11 +416,6 @@ SCHEMAS: dict[str, ConnectorSchema] = {
                 required=False,
             ),
             ConnectorField(
-                "oauth_state_file",
-                "OAuth state file (default $MFS_HOME/feishu.oauth.json)",
-                required=False,
-            ),
-            ConnectorField(
                 "docs_folder_token", "Docs folder token (limits the docs subtree)", required=False
             ),
             ConnectorField(

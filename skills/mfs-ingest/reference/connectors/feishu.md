@@ -2,68 +2,47 @@
 
 URI: `feishu://<alias>`.
 
-## How to obtain credentials
+Indexes two subtrees in one connector: **group chats** (as message streams) and
+**docx documents**.
 
-Feishu / Lark requires an **App ID** and **App Secret** from the Lark
-Developer Console, plus one of two auth modes.
+## Credentials
 
-**Create the app**:
+Needs an **App ID** + **App Secret** from the Lark Developer Console:
 
-1. Go to <https://open.feishu.cn/app> (CN) or <https://open.larksuite.com/app> (US).
-2. **Create Custom App** → name + icon.
-3. Note the **App ID** (`cli_...`) and **App Secret**.
+1. <https://open.feishu.cn/app> (feishu / CN) or <https://open.larksuite.com/app> (lark / overseas).
+2. **Create Custom App**, note the **App ID** (`cli_…`) and **App Secret**.
+3. **Permissions & Scopes** → add (as **User Scopes**): `im:chat:readonly`,
+   `im:message.group_msg:get_as_user`, `im:message.p2p_msg:get_as_user`,
+   `drive:drive:readonly`, `docx:document:readonly`, `contact:user.id:readonly`.
+   In larger orgs an admin must approve the scopes.
 
-**Two auth modes — pick one**:
+## Auth modes
 
-### `auth = "tenant"` (tenant / bot)
+### `user` (default, recommended)
 
-App acts as itself. Easier to set up, but limited visibility — only
-chats / docs the app has been explicitly added to or shared with.
+Indexes everything the authorizing user can see. `mfs connector add feishu://<alias>`
+runs a one-time browser authorization inline — open the printed URL and approve; after
+that the token renews automatically. Re-authorize anytime (e.g. if the authorization
+expired or was revoked) with `mfs connector auth feishu://<alias>`.
 
-- In the developer console → **Permissions & Scopes** → add:
-  - `im:message:readonly` — read messages
-  - `im:chat:readonly` — list chats
-  - `docx:document:readonly` — read docx documents
-  - `drive:drive:readonly` — list drive items
-- **Version Management & Release** → request approval from your tenant
-  admin.
-- Add the bot to chats by mentioning it (`@bot-name`) or pinning it via
-  group admin settings.
+### `tenant` (app-only bot)
 
-### `auth = "user"` (user identity, recommended)
+Set `auth = "tenant"`. The app sees only chats it has been added to and docs/folders
+shared with it; add the bot to a chat by `@mentioning` it.
 
-App acts on behalf of a real user. Sees everything that user sees.
-Requires user-OAuth Device Flow login.
-
-- Same scopes as above but as **User Scopes** (not Bot Scopes).
-- Run the auth flow once:
-  ```bash
-  uv run python -m mfs_server.connectors.feishu.auth_login --app-id <id> --app-secret <secret> --region feishu
-  ```
-  This opens a browser, user authorizes, and the resulting
-  `oauth.json` lands at `$MFS_HOME/feishu.oauth.json` by default.
-- The plugin refreshes the token on every connect and atomically
-  rotates the refresh_token (Feishu refresh tokens are one-shot, so the
-  plugin must own R/W of the file — that's why `oauth_state_file` is a
-  path, not a `credential_ref`).
-
-## Required toml fields
-
-| key | what |
-|---|---|
-| `app_id` | `cli_…` app ID from the developer console |
-| `app_secret` | app secret (`env:FEISHU_APP_SECRET` recommended) |
-
-## Optional
+## toml fields
 
 | key | default | meaning |
 |---|---|---|
+| `app_id` | — | `cli_…` app ID |
+| `app_secret` | — | app secret (`env:FEISHU_APP_SECRET` recommended) |
+| `auth` | `user` | `user` (OAuth) or `tenant` (app-only bot) |
 | `region` | `feishu` | `feishu` (open.feishu.cn) or `lark` (open.larksuite.com) |
-| `auth` | `tenant` | `tenant` (bot / app-only) or `user` (user OAuth) |
-| `oauth_state_file` | `$MFS_HOME/feishu.oauth.json` | path to the OAuth state JSON |
-| `docs_folder_token` | _none_ | limits the docs subtree to one folder |
-| `extra_chats` | _none_ | extra chat IDs to include (`oc_xxx`) — for tenant mode where chat.list may miss some chats |
-| `max_read_rows` | 100000 | per-chat message cap |
+| `oauth_state_file` | `$MFS_HOME/feishu-<alias>.oauth.json` | OAuth token store (set by the wizard) |
+| `docs_folder_token` | — | limit the docs subtree to one shared folder |
+| `extra_chats` | — | include specific chats by id (`oc_…`), incl. p2p single chats |
+| `extra_docs` | — | include specific docx by token |
+| `max_read_rows` | 50000 | per-chat message cap |
 
 ## URI tree
 
@@ -72,39 +51,10 @@ feishu://<alias>/chats/<chat-name>__<chat-id>/messages.jsonl
 feishu://<alias>/docs/<title>__<doc-token>.md
 ```
 
-Two subtrees in one connector — chats AND docs. The docs subtree only
-appears when the app has docx read scope and is shared with the
-documents (or the user has access in OAuth mode).
+## Notes
 
-## env: example (user OAuth mode)
-
-```toml
-app_id = "cli_a1b2c3d4e5f6"
-app_secret = "env:FEISHU_APP_SECRET"
-region = "feishu"
-auth = "user"
-oauth_state_file = "/home/zhangchen/.mfs/feishu.oauth.json"
-docs_folder_token = "fldcnXXXXXX"   # only docs under this folder
-```
-
-```bash
-export FEISHU_APP_SECRET=...
-# one-time OAuth setup:
-uv run python -m mfs_server.connectors.feishu.auth_login --app-id cli_... --app-secret $FEISHU_APP_SECRET --region feishu
-# then:
-mfs add feishu://acme --config /tmp/mfs-feishu.toml
-```
-
-## Pitfalls
-
-- **Tenant mode misses p2p single chats**: `im.v1.chat.list` doesn't
-  enumerate them. Use `extra_chats` to include them by ID.
-- **OAuth refresh_token rotation**: if the file gets corrupted or
-  copied to another host without atomic write, the rotated token
-  becomes orphaned and login breaks. Always let the plugin own the
-  file.
-- **Region mismatch**: `feishu` and `lark` are separate endpoints with
-  separate app registries. App from one region can't auth against the
-  other.
-- **Scope approval**: in larger orgs, an admin must approve the
-  app's scopes before they become effective.
+- **p2p single chats** can't be auto-listed (Feishu API limit); include them with
+  `extra_chats` — by `oc_…` chat id, or by the partner's `ou_…` open_id.
+- **docs**: only docx is indexed, and only docs under `docs_folder_token` or listed in
+  `extra_docs` — share the folder with the app once and new docs get picked up on sync.
+- **region**: `feishu` and `lark` are separate; an app from one can't auth the other.
