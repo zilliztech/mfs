@@ -54,6 +54,15 @@ from ..base import (
     SyncOptions,
 )
 
+# Refresh the user access_token this many seconds before it actually expires, so a call
+# made right at the edge doesn't race the expiry.
+_ACCESS_TOKEN_SKEW_S = 120
+
+# Feishu codes meaning the user_access_token is expired / invalid. On one of these in user
+# mode we refresh once and retry — covers a long job outliving the ~2h access_token.
+_TOKEN_EXPIRED_CODES = frozenset({99991663, 99991664, 99991668, 99991677})
+
+
 _SANITIZE = re.compile(r"[^a-zA-Z0-9_.-]+")
 
 
@@ -100,6 +109,8 @@ class FeishuPlugin(ConnectorPlugin):
         super().__init__(config, credential, ctx=ctx)
         self._client = None
         self._user_token: Optional[str] = None  # set when auth = "user"
+        self._access_expires_at: float = 0.0  # unix ts the user access_token expires (user mode)
+        self._oauth_path = None  # Path to the oauth state file (user mode), reused on refresh
         self._app_id: Optional[str] = None  # cached from config / oauth.json blob
         self._app_secret: Optional[str] = None  # used for tenant_access_token mint
         self._region: str = "feishu"  # "feishu" (open.feishu.cn) | "lark" (open.larksuite.com)
@@ -128,66 +139,45 @@ class FeishuPlugin(ConnectorPlugin):
     async def connect(self) -> None:
         auth_mode = self._cfg("auth", "tenant")
         if auth_mode == "user":
-            # User mode reads + WRITES the oauth.json file: Feishu's refresh_token is
-            # ONE-SHOT (each refresh issues a new refresh_token AND revokes the old
-            # one). credential_ref is read-only by design, so we use a dedicated
-            # config field `oauth_state_file` that the plugin owns.
             import json as _json
+            import time as _time
             from pathlib import Path
 
             tok_path_cfg = self._cfg("oauth_state_file")
             if not tok_path_cfg:
                 raise ValueError(
-                    "feishu auth='user' requires `oauth_state_file = \"/path/to/oauth.json\"` "
-                    "in the connector config — created via "
-                    "`python -m mfs_server.connectors.feishu.auth_login`. (Don't use "
-                    "credential_ref here; the file is read AND written each connect.)"
+                    "feishu auth='user' requires `oauth_state_file` in the connector config. "
+                    "Authorize with `mfs connector auth <connector-uri>`."
                 )
-            tok_path = Path(tok_path_cfg).expanduser()
+            self._oauth_path = Path(tok_path_cfg).expanduser()
             try:
-                blob = _json.loads(tok_path.read_text())
+                blob = _json.loads(self._oauth_path.read_text())
             except (OSError, ValueError) as e:
                 raise ValueError(
-                    f"feishu oauth_state_file {tok_path}: cannot load ({e}). "
-                    "Re-run `python -m mfs_server.connectors.feishu.auth_login --output ...`."
+                    f"feishu oauth_state_file {self._oauth_path}: cannot load ({e}). "
+                    "Authorize with `mfs connector auth <connector-uri>`."
                 ) from e
-            app_id, app_secret = blob.get("app_id"), blob.get("app_secret")
-            refresh = blob.get("refresh_token")
-            if not (app_id and app_secret and refresh):
+            self._app_id, self._app_secret = blob.get("app_id"), blob.get("app_secret")
+            if not (self._app_id and self._app_secret and blob.get("refresh_token")):
                 raise ValueError(
-                    f"feishu oauth_state_file {tok_path}: missing app_id / app_secret / "
-                    "refresh_token. Re-run auth_login to regenerate."
+                    f"feishu oauth_state_file {self._oauth_path}: missing app_id / app_secret / "
+                    "refresh_token. Authorize with `mfs connector auth <connector-uri>`."
                 )
-            # Region: prefer the value persisted in the blob (auth_login records the
-            # region the OAuth was performed against — must match for refresh to work).
-            # Fall back to the config field, then "feishu".
+            # Region: prefer the value persisted in the blob (the OAuth was performed against a
+            # specific region; refresh must use the same one). Fall back to config, then feishu.
             self._region = blob.get("region") or self._cfg("region", "feishu")
-            from .oauth import refresh_user_token
-
-            tok = await asyncio.to_thread(
-                refresh_user_token, app_id, app_secret, refresh, self._region
-            )
-            self._user_token = tok["access_token"]
-            self._app_id, self._app_secret = app_id, app_secret
-            # CRITICAL: persist the rotated refresh_token immediately. Feishu revokes the
-            # old one the moment it issued the new one — if we crash before writing this
-            # back, the next connect can't authenticate and the user has to redo the
-            # browser dance. Atomic write via temp + replace.
-            import time as _time
-
-            now = int(_time.time())
-            new_blob = dict(blob)
-            new_blob["refresh_token"] = tok["refresh_token"]
-            new_blob["obtained_at"] = now
-            new_blob["refresh_expires_at"] = now + tok.get("refresh_token_expires_in", 604800)
-            # Make sure the persisted region is set (auth_login writes it; legacy
-            # blobs without it default to "feishu").
-            new_blob["region"] = self._region
-            tmp = tok_path.with_suffix(tok_path.suffix + ".tmp")
-            tmp.write_text(_json.dumps(new_blob, ensure_ascii=False, indent=2))
-            tmp.chmod(0o600)
-            tmp.replace(tok_path)
+            # Lazy: reuse a still-valid access_token; only refresh (which rotates the one-shot
+            # refresh_token) when it's missing or near expiry. Keeping refreshes infrequent is
+            # what lets concurrent reads share one token without fighting over the rotation.
+            if blob.get("access_token") and (
+                blob.get("access_expires_at", 0) - _time.time() > _ACCESS_TOKEN_SKEW_S
+            ):
+                self._user_token = blob["access_token"]
+                self._access_expires_at = blob["access_expires_at"]
+            else:
+                await self._refresh_user_access(blob)
             dom = self._sdk_domain(self._region)
+            app_id, app_secret = self._app_id, self._app_secret
             self._client = await asyncio.to_thread(
                 lambda: (
                     lark.Client.builder().app_id(app_id).app_secret(app_secret).domain(dom).build()
@@ -211,6 +201,61 @@ class FeishuPlugin(ConnectorPlugin):
             )
 
         self._client = await asyncio.to_thread(build)
+
+    async def _refresh_user_access(self, blob: dict) -> None:
+        """Exchange the stored refresh_token for a fresh access_token, rotate the one-shot
+        refresh_token, and persist both (atomic write). Raises a needs-reauth ValueError if
+        the refresh_token is dead (expired / revoked)."""
+        import json as _json
+        import time as _time
+
+        from .oauth import OAuthError, refresh_user_token
+
+        try:
+            tok = await asyncio.to_thread(
+                refresh_user_token,
+                self._app_id,
+                self._app_secret,
+                blob.get("refresh_token"),
+                self._region,
+            )
+        except OAuthError as e:
+            raise ValueError(
+                f"feishu user authorization expired or revoked ({e}). Re-authorize with "
+                "`mfs connector auth <connector-uri>`."
+            ) from e
+        now = int(_time.time())
+        self._user_token = tok["access_token"]
+        self._access_expires_at = now + tok.get("expires_in", 7200)
+        new_blob = dict(blob)
+        new_blob["refresh_token"] = tok["refresh_token"]
+        new_blob["access_token"] = tok["access_token"]
+        new_blob["access_expires_at"] = self._access_expires_at
+        new_blob["obtained_at"] = now
+        new_blob["region"] = self._region
+        tmp = self._oauth_path.with_suffix(self._oauth_path.suffix + ".tmp")
+        tmp.write_text(_json.dumps(new_blob, ensure_ascii=False, indent=2))
+        tmp.chmod(0o600)
+        tmp.replace(self._oauth_path)
+
+    async def _call(self, fn, ctx: str):
+        """Run a lark SDK call (sync `fn` returning a resp). In user mode, if the call fails
+        with an expired-token code, refresh once and retry (covers a long job outliving the
+        access_token); a uniform RuntimeError is raised if it still fails."""
+        resp = await asyncio.to_thread(fn)
+        if (
+            not resp.success()
+            and self._user_token
+            and self._oauth_path is not None
+            and resp.code in _TOKEN_EXPIRED_CODES
+        ):
+            import json as _json
+
+            await self._refresh_user_access(_json.loads(self._oauth_path.read_text()))
+            resp = await asyncio.to_thread(fn)
+        if not resp.success():
+            raise RuntimeError(f"feishu {ctx} failed: code={resp.code} msg={resp.msg}")
+        return resp
 
     async def healthcheck(self) -> HealthStatus:
         try:
@@ -301,12 +346,10 @@ class FeishuPlugin(ConnectorPlugin):
 
         def run():
             req = ListChatRequest.builder().build()
-            resp = self._client.im.v1.chat.list(req, self._opt())
-            if not resp.success():
-                raise RuntimeError(f"feishu chat.list failed: code={resp.code} msg={resp.msg}")
-            return [{"chat_id": c.chat_id, "name": c.name} for c in (resp.data.items or [])]
+            return self._client.im.v1.chat.list(req, self._opt())
 
-        chats = await asyncio.to_thread(run)
+        resp = await self._call(run, "chat.list")
+        chats = [{"chat_id": c.chat_id, "name": c.name} for c in (resp.data.items or [])]
         by_id: dict[str, dict] = {c["chat_id"]: c for c in chats}
 
         # Literal chat_ids — wins over chat.list (the user knows best)
@@ -370,17 +413,15 @@ class FeishuPlugin(ConnectorPlugin):
             b = ListFileRequest.builder().folder_token(folder_token).page_size(100)
             if pt:
                 b = b.page_token(pt)
-            resp = self._client.drive.v1.file.list(b.build(), self._opt())
-            if not resp.success():
-                raise RuntimeError(
-                    f"feishu drive.file.list(folder={folder_token}) failed: "
-                    f"code={resp.code} msg={resp.msg}"
-                )
-            return resp.data
+            return self._client.drive.v1.file.list(b.build(), self._opt())
 
         page_token = None
         while True:
-            data = await asyncio.to_thread(fetch, page_token)
+            data = (
+                await self._call(
+                    lambda pt=page_token: fetch(pt), f"drive.file.list(folder={folder_token})"
+                )
+            ).data
             for f in data.files or []:
                 t = getattr(f, "type", None)
                 if t == "docx":
@@ -460,32 +501,24 @@ class FeishuPlugin(ConnectorPlugin):
 
         def fetch():
             req = RawContentDocumentRequest.builder().document_id(doc_id).build()
-            resp = self._client.docx.v1.document.raw_content(req, self._opt())
-            if not resp.success():
-                raise RuntimeError(
-                    f"feishu docx.raw_content({doc_id}) failed: code={resp.code} msg={resp.msg}"
-                )
-            return getattr(resp.data, "content", "") or ""
+            return self._client.docx.v1.document.raw_content(req, self._opt())
 
-        return await asyncio.to_thread(fetch)
+        resp = await self._call(fetch, f"docx.raw_content({doc_id})")
+        return getattr(resp.data, "content", "") or ""
 
     async def _doc_meta(self, doc_id: str) -> dict:
         """Document metadata (title + revision_id) for fingerprinting."""
 
         def fetch():
             req = GetDocumentRequest.builder().document_id(doc_id).build()
-            resp = self._client.docx.v1.document.get(req, self._opt())
-            if not resp.success():
-                raise RuntimeError(
-                    f"feishu docx.get({doc_id}) failed: code={resp.code} msg={resp.msg}"
-                )
-            d = resp.data.document if resp.data else None
-            return {
-                "title": getattr(d, "title", None) if d else None,
-                "revision_id": getattr(d, "revision_id", None) if d else None,
-            }
+            return self._client.docx.v1.document.get(req, self._opt())
 
-        return await asyncio.to_thread(fetch)
+        resp = await self._call(fetch, f"docx.get({doc_id})")
+        d = resp.data.document if resp.data else None
+        return {
+            "title": getattr(d, "title", None) if d else None,
+            "revision_id": getattr(d, "revision_id", None) if d else None,
+        }
 
     def preset_for(self, path: str):
         # auto-apply the feishu.messages PRESET (text_fields=["text"], group_by=
@@ -544,15 +577,10 @@ class FeishuPlugin(ConnectorPlugin):
                 b = ListMessageRequest.builder().container_id_type("chat").container_id(chat_id)
                 if pt:
                     b = b.page_token(pt)
-                resp = self._client.im.v1.message.list(b.build(), self._opt())
-                if not resp.success():
-                    raise RuntimeError(
-                        f"feishu message.list failed: code={resp.code} msg={resp.msg}"
-                    )
-                return resp.data
+                return self._client.im.v1.message.list(b.build(), self._opt())
 
             while n < limit:
-                data = await asyncio.to_thread(fetch, page_token)
+                data = (await self._call(lambda pt=page_token: fetch(pt), "message.list")).data
                 for it in data.items or []:
                     msg_type = it.msg_type
                     content = it.body.content if it.body else ""
