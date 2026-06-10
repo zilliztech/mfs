@@ -1275,6 +1275,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="feishu">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#user-mode-default-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User mode (default, recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tenant-mode-app-only-bot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tenant mode (app-only bot)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -1935,6 +1963,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="feishu">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#user-mode-default-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User mode (default, recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tenant-mode-app-only-bot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tenant mode (app-only bot)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -2170,12 +2226,13 @@ it for the org.</p>
 <p><strong>Minimum config:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">repo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;zilliztech/mfs&quot;</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;main&quot;</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">index_meta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5000</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:GITHUB_TOKEN&quot;</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">index_meta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5000</span>
 </code></pre></div>
-<p>Set <code>GITHUB_TOKEN</code> in the server environment for authenticated requests. The
-current plugin reads that environment variable directly when building GitHub
-API headers.</p>
+<p>The plugin reads the <code>token</code> config field; author it as an <code>env:</code> reference
+(e.g. <code>token = "env:GITHUB_TOKEN"</code>) so the secret stays in the server
+environment, never in the TOML. <code>file:/abs/path</code> works too.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>github://zilliztech/mfs<span class="w"> </span>--config<span class="w"> </span>./github.toml
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>github://zilliztech/mfs<span class="w"> </span>--config<span class="w"> </span>./github.toml
@@ -2190,7 +2247,7 @@ API headers.</p>
 <li>Set <code>repo</code> explicitly in TOML. The current plugin reads <code>repo</code> from config
   instead of deriving it from the URI.</li>
 <li>Issues, pulls, and PR diffs are opt-in through <code>index_meta = true</code>.</li>
-<li>Private repositories need <code>GITHUB_TOKEN</code> in the server process environment.</li>
+<li>Private repositories need a <code>token</code> (e.g. <code>token = "env:GITHUB_TOKEN"</code>).</li>
 <li>Submodules are not followed as separate repository trees.</li>
 </ul>
 <h2 id="postgres"><code>postgres</code><a class="headerlink" href="#postgres" title="Permanent link">&para;</a></h2>
@@ -2934,6 +2991,12 @@ configured <code>token</code> value when it is a string (bare access token), or 
 object (inline token JSON). The most common form is the <code>file:</code>
 reference above. Probe the connector in the target server before
 syncing.</p>
+<p><strong>Limiting scope (large Drives):</strong> the connector enumerates the whole Drive the
+credential can see. For a big account, index recent files first — estimate the size
+(optionally with a <code>since</code> date via <code>/v1/connectors/estimate</code>), then
+<code>mfs add gdrive://&lt;alias&gt; --since &lt;date&gt;</code> indexes only files modified on/after <code>&lt;date&gt;</code>;
+older files are left untouched (never deleted) and can be added later by lowering
+<code>--since</code>.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
 <a id="__codelineno-61-2" name="__codelineno-61-2" href="#__codelineno-61-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
@@ -2960,86 +3023,70 @@ syncing.</p>
 <code>feishu://&lt;alias&gt;/chats/&lt;name&gt;__&lt;chat-id&gt;/messages.jsonl</code>. Docx documents are
 <code>feishu://&lt;alias&gt;/docs/&lt;title&gt;__&lt;doc-token&gt;.md</code>.</p>
 <p><strong>Obtain credentials:</strong> Feishu / Lark needs an <strong>App ID</strong> + <strong>App Secret</strong>
-from the Lark Developer Console, plus one of two auth modes.</p>
-<p>Create the app:</p>
+from the Lark Developer Console.</p>
 <ol>
-<li>Go to <a href="https://open.feishu.cn/app">https://open.feishu.cn/app</a> (CN) or
-   <a href="https://open.larksuite.com/app">https://open.larksuite.com/app</a> (US).</li>
-<li><strong>Create Custom App</strong> → name + icon.</li>
-<li>Note the <strong>App ID</strong> (<code>cli_...</code>) and <strong>App Secret</strong>.</li>
+<li>Go to <a href="https://open.feishu.cn/app">https://open.feishu.cn/app</a> (feishu / China) or
+   <a href="https://open.larksuite.com/app">https://open.larksuite.com/app</a> (lark / overseas).</li>
+<li><strong>Create Custom App</strong> → name + icon. Note the <strong>App ID</strong> (<code>cli_...</code>) and
+   <strong>App Secret</strong>.</li>
+<li><strong>Permissions &amp; Scopes</strong> → add the read scopes below, then <strong>Version
+   Management &amp; Release</strong> → request admin approval if your org requires it.</li>
 </ol>
-<p>Then pick an auth mode:</p>
-<p><strong>Tenant / bot</strong> (<code>auth = "tenant"</code>): the app acts as itself. Easier to set
-up, but only sees chats and docs explicitly shared with it.</p>
-<ul>
-<li>Developer console → <strong>Permissions &amp; Scopes</strong>, add as <strong>Bot Scopes</strong>:<ul>
-<li><code>im:message:readonly</code> — read messages</li>
-<li><code>im:chat:readonly</code> — list chats</li>
-<li><code>docx:document:readonly</code> — read docx documents</li>
-<li><code>drive:drive:readonly</code> — list drive items</li>
-</ul>
-</li>
-<li><strong>Version Management &amp; Release</strong> → request approval from your tenant
-  admin.</li>
-<li>Add the bot to each chat by mentioning it (<code>@bot-name</code>) or pinning it
-  via group admin settings.</li>
-</ul>
-<p><strong>User OAuth</strong> (<code>auth = "user"</code>, recommended for full visibility): the app
-acts on behalf of a real user and sees everything that user sees.</p>
-<ul>
-<li>Same scopes as above but as <strong>User Scopes</strong>.</li>
-<li>
-<p>Run the bundled auth helper once on a machine with a browser:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>mfs_server.connectors.feishu.auth_login<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-63-2" name="__codelineno-63-2" href="#__codelineno-63-2"></a><span class="w">  </span>--app-id<span class="w"> </span>cli_a1b2c3d4<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-63-3" name="__codelineno-63-3" href="#__codelineno-63-3"></a><span class="w">  </span>--app-secret<span class="w"> </span>&lt;secret&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-63-4" name="__codelineno-63-4" href="#__codelineno-63-4"></a><span class="w">  </span>--region<span class="w"> </span>cn
+<h3 id="user-mode-default-recommended">User mode (default, recommended)<a class="headerlink" href="#user-mode-default-recommended" title="Permanent link">&para;</a></h3>
+<p>The app indexes everything the authorizing user can see. Add the scopes as
+<strong>User Scopes</strong>: <code>im:chat:readonly</code>, <code>im:message.group_msg:get_as_user</code>,
+<code>im:message.p2p_msg:get_as_user</code>, <code>drive:drive:readonly</code>,
+<code>docx:document:readonly</code>, <code>contact:user.id:readonly</code>.</p>
+<p>Add the connector — the wizard runs a one-time browser authorization inline:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a>mfs-server<span class="w"> </span>connector<span class="w"> </span>add<span class="w"> </span>feishu://workspace
 </code></pre></div>
-<p>It opens a browser for the user to authorize, then writes the
-resulting <code>oauth.json</code> to <code>$MFS_HOME/feishu.oauth.json</code> by default.
-- The plugin refreshes the token on every connect and atomically rotates
-  the refresh_token — Feishu refresh tokens are one-shot, so the plugin
-  must own R/W of that file. That's why <code>oauth_state_file</code> is a path, not
-  a <code>credential_ref</code>.</p>
-</li>
-</ul>
-<p><strong>Minimum config for tenant/bot mode:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a><span class="n">app_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cli_a1b2c3d4&quot;</span>
-<a id="__codelineno-64-2" name="__codelineno-64-2" href="#__codelineno-64-2"></a><span class="n">app_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:FEISHU_APP_SECRET&quot;</span>
-<a id="__codelineno-64-3" name="__codelineno-64-3" href="#__codelineno-64-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;feishu&quot;</span>
-<a id="__codelineno-64-4" name="__codelineno-64-4" href="#__codelineno-64-4"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tenant&quot;</span>
-<a id="__codelineno-64-5" name="__codelineno-64-5" href="#__codelineno-64-5"></a><span class="n">docs_folder_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fldcn...&quot;</span>
-<a id="__codelineno-64-6" name="__codelineno-64-6" href="#__codelineno-64-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<p>Open the printed URL in a browser and approve — <strong>this consent must be done by a
+person and can't be automated</strong> (it's the OAuth user-authorization step). The
+connector is then ready.</p>
+<p>The token refreshes automatically <strong>while the connector is actively synced</strong> (each
+sync renews it, no intervention needed). If it goes unused for several days the
+authorization expires; the next use then reports that re-authorization is needed. To
+re-authorize, run <code>connector auth</code> and again have a user approve the printed URL in a
+browser — existing indexed data is unaffected:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a>mfs-server<span class="w"> </span>connector<span class="w"> </span>auth<span class="w"> </span>feishu://workspace
 </code></pre></div>
-<p><strong>Minimum config for user OAuth mode:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;user&quot;</span>
-<a id="__codelineno-65-2" name="__codelineno-65-2" href="#__codelineno-65-2"></a><span class="n">oauth_state_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/home/mfs/feishu.oauth.json&quot;</span>
+<p>Minimum config (the wizard writes this; keep the secret as an env ref):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a><span class="n">app_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cli_a1b2c3d4&quot;</span>
+<a id="__codelineno-65-2" name="__codelineno-65-2" href="#__codelineno-65-2"></a><span class="n">app_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:FEISHU_APP_SECRET&quot;</span>
+<a id="__codelineno-65-3" name="__codelineno-65-3" href="#__codelineno-65-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;feishu&quot;</span><span class="w">          </span><span class="c1"># or &quot;lark&quot;</span>
+<a id="__codelineno-65-4" name="__codelineno-65-4" href="#__codelineno-65-4"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;user&quot;</span>
 </code></pre></div>
-<p>Create the OAuth state file with the bundled helper:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a>python<span class="w"> </span>-m<span class="w"> </span>mfs_server.connectors.feishu.auth_login<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a><span class="w">  </span>--app-id<span class="w"> </span>cli_a1b2c3d4<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a><span class="w">  </span>--app-secret-env<span class="w"> </span>FEISHU_APP_SECRET<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-66-4" name="__codelineno-66-4" href="#__codelineno-66-4"></a><span class="w">  </span>--region<span class="w"> </span>feishu<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-66-5" name="__codelineno-66-5" href="#__codelineno-66-5"></a><span class="w">  </span>--output<span class="w"> </span>/home/mfs/feishu.oauth.json
-</code></pre></div>
-<p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
-<a id="__codelineno-67-2" name="__codelineno-67-2" href="#__codelineno-67-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
+<h3 id="tenant-mode-app-only-bot">Tenant mode (app-only bot)<a class="headerlink" href="#tenant-mode-app-only-bot" title="Permanent link">&para;</a></h3>
+<p>Set <code>auth = "tenant"</code>. The app acts as itself and sees only chats it has been
+added to and docs/folders shared with it — add the bot to a chat by
+<code>@mentioning</code> it. Add the same scopes as <strong>Bot Scopes</strong>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a><span class="n">app_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cli_a1b2c3d4&quot;</span>
+<a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a><span class="n">app_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:FEISHU_APP_SECRET&quot;</span>
+<a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;feishu&quot;</span>
+<a id="__codelineno-66-4" name="__codelineno-66-4" href="#__codelineno-66-4"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tenant&quot;</span>
+<a id="__codelineno-66-5" name="__codelineno-66-5" href="#__codelineno-66-5"></a><span class="n">docs_folder_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fldcn...&quot;</span><span class="w">   </span><span class="c1"># optional: limit docs to one shared folder</span>
+<a id="__codelineno-66-6" name="__codelineno-66-6" href="#__codelineno-66-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-68-1" name="__codelineno-68-1" href="#__codelineno-68-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>feishu://workspace/chats/
-<a id="__codelineno-68-2" name="__codelineno-68-2" href="#__codelineno-68-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;quarterly roadmap&quot;</span><span class="w"> </span>feishu://workspace/docs/
-<a id="__codelineno-68-3" name="__codelineno-68-3" href="#__codelineno-68-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/chats/eng__oc_xxx/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;message_id&quot;:&quot;om_abc123&quot;}&#39;</span>
-<a id="__codelineno-68-4" name="__codelineno-68-4" href="#__codelineno-68-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/docs/Roadmap__doccnxxx.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<div class="highlight"><pre><span></span><code><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>feishu://workspace/chats/
+<a id="__codelineno-67-2" name="__codelineno-67-2" href="#__codelineno-67-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;quarterly roadmap&quot;</span><span class="w"> </span>feishu://workspace/docs/
+<a id="__codelineno-67-3" name="__codelineno-67-3" href="#__codelineno-67-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/docs/Roadmap__doccnxxx.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
 </code></pre></div>
-<p><strong>Common pitfalls:</strong></p>
+<p><strong>Notes:</strong></p>
 <ul>
-<li>Current code uses <code>auth = "tenant"</code> or <code>auth = "user"</code> and region values
-  <code>feishu</code> or <code>lark</code>.</li>
-<li>Tenant mode only sees chats the bot is in and docs shared with the app.</li>
-<li>User mode refresh tokens rotate; <code>oauth_state_file</code> must be writable by the
-  server process.</li>
-<li>Only docx documents are exposed under <code>docs/</code> by the current plugin.</li>
+<li><strong>p2p single chats</strong> can't be auto-listed (Feishu API limit). Include them
+  with <code>extra_chats</code> — by <code>oc_...</code> chat id, or by the partner's <code>ou_...</code> open_id.</li>
+<li><strong>docs:</strong> only docx is indexed. In user mode with no <code>docs_folder_token</code> /
+  <code>extra_docs</code>, the connector enumerates your whole My Space; narrow it with
+  <code>docs_folder_token</code>, or name specific docs with <code>extra_docs</code>. In tenant mode the
+  app only sees docs/folders shared with it.</li>
+<li><strong>scope by time:</strong> user mode can enumerate your entire My Space — for a large
+  account, estimate first (optionally with a <code>since</code> date) and use
+  <code>mfs add feishu://&lt;alias&gt; --since &lt;date&gt;</code> to index only recently-changed docs.
+  Older docs are left untouched (never deleted) and can be added later by lowering
+  <code>--since</code>.</li>
+<li><strong>region:</strong> <code>feishu</code> and <code>lark</code> are separate registries — an app from one
+  can't authorize against the other.</li>
 </ul>
 
 
