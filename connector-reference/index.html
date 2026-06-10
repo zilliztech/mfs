@@ -1212,17 +1212,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#salesforce" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        salesforce
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#hubspot" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1883,17 +1872,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#salesforce" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        salesforce
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#hubspot" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2081,11 +2059,6 @@ guide, recipe tabs, and readback validation examples, see
 <td><a href="#zendesk"><code>zendesk</code></a></td>
 <td><code>zendesk://alias/tickets/records.jsonl</code></td>
 <td>Zendesk tickets, comments, users, and organizations.</td>
-</tr>
-<tr>
-<td><a href="#salesforce"><code>salesforce</code></a></td>
-<td><code>salesforce://alias/&lt;SObject&gt;/records.jsonl</code></td>
-<td>Salesforce sObject records.</td>
 </tr>
 <tr>
 <td><a href="#hubspot"><code>hubspot</code></a></td>
@@ -2468,30 +2441,40 @@ server's numeric ID).</p>
 <h2 id="gmail"><code>gmail</code><a class="headerlink" href="#gmail" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>gmail://&lt;alias&gt;/labels/&lt;label&gt;__&lt;id&gt;/messages.jsonl</code>. Message
 records are grouped by Gmail <code>threadId</code> by the framework preset.</p>
-<p><strong>Obtain credentials:</strong> Gmail uses <strong>Google OAuth 2.0</strong> with a downloaded
-credentials JSON:</p>
+<p><strong>Obtain credentials:</strong> Gmail uses a <strong>user OAuth token JSON</strong> — the
+<code>token.json</code> produced by Google's OAuth flow, containing
+<code>refresh_token</code> / <code>client_id</code> / <code>client_secret</code>. Service-account keys
+are not supported by the current plugin.</p>
 <ol>
 <li>Open <a href="https://console.cloud.google.com">https://console.cloud.google.com</a> → create or pick a project.</li>
 <li><strong>APIs &amp; Services → Library → Gmail API</strong> → click <strong>Enable</strong>.</li>
 <li><strong>APIs &amp; Services → Credentials → Create Credentials → OAuth client
-   ID</strong> → Application type: <strong>Desktop app</strong> → name it → <strong>Download JSON</strong>.</li>
-<li>Save the file somewhere the server can read it
-   (e.g. <code>~/.mfs/gmail-credentials.json</code>).</li>
-<li>The first <code>mfs add</code> opens a browser to authorize; the resulting
-   <code>token.json</code> is cached next to the credentials file.</li>
+   ID</strong> → Application type: <strong>Desktop app</strong> → <strong>Download JSON</strong> (this
+   is the client credentials file, not the token yet).</li>
+<li>Run Google's OAuth flow once on a machine with a browser (e.g. the
+   <code>google-auth-oauthlib</code> <code>InstalledAppFlow.run_local_server</code> snippet)
+   requesting scope <code>https://www.googleapis.com/auth/gmail.readonly</code>.
+   The flow writes a <code>token.json</code> next to the client JSON.</li>
+<li>Copy <code>token.json</code> to the server and reference it from the connector
+   TOML.</li>
 </ol>
 <p>Required OAuth scope: <code>https://www.googleapis.com/auth/gmail.readonly</code>. The
 connector only calls <code>messages.list</code> + <code>messages.get</code>; it doesn't send or
 modify mail.</p>
+<p>If you also configure the <a href="#gdrive"><code>gdrive</code></a> connector, request
+<code>https://www.googleapis.com/auth/drive.readonly</code> in the same consent
+step — the same <code>token.json</code> then drives both connectors.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:GMAIL_ACCESS_TOKEN&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file:/home/x/.mfs/gmail-token.json&quot;</span>
 <a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="n">labels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;INBOX&quot;</span><span class="p">]</span>
 <a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5000</span>
 </code></pre></div>
-<p>The current plugin builds <code>google.oauth2.credentials.Credentials</code> from the
-configured <code>token</code> value when it is a string, or from
-<code>Credentials.from_authorized_user_info</code> when the parsed TOML value is an object.
-Probe the connector in the target server before syncing.</p>
+<p>The plugin builds <code>google.oauth2.credentials.Credentials</code> from the
+configured <code>token</code> value when it is a string (bare access token), or from
+<code>Credentials.from_authorized_user_info</code> when the parsed TOML value is an
+object (inline token JSON). The most common form is the <code>file:</code>
+reference above. Probe the connector in the target server before
+syncing.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml
 <a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gmail://work<span class="w"> </span>--config<span class="w"> </span>./gmail.toml
@@ -2694,53 +2677,6 @@ target config before syncing.</p>
 <li>Internal comments can be indexed if the API user can see them.</li>
 <li><code>max_read_rows</code> caps each resource path.</li>
 </ul>
-<h2 id="salesforce"><code>salesforce</code><a class="headerlink" href="#salesforce" title="Permanent link">&para;</a></h2>
-<p><strong>URI shape:</strong> <code>salesforce://&lt;alias&gt;/&lt;SObject&gt;/records.jsonl</code> and
-<code>salesforce://&lt;alias&gt;/&lt;SObject&gt;/schema.json</code>.</p>
-<p><strong>Obtain credentials:</strong> <strong>username + password + security token</strong> (SOAP
-login). OAuth flows aren't supported by this connector yet.</p>
-<ol>
-<li><strong>Username + Password</strong>: your normal Salesforce login.</li>
-<li><strong>Security token</strong>: log into Salesforce → <strong>Settings → My Personal
-   Information → Reset My Security Token</strong>. A new token is emailed to you.
-   Required whenever API access is from outside the org's trusted IP range.</li>
-<li><strong>Instance URL</strong>: visible in the URL bar after login (e.g.
-   <code>https://acme.my.salesforce.com</code>). Only needed when reusing a
-   <code>session_id</code>.</li>
-<li><strong>Domain</strong>: <code>login</code> for production, <code>test</code> for sandbox.</li>
-</ol>
-<p>If you already have a Salesforce session, set <code>session_id</code> + <code>instance_url</code>
-and the plugin skips the username/password/security-token login flow.</p>
-<p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;alice@acme.com&quot;</span>
-<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a><span class="n">password</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SF_PASSWORD&quot;</span>
-<a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="n">security_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SF_SECURITY_TOKEN&quot;</span>
-<a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a><span class="n">domain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;login&quot;</span>
-<a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="n">objects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Account&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Contact&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Opportunity&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Case&quot;</span><span class="p">]</span>
-<a id="__codelineno-44-6" name="__codelineno-44-6" href="#__codelineno-44-6"></a>
-<a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-44-8" name="__codelineno-44-8" href="#__codelineno-44-8"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/Account&quot;</span>
-<a id="__codelineno-44-9" name="__codelineno-44-9" href="#__codelineno-44-9"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Description&quot;</span><span class="p">]</span>
-<a id="__codelineno-44-10" name="__codelineno-44-10" href="#__codelineno-44-10"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Id&quot;</span><span class="p">]</span>
-<a id="__codelineno-44-11" name="__codelineno-44-11" href="#__codelineno-44-11"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;LastModifiedDate&quot;</span><span class="p">]</span>
-</code></pre></div>
-<p>If <code>session_id</code> is set, the plugin uses <code>instance_url</code> plus <code>session_id</code>
-instead of username/password/security-token login.</p>
-<p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml
-<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>salesforce://acme<span class="w"> </span>--config<span class="w"> </span>./salesforce.toml
-</code></pre></div>
-<p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;renewal risk&quot;</span><span class="w"> </span>salesforce://acme/Account/records.jsonl
-<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>salesforce://acme/Account/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;Id&quot;:&quot;001AB...&quot;}&#39;</span>
-</code></pre></div>
-<p><strong>Common pitfalls:</strong></p>
-<ul>
-<li>Add <code>[[objects]]</code> text fields; Salesforce has no built-in row preset.</li>
-<li>Field-level security controls which fields the API user can read.</li>
-<li>Custom object names usually end in <code>__c</code> and must be included in <code>objects</code>.</li>
-<li>Use <code>domain = "test"</code> for sandboxes.</li>
-</ul>
 <h2 id="hubspot"><code>hubspot</code><a class="headerlink" href="#hubspot" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>hubspot://&lt;alias&gt;/&lt;object&gt;/records.jsonl</code>, for example
 <code>hubspot://acme/contacts/records.jsonl</code>.</p>
@@ -2761,22 +2697,22 @@ instead of username/password/security-token login.</p>
    once.</strong> It goes into <code>HUBSPOT_ACCESS_TOKEN</code>.</li>
 </ol>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="n">access_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:HUBSPOT_ACCESS_TOKEN&quot;</span>
-<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a><span class="n">object_types</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;contacts&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;companies&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;deals&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tickets&quot;</span><span class="p">]</span>
-<a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
-<a id="__codelineno-47-4" name="__codelineno-47-4" href="#__codelineno-47-4"></a>
-<a id="__codelineno-47-5" name="__codelineno-47-5" href="#__codelineno-47-5"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-47-6" name="__codelineno-47-6" href="#__codelineno-47-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/contacts&quot;</span>
-<a id="__codelineno-47-7" name="__codelineno-47-7" href="#__codelineno-47-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;firstname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;lastname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;email&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;jobtitle&quot;</span><span class="p">]</span>
-<a id="__codelineno-47-8" name="__codelineno-47-8" href="#__codelineno-47-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="n">access_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:HUBSPOT_ACCESS_TOKEN&quot;</span>
+<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a><span class="n">object_types</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;contacts&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;companies&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;deals&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tickets&quot;</span><span class="p">]</span>
+<a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a>
+<a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-44-6" name="__codelineno-44-6" href="#__codelineno-44-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/contacts&quot;</span>
+<a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;firstname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;lastname&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;email&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;jobtitle&quot;</span><span class="p">]</span>
+<a id="__codelineno-44-8" name="__codelineno-44-8" href="#__codelineno-44-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
-<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
+<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;customer health&quot;</span><span class="w"> </span>hubspot://acme/contacts/records.jsonl
-<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>hubspot://acme/contacts/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;12345&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;customer health&quot;</span><span class="w"> </span>hubspot://acme/contacts/records.jsonl
+<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>hubspot://acme/contacts/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;12345&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2797,8 +2733,8 @@ visible to the server process. Three common ways:</p>
 <ol>
 <li>
 <p><strong>Service account JSON file</strong> (most common in production):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GOOGLE_APPLICATION_CREDENTIALS</span><span class="o">=</span>/path/to/sa.json
-<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>mfs-server<span class="w"> </span>run
+<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GOOGLE_APPLICATION_CREDENTIALS</span><span class="o">=</span>/path/to/sa.json
+<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a>mfs-server<span class="w"> </span>run
 </code></pre></div>
 </li>
 <li>
@@ -2813,25 +2749,25 @@ visible to the server process. Three common ways:</p>
 <p>The service account or user only needs <code>roles/bigquery.dataViewer</code> on the
 datasets to be indexed.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a><span class="n">project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;analytics-prod&quot;</span>
-<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a><span class="n">datasets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;events&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;kb&quot;</span><span class="p">]</span>
-<a id="__codelineno-51-3" name="__codelineno-51-3" href="#__codelineno-51-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span>
-<a id="__codelineno-51-4" name="__codelineno-51-4" href="#__codelineno-51-4"></a>
-<a id="__codelineno-51-5" name="__codelineno-51-5" href="#__codelineno-51-5"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-51-6" name="__codelineno-51-6" href="#__codelineno-51-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/kb/tables/articles&quot;</span>
-<a id="__codelineno-51-7" name="__codelineno-51-7" href="#__codelineno-51-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span>
-<a id="__codelineno-51-8" name="__codelineno-51-8" href="#__codelineno-51-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;article_id&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="n">project</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;analytics-prod&quot;</span>
+<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a><span class="n">datasets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;events&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;kb&quot;</span><span class="p">]</span>
+<a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span>
+<a id="__codelineno-48-4" name="__codelineno-48-4" href="#__codelineno-48-4"></a>
+<a id="__codelineno-48-5" name="__codelineno-48-5" href="#__codelineno-48-5"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-48-6" name="__codelineno-48-6" href="#__codelineno-48-6"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/kb/tables/articles&quot;</span>
+<a id="__codelineno-48-7" name="__codelineno-48-7" href="#__codelineno-48-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span>
+<a id="__codelineno-48-8" name="__codelineno-48-8" href="#__codelineno-48-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;article_id&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p>BigQuery credentials come from Application Default Credentials in the server
 environment, such as <code>GOOGLE_APPLICATION_CREDENTIALS</code>.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
-<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
+<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund event&quot;</span><span class="w"> </span>bigquery://analytics/events/tables/user_events/rows.jsonl
-<a id="__codelineno-53-2" name="__codelineno-53-2" href="#__codelineno-53-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>bigquery://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
-<a id="__codelineno-53-3" name="__codelineno-53-3" href="#__codelineno-53-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>bigquery://analytics/kb/tables/articles/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;article_id&quot;:&quot;a-123&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund event&quot;</span><span class="w"> </span>bigquery://analytics/events/tables/user_events/rows.jsonl
+<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>bigquery://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>bigquery://analytics/kb/tables/articles/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;article_id&quot;:&quot;a-123&quot;}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2847,11 +2783,11 @@ and <code>schema.json</code>.</p>
 <p><strong>Obtain credentials:</strong> three modes, selected via <code>auth_mode</code>. Key-pair is
 the default and recommended for production.</p>
 <p><strong>Key-pair</strong> (<code>auth_mode = "key-pair"</code>, default):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>openssl<span class="w"> </span>genrsa<span class="w"> </span><span class="m">2048</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>pkcs8<span class="w"> </span>-topk8<span class="w"> </span>-inform<span class="w"> </span>PEM<span class="w"> </span>-out<span class="w"> </span>rsa_key.p8<span class="w"> </span>-nocrypt
-<a id="__codelineno-54-2" name="__codelineno-54-2" href="#__codelineno-54-2"></a>openssl<span class="w"> </span>rsa<span class="w"> </span>-in<span class="w"> </span>rsa_key.p8<span class="w"> </span>-pubout<span class="w"> </span>-out<span class="w"> </span>rsa_key.pub
+<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a>openssl<span class="w"> </span>genrsa<span class="w"> </span><span class="m">2048</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>pkcs8<span class="w"> </span>-topk8<span class="w"> </span>-inform<span class="w"> </span>PEM<span class="w"> </span>-out<span class="w"> </span>rsa_key.p8<span class="w"> </span>-nocrypt
+<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a>openssl<span class="w"> </span>rsa<span class="w"> </span>-in<span class="w"> </span>rsa_key.p8<span class="w"> </span>-pubout<span class="w"> </span>-out<span class="w"> </span>rsa_key.pub
 </code></pre></div>
 <p>Register the public key on the Snowflake user:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a><span class="k">ALTER</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">mfs_reader</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">RSA_PUBLIC_KEY</span><span class="o">=</span><span class="s1">&#39;&lt;contents of rsa_key.pub minus header/footer&gt;&#39;</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a><span class="k">ALTER</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">mfs_reader</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">RSA_PUBLIC_KEY</span><span class="o">=</span><span class="s1">&#39;&lt;contents of rsa_key.pub minus header/footer&gt;&#39;</span><span class="p">;</span>
 </code></pre></div>
 <p>The private key file path goes into <code>credential_ref</code> (e.g.
 <code>credential_ref = "file:/etc/mfs/snowflake/rsa_key.p8"</code>). If the key has a
@@ -2867,29 +2803,29 @@ egress IPs, and put the token into <code>credential_ref</code>. Rotation is just
 <p>The user should have a read-only role; grant <code>USAGE</code> on the warehouse,
 database, schemas, plus <code>SELECT</code> on the in-scope tables.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a><span class="n">account</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;abcdefg-xy12345&quot;</span>
-<a id="__codelineno-56-2" name="__codelineno-56-2" href="#__codelineno-56-2"></a><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader&quot;</span>
-<a id="__codelineno-56-3" name="__codelineno-56-3" href="#__codelineno-56-3"></a><span class="n">warehouse</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_wh&quot;</span>
-<a id="__codelineno-56-4" name="__codelineno-56-4" href="#__codelineno-56-4"></a><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader_role&quot;</span>
-<a id="__codelineno-56-5" name="__codelineno-56-5" href="#__codelineno-56-5"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PROD&quot;</span>
-<a id="__codelineno-56-6" name="__codelineno-56-6" href="#__codelineno-56-6"></a><span class="n">credential_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file:/etc/mfs/snowflake/rsa_key.p8&quot;</span>
-<a id="__codelineno-56-7" name="__codelineno-56-7" href="#__codelineno-56-7"></a>
-<a id="__codelineno-56-8" name="__codelineno-56-8" href="#__codelineno-56-8"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-56-9" name="__codelineno-56-9" href="#__codelineno-56-9"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/PROD/PUBLIC/tables/TICKETS&quot;</span>
-<a id="__codelineno-56-10" name="__codelineno-56-10" href="#__codelineno-56-10"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;TITLE&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;DESCRIPTION&quot;</span><span class="p">]</span>
-<a id="__codelineno-56-11" name="__codelineno-56-11" href="#__codelineno-56-11"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a><span class="n">account</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;abcdefg-xy12345&quot;</span>
+<a id="__codelineno-53-2" name="__codelineno-53-2" href="#__codelineno-53-2"></a><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader&quot;</span>
+<a id="__codelineno-53-3" name="__codelineno-53-3" href="#__codelineno-53-3"></a><span class="n">warehouse</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_wh&quot;</span>
+<a id="__codelineno-53-4" name="__codelineno-53-4" href="#__codelineno-53-4"></a><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader_role&quot;</span>
+<a id="__codelineno-53-5" name="__codelineno-53-5" href="#__codelineno-53-5"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PROD&quot;</span>
+<a id="__codelineno-53-6" name="__codelineno-53-6" href="#__codelineno-53-6"></a><span class="n">credential_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file:/etc/mfs/snowflake/rsa_key.p8&quot;</span>
+<a id="__codelineno-53-7" name="__codelineno-53-7" href="#__codelineno-53-7"></a>
+<a id="__codelineno-53-8" name="__codelineno-53-8" href="#__codelineno-53-8"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-53-9" name="__codelineno-53-9" href="#__codelineno-53-9"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/PROD/PUBLIC/tables/TICKETS&quot;</span>
+<a id="__codelineno-53-10" name="__codelineno-53-10" href="#__codelineno-53-10"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;TITLE&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;DESCRIPTION&quot;</span><span class="p">]</span>
+<a id="__codelineno-53-11" name="__codelineno-53-11" href="#__codelineno-53-11"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span>
 </code></pre></div>
 <p><code>credential_ref</code> must resolve to a PEM PKCS#8 RSA private key in the
 default key-pair mode. If the key is encrypted, set
 <code>private_key_passphrase_ref</code>.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
-<a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
+<a id="__codelineno-54-2" name="__codelineno-54-2" href="#__codelineno-54-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing event&quot;</span><span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
-<a id="__codelineno-58-2" name="__codelineno-58-2" href="#__codelineno-58-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;EMAIL column&quot;</span><span class="w"> </span>snowflake://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
-<a id="__codelineno-58-3" name="__codelineno-58-3" href="#__codelineno-58-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;ID&quot;:12345}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing event&quot;</span><span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
+<a id="__codelineno-55-2" name="__codelineno-55-2" href="#__codelineno-55-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;EMAIL column&quot;</span><span class="w"> </span>snowflake://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-55-3" name="__codelineno-55-3" href="#__codelineno-55-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;ID&quot;:12345}&#39;</span>
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2913,14 +2849,14 @@ Cloudflare R2, GCS S3 interop, and MinIO via <code>endpoint_url</code>.</p>
   reads <code>AWS_ACCESS_KEY_ID</code> + <code>AWS_SECRET_ACCESS_KEY</code> automatically; if
   those are set in the server environment, you can omit them from the
   TOML. Minimum IAM policy:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a><span class="p">{</span>
-<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a><span class="w">  </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
-<a id="__codelineno-59-3" name="__codelineno-59-3" href="#__codelineno-59-3"></a><span class="w">  </span><span class="nt">&quot;Statement&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span>
-<a id="__codelineno-59-4" name="__codelineno-59-4" href="#__codelineno-59-4"></a><span class="w">    </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
-<a id="__codelineno-59-5" name="__codelineno-59-5" href="#__codelineno-59-5"></a><span class="w">    </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;s3:ListBucket&quot;</span><span class="p">],</span>
-<a id="__codelineno-59-6" name="__codelineno-59-6" href="#__codelineno-59-6"></a><span class="w">    </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;arn:aws:s3:::my-bucket&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;arn:aws:s3:::my-bucket/*&quot;</span><span class="p">]</span>
-<a id="__codelineno-59-7" name="__codelineno-59-7" href="#__codelineno-59-7"></a><span class="w">  </span><span class="p">}]</span>
-<a id="__codelineno-59-8" name="__codelineno-59-8" href="#__codelineno-59-8"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-56-1" name="__codelineno-56-1" href="#__codelineno-56-1"></a><span class="p">{</span>
+<a id="__codelineno-56-2" name="__codelineno-56-2" href="#__codelineno-56-2"></a><span class="w">  </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
+<a id="__codelineno-56-3" name="__codelineno-56-3" href="#__codelineno-56-3"></a><span class="w">  </span><span class="nt">&quot;Statement&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span>
+<a id="__codelineno-56-4" name="__codelineno-56-4" href="#__codelineno-56-4"></a><span class="w">    </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
+<a id="__codelineno-56-5" name="__codelineno-56-5" href="#__codelineno-56-5"></a><span class="w">    </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;s3:ListBucket&quot;</span><span class="p">],</span>
+<a id="__codelineno-56-6" name="__codelineno-56-6" href="#__codelineno-56-6"></a><span class="w">    </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;arn:aws:s3:::my-bucket&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;arn:aws:s3:::my-bucket/*&quot;</span><span class="p">]</span>
+<a id="__codelineno-56-7" name="__codelineno-56-7" href="#__codelineno-56-7"></a><span class="w">  </span><span class="p">}]</span>
+<a id="__codelineno-56-8" name="__codelineno-56-8" href="#__codelineno-56-8"></a><span class="p">}</span>
 </code></pre></div>
 </li>
 <li>
@@ -2939,22 +2875,22 @@ Cloudflare R2, GCS S3 interop, and MinIO via <code>endpoint_url</code>.</p>
 </li>
 </ul>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;acme-docs&quot;</span>
-<a id="__codelineno-60-2" name="__codelineno-60-2" href="#__codelineno-60-2"></a><span class="n">prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;engineering/rfc/&quot;</span>
-<a id="__codelineno-60-3" name="__codelineno-60-3" href="#__codelineno-60-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;us-west-2&quot;</span>
-<a id="__codelineno-60-4" name="__codelineno-60-4" href="#__codelineno-60-4"></a><span class="n">access_key_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_ACCESS_KEY_ID&quot;</span>
-<a id="__codelineno-60-5" name="__codelineno-60-5" href="#__codelineno-60-5"></a><span class="n">secret_access_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_SECRET_ACCESS_KEY&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;acme-docs&quot;</span>
+<a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a><span class="n">prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;engineering/rfc/&quot;</span>
+<a id="__codelineno-57-3" name="__codelineno-57-3" href="#__codelineno-57-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;us-west-2&quot;</span>
+<a id="__codelineno-57-4" name="__codelineno-57-4" href="#__codelineno-57-4"></a><span class="n">access_key_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_ACCESS_KEY_ID&quot;</span>
+<a id="__codelineno-57-5" name="__codelineno-57-5" href="#__codelineno-57-5"></a><span class="n">secret_access_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_SECRET_ACCESS_KEY&quot;</span>
 </code></pre></div>
 <p>Set <code>endpoint_url</code> for R2, GCS S3 interop, MinIO, or another compatible
 endpoint.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
-<a id="__codelineno-61-2" name="__codelineno-61-2" href="#__codelineno-61-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
+<a id="__codelineno-58-2" name="__codelineno-58-2" href="#__codelineno-58-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;retention policy&quot;</span><span class="w"> </span>s3://acme-docs/engineering/rfc/
-<a id="__codelineno-62-2" name="__codelineno-62-2" href="#__codelineno-62-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
-<a id="__codelineno-62-3" name="__codelineno-62-3" href="#__codelineno-62-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.pdf<span class="w"> </span>/tmp/rfc-001.pdf
+<div class="highlight"><pre><span></span><code><a id="__codelineno-59-1" name="__codelineno-59-1" href="#__codelineno-59-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;retention policy&quot;</span><span class="w"> </span>s3://acme-docs/engineering/rfc/
+<a id="__codelineno-59-2" name="__codelineno-59-2" href="#__codelineno-59-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-59-3" name="__codelineno-59-3" href="#__codelineno-59-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.pdf<span class="w"> </span>/tmp/rfc-001.pdf
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
@@ -2967,44 +2903,54 @@ endpoint.</p>
 <h2 id="gdrive"><code>gdrive</code><a class="headerlink" href="#gdrive" title="Permanent link">&para;</a></h2>
 <p><strong>URI shape:</strong> <code>gdrive://&lt;alias&gt;/&lt;folder&gt;/&lt;file&gt;</code>. Google-native Docs, Sheets,
 and Slides are exported to text or CSV-like content by the plugin.</p>
-<p><strong>Obtain credentials:</strong> Google Drive uses <strong>OAuth credentials</strong>. Two flows:</p>
-<p><strong>Service account</strong> (recommended for shared / production access):</p>
+<p><strong>Obtain credentials:</strong> Google Drive uses a <strong>user OAuth token JSON</strong> —
+the <code>token.json</code> produced by Google's OAuth flow, containing
+<code>refresh_token</code> / <code>client_id</code> / <code>client_secret</code>. Service-account keys
+are not supported by the current plugin.</p>
 <ol>
 <li>GCP Console → <strong>APIs &amp; Services → Library</strong> → enable <strong>Google Drive
    API</strong>.</li>
-<li><strong>Credentials → Create Credentials → Service account</strong> → name + role
-   (<code>Viewer</code> is enough for drive read).</li>
-<li>On the service account → <strong>Keys → Add key → JSON</strong> → download.</li>
-<li><strong>Share</strong> each Drive folder you want indexed with the service account's
-   email (<code>&lt;account&gt;@&lt;project&gt;.iam.gserviceaccount.com</code>). Without that
-   share, the account can't see the folder.</li>
+<li><strong>Credentials → Create Credentials → OAuth client ID</strong> → Application
+   type: <strong>Desktop app</strong> → <strong>Download JSON</strong> (the client credentials
+   file).</li>
+<li>Run Google's OAuth flow once on a machine with a browser (e.g. the
+   <code>google-auth-oauthlib</code> <code>InstalledAppFlow.run_local_server</code> snippet)
+   requesting scope <code>https://www.googleapis.com/auth/drive.readonly</code>.
+   The flow writes a <code>token.json</code> next to the client JSON.</li>
+<li>Copy <code>token.json</code> to the server and reference it from the connector
+   TOML. The authorized user must already be able to see the files /
+   folders you want indexed (own files + files explicitly shared with
+   them).</li>
 </ol>
-<p><strong>User OAuth</strong> (a single user's visibility):</p>
-<ol>
-<li>Same GCP console: OAuth client ID, application type <strong>Desktop app</strong>,
-   download the JSON.</li>
-<li>First-run browser flow on a machine with a display; resulting
-   <code>token.json</code> is cached next to credentials.</li>
-</ol>
+<p>If you also configure the <a href="#gmail"><code>gmail</code></a> connector, request
+<code>https://www.googleapis.com/auth/gmail.readonly</code> in the same consent
+step — the same <code>token.json</code> then drives both connectors.</p>
 <p><strong>Minimum config:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:GDRIVE_ACCESS_TOKEN&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-60-1" name="__codelineno-60-1" href="#__codelineno-60-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file:/home/x/.mfs/gdrive-token.json&quot;</span>
 </code></pre></div>
-<p>The current plugin builds <code>google.oauth2.credentials.Credentials</code> from the
-configured <code>token</code> value when it is a string, or from
-<code>Credentials.from_authorized_user_info</code> when the parsed TOML value is an object.
-Probe the connector in the target server before syncing.</p>
+<p>The plugin builds <code>google.oauth2.credentials.Credentials</code> from the
+configured <code>token</code> value when it is a string (bare access token), or from
+<code>Credentials.from_authorized_user_info</code> when the parsed TOML value is an
+object (inline token JSON). The most common form is the <code>file:</code>
+reference above. Probe the connector in the target server before
+syncing.</p>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
-<a id="__codelineno-64-2" name="__codelineno-64-2" href="#__codelineno-64-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-61-1" name="__codelineno-61-1" href="#__codelineno-61-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
+<a id="__codelineno-61-2" name="__codelineno-61-2" href="#__codelineno-61-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>gdrive://engineering<span class="w"> </span>--config<span class="w"> </span>./gdrive.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;roadmap&quot;</span><span class="w"> </span>gdrive://engineering/Product/
-<a id="__codelineno-65-2" name="__codelineno-65-2" href="#__codelineno-65-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>gdrive://engineering/Product/Roadmap.txt<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
-<a id="__codelineno-65-3" name="__codelineno-65-3" href="#__codelineno-65-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>gdrive://engineering/Product/Design.pdf<span class="w"> </span>/tmp/design.pdf
+<div class="highlight"><pre><span></span><code><a id="__codelineno-62-1" name="__codelineno-62-1" href="#__codelineno-62-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;roadmap&quot;</span><span class="w"> </span>gdrive://engineering/Product/
+<a id="__codelineno-62-2" name="__codelineno-62-2" href="#__codelineno-62-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>gdrive://engineering/Product/Roadmap.txt<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-62-3" name="__codelineno-62-3" href="#__codelineno-62-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>gdrive://engineering/Product/Design.pdf<span class="w"> </span>/tmp/design.pdf
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
-<li>The credential can only see files shared with it.</li>
+<li>The authorized user can only see files they own or that are
+  explicitly shared with them.</li>
+<li>Headless server: the OAuth flow needs a browser the first time. Run
+  it on a workstation, then copy <code>token.json</code> to the server.</li>
+<li>401/403s usually mean the token was revoked or the consent did not
+  include <code>drive.readonly</code>. Re-run the OAuth flow.</li>
 <li>Google-native files are exported; comments are not indexed.</li>
 <li>The current plugin does not expose a folder-token scope field; it walks files
   visible to the credential.</li>
@@ -3044,10 +2990,10 @@ acts on behalf of a real user and sees everything that user sees.</p>
 <li>Same scopes as above but as <strong>User Scopes</strong>.</li>
 <li>
 <p>Run the bundled auth helper once on a machine with a browser:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>mfs_server.connectors.feishu.auth_login<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a><span class="w">  </span>--app-id<span class="w"> </span>cli_a1b2c3d4<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a><span class="w">  </span>--app-secret<span class="w"> </span>&lt;secret&gt;<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-66-4" name="__codelineno-66-4" href="#__codelineno-66-4"></a><span class="w">  </span>--region<span class="w"> </span>cn
+<div class="highlight"><pre><span></span><code><a id="__codelineno-63-1" name="__codelineno-63-1" href="#__codelineno-63-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>mfs_server.connectors.feishu.auth_login<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-63-2" name="__codelineno-63-2" href="#__codelineno-63-2"></a><span class="w">  </span>--app-id<span class="w"> </span>cli_a1b2c3d4<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-63-3" name="__codelineno-63-3" href="#__codelineno-63-3"></a><span class="w">  </span>--app-secret<span class="w"> </span>&lt;secret&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-63-4" name="__codelineno-63-4" href="#__codelineno-63-4"></a><span class="w">  </span>--region<span class="w"> </span>cn
 </code></pre></div>
 <p>It opens a browser for the user to authorize, then writes the
 resulting <code>oauth.json</code> to <code>$MFS_HOME/feishu.oauth.json</code> by default.
@@ -3058,33 +3004,33 @@ resulting <code>oauth.json</code> to <code>$MFS_HOME/feishu.oauth.json</code> by
 </li>
 </ul>
 <p><strong>Minimum config for tenant/bot mode:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a><span class="n">app_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cli_a1b2c3d4&quot;</span>
-<a id="__codelineno-67-2" name="__codelineno-67-2" href="#__codelineno-67-2"></a><span class="n">app_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:FEISHU_APP_SECRET&quot;</span>
-<a id="__codelineno-67-3" name="__codelineno-67-3" href="#__codelineno-67-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;feishu&quot;</span>
-<a id="__codelineno-67-4" name="__codelineno-67-4" href="#__codelineno-67-4"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tenant&quot;</span>
-<a id="__codelineno-67-5" name="__codelineno-67-5" href="#__codelineno-67-5"></a><span class="n">docs_folder_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fldcn...&quot;</span>
-<a id="__codelineno-67-6" name="__codelineno-67-6" href="#__codelineno-67-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a><span class="n">app_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cli_a1b2c3d4&quot;</span>
+<a id="__codelineno-64-2" name="__codelineno-64-2" href="#__codelineno-64-2"></a><span class="n">app_secret</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:FEISHU_APP_SECRET&quot;</span>
+<a id="__codelineno-64-3" name="__codelineno-64-3" href="#__codelineno-64-3"></a><span class="n">region</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;feishu&quot;</span>
+<a id="__codelineno-64-4" name="__codelineno-64-4" href="#__codelineno-64-4"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tenant&quot;</span>
+<a id="__codelineno-64-5" name="__codelineno-64-5" href="#__codelineno-64-5"></a><span class="n">docs_folder_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fldcn...&quot;</span>
+<a id="__codelineno-64-6" name="__codelineno-64-6" href="#__codelineno-64-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
 </code></pre></div>
 <p><strong>Minimum config for user OAuth mode:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-68-1" name="__codelineno-68-1" href="#__codelineno-68-1"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;user&quot;</span>
-<a id="__codelineno-68-2" name="__codelineno-68-2" href="#__codelineno-68-2"></a><span class="n">oauth_state_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/home/mfs/feishu.oauth.json&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-65-1" name="__codelineno-65-1" href="#__codelineno-65-1"></a><span class="n">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;user&quot;</span>
+<a id="__codelineno-65-2" name="__codelineno-65-2" href="#__codelineno-65-2"></a><span class="n">oauth_state_file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/home/mfs/feishu.oauth.json&quot;</span>
 </code></pre></div>
 <p>Create the OAuth state file with the bundled helper:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-69-1" name="__codelineno-69-1" href="#__codelineno-69-1"></a>python<span class="w"> </span>-m<span class="w"> </span>mfs_server.connectors.feishu.auth_login<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-69-2" name="__codelineno-69-2" href="#__codelineno-69-2"></a><span class="w">  </span>--app-id<span class="w"> </span>cli_a1b2c3d4<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-69-3" name="__codelineno-69-3" href="#__codelineno-69-3"></a><span class="w">  </span>--app-secret-env<span class="w"> </span>FEISHU_APP_SECRET<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-69-4" name="__codelineno-69-4" href="#__codelineno-69-4"></a><span class="w">  </span>--region<span class="w"> </span>feishu<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-69-5" name="__codelineno-69-5" href="#__codelineno-69-5"></a><span class="w">  </span>--output<span class="w"> </span>/home/mfs/feishu.oauth.json
+<div class="highlight"><pre><span></span><code><a id="__codelineno-66-1" name="__codelineno-66-1" href="#__codelineno-66-1"></a>python<span class="w"> </span>-m<span class="w"> </span>mfs_server.connectors.feishu.auth_login<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-66-2" name="__codelineno-66-2" href="#__codelineno-66-2"></a><span class="w">  </span>--app-id<span class="w"> </span>cli_a1b2c3d4<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-66-3" name="__codelineno-66-3" href="#__codelineno-66-3"></a><span class="w">  </span>--app-secret-env<span class="w"> </span>FEISHU_APP_SECRET<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-66-4" name="__codelineno-66-4" href="#__codelineno-66-4"></a><span class="w">  </span>--region<span class="w"> </span>feishu<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-66-5" name="__codelineno-66-5" href="#__codelineno-66-5"></a><span class="w">  </span>--output<span class="w"> </span>/home/mfs/feishu.oauth.json
 </code></pre></div>
 <p><strong>Start:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-70-1" name="__codelineno-70-1" href="#__codelineno-70-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
-<a id="__codelineno-70-2" name="__codelineno-70-2" href="#__codelineno-70-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-67-1" name="__codelineno-67-1" href="#__codelineno-67-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
+<a id="__codelineno-67-2" name="__codelineno-67-2" href="#__codelineno-67-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
 </code></pre></div>
 <p><strong>Search or browse:</strong></p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-71-1" name="__codelineno-71-1" href="#__codelineno-71-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>feishu://workspace/chats/
-<a id="__codelineno-71-2" name="__codelineno-71-2" href="#__codelineno-71-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;quarterly roadmap&quot;</span><span class="w"> </span>feishu://workspace/docs/
-<a id="__codelineno-71-3" name="__codelineno-71-3" href="#__codelineno-71-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/chats/eng__oc_xxx/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;message_id&quot;:&quot;om_abc123&quot;}&#39;</span>
-<a id="__codelineno-71-4" name="__codelineno-71-4" href="#__codelineno-71-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/docs/Roadmap__doccnxxx.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<div class="highlight"><pre><span></span><code><a id="__codelineno-68-1" name="__codelineno-68-1" href="#__codelineno-68-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>feishu://workspace/chats/
+<a id="__codelineno-68-2" name="__codelineno-68-2" href="#__codelineno-68-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;quarterly roadmap&quot;</span><span class="w"> </span>feishu://workspace/docs/
+<a id="__codelineno-68-3" name="__codelineno-68-3" href="#__codelineno-68-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/chats/eng__oc_xxx/messages.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;message_id&quot;:&quot;om_abc123&quot;}&#39;</span>
+<a id="__codelineno-68-4" name="__codelineno-68-4" href="#__codelineno-68-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/docs/Roadmap__doccnxxx.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
 </code></pre></div>
 <p><strong>Common pitfalls:</strong></p>
 <ul>
