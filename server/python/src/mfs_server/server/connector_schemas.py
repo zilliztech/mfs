@@ -289,24 +289,6 @@ SCHEMAS: dict[str, ConnectorSchema] = {
             ),
         ],
     ),
-    "salesforce": ConnectorSchema(
-        scheme="salesforce",
-        summary="Salesforce sObjects (Accounts, Contacts, Opportunities, ...).",
-        uri_hint="salesforce://acme",
-        fields=[
-            ConnectorField("instance_url", "Instance URL (e.g. https://acme.my.salesforce.com)"),
-            ConnectorField("domain", "Login domain (login/test)", default="login", required=False),
-            ConnectorField("username", "Username"),
-            ConnectorField("password", "Password", secret=True),
-            ConnectorField("security_token", "Security token", secret=True),
-            ConnectorField(
-                "objects",
-                "Objects to index (comma-separated, e.g. Account,Contact)",
-                multi=True,
-                required=False,
-            ),
-        ],
-    ),
     "notion": ConnectorSchema(
         scheme="notion",
         summary="Notion pages / databases (Internal Integration token).",

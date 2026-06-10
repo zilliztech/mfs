@@ -538,7 +538,6 @@ class Engine:
                 "jira",
                 "linear",
                 "zendesk",
-                "salesforce",
                 "hubspot",
                 "bigquery",
                 "snowflake",
@@ -583,10 +582,10 @@ class Engine:
     # substrings that mark a config key as holding a secret. Matched case-insensitively
     # anywhere in the key, and recursively (nested OAuth token dicts, lists), so e.g.
     # secret_access_key / refresh_token / client_secret are all caught.
-    # dsn (postgres) and session_id (salesforce) carry credentials but don't contain any
-    # of the obvious words; we DON'T add 'uri'/'url' here because those also name benign
-    # fields (mongo's password is caught by the value check below, while salesforce's
-    # instance_url and the web connector's target urls must be kept).
+    # dsn (postgres) carries credentials but doesn't contain any of the obvious words;
+    # we DON'T add 'uri'/'url' here because those also name benign fields (mongo's
+    # password is caught by the value check below, while the web connector's target
+    # urls must be kept).
     _SECRET_SUBSTRINGS = (
         "token",
         "secret",

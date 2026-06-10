@@ -2,7 +2,7 @@
 name: mfs-ingest
 version: 0.4.0
 mfs_compat: ">=0.4,<0.5"
-description: Register, update, or re-sync data sources for MFS so they become searchable — postgres / mysql / mongo / snowflake / bigquery, github / jira / linear / notion / salesforce / hubspot / zendesk, slack / discord / gmail / feishu, s3 / gdrive / web / file. Use whenever the user wants to ADD a new data source to MFS, change an existing connector's config, re-ingest / re-index a source, list registered connectors, or troubleshoot a sync that's not picking up data. Trigger phrases include "add X to MFS", "ingest my [postgres/slack/github/etc]", "register this repo / database / workspace", "make X searchable", "re-sync Y", "update the slack token", "what connectors do I have". Do NOT use for: searching / finding / reading content (use `mfs-find`); raw mutation of the source itself (MFS only reads).
+description: Register, update, or re-sync data sources for MFS so they become searchable — postgres / mysql / mongo / snowflake / bigquery, github / jira / linear / notion / hubspot / zendesk, slack / discord / gmail / feishu, s3 / gdrive / web / file. Use whenever the user wants to ADD a new data source to MFS, change an existing connector's config, re-ingest / re-index a source, list registered connectors, or troubleshoot a sync that's not picking up data. Trigger phrases include "add X to MFS", "ingest my [postgres/slack/github/etc]", "register this repo / database / workspace", "make X searchable", "re-sync Y", "update the slack token", "what connectors do I have". Do NOT use for: searching / finding / reading content (use `mfs-find`); raw mutation of the source itself (MFS only reads).
 ---
 
 # MFS — register / update / re-sync data sources
@@ -163,7 +163,7 @@ delegate to §A's steps 2-7 with the chosen scheme.
      2. Document store        (mongo)
      3. Code repository       (github)
      4. Issue tracker / wiki  (jira, linear, notion)
-     5. CRM                   (salesforce, hubspot)
+     5. CRM                   (hubspot)
      6. Support / help desk   (zendesk)
      7. Chat / messaging      (slack, discord, gmail, feishu)
      8. Cloud storage / files (s3, gdrive, file, web)
@@ -370,8 +370,7 @@ ALWAYS confirm with the user before running it.
   specific scheme. REQUIRED reading before the credential-gathering
   step. Schemes: `postgres`, `mysql`, `mongo`, `snowflake`, `bigquery`,
   `slack`, `discord`, `gmail`, `feishu`, `github`, `jira`, `linear`,
-  `notion`, `salesforce`, `hubspot`, `zendesk`, `s3`, `gdrive`, `web`,
-  `file`.
+  `notion`, `hubspot`, `zendesk`, `s3`, `gdrive`, `web`, `file`.
 
 The per-connector files cover credential acquisition, required toml
 keys, optional knobs, and known pitfalls. Don't guess any of these from

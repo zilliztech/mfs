@@ -136,8 +136,8 @@ mfs job show JOB_ID
 ```
 
 Beyond `file://`, MFS ships connectors for postgres, mysql, snowflake,
-mongo, github, jira, hubspot, salesforce, notion, zendesk, slack, discord,
-gmail, feishu, s3, web — twenty schemes in total. Run `mfs connector list`
+mongo, github, jira, hubspot, notion, zendesk, slack, discord, gmail,
+feishu, s3, web — nineteen schemes in total. Run `mfs connector list`
 for registered sources and `mfs --help` for the full CLI surface.
 
 Use the MkDocs guides when you need the full runbook:

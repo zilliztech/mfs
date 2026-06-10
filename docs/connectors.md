@@ -67,7 +67,6 @@ connector-specific pitfalls.
 
 | Scheme | Use it for | URI hint | TOML and credentials | Reference |
 |---|---|---|---|---|
-| `salesforce` | Salesforce sObjects such as Accounts, Contacts, Opportunities, Cases, and custom objects. | `salesforce://acme` | Configure `username`, `password`, `security_token`, and optional `domain`; `objects` can narrow which sObjects are indexed. | [details](connector-reference.md#salesforce) |
 | `hubspot` | HubSpot CRM objects such as contacts, companies, deals, tickets, and custom objects. | `hubspot://acme` | `access_token` is required. `object_types` can force the object set; otherwise the connector probes common objects and skips inaccessible ones. | [details](connector-reference.md#hubspot) |
 | `zendesk` | Zendesk tickets, ticket comments, users, and organizations. | `zendesk://acme` | Configure `subdomain`, `email`, and `api_token`; `base_url` is only for unusual deployments. The wizard schema currently labels this field `username`, so probe before syncing. | [details](connector-reference.md#zendesk) |
 

@@ -43,7 +43,6 @@ def load_builtin() -> None:
         "jira",
         "linear",
         "zendesk",
-        "salesforce",
         "hubspot",
         "bigquery",
         "snowflake",

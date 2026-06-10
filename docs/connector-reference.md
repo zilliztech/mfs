@@ -49,7 +49,6 @@ guide, recipe tabs, and readback validation examples, see
 | [`jira`](#jira) | `jira://alias/projects/<key>/issues.jsonl` | Jira issue records by project. |
 | [`linear`](#linear) | `linear://alias/teams/<key>/issues.jsonl` | Linear issue records by team. |
 | [`zendesk`](#zendesk) | `zendesk://alias/tickets/records.jsonl` | Zendesk tickets, comments, users, and organizations. |
-| [`salesforce`](#salesforce) | `salesforce://alias/<SObject>/records.jsonl` | Salesforce sObject records. |
 | [`hubspot`](#hubspot) | `hubspot://alias/<object>/records.jsonl` | HubSpot CRM object records. |
 | [`bigquery`](#bigquery) | `bigquery://alias/<dataset>/tables/<table>/rows.jsonl` | BigQuery table rows and schemas. |
 | [`snowflake`](#snowflake) | `snowflake://alias/<DB>/<SCHEMA>/tables/<TABLE>/rows.jsonl` | Snowflake table rows and schemas. |
@@ -807,66 +806,6 @@ mfs cat zendesk://acme/tickets/records.jsonl --locator '{"id":12345}'
 - Ticket comments are fetched per ticket and can be expensive on large tenants.
 - Internal comments can be indexed if the API user can see them.
 - `max_read_rows` caps each resource path.
-
-## `salesforce`
-
-**URI shape:** `salesforce://<alias>/<SObject>/records.jsonl` and
-`salesforce://<alias>/<SObject>/schema.json`.
-
-**Obtain credentials:** **username + password + security token** (SOAP
-login). OAuth flows aren't supported by this connector yet.
-
-1. **Username + Password**: your normal Salesforce login.
-2. **Security token**: log into Salesforce → **Settings → My Personal
-   Information → Reset My Security Token**. A new token is emailed to you.
-   Required whenever API access is from outside the org's trusted IP range.
-3. **Instance URL**: visible in the URL bar after login (e.g.
-   `https://acme.my.salesforce.com`). Only needed when reusing a
-   `session_id`.
-4. **Domain**: `login` for production, `test` for sandbox.
-
-If you already have a Salesforce session, set `session_id` + `instance_url`
-and the plugin skips the username/password/security-token login flow.
-
-**Minimum config:**
-
-```toml
-username = "alice@acme.com"
-password = "env:SF_PASSWORD"
-security_token = "env:SF_SECURITY_TOKEN"
-domain = "login"
-objects = ["Account", "Contact", "Opportunity", "Case"]
-
-[[objects]]
-match = "/Account"
-text_fields = ["Name", "Description"]
-locator_fields = ["Id"]
-metadata_fields = ["LastModifiedDate"]
-```
-
-If `session_id` is set, the plugin uses `instance_url` plus `session_id`
-instead of username/password/security-token login.
-
-**Start:**
-
-```bash
-mfs connector probe salesforce://acme --config ./salesforce.toml
-mfs add salesforce://acme --config ./salesforce.toml
-```
-
-**Search or browse:**
-
-```bash
-mfs search "renewal risk" salesforce://acme/Account/records.jsonl
-mfs cat salesforce://acme/Account/records.jsonl --locator '{"Id":"001AB..."}'
-```
-
-**Common pitfalls:**
-
-- Add `[[objects]]` text fields; Salesforce has no built-in row preset.
-- Field-level security controls which fields the API user can read.
-- Custom object names usually end in `__c` and must be included in `objects`.
-- Use `domain = "test"` for sandboxes.
 
 ## `hubspot`
 

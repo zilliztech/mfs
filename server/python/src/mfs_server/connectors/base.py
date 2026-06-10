@@ -382,36 +382,6 @@ PRESETS: dict[str, dict] = {
         metadata_fields=["active"],
         locator_fields=["id"],
     ),
-    # Salesforce standard SObjects. Field names are Salesforce's documented standard API names
-    # (stable across orgs), but are UNVERIFIED here — no Salesforce org/credentials available
-    # to test against. Custom objects (<Name>__c) and non-standard SObjects have no preset and
-    # still require an explicit [[objects]] block. `Id` is the standard record id on every
-    # SObject; the connector yields raw query rows minus `attributes`.
-    "salesforce.Account": dict(
-        text_fields=["Name", "Description"],
-        metadata_fields=["Industry", "Type"],
-        locator_fields=["Id"],
-    ),
-    "salesforce.Contact": dict(
-        text_fields=["Name", "Email", "Title"],
-        metadata_fields=["Department"],
-        locator_fields=["Id"],
-    ),
-    "salesforce.Opportunity": dict(
-        text_fields=["Name", "Description"],
-        metadata_fields=["StageName", "Amount"],
-        locator_fields=["Id"],
-    ),
-    "salesforce.Case": dict(
-        text_fields=["Subject", "Description"],
-        metadata_fields=["Status", "Priority"],
-        locator_fields=["Id"],
-    ),
-    "salesforce.Lead": dict(
-        text_fields=["Name", "Company", "Email"],
-        metadata_fields=["Status"],
-        locator_fields=["Id"],
-    ),
 }
 
 

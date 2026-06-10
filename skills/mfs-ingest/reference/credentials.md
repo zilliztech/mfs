@@ -82,7 +82,6 @@ or org-distributed `.env`. Check before asking for fresh credentials:
 | Jira / Atlassian | `ATLASSIAN_API_TOKEN`, `JIRA_TOKEN` |
 | Notion | `NOTION_TOKEN` |
 | Linear | `LINEAR_API_KEY` |
-| Salesforce | `SF_USERNAME` + `SF_PASSWORD` + `SF_SECURITY_TOKEN` (three pieces) |
 | HubSpot | `HUBSPOT_ACCESS_TOKEN` |
 | Zendesk | `ZENDESK_API_TOKEN` + `ZENDESK_SUBDOMAIN` |
 | Postgres | `PG_DSN`, `DATABASE_URL`, `POSTGRES_CONNECTION` (varies wildly) |

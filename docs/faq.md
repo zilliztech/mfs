@@ -101,7 +101,7 @@ optional built-ins:
 
 ```text
 web, github, postgres, mysql, mongo, slack, discord, gmail, notion, jira,
-linear, zendesk, salesforce, hubspot, bigquery, snowflake, s3, gdrive, feishu
+linear, zendesk, hubspot, bigquery, snowflake, s3, gdrive, feishu
 ```
 
 If an optional connector's dependencies are not installed in the server
