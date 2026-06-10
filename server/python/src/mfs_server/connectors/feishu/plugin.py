@@ -31,6 +31,7 @@ API endpoints used (all sync, wrapped in asyncio.to_thread):
 from __future__ import annotations
 
 import asyncio
+import datetime
 import json
 import re
 from collections.abc import AsyncIterator
@@ -88,6 +89,14 @@ def _extract_text(msg_type: str, content: str) -> str:
     return data.get("text") or content or ""
 
 
+def _since_ts(since: str) -> float:
+    """Parse a --since date/datetime to unix seconds (Feishu file modified_time is unix sec)."""
+    s = since.strip()
+    if "T" not in s:
+        s = s + "T00:00:00"
+    return datetime.datetime.fromisoformat(s).timestamp()
+
+
 class FeishuPlugin(ConnectorPlugin):
     NAME = "feishu"
     URI_SCHEME = "feishu"
@@ -100,6 +109,7 @@ class FeishuPlugin(ConnectorPlugin):
         manual_sync=True,
         watch=False,
         cursor_kind="create_time",
+        since_pushdown=True,
         full_scan=True,
         delete_detection="never",
         paged_cat=True,
@@ -400,17 +410,16 @@ class FeishuPlugin(ConnectorPlugin):
     def _doc_id(file_name: str) -> str:
         return file_name[: -len(".md")].rsplit("__", 1)[-1]
 
-    async def _list_folder_docx(self, folder_token: str) -> list[dict]:
-        """Recursively enumerate docx documents inside a Drive folder the bot has been
-        shared on. Recurses into subfolders. The bot only sees `file.list` results for
-        a folder it has explicit access to — Feishu does NOT auto-list "shared with me",
-        so the user has to share the FOLDER (not individual docs) with the bot for this
-        to surface anything."""
+    async def _list_folder_docx(self, folder_token: str | None) -> list[dict]:
+        """Recursively enumerate docx documents under a Drive folder, or the caller's My
+        Space root when folder_token is None (user mode). Recurses into subfolders."""
         docs: list[dict] = []
         subfolders: list[str] = []
 
         def fetch(pt):
-            b = ListFileRequest.builder().folder_token(folder_token).page_size(100)
+            b = ListFileRequest.builder().page_size(100)
+            if folder_token:
+                b = b.folder_token(folder_token)
             if pt:
                 b = b.page_token(pt)
             return self._client.drive.v1.file.list(b.build(), self._opt())
@@ -419,7 +428,8 @@ class FeishuPlugin(ConnectorPlugin):
         while True:
             data = (
                 await self._call(
-                    lambda pt=page_token: fetch(pt), f"drive.file.list(folder={folder_token})"
+                    lambda pt=page_token: fetch(pt),
+                    f"drive.file.list(folder={folder_token or 'root'})",
                 )
             ).data
             for f in data.files or []:
@@ -447,30 +457,39 @@ class FeishuPlugin(ConnectorPlugin):
             docs.extend(await self._list_folder_docx(sub))
         return docs
 
-    async def _docs(self) -> list[dict]:
-        """Discover docx documents to index, via three optional inputs:
+    async def _docs(self, since_ts: float | None = None) -> list[dict]:
+        """Discover docx documents to index:
 
-        1. `docs_folder_token` (str)  — recursively enumerate docs under one shared
-           folder. Best UX: user shares the folder with bot once, then dropping a
-           new doc in is auto-indexed on next sync.
-        2. `extra_docs` (list[{token, label}]) — explicit per-doc list, for docs
-           that live outside the folder. Each one must be shared with the bot
-           individually ("..." -> "添加协作者").
-        3. Neither set — returns empty. The bot's own drive root is intentionally
-           NOT enumerated by default; on a fresh enterprise app it is empty, and
-           silently returning bot-internal files would be confusing.
+        1. `docs_folder_token` — recursively enumerate docs under one shared folder.
+        2. user mode with no folder/extra set — recursively enumerate the caller's My
+           Space root (the documents the user owns).
+        3. `extra_docs` (list[{token, label}]) — explicit per-doc list, always included.
 
-        Sources are de-duped by `token`. `extra_docs` wins on name conflicts."""
+        When `since_ts` is set, discovered docs older than it (by modified_time) are
+        skipped; explicitly-named `extra_docs` are always kept. De-duped by `token`;
+        `extra_docs` wins on name conflicts."""
         out: dict[str, dict] = {}
 
-        # 1) folder enumeration (recursive)
+        # discover: a shared folder, else (user mode, no explicit scope) the My Space root
         folder_token = self._cfg("docs_folder_token") or ""
+        extras = self._cfg("extra_docs") or []
+        discovered: list[dict] = []
         if folder_token:
-            for d in await self._list_folder_docx(folder_token):
-                out[d["token"]] = d
+            discovered = await self._list_folder_docx(folder_token)
+        elif self._cfg("auth", "user") == "user" and not extras:
+            discovered = await self._list_folder_docx(None)
+        for d in discovered:
+            if since_ts is not None:
+                mt = d.get("modified_time")
+                try:
+                    if mt is None or float(mt) < since_ts:
+                        continue
+                except (TypeError, ValueError):
+                    pass  # unparseable modified_time -> keep rather than silently drop
+            out[d["token"]] = d
 
-        # 2) explicit extra_docs
-        for extra in self._cfg("extra_docs") or []:
+        # explicit extra_docs (always included; not since-filtered — the user named them)
+        for extra in extras:
             if not isinstance(extra, dict):
                 continue
             tok = extra.get("token")
@@ -608,11 +627,13 @@ class FeishuPlugin(ConnectorPlugin):
         return None
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
-        self.ctx.declare_enumeration("full")
+        since_ts = _since_ts(opts.since) if opts.since else None
+        # since => docs were narrowed to recent ones; don't treat the rest as deleted.
+        self.ctx.declare_enumeration("incremental" if since_ts else "full")
         old = await self.state.get("objects") or {}
         seen: dict[str, str] = {}
 
-        # Chats subtree: one message_stream per group chat the bot is a member of.
+        # Chats subtree: one message_stream per group chat the user/bot is a member of.
         for chat in await self._chats():
             p = f"/chats/{self._dir_name(chat)}/messages.jsonl"
             seen[p] = ""
@@ -624,13 +645,15 @@ class FeishuPlugin(ConnectorPlugin):
 
         # Docs subtree: one text document per accessible docx file. Fingerprint by
         # modified_time so an unchanged doc is skipped on incremental sync.
-        for doc in await self._docs():
+        for doc in await self._docs(since_ts):
             p = f"/docs/{self._doc_name(doc)}"
             fp = doc.get("modified_time") or ""
             seen[p] = fp
             if opts.full or old.get(p) != fp:
                 yield ObjectChange(p, "added" if p not in old else "modified")
 
-        for p in set(old) - set(seen):
-            yield ObjectChange(p, "deleted")
-        await self.state.set("objects", seen)
+        if since_ts is None:
+            for p in set(old) - set(seen):
+                yield ObjectChange(p, "deleted")
+        # since: merge so docs outside the window stay tracked (not re-indexed); full: replace
+        await self.state.set("objects", {**old, **seen} if since_ts else seen)

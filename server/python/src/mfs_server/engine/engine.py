@@ -2118,6 +2118,7 @@ class Engine:
         self,
         target: str,
         config: dict | None = None,
+        since: str | None = None,
         sample_objects: int = 3,
         sample_records: int = 1000,
     ) -> dict:
@@ -2137,7 +2138,7 @@ class Engine:
             obj_uris: list[str] = []
             # dry_run: enumerate object URIs without hashing bytes or writing any state
             # estimate must be side-effect-free and cheap.
-            async for ch in plugin.sync(SyncOptions(full=True, dry_run=True)):
+            async for ch in plugin.sync(SyncOptions(full=True, dry_run=True, since=since)):
                 if ch.kind != "deleted":
                     obj_uris.append(ch.uri)
                 if len(obj_uris) >= 200000:

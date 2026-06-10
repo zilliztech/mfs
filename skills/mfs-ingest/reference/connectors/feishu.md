@@ -51,10 +51,20 @@ feishu://<alias>/chats/<chat-name>__<chat-id>/messages.jsonl
 feishu://<alias>/docs/<title>__<doc-token>.md
 ```
 
+## Limiting scope (many docs)
+
+User mode can enumerate your **entire** My Space. For a large account, index recent docs
+first: estimate the size (optionally with a `since` date via `/v1/connectors/estimate`),
+then `mfs add feishu://<alias> --since <date>` — only docs modified on/after `<date>` are
+indexed; older ones are left alone (never deleted) and can be pulled in later by lowering
+`--since`.
+
 ## Notes
 
 - **p2p single chats** can't be auto-listed (Feishu API limit); include them with
   `extra_chats` — by `oc_…` chat id, or by the partner's `ou_…` open_id.
-- **docs**: only docx is indexed, and only docs under `docs_folder_token` or listed in
-  `extra_docs` — share the folder with the app once and new docs get picked up on sync.
+- **docs**: only docx is indexed. In user mode with no `docs_folder_token` / `extra_docs`,
+  the connector enumerates your whole My Space; narrow it to one folder with
+  `docs_folder_token`, or name specific docs with `extra_docs`. In tenant mode the app only
+  sees docs/folders shared with it.
 - **region**: `feishu` and `lark` are separate; an app from one can't auth the other.

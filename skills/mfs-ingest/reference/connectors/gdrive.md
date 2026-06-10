@@ -50,6 +50,17 @@ token = "file:/home/zhangchen/.mfs/gdrive-token.json"
 mfs add gdrive://acme-engineering --config /tmp/mfs-gdrive.toml
 ```
 
+## Limiting scope (large Drives)
+
+The connector enumerates the **whole** Drive the credential can see. For a big
+account, index recent files first instead of everything:
+
+- Estimate the size first (optionally with a `since` date via
+  `/v1/connectors/estimate`) so the user sees the count before any work.
+- Add with a start date: `mfs add gdrive://<alias> --config ... --since <date>`.
+  Only files modified on/after `<date>` are indexed; older files are left alone
+  (never deleted) and can be pulled in later by lowering `--since`.
+
 ## Pitfalls
 
 - **Headless server**: the OAuth flow needs a browser the first time.

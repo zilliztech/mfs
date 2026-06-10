@@ -375,7 +375,9 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
         """Zero-billing pre-flight estimate: object/chunk/token counts via
         metadata + a local chunker/tokenizer dry-run. No embedding API calls."""
         try:
-            return EstimateResponse(**await eng().estimate(body.target, body.config))
+            return EstimateResponse(
+                **await eng().estimate(body.target, body.config, since=body.since)
+            )
         except ValueError as e:
             # e.g. an unreachable / missing source root surfaces as connector_unhealthy;
             # return the clean envelope instead of a raw 500.

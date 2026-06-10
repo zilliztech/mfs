@@ -44,6 +44,12 @@ _NATIVE = {
 _FOLDER = "application/vnd.google-apps.folder"
 
 
+def _rfc3339(s: str) -> str:
+    """Normalize a user --since value to an RFC 3339 timestamp Drive's `q` accepts."""
+    s = s.strip()
+    return s if "T" in s else f"{s}T00:00:00"
+
+
 class GDrivePlugin(ConnectorPlugin):
     NAME = "gdrive"
     URI_SCHEME = "gdrive"
@@ -53,6 +59,7 @@ class GDrivePlugin(ConnectorPlugin):
         manual_sync=True,
         watch=False,
         cursor_kind="modifiedTime",
+        since_pushdown=True,
         full_scan=True,
         delete_detection="full_scan",
         paged_cat=True,
@@ -164,13 +171,16 @@ class GDrivePlugin(ConnectorPlugin):
         meta = await self._meta()
         return (meta.get(path) or {}).get("fingerprint")
 
-    async def _walk(self) -> dict[str, dict]:
-        """List all files, resolve parent chain to a path. Native docs get a synthetic
-        extension so object_kind_of routes them correctly."""
+    async def _walk(self, since: str | None = None) -> dict[str, dict]:
+        """List files, resolve each parent chain to a path. Native docs get a synthetic
+        extension so object_kind_of routes them correctly.
 
-        def fetch_all():
-            files, token = [], None
-            q = "trashed = false"
+        Folders are always listed in full (they're far fewer and are needed to resolve
+        paths); files can be narrowed to modifiedTime >= since, so a large Drive only
+        indexes recently-changed docs."""
+
+        def fetch_all(q):
+            out, token = [], None
             while True:
                 resp = (
                     self._svc.files()
@@ -183,14 +193,18 @@ class GDrivePlugin(ConnectorPlugin):
                     )
                     .execute()
                 )
-                files.extend(resp.get("files", []))
+                out.extend(resp.get("files", []))
                 token = resp.get("nextPageToken")
                 if not token:
                     break
-            return files
+            return out
 
-        files = await asyncio.to_thread(fetch_all)
-        by_id = {f["id"]: f for f in files}
+        file_q = f"mimeType != '{_FOLDER}' and trashed = false"
+        if since:
+            file_q += f" and modifiedTime >= '{_rfc3339(since)}'"
+        folders = await asyncio.to_thread(fetch_all, f"mimeType = '{_FOLDER}' and trashed = false")
+        files = await asyncio.to_thread(fetch_all, file_q)
+        by_id = {f["id"]: f for f in folders + files}
 
         def path_of(f: dict) -> str:
             segs = [f["name"]]
@@ -220,12 +234,18 @@ class GDrivePlugin(ConnectorPlugin):
         return meta
 
     async def sync(self, opts: SyncOptions) -> AsyncIterator[ObjectChange]:
-        self.ctx.declare_enumeration("full")
+        since = opts.since
+        # With `since` we only enumerated recently-changed files, so the rest must NOT be
+        # treated as deleted — declare incremental so the framework skips full-set deletion.
+        self.ctx.declare_enumeration("incremental" if since else "full")
         old = await self._meta()
-        meta = await self._walk()
-        await self.state.set("files", meta)
-        for p, info in meta.items():
+        walked = await self._walk(since)
+        # since: merge so previously-indexed (older) files stay tracked and aren't dropped;
+        # full scan: replace the whole state.
+        await self.state.set("files", {**old, **walked} if since else walked)
+        for p, info in walked.items():
             if opts.full or (old.get(p) or {}).get("fingerprint") != info["fingerprint"]:
                 yield ObjectChange(p, "modified" if p in old else "added")
-        for p in set(old) - set(meta):
-            yield ObjectChange(p, "deleted")
+        if not since:
+            for p in set(old) - set(walked):
+                yield ObjectChange(p, "deleted")

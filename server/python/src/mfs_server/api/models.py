@@ -46,6 +46,7 @@ class CancelResponse(BaseModel):
 class ProbeRequest(BaseModel):
     target: str
     config: Optional[dict[str, Any]] = None
+    since: Optional[str] = None  # estimate only: count objects changed since this date
 
 
 class ProbeResponse(BaseModel):

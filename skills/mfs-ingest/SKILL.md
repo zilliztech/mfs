@@ -117,6 +117,17 @@ to the user, then write toml + run `mfs add`.
    normal add path. Use `--yes` only when the user has already accepted
    skipping the estimate confirmation.
 
+   **Whole-account enumerators** (gdrive = the entire Drive; feishu user-mode docs =
+   the entire My Space): if the estimate is large, don't just confirm a full index —
+   first propose narrowing by time. Re-estimate with a recent start date (`POST
+   /v1/connectors/estimate` with a `since` field) to show the smaller count, then add
+   with that bound:
+   ```bash
+   mfs add <uri> --config /tmp/mfs-<alias>.toml --since <date>
+   ```
+   `--since` indexes only objects modified on/after `<date>`; older ones are left
+   untouched and never deleted, and can be pulled in later by lowering `--since`.
+
 5. **Capture the queued job id**. If the step 4 command was approved at the
    prompt, it already queued the job. For local targets, or when the user has
    explicitly approved skipping the estimate confirmation, run:

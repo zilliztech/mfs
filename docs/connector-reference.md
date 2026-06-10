@@ -1124,6 +1124,13 @@ object (inline token JSON). The most common form is the `file:`
 reference above. Probe the connector in the target server before
 syncing.
 
+**Limiting scope (large Drives):** the connector enumerates the whole Drive the
+credential can see. For a big account, index recent files first — estimate the size
+(optionally with a `since` date via `/v1/connectors/estimate`), then
+`mfs add gdrive://<alias> --since <date>` indexes only files modified on/after `<date>`;
+older files are left untouched (never deleted) and can be added later by lowering
+`--since`.
+
 **Start:**
 
 ```bash
@@ -1224,8 +1231,14 @@ mfs cat feishu://workspace/docs/Roadmap__doccnxxx.md --range 1:80
 
 - **p2p single chats** can't be auto-listed (Feishu API limit). Include them
   with `extra_chats` — by `oc_...` chat id, or by the partner's `ou_...` open_id.
-- **docs:** only docx is indexed, and only those under `docs_folder_token` or
-  listed in `extra_docs`. Share a folder with the app once and new docs are
-  picked up on the next sync.
+- **docs:** only docx is indexed. In user mode with no `docs_folder_token` /
+  `extra_docs`, the connector enumerates your whole My Space; narrow it with
+  `docs_folder_token`, or name specific docs with `extra_docs`. In tenant mode the
+  app only sees docs/folders shared with it.
+- **scope by time:** user mode can enumerate your entire My Space — for a large
+  account, estimate first (optionally with a `since` date) and use
+  `mfs add feishu://<alias> --since <date>` to index only recently-changed docs.
+  Older docs are left untouched (never deleted) and can be added later by lowering
+  `--since`.
 - **region:** `feishu` and `lark` are separate registries — an app from one
   can't authorize against the other.
