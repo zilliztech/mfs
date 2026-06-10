@@ -137,7 +137,7 @@ class FeishuPlugin(ConnectorPlugin):
         return lark.LARK_DOMAIN if region == "lark" else lark.FEISHU_DOMAIN
 
     async def connect(self) -> None:
-        auth_mode = self._cfg("auth", "tenant")
+        auth_mode = self._cfg("auth", "user")
         if auth_mode == "user":
             import json as _json
             import time as _time

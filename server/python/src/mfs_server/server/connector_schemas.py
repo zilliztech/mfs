@@ -410,8 +410,9 @@ SCHEMAS: dict[str, ConnectorSchema] = {
             ),
             ConnectorField(
                 "auth",
-                "Auth mode (tenant = app-only bot, user = user-OAuth device flow)",
-                default="tenant",
+                "Auth mode (user = index everything you can see, via OAuth — default; "
+                "tenant = app-only bot, limited to chats/docs the bot is added to)",
+                default="user",
                 required=False,
             ),
             ConnectorField(

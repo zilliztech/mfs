@@ -495,6 +495,44 @@ def _post_add(uri: str, config_toml: str, server_port: int = 13619) -> tuple[boo
         return False, f"server unreachable ({e})"
 
 
+# ─── feishu user-OAuth (inline device flow) ─────────────────────────────────
+
+
+def _resolve_secret_ref(v: Any) -> str:
+    """Resolve an `env:VAR` / `file:/path` ref to its value (for the device flow, which
+    needs the real app_secret). A plain value passes through unchanged."""
+    if isinstance(v, str):
+        if v.startswith("env:"):
+            return os.environ.get(v[4:], "")
+        if v.startswith("file:"):
+            try:
+                return Path(v[5:]).read_text().strip()
+            except OSError:
+                return ""
+    return v or ""
+
+
+def run_feishu_device_login(values: dict[str, Any], alias: str) -> bool:
+    """Run the Feishu OAuth device flow for a feishu user-mode connector and backfill
+    `oauth_state_file` into `values`. Returns True on success / not-applicable."""
+    if values.get("auth", "user") != "user":
+        return True  # tenant mode needs no user authorization
+    from ..connectors.feishu.auth_login import perform_device_login
+
+    app_id = values.get("app_id")
+    app_secret = _resolve_secret_ref(values.get("app_secret"))
+    if not (app_id and app_secret):
+        ui.warn("feishu user mode needs app_id + app_secret to authorize.")
+        return False
+    region = values.get("region", "feishu")
+    state_path = values.get("oauth_state_file") or str(mfs_home() / f"feishu-{alias}.oauth.json")
+    values["oauth_state_file"] = state_path
+    ui.note("Authorize this app to read your Feishu chats + docs:")
+    return perform_device_login(
+        app_id, app_secret, state_path, region=region, info=ui.note, prompt=ui.emphasis
+    )
+
+
 # ─── runner ─────────────────────────────────────────────────────────────────
 
 
@@ -586,6 +624,17 @@ def run_connector_add(
             "  add them by hand later — see the connector reference docs."
         )
 
+    # feishu user mode: authorize inline (browser device flow) so the connector works
+    # right after add, and record the resulting oauth_state_file in the TOML.
+    if scheme == "feishu":
+        try:
+            if not run_feishu_device_login(values, alias):
+                ui.warn("authorization not completed; nothing written.")
+                return 130
+        except KeyboardInterrupt:
+            ui.warn("aborted; nothing written.")
+            return 130
+
     rendered = _render_toml(scheme, uri, values, schema.extras_hint, objects=objects)
 
     if out_path.exists():
@@ -654,6 +703,61 @@ def main_entry(argv: list[str]) -> int:
         out_dir=args.out_dir,
         server_port=args.server_port,
     )
+
+
+def auth_entry(argv: list[str]) -> int:
+    """`mfs-server connector auth <uri>` — (re)authorize a connector's user OAuth.
+
+    Reads the connector's saved TOML for app credentials + region + oauth_state_file and
+    runs the browser device flow, refreshing the stored token. Use after first add if you
+    skipped authorization, or when the authorization has expired / been revoked."""
+    import argparse
+
+    p = argparse.ArgumentParser(
+        prog="mfs-server connector auth",
+        description="Authorize or re-authorize a connector's user OAuth (browser device flow).",
+    )
+    p.add_argument("uri", help="Connector URI, e.g. feishu://my-workspace")
+    args = p.parse_args(argv)
+
+    scheme = urlparse(args.uri).scheme
+    if scheme != "feishu":
+        print(f"connector auth currently supports feishu only (got '{scheme}')", file=sys.stderr)
+        return 2
+
+    alias = _derive_alias(args.uri)
+    toml_path = mfs_home() / "connectors" / f"{alias}.toml"
+    if not toml_path.exists():
+        print(
+            f"no connector config at {toml_path}; run `mfs-server connector add {args.uri}` first",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        import tomllib  # py3.11+
+    except ImportError:
+        import tomli as tomllib  # type: ignore[no-redef]
+    with open(toml_path, "rb") as f:
+        data = tomllib.load(f)
+
+    if data.get("auth", "user") != "user":
+        print(f"{toml_path} uses auth='tenant' (app-only); no user authorization needed.")
+        return 0
+    app_id = data.get("app_id")
+    app_secret = _resolve_secret_ref(data.get("app_secret"))
+    if not (app_id and app_secret):
+        print(f"{toml_path} is missing app_id / app_secret", file=sys.stderr)
+        return 2
+    region = data.get("region", "feishu")
+    state_path = data.get("oauth_state_file") or str(mfs_home() / f"feishu-{alias}.oauth.json")
+
+    from ..connectors.feishu.auth_login import perform_device_login
+
+    ok = perform_device_login(app_id, app_secret, state_path, region=region)
+    if ok:
+        print(f"\nauthorized — {args.uri} is ready. Run `mfs sync {args.uri}` to index.")
+        return 0
+    return 1
 
 
 def list_entry(argv: list[str]) -> int:

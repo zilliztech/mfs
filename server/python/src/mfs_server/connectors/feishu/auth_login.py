@@ -1,18 +1,13 @@
-"""Standalone CLI: walk the user through Feishu OAuth Device Flow and persist
-the resulting refresh_token blob to a file the connector reads + writes via
-its `oauth_state_file` config field.
+"""Feishu OAuth Device Flow login.
 
-Usage:
+`perform_device_login()` is the reusable core: it walks the user through the browser
+consent, then writes the oauth state file the connector reads (app creds + access /
+refresh tokens). It is used by the `mfs-server connector add` wizard and by
+`mfs-server connector auth`, and is also runnable directly:
+
     python -m mfs_server.connectors.feishu.auth_login \\
-        --app-id <APP_ID> \\
-        --app-secret-env FEISHU_APP_SECRET \\
-        --output ~/.feishu/oauth.json
-        [--scope "im:chat:readonly im:message.group_msg:readonly ..."]
-
-Output JSON shape (the file the connector reads + rewrites each connect; NOT
-credential_ref because Feishu refresh_tokens rotate every refresh):
-    { "app_id": "...", "app_secret": "...", "refresh_token": "...",
-      "scope": "...", "obtained_at": <unix-ts>, "refresh_expires_at": <unix-ts> }
+        --app-id <APP_ID> --app-secret-env FEISHU_APP_SECRET \\
+        --output ~/.mfs/feishu.oauth.json
 """
 
 from __future__ import annotations
@@ -23,6 +18,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Callable, Optional
 
 from .oauth import (
     DEFAULT_SCOPES,
@@ -32,113 +28,106 @@ from .oauth import (
 )
 
 
-def _ok(msg: str) -> None:
-    print(f"\033[32m[OK]\033[0m {msg}")
+def perform_device_login(
+    app_id: str,
+    app_secret: str,
+    output: str | Path,
+    *,
+    region: str = "feishu",
+    scopes: Optional[list[str]] = None,
+    info: Callable[[str], None] = print,
+    prompt: Callable[[str], None] = print,
+) -> bool:
+    """Run the Feishu OAuth Device Flow and persist the token blob to `output`.
 
+    Shows the verification URL + user code via `prompt`, polls until the user approves
+    in the browser, then writes the oauth state (app creds + access/refresh tokens) the
+    connector reads. Returns True on success, False on failure (reason sent via `info`).
+    """
+    scope_list = list(scopes) if scopes else list(DEFAULT_SCOPES)
+    info(f"Requesting authorization (region={region}) …")
+    try:
+        dev = request_device_authorization(app_id, app_secret, scope_list, region=region)
+    except OAuthError as e:
+        info(f"authorization request failed: {e}")
+        return False
 
-def _info(msg: str) -> None:
-    print(f"\033[34m[..]\033[0m {msg}")
+    prompt("")
+    prompt(f"  Open in your browser:  {dev['verification_uri_complete']}")
+    prompt(f"  or visit {dev['verification_uri']} and enter code: {dev['user_code']}")
+    prompt("")
+    info("Waiting for you to approve in the browser … (Ctrl-C to abort)")
+    try:
+        tok = poll_for_device_token(
+            app_id,
+            app_secret,
+            dev["device_code"],
+            interval=dev["interval"],
+            expires_in=dev["expires_in"],
+            region=region,
+        )
+    except OAuthError as e:
+        info(f"authorization failed: {e}")
+        return False
+    except KeyboardInterrupt:
+        info("aborted.")
+        return False
 
-
-def _fail(msg: str) -> None:
-    print(f"\033[31m[!!]\033[0m {msg}", file=sys.stderr)
+    now = int(time.time())
+    blob = {
+        "app_id": app_id,
+        "app_secret": app_secret,
+        "refresh_token": tok["refresh_token"],
+        "access_token": tok["access_token"],
+        "access_expires_at": now + tok.get("expires_in", 7200),
+        "region": region,
+        "scope": tok.get("scope", ""),
+        "obtained_at": now,
+    }
+    out = Path(output).expanduser()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(blob, ensure_ascii=False, indent=2))
+    out.chmod(0o600)
+    info(f"authorized — saved to {out}")
+    return True
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    p = argparse.ArgumentParser(description="Feishu OAuth Device Flow login.")
     p.add_argument("--app-id", required=True, help="Feishu app_id (cli_xxxxx)")
     p.add_argument(
         "--app-secret-env",
         default="FEISHU_APP_SECRET",
         help="Env var holding app_secret (default: FEISHU_APP_SECRET)",
     )
-    p.add_argument("--app-secret", help="Inline app_secret (insecure; prefer --app-secret-env)")
-    p.add_argument(
-        "--output",
-        "-o",
-        required=True,
-        help="Path to write oauth.json (referenced by oauth_state_file in config)",
-    )
+    p.add_argument("--app-secret", help="Inline app_secret (prefer --app-secret-env)")
+    p.add_argument("--output", "-o", required=True, help="Path to write the oauth state file")
     p.add_argument("--scope", help="Space-separated scope list (overrides defaults)")
     p.add_argument(
-        "--region",
-        default="feishu",
-        choices=["feishu", "lark"],
-        help="Cloud region (default: feishu / China; use 'lark' for overseas)",
+        "--region", default="feishu", choices=["feishu", "lark"], help="Cloud region"
     )
     args = p.parse_args(argv)
 
     secret = args.app_secret or os.environ.get(args.app_secret_env)
     if not secret:
-        _fail(f"app_secret not provided — set ${args.app_secret_env} or pass --app-secret")
+        print(
+            f"app_secret not provided — set ${args.app_secret_env} or pass --app-secret",
+            file=sys.stderr,
+        )
         return 2
 
-    scopes = args.scope.split() if args.scope else DEFAULT_SCOPES
+    def _info(msg: str) -> None:
+        print(f"\033[34m[..]\033[0m {msg}")
 
-    _info(f"Requesting device authorization (region={args.region}, scopes: {' '.join(scopes)}) ...")
-    try:
-        dev = request_device_authorization(args.app_id, secret, scopes, region=args.region)
-    except OAuthError as e:
-        _fail(f"device_authorization failed: {e}")
-        return 1
-    _ok(f"got device_code (expires in {dev['expires_in']}s, poll every {dev['interval']}s)")
-
-    # The verification UI: print BOTH the plain URL and the complete URL with user_code
-    # pre-filled. User can use either.
-    print()
-    print(f"  Open in browser:  {dev['verification_uri_complete']}")
-    print(f"  Or visit:         {dev['verification_uri']}")
-    print(f"  And enter code:   {dev['user_code']}")
-    print()
-
-    _info("Polling for approval ... (Ctrl-C to abort)")
-    try:
-        tok = poll_for_device_token(
-            args.app_id,
-            secret,
-            dev["device_code"],
-            interval=dev["interval"],
-            expires_in=dev["expires_in"],
-            region=args.region,
-        )
-    except OAuthError as e:
-        _fail(f"device flow failed: {e}")
-        return 1
-    except KeyboardInterrupt:
-        _fail("aborted by user")
-        return 130
-    _ok(f"got access_token + refresh_token (scope: {tok.get('scope') or 'default'})")
-
-    now = int(time.time())
-    blob = {
-        "app_id": args.app_id,
-        "app_secret": secret,
-        "refresh_token": tok["refresh_token"],
-        "region": args.region,
-        "scope": tok.get("scope", ""),
-        "obtained_at": now,
-        "refresh_expires_at": now + tok.get("refresh_token_expires_in", 2592000),
-    }
-    out = Path(args.output).expanduser()
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(blob, ensure_ascii=False, indent=2))
-    out.chmod(0o600)
-    _ok(f"saved to {out}  (chmod 600)")
-
-    print()
-    print("Next steps:")
-    print(f"  1) In your feishu connector TOML, set:")
-    print(f'       auth = "user"')
-    print(f'       oauth_state_file = "{out}"')
-    print(f"     (NOT credential_ref — Feishu refresh_tokens rotate on every use, so the")
-    print(f"      plugin needs to WRITE this file each connect to persist the new token.")
-    print(f"      app_id / app_secret are inside the file too; no other config needed.)")
-    refresh_days = blob["refresh_expires_at"] - now
-    print(
-        f"  2) Refresh token expires in ~{refresh_days // 86400} days "
-        f"(Feishu's TTL, not configurable); re-run this script before then."
+    ok = perform_device_login(
+        args.app_id,
+        secret,
+        args.output,
+        region=args.region,
+        scopes=args.scope.split() if args.scope else None,
+        info=_info,
     )
-    return 0
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

@@ -53,15 +53,17 @@ def main(argv: list[str] | None = None) -> int:
         # `mfs-server connector <verb> ...`. Today: add (interactive wizard)
         # and list (locally-registered TOML listing). Other verbs (inspect/
         # remove) live on the regular `mfs` CLI for now.
-        from .connector_wizard import list_entry, main_entry as connector_main
+        from .connector_wizard import auth_entry, list_entry, main_entry as connector_main
 
         if len(raw) >= 2 and raw[1] == "add":
             return connector_main(raw[2:])
         if len(raw) >= 2 and raw[1] == "list":
             return list_entry(raw[2:])
+        if len(raw) >= 2 and raw[1] == "auth":
+            return auth_entry(raw[2:])
         print(
-            "usage: mfs-server connector {add <uri> | list} [options]\n"
-            "  see `mfs-server connector add --help` / `connector list --help`",
+            "usage: mfs-server connector {add <uri> | list | auth <uri>} [options]\n"
+            "  see `mfs-server connector add --help` / `connector auth --help`",
             file=sys.stderr,
         )
         return 2
