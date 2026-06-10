@@ -103,9 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--app-secret", help="Inline app_secret (prefer --app-secret-env)")
     p.add_argument("--output", "-o", required=True, help="Path to write the oauth state file")
     p.add_argument("--scope", help="Space-separated scope list (overrides defaults)")
-    p.add_argument(
-        "--region", default="feishu", choices=["feishu", "lark"], help="Cloud region"
-    )
+    p.add_argument("--region", default="feishu", choices=["feishu", "lark"], help="Cloud region")
     args = p.parse_args(argv)
 
     secret = args.app_secret or os.environ.get(args.app_secret_env)

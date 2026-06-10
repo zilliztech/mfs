@@ -81,9 +81,7 @@ def _fresh_token(**over) -> dict:
 @pytest.mark.anyio
 async def test_connect_reuses_valid_access_token(tmp_path, monkeypatch):
     """A still-valid access_token is reused — refresh is NOT called."""
-    path = _write_oauth(
-        tmp_path, access_token="access_valid", access_expires_at=time.time() + 9999
-    )
+    path = _write_oauth(tmp_path, access_token="access_valid", access_expires_at=time.time() + 9999)
     called = {"refresh": False}
 
     def boom(*a, **k):

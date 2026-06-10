@@ -405,9 +405,7 @@ SCHEMAS: dict[str, ConnectorSchema] = {
         fields=[
             ConnectorField("app_id", "App ID (from the Lark Developer console)"),
             ConnectorField("app_secret", "App secret", secret=True),
-            ConnectorField(
-                "region", "Region (feishu or lark)", default="feishu", required=False
-            ),
+            ConnectorField("region", "Region (feishu or lark)", default="feishu", required=False),
             ConnectorField(
                 "auth",
                 "Auth mode (user = index everything you can see, via OAuth — default; "
