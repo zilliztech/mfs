@@ -213,7 +213,8 @@ want to wait for the next scheduled sync.
    everything, costs tokens):
    > "Re-syncing `<uri>`. Pick one:
    >   • no flag     pull changed data using the connector's normal sync path
-   >   • `--since`   ask connectors with a time cursor to limit the sync
+   >   • `--since`   limit to changes since a date — only on connectors that
+   >                 support it (currently gdrive, feishu); others return an error
    >   • `--full`    re-embed everything from scratch (re-bills embedding
    >                 API; only do this if you've changed `text_fields`,
    >                 the embedding model, or chunking config)"

@@ -21,9 +21,13 @@ Needs an **App ID** + **App Secret** from the Lark Developer Console:
 ### `user` (default, recommended)
 
 Indexes everything the authorizing user can see. `mfs connector add feishu://<alias>`
-runs a one-time browser authorization inline — open the printed URL and approve; after
-that the token renews automatically. Re-authorize anytime (e.g. if the authorization
-expired or was revoked) with `mfs connector auth feishu://<alias>`.
+runs a one-time browser authorization inline: **the user must open the printed URL and
+approve — this consent can't be automated**, so surface the URL and wait for them.
+
+The token then refreshes automatically **while the connector is actively synced**; if it
+sits unused for several days the authorization expires and the next use reports it needs
+re-auth. To re-authorize, run `mfs connector auth feishu://<alias>` and again have the
+user approve the printed URL (existing index data is unaffected).
 
 ### `tenant` (app-only bot)
 

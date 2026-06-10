@@ -1187,9 +1187,15 @@ Add the connector — the wizard runs a one-time browser authorization inline:
 mfs-server connector add feishu://workspace
 ```
 
-Open the printed URL, approve, and the connector is ready. The token renews
-automatically afterwards; if the authorization later expires or is revoked,
-re-authorize with:
+Open the printed URL in a browser and approve — **this consent must be done by a
+person and can't be automated** (it's the OAuth user-authorization step). The
+connector is then ready.
+
+The token refreshes automatically **while the connector is actively synced** (each
+sync renews it, no intervention needed). If it goes unused for several days the
+authorization expires; the next use then reports that re-authorization is needed. To
+re-authorize, run `connector auth` and again have a user approve the printed URL in a
+browser — existing indexed data is unaffected:
 
 ```bash
 mfs-server connector auth feishu://workspace
