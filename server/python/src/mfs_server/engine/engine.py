@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 
 from ..common.converter import CONVERT_EXTS, CachingConverterClient
 from ..common.embedding import CachingEmbeddingClient
-from ..common.retrieval import build_filter, collapse_by_object, to_envelope
+from ..common.retrieval import build_filter, collapse_results, to_envelope
 from ..common.summary import CachingSummaryClient
 from ..common.vlm import CachingVlmClient
 from ..config import ServerConfig
@@ -2068,7 +2068,7 @@ class Engine:
                     self.cfg.search.over_fetch_ratio,
                 )
         envs = [to_envelope(h) for h in hits]
-        return collapse_by_object(envs) if collapse else envs
+        return collapse_results(envs) if collapse else envs
 
     async def resolve_connector_uri(self, target: str) -> tuple[str, str | None]:
         """Map a user path/URI to (connector_uri, object_prefix) for search/grep scope.

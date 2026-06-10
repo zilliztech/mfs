@@ -289,9 +289,7 @@ class EmbedConsumer:
             cached = await self._tx_cache.batch_get(keys) or {}
             miss_idx = [i for i, k in enumerate(keys) if cached.get(k) is None]
             if miss_idx:
-                new_vecs = await self._embedder.batch_embed(
-                    [batch[i][1].content for i in miss_idx]
-                )
+                new_vecs = await self._embedder.batch_embed([batch[i][1].content for i in miss_idx])
                 put: dict[str, list[float]] = {}
                 for j, i in enumerate(miss_idx):
                     cached[keys[i]] = new_vecs[j]
@@ -320,7 +318,9 @@ class EmbedConsumer:
             self._pending[tid] = self._pending.get(tid, 0) - n
             await self._maybe_finalize(tid)
 
-    async def _fail_batch(self, batch: list[tuple[TaskEnvelope, Chunk]], exc: BaseException) -> None:
+    async def _fail_batch(
+        self, batch: list[tuple[TaskEnvelope, Chunk]], exc: BaseException
+    ) -> None:
         """Drop a failed flush batch and release each task's bookkeeping so it can finalize."""
         affected: list[str] = []
         seen: set[str] = set()

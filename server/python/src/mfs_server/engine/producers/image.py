@@ -11,7 +11,6 @@ from __future__ import annotations
 from typing import AsyncIterator
 
 from .base import (
-    CONTENT_MAX,
     Chunk,
     END_OF_TASK,
     ObjectTask,
@@ -19,6 +18,7 @@ from .base import (
     ProducerContext,
     read_bytes,
 )
+from .text import chunk_text_body
 
 
 class ImageChunksProducer:
@@ -35,12 +35,19 @@ class ImageChunksProducer:
             desc = await self.ctx.vlm.describe(raw, task.ext)
         await self.ctx.artifacts.put_artifact(ns, full_uri, "vlm_text", desc.encode())
         if desc.strip():
-            yield Chunk(
-                content=desc,
-                chunk_kind="vlm_description",
-                locator=None,
-                uri=full_uri,
-                connector_job_id=task.connector_job_id,
-                partial=len(desc) > CONTENT_MAX,
-            )
+            # A VLM description is normally short, but route it through the SAME document
+            # chunker (force-split HARD cap) so even a pathologically long description can
+            # never exceed chunk_size and OOM the embedder. The common case yields one part
+            # with the original locator=None; only a split description gets a chunk_index.
+            parts = chunk_text_body(desc, "document", "", self.ctx.cfg.chunking.chunk_size)
+            multi = len(parts) > 1
+            for ci, (ctext, _lines) in enumerate(parts):
+                yield Chunk(
+                    content=ctext,
+                    chunk_kind="vlm_description",
+                    locator={"chunk_index": ci} if multi else None,
+                    uri=full_uri,
+                    connector_job_id=task.connector_job_id,
+                    partial=False,
+                )
         yield END_OF_TASK
