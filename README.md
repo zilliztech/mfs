@@ -112,10 +112,49 @@ A modern agent project juggles several streams of state:
 - **Work signals** — Slack threads, emails, tickets, CRM records,
   database state, dashboards
 
-Without a harness, this scatters across local folders, SaaS apps, and
-private databases. With MFS, the agent gets one CLI surface
-(`mfs search`, `mfs cat`, `mfs grep`) over all of it — and so do you,
-the human building the agent. Drop the
+Without a harness this stuff scatters across local folders, SaaS
+apps, and private databases. With MFS, the agent gets one CLI
+surface — `mfs search`, `mfs cat`, `mfs grep` — over all of it, and
+so do you, the human building the agent.
+
+Here's where MFS sits in your stack:
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│   Your agent application                                                     │
+│   ───────────────────────                                                    │
+│   coding agents · memory systems · skill managers · multi-source RAG ·       │
+│   knowledge copilots · …or whatever you are building                         │
+└───────────────────────────────────┬──────────────────────────────────────────┘
+                                    │  drives via CLI / SDK / Skill pack
+                                    ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│   MFS   ← you are here                                                       │
+│   ─────                                                                      │
+│   CLI    mfs search · grep · ls · cat · tree · head · tail · add · remove    │
+│   SDK    Python · TypeScript                                                 │
+│   Skill  skills/mfs-find · skills/mfs-ingest                                 │
+│                                                                              │
+│   hybrid search · progressive browse · content cache · idempotent · CS split │
+└───────────────────────────────────┬──────────────────────────────────────────┘
+                                    │  one URI per source
+                                    ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│   Your context (any URI is a file-tree)                                      │
+│   ──────────────────────────────────────                                     │
+│                                                                              │
+│   local files        databases       chats & mail        team work           │
+│   ~/.agents/         postgres        slack               notion (docs)       │
+│   ~/repos/           mysql           discord             gdrive (files)      │
+│   ~/Documents/       mongo           gmail               hubspot (CRM)       │
+│                      bigquery        feishu              zendesk (support)   │
+│                      snowflake                           jira (issues)       │
+│                      s3                                  linear (issues)     │
+│                                                          web (crawls)        │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+Drop the
 [`skills/mfs-find`](skills/mfs-find/SKILL.md) and
 [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) packs into Claude
 Code, Codex CLI, OpenCode, or your own agent runtime — your agent
