@@ -592,7 +592,7 @@ def run_wizard(sections: list[str] | None = None, config_path: str | None = None
         ui.emphasis(f'    export MFS_API_TOKEN="$(cat {token_file})"')
 
     ui.console.print()
-    ui.console.print("[bold #5fafff]Summary[/bold #5fafff]")
+    ui.console.print("[bold #26A69A]Summary[/bold #26A69A]")
     ui.list_kv(_summary_pairs(existing))
     ui.note("\nStart the server with:")
     ui.emphasis("  mfs-server run")

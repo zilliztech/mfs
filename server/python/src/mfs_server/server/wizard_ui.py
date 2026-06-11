@@ -37,16 +37,26 @@ from rich.text import Text
 console = Console()
 
 
+# Brand palette — anchored on the logo teal #007674. The TUI uses the brighter
+# variants so contrast holds on dark terminal backgrounds; #007674 itself is
+# too dim there. Mirrors docs/stylesheets/terminal.css.
+_BRAND_TEAL = "#26A69A"  # primary bright — qmark, question, pointer, border
+_BRAND_AMBER = "#E89B3C"  # accent — selected/answer, emphasis
+_BRAND_ERROR = "#E74C3C"  # semantic red — warn
+_BRAND_MUTED = "#8B9BB4"  # muted — info / dim
+_BRAND_DIM = "#a8a8a8"  # very dim — note
+
+
 # Palette — kept restrained so it reads on both dark and light terminals.
 _STYLE = questionary.Style(
     [
-        ("qmark", "fg:#5fafff bold"),  # the "?" before each prompt
-        ("question", "fg:#5fafff bold"),
-        ("pointer", "fg:#5fafff bold"),
-        ("highlighted", "fg:#5fafff"),
-        ("selected", "fg:#5fd75f"),
-        ("answer", "fg:#5fd75f bold"),
-        ("instruction", "fg:#808080 italic"),
+        ("qmark", f"fg:{_BRAND_TEAL} bold"),  # the "?" before each prompt
+        ("question", f"fg:{_BRAND_TEAL} bold"),
+        ("pointer", f"fg:{_BRAND_TEAL} bold"),
+        ("highlighted", f"fg:{_BRAND_TEAL}"),
+        ("selected", f"fg:{_BRAND_AMBER}"),
+        ("answer", f"fg:{_BRAND_AMBER} bold"),
+        ("instruction", f"fg:{_BRAND_MUTED} italic"),
     ]
 )
 
@@ -60,9 +70,9 @@ def clear() -> None:
 def banner(title: str, lines: list[str] | None = None) -> None:
     """Tiny top-of-wizard banner (one-line title + optional dim subtitle)."""
     console.print()
-    console.print(Text(title, style="bold #5fafff"))
+    console.print(Text(title, style=f"bold {_BRAND_TEAL}"))
     for ln in lines or []:
-        console.print(Text(f"  {ln}", style="#808080"))
+        console.print(Text(f"  {ln}", style=_BRAND_MUTED))
     console.print()
 
 
@@ -77,14 +87,14 @@ def section(
     label = f"{title}"
     if step is not None and total is not None:
         label = f"Step {step}/{total} · {title}"
-    txt = Text(body.strip(), style="#a8a8a8") if body else Text("")
+    txt = Text(body.strip(), style=_BRAND_DIM) if body else Text("")
     console.print()
     console.print(
         Panel(
             txt,
-            title=f"[bold #5fafff]{label}[/bold #5fafff]",
+            title=f"[bold {_BRAND_TEAL}]{label}[/bold {_BRAND_TEAL}]",
             title_align="left",
-            border_style="#5fafff",
+            border_style=_BRAND_TEAL,
             padding=(1, 2) if body else (0, 2),
         )
     )
@@ -189,24 +199,27 @@ def int_text(
     return int(val) if val else default
 
 
-def info(text_: str, style: str = "#808080") -> None:
+def info(text_: str, style: str | None = None) -> None:
     """One-line inline hint (italic dim by default)."""
-    console.print(Text(f"  {text_}", style=f"italic {style}"))
+    color = style or _BRAND_MUTED
+    console.print(Text(f"  {text_}", style=f"italic {color}"))
 
 
 def warn(text_: str) -> None:
-    console.print(Text(f"  ! {text_}", style="bold #ff5f5f"))
+    console.print(Text(f"  ! {text_}", style=f"bold {_BRAND_ERROR}"))
 
 
 def emphasis(text_: str) -> None:
-    console.print(Text(f"  {text_}", style="bold #5fd75f"))
+    console.print(Text(f"  {text_}", style=f"bold {_BRAND_AMBER}"))
 
 
 def note(text_: str) -> None:
-    console.print(Text(f"  {text_}", style="#a8a8a8"))
+    console.print(Text(f"  {text_}", style=_BRAND_DIM))
 
 
 def list_kv(items: Iterable[tuple[str, str]], indent: str = "    ") -> None:
     """Print a list of (label, value) pairs (for summary screens)."""
     for k, v in items:
-        console.print(Text(indent) + Text(f"{k}: ", style="#808080") + Text(v, style="bold"))
+        console.print(
+            Text(indent) + Text(f"{k}: ", style=_BRAND_MUTED) + Text(v, style="bold")
+        )

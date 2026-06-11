@@ -1,15 +1,111 @@
+/* MFS brand palette — anchored on the logo teal #007674.
+   5 brand colors + 2 semantic colors; all other UI variables map to these. */
 :root {
-  --mfs-terminal-cyan: #45f3ff;
-  --mfs-terminal-green: #7cff9b;
-  --mfs-terminal-muted: #8b9bb4;
+  /* brand */
+  --mfs-teal:         #007674;   /* logo gradient start — primary */
+  --mfs-teal-bright:  #26A69A;   /* one step brighter for dark backgrounds, TUI accents */
+  --mfs-teal-deep:    #004D54;   /* logo gradient end — deep headings, dark surfaces */
+  --mfs-cool-blue:    #2BA8C8;   /* analogous assist — info, secondary links */
+  --mfs-amber:        #E89B3C;   /* complementary accent — emphasis, badges */
+
+  /* semantic */
+  --mfs-error:        #E74C3C;
+  --mfs-muted:        #8B9BB4;
+
+  /* back-compat with earlier callout class */
+  --mfs-terminal-cyan:  var(--mfs-teal-bright);
+  --mfs-terminal-green: var(--mfs-amber);
+  --mfs-terminal-muted: var(--mfs-muted);
 }
 
+/* Map the brand palette onto Material's CSS variables (primary + accent).
+   Material applies these when palette.primary/accent are 'custom'. */
+[data-md-color-scheme="slate"][data-md-color-primary="custom"] {
+  --md-primary-fg-color:        var(--mfs-teal);
+  --md-primary-fg-color--light: var(--mfs-teal-bright);
+  --md-primary-fg-color--dark:  var(--mfs-teal-deep);
+  --md-primary-bg-color:        #F4FFFD;       /* near-white from the logo strokes */
+  --md-primary-bg-color--light: #F4FFFD;
+}
+
+[data-md-color-scheme="slate"][data-md-color-accent="custom"] {
+  --md-accent-fg-color:            var(--mfs-teal-bright);
+  --md-accent-fg-color--transparent: rgba(38, 166, 154, 0.10);
+  --md-accent-bg-color:            #F4FFFD;
+  --md-accent-bg-color--light:     #F4FFFD;
+}
+
+/* Link colors — body links go to teal-bright, hover deepens to amber so the
+   accent shows up where the eye actually lands. */
+.md-typeset a {
+  color: var(--mfs-teal-bright);
+}
+.md-typeset a:hover,
+.md-typeset a:focus {
+  color: var(--mfs-amber);
+}
+
+/* Inline code chip — slight teal tint instead of the default gray. */
 .md-typeset code {
   border-radius: 4px;
+  background-color: rgba(38, 166, 154, 0.12);
+  color: #E6FFFB;
 }
 
+/* Highlight / mark — amber wash so it pops against the teal-leaning page. */
+.md-typeset mark {
+  background-color: rgba(232, 155, 60, 0.30);
+  color: inherit;
+}
+
+/* Tables — header row picks up the deep teal. */
+.md-typeset table:not([class]) th {
+  background-color: var(--mfs-teal-deep);
+  color: #F4FFFD;
+}
+
+/* Admonitions — recolor the most common types to the brand palette. */
+.md-typeset .admonition.note,
+.md-typeset details.note {
+  border-color: var(--mfs-cool-blue);
+}
+.md-typeset .admonition.note > .admonition-title,
+.md-typeset details.note > summary {
+  background-color: rgba(43, 168, 200, 0.15);
+}
+
+.md-typeset .admonition.tip,
+.md-typeset details.tip,
+.md-typeset .admonition.info,
+.md-typeset details.info {
+  border-color: var(--mfs-teal-bright);
+}
+.md-typeset .admonition.tip > .admonition-title,
+.md-typeset details.tip > summary,
+.md-typeset .admonition.info > .admonition-title,
+.md-typeset details.info > summary {
+  background-color: rgba(38, 166, 154, 0.15);
+}
+
+.md-typeset .admonition.warning,
+.md-typeset details.warning {
+  border-color: var(--mfs-amber);
+}
+.md-typeset .admonition.warning > .admonition-title,
+.md-typeset details.warning > summary {
+  background-color: rgba(232, 155, 60, 0.18);
+}
+
+.md-typeset .admonition.danger,
+.md-typeset details.danger,
+.md-typeset .admonition.error,
+.md-typeset details.error {
+  border-color: var(--mfs-error);
+}
+
+/* Custom callout class used in some pages. */
 .md-typeset .mfs-callout {
-  border-left: 3px solid var(--mfs-terminal-cyan);
+  border-left: 3px solid var(--mfs-teal-bright);
   padding-left: 1rem;
-  color: var(--mfs-terminal-muted);
+  color: var(--mfs-muted);
 }
