@@ -2208,7 +2208,15 @@ read scopes. Fine-grained PAT is the recommended path for org-owned repos.</p>
 <li>Open <a href="https://github.com/settings/tokens?type=beta">https://github.com/settings/tokens?type=beta</a> → <strong>Generate new
    token</strong>. Pick a name and expiration (90-day default; set a reminder to
    rotate).</li>
+</ol>
+<p><img alt="GitHub personal access tokens page" src="https://github.com/user-attachments/assets/d7fee707-304f-4195-9e45-de1577493558" /></p>
+<p><img alt="GitHub generate token menu" src="https://github.com/user-attachments/assets/c837450e-48ed-43ef-893a-7828f2741bc5" /></p>
+<p><img alt="GitHub fine-grained token form" src="https://github.com/user-attachments/assets/62d9923f-52bb-4e2a-a9f8-b9707bc48bc4" /></p>
+<ol>
 <li>Repository access: <strong>Only select repositories</strong> → pick the ones to index.</li>
+</ol>
+<p><img alt="GitHub repository access options" src="https://github.com/user-attachments/assets/d901ba9a-b8cb-4a39-9a20-27eb6668cafa" /></p>
+<ol>
 <li>Repository permissions:<ul>
 <li><strong>Contents</strong> → Read-only</li>
 <li><strong>Issues</strong> → Read-only</li>
@@ -2216,6 +2224,9 @@ read scopes. Fine-grained PAT is the recommended path for org-owned repos.</p>
 <li><strong>Metadata</strong> → Read-only (always required)</li>
 </ul>
 </li>
+</ol>
+<p><img alt="GitHub repository permissions" src="https://github.com/user-attachments/assets/a887d024-26b1-418e-b063-24def34ccde9" /></p>
+<ol>
 <li>Generate the token and copy the <code>github_pat_...</code> value. That goes into
    <code>GITHUB_TOKEN</code>.</li>
 </ol>
@@ -2398,6 +2409,11 @@ a <strong>User token</strong> (<code>xoxp-...</code>, when the bot can't see wha
 <ol>
 <li>Open <a href="https://api.slack.com/apps">https://api.slack.com/apps</a> and click <strong>Create New App</strong> → "From
    scratch". Pick a name and the target workspace.</li>
+</ol>
+<p><img alt="Slack Create New App button" src="https://github.com/user-attachments/assets/40ffd973-84d2-483f-beca-720c723223c2" /></p>
+<p><img alt="Slack Create an app dialog" src="https://github.com/user-attachments/assets/5119276e-cde3-405e-bd86-7fb33b2218d9" /></p>
+<p><img alt="Slack From scratch app form" src="https://github.com/user-attachments/assets/abbdc1cf-012a-44ed-ae62-210abc252980" /></p>
+<ol>
 <li>Left sidebar → <strong>OAuth &amp; Permissions</strong> → scroll to "Bot Token Scopes" and
    add:<ul>
 <li><code>channels:read</code> — list public channels</li>
@@ -2452,14 +2468,30 @@ server's numeric ID).</p>
 <ol>
 <li>Open <a href="https://discord.com/developers/applications">https://discord.com/developers/applications</a> and click <strong>New
    Application</strong>. Name it.</li>
+</ol>
+<p><img alt="Discord applications page" src="https://github.com/user-attachments/assets/50d550fc-6e35-41e2-bbc2-deafa3aa81ca" /></p>
+<p><img alt="Discord create app dialog" src="https://github.com/user-attachments/assets/59893fdb-b152-4f7f-83bd-8b4cf429080b" /></p>
+<ol>
 <li>Left sidebar → <strong>Bot</strong> → click <strong>Add Bot</strong> → <strong>Reset Token</strong> → copy the
    token. This is the value that goes into <code>DISCORD_BOT_TOKEN</code>.</li>
+</ol>
+<p><img alt="Discord bot token settings" src="https://github.com/user-attachments/assets/c6b2f7cd-0ef3-4de8-afdd-8389295f2be8" /></p>
+<ol>
 <li>On the same Bot page, scroll down to <strong>Privileged Gateway Intents</strong> and
    enable <strong>Message Content Intent</strong>. Without this the bot connects fine
    but every message comes back with empty <code>content</code>.</li>
-<li>Left sidebar → <strong>OAuth2</strong> → <strong>URL Generator</strong>:<ul>
+</ol>
+<p><img alt="Discord message content intent" src="https://github.com/user-attachments/assets/19905907-5ac7-47ed-b285-59c824660834" /></p>
+<ol>
+<li>
+<p>Left sidebar → <strong>OAuth2</strong> → <strong>URL Generator</strong>:</p>
+<ul>
 <li>Scopes: <code>bot</code></li>
 <li>Bot Permissions: <code>View Channels</code>, <code>Read Message History</code></li>
+</ul>
+<p><img alt="Discord OAuth2 URL generator scopes" src="https://github.com/user-attachments/assets/70942093-8c13-4cd8-ab2a-39f65ea8777c" /></p>
+<p><img alt="Discord bot permissions" src="https://github.com/user-attachments/assets/56c5ca0a-fd36-4454-94db-f7d20555a7ce" /></p>
+<ul>
 <li>Copy the generated URL, open it in a browser, and pick the server
   (guild) to add the bot to. You must be the guild owner or have
   Manage Server permission.</li>
@@ -2505,9 +2537,16 @@ are not supported by the current plugin.</p>
 <ol>
 <li>Open <a href="https://console.cloud.google.com">https://console.cloud.google.com</a> → create or pick a project.</li>
 <li><strong>APIs &amp; Services → Library → Gmail API</strong> → click <strong>Enable</strong>.</li>
+</ol>
+<p><img alt="Google Cloud Gmail API page" src="https://github.com/user-attachments/assets/8a2b96ab-8ea6-4442-9e25-f186c879dd14" /></p>
+<ol>
 <li><strong>APIs &amp; Services → Credentials → Create Credentials → OAuth client
    ID</strong> → Application type: <strong>Desktop app</strong> → <strong>Download JSON</strong> (this
    is the client credentials file, not the token yet).</li>
+</ol>
+<p><img alt="Google Cloud Create credentials menu" src="https://github.com/user-attachments/assets/fc27a2aa-8eaf-4338-ada4-067be970857d" /></p>
+<p><img alt="Google Cloud OAuth desktop client form" src="https://github.com/user-attachments/assets/2872163a-18d2-4592-ac43-b7ffc49693ed" /></p>
+<ol>
 <li>Run Google's OAuth flow once on a machine with a browser (e.g. the
    <code>google-auth-oauthlib</code> <code>InstalledAppFlow.run_local_server</code> snippet)
    requesting scope <code>https://www.googleapis.com/auth/gmail.readonly</code>.
@@ -2556,9 +2595,18 @@ records are <code>notion://&lt;alias&gt;/data_sources/&lt;data-source-id&gt;/rec
 plus explicit page-level sharing.</p>
 <ol>
 <li>Open <a href="https://www.notion.so/profile/integrations">https://www.notion.so/profile/integrations</a> → <strong>New integration</strong>.</li>
+</ol>
+<p><img alt="Notion connections page" src="https://github.com/user-attachments/assets/8e45d871-8304-4d4d-aab0-3a18ddba7cca" /></p>
+<ol>
 <li>Pick a name and the target workspace.</li>
+</ol>
+<p><img alt="Notion new connection auth method" src="https://github.com/user-attachments/assets/bf97bf0a-654c-43da-82d5-ac0c42ba71cc" /></p>
+<ol>
 <li>Under <strong>Capabilities</strong>, tick <code>Read content</code> (the other capabilities are
    not needed for MFS).</li>
+</ol>
+<p><img alt="Notion read content capability" src="https://github.com/user-attachments/assets/e0b7569f-bbf6-454a-94c1-3f74fb0923aa" /></p>
+<ol>
 <li>Submit, then copy the <strong>Internal Integration Token</strong> (<code>secret_...</code>).
    That goes into <code>NOTION_TOKEN</code>.</li>
 </ol>
@@ -2603,7 +2651,9 @@ Pages render as markdown documents without per-record config.</p>
 <code>jira://&lt;alias&gt;/users.jsonl</code>.</p>
 <p><strong>Obtain credentials:</strong> three flavours, pick based on your Jira deployment:</p>
 <ul>
-<li><strong>Atlassian Cloud</strong> (most common):<ul>
+<li>
+<p><strong>Atlassian Cloud</strong> (most common):</p>
+<ul>
 <li>URL: <code>https://acme.atlassian.net</code></li>
 <li>Username: your Atlassian account email</li>
 <li>API token: open
@@ -2611,8 +2661,12 @@ Pages render as markdown documents without per-record config.</p>
   <strong>Create API token</strong> → label it <code>mfs</code> → copy. Goes into
   <code>JIRA_API_TOKEN</code>.</li>
 </ul>
+<p><img alt="Atlassian API tokens page" src="https://github.com/user-attachments/assets/578f84bc-f847-49a1-b318-495091f9c2cc" /></p>
+<p><img alt="Atlassian create API token dialog" src="https://github.com/user-attachments/assets/2118ce0d-4901-497d-aea8-2ecbf430d848" /></p>
 </li>
-<li><strong>Atlassian Server / Data Center</strong> (self-hosted):<ul>
+<li>
+<p><strong>Atlassian Server / Data Center</strong> (self-hosted):</p>
+<ul>
 <li>URL: <code>https://jira.acme.internal</code></li>
 <li>Username: leave empty</li>
 <li>API token: a Personal Access Token from your Jira profile →
@@ -2660,23 +2714,29 @@ projects look empty if the user can't see them.</p>
 <code>linear://&lt;alias&gt;/users.jsonl</code>.</p>
 <p><strong>Obtain credentials:</strong> a <strong>Personal API key</strong> from Linear:</p>
 <ol>
-<li>Open <a href="https://linear.app">https://linear.app</a> → <strong>Settings → Account → API → Personal
-   API keys</strong>.</li>
-<li>Click <strong>Create new key</strong>, name it <code>mfs</code>, copy the value (starts with
-   <code>lin_api_...</code>). That goes into <code>LINEAR_API_KEY</code>.</li>
+<li>Open <a href="https://linear.app">https://linear.app</a> → <strong>Settings → Personal → Security &amp; access</strong>
+   and scroll to <strong>Personal API keys</strong>.</li>
 </ol>
-<p>The key inherits the issuing user's workspace access (all teams and
-projects visible to them in the Linear UI).</p>
+<p><img alt="Linear Personal API keys section" src="https://github.com/user-attachments/assets/d89e4d97-7fc6-47ce-8dab-436d3c6e3e18" /></p>
+<ol>
+<li>Click <strong>New API key</strong>, name it <code>mfs</code>, and choose the permission and team
+   access that covers the teams you plan to sync.</li>
+</ol>
+<p><img alt="Linear Create API key dialog" src="https://github.com/user-attachments/assets/6e2a3f03-9dab-4753-a8e7-607f04190f8f" /></p>
+<ol>
+<li>Click <strong>Create</strong> and copy the value (starts with <code>lin_api_...</code>). That goes
+   into <code>LINEAR_API_KEY</code>.</li>
+</ol>
+<p>The key is tied to the issuing user's account. If you leave team access broad,
+MFS can enumerate all teams visible to that user; if you restrict team access,
+make sure the teams in <code>teams = [...]</code> are included.</p>
 <p><strong>Minimum config:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a><span class="n">api_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:LINEAR_API_KEY&quot;</span>
 <a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="n">teams</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ENG&quot;</span><span class="p">]</span>
-<a id="__codelineno-38-3" name="__codelineno-38-3" href="#__codelineno-38-3"></a>
-<a id="__codelineno-38-4" name="__codelineno-38-4" href="#__codelineno-38-4"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-38-5" name="__codelineno-38-5" href="#__codelineno-38-5"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/teams/ENG&quot;</span>
-<a id="__codelineno-38-6" name="__codelineno-38-6" href="#__codelineno-38-6"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
-<a id="__codelineno-38-7" name="__codelineno-38-7" href="#__codelineno-38-7"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;identifier&quot;</span><span class="p">]</span>
-<a id="__codelineno-38-8" name="__codelineno-38-8" href="#__codelineno-38-8"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;state&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;priority&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updatedAt&quot;</span><span class="p">]</span>
 </code></pre></div>
+<p>The current connector has built-in presets for <code>issues.jsonl</code> and
+<code>users.jsonl</code>, so <code>[[objects]]</code> is not required for normal issue and user
+indexing. Add object rules only when you need to override the default fields.</p>
 <p><strong>Start:</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml
 <a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml
@@ -2690,7 +2750,10 @@ projects visible to them in the Linear UI).</p>
 <li>The GraphQL API key is sent as the raw <code>Authorization</code> header value, not
   <code>Bearer &lt;token&gt;</code>.</li>
 <li>If <code>teams</code> is omitted, all visible teams are enumerated.</li>
-<li>Add <code>[[objects]]</code>; the current plugin has no built-in Linear preset.</li>
+<li>If the Linear API key uses restricted team access, a team listed in TOML but
+  missing from the key's team scope appears empty.</li>
+<li>Built-in presets index issue <code>title</code> and <code>description</code>, plus user <code>name</code> and
+  <code>email</code>. Use custom <code>[[objects]]</code> rules only if you need different fields.</li>
 <li>The current flattened issue record contains <code>identifier</code>, not an <code>id</code> field.</li>
 </ul>
 <h2 id="zendesk"><code>zendesk</code><a class="headerlink" href="#zendesk" title="Permanent link">&para;</a></h2>
@@ -2741,7 +2804,15 @@ target config before syncing.</p>
 <ol>
 <li>Open <a href="https://app.hubspot.com">https://app.hubspot.com</a> → <strong>Settings</strong> (gear icon) →
    <strong>Integrations → Private Apps</strong> → <strong>Create a private app</strong>.</li>
+</ol>
+<p>If HubSpot shows the <strong>Legacy Apps</strong> page for the private app flow, click
+   <strong>Create legacy app</strong> and choose the private app option for one account.</p>
+<p><img alt="HubSpot Create legacy app button" src="https://github.com/user-attachments/assets/eead666d-2e61-43b6-af9d-0a6453a4e96c" /></p>
+<ol>
 <li>Pick a name and description.</li>
+</ol>
+<p><img alt="HubSpot private app basic info form" src="https://github.com/user-attachments/assets/dffe73cb-d60c-41c2-89d2-eb7ce59c8954" /></p>
+<ol>
 <li>On the <strong>Scopes</strong> tab, enable the read scopes you need:<ul>
 <li><code>crm.objects.contacts.read</code></li>
 <li><code>crm.objects.companies.read</code></li>
@@ -2749,6 +2820,9 @@ target config before syncing.</p>
 <li><code>tickets</code> (Service Hub only) — read tickets</li>
 </ul>
 </li>
+</ol>
+<p><img alt="HubSpot selected read scopes" src="https://github.com/user-attachments/assets/92dd7813-bb96-4f91-8e63-67805f654483" /></p>
+<ol>
 <li><strong>Create app</strong>. On the next screen copy the access token (<code>pat-na1-...</code>
    for the NA1 region, <code>pat-eu1-...</code> for EU). <strong>The token is shown only
    once.</strong> It goes into <code>HUBSPOT_ACCESS_TOKEN</code>.</li>
@@ -2790,6 +2864,11 @@ visible to the server process. Three common ways:</p>
 <ol>
 <li>
 <p><strong>Service account JSON file</strong> (most common in production):</p>
+<p>In Google Cloud Console, confirm <strong>BigQuery API</strong> is enabled, then create
+or choose a service account for the dataset access boundary.</p>
+<p><img alt="Google Cloud BigQuery API page" src="https://github.com/user-attachments/assets/fd034ea0-4607-4e74-b65a-106460830889" /></p>
+<p><img alt="Google Cloud service accounts page" src="https://github.com/user-attachments/assets/6d7dfb43-f7f9-46dc-a049-ed9cc251afea" /></p>
+<p><img alt="Google Cloud create service account form" src="https://github.com/user-attachments/assets/d8275bc9-1792-44fd-951a-18dd3cc789fd" /></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GOOGLE_APPLICATION_CREDENTIALS</span><span class="o">=</span>/path/to/sa.json
 <a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a>mfs-server<span class="w"> </span>run
 </code></pre></div>
@@ -2857,6 +2936,9 @@ before relying on this in production.</p>
 user in the Snowflake UI, attach a network policy that includes your
 egress IPs, and put the token into <code>credential_ref</code>. Rotation is just
 "issue a new PAT, replace the secret" — no key-pair re-registration.</p>
+<p><img alt="Snowflake Users and roles page" src="https://github.com/user-attachments/assets/102fd1cf-3841-4606-918e-0cff54f356c2" /></p>
+<p><img alt="Snowflake programmatic access tokens section" src="https://github.com/user-attachments/assets/7fae2256-cf98-4750-8236-0fca285ab69f" /></p>
+<p><img alt="Snowflake new programmatic access token dialog" src="https://github.com/user-attachments/assets/9a2ba38a-8bed-4c9b-8c6b-1b6dcafd7909" /></p>
 <p>The user should have a read-only role; grant <code>USAGE</code> on the warehouse,
 database, schemas, plus <code>SELECT</code> on the in-scope tables.</p>
 <p><strong>Minimum config:</strong></p>
@@ -2967,9 +3049,16 @@ are not supported by the current plugin.</p>
 <ol>
 <li>GCP Console → <strong>APIs &amp; Services → Library</strong> → enable <strong>Google Drive
    API</strong>.</li>
+</ol>
+<p><img alt="Google Cloud Drive API page" src="https://github.com/user-attachments/assets/523b9021-f809-4b1f-a1ad-16703739c409" /></p>
+<ol>
 <li><strong>Credentials → Create Credentials → OAuth client ID</strong> → Application
    type: <strong>Desktop app</strong> → <strong>Download JSON</strong> (the client credentials
    file).</li>
+</ol>
+<p><img alt="Google Cloud Create credentials menu" src="https://github.com/user-attachments/assets/fc27a2aa-8eaf-4338-ada4-067be970857d" /></p>
+<p><img alt="Google Cloud OAuth desktop client form" src="https://github.com/user-attachments/assets/2872163a-18d2-4592-ac43-b7ffc49693ed" /></p>
+<ol>
 <li>Run Google's OAuth flow once on a machine with a browser (e.g. the
    <code>google-auth-oauthlib</code> <code>InstalledAppFlow.run_local_server</code> snippet)
    requesting scope <code>https://www.googleapis.com/auth/drive.readonly</code>.
@@ -3027,11 +3116,20 @@ from the Lark Developer Console.</p>
 <ol>
 <li>Go to <a href="https://open.feishu.cn/app">https://open.feishu.cn/app</a> (feishu / China) or
    <a href="https://open.larksuite.com/app">https://open.larksuite.com/app</a> (lark / overseas).</li>
+</ol>
+<p><img alt="Feishu Create Custom App button" src="https://github.com/user-attachments/assets/1099fb06-aa59-4b5f-ba1b-543f7551e508" /></p>
+<ol>
 <li><strong>Create Custom App</strong> → name + icon. Note the <strong>App ID</strong> (<code>cli_...</code>) and
    <strong>App Secret</strong>.</li>
+</ol>
+<p><img alt="Feishu Create custom app dialog" src="https://github.com/user-attachments/assets/99a2a7e2-769a-49b4-b3ba-2e8ee2409bea" /></p>
+<p><img alt="Feishu app credentials section" src="https://github.com/user-attachments/assets/478ddc09-79e5-4d8c-a3c2-e441ebb37c66" /></p>
+<ol>
 <li><strong>Permissions &amp; Scopes</strong> → add the read scopes below, then <strong>Version
    Management &amp; Release</strong> → request admin approval if your org requires it.</li>
 </ol>
+<p><img alt="Feishu Permissions and Scopes page" src="https://github.com/user-attachments/assets/4183bc00-e351-4576-9f19-8520290d114c" /></p>
+<p><img alt="Feishu Version Management and Release page" src="https://github.com/user-attachments/assets/f1fa494a-46eb-4934-a65f-97fbd9f6eef8" /></p>
 <h3 id="user-mode-default-recommended">User mode (default, recommended)<a class="headerlink" href="#user-mode-default-recommended" title="Permanent link">&para;</a></h3>
 <p>The app indexes everything the authorizing user can see. Add the scopes as
 <strong>User Scopes</strong>: <code>im:chat:readonly</code>, <code>im:message.group_msg:get_as_user</code>,
