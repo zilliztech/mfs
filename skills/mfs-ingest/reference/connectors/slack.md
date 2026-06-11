@@ -41,7 +41,12 @@ respects the user's per-message visibility.
 |---|---|---|
 | `channel_types` | `["public_channel"]` | which channel kinds; values: `public_channel`, `private_channel`, `mpim`, `im` |
 | `oldest` | _none_ | history floor: unix ts OR `now-30d` syntax |
-| `max_read_rows` | 100000 | per-channel message cap |
+| `max_read_rows` | 50000 | per-channel message cap |
+
+For a large workspace (many channels × deep history), scope the sync to the
+channels you need (`channel_types`, or fewer channels) and bound the volume with
+`max_read_rows`, `oldest`, or `--since`. That keeps each sync's size — and the
+server work it takes — in hand.
 
 No `[[objects]]` block is needed — the `slack.messages` preset
 auto-applies (`text_fields=["text"]`, `group_by="thread_ts"`,

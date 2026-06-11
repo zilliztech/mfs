@@ -1,7 +1,8 @@
 # file connector — ingest
 
-URI: `file://<alias>` or just a bare path (`mfs add /abs/path` derives
-the URI as `file://local/abs/path`).
+URI: derived from a bare local path. `mfs add /abs/path` registers
+`file://local/abs/path`. There is **no alias step** — the path is the
+identity, and `mfs add` takes a single path argument (not `file://<name>`).
 
 The everyday connector — index a local directory tree.
 
@@ -14,11 +15,18 @@ mfs add ./my-project           # implicit: file://local/abs/path
 mfs add /var/docs              # same shape
 ```
 
-For a custom alias (useful when one server indexes multiple file
-trees):
-```bash
-mfs add file://my-project /abs/path
-```
+## Client-side path — same vs different machine
+
+The path is a CLIENT-side path. `mfs add <path>` decides automatically how the
+server gets the bytes:
+
+- client and server on the **same host** (loopback endpoint) → the server reads
+  the path directly, no copy.
+- **different hosts** → the CLI bundles and uploads the tree (no shared
+  filesystem required).
+
+Force either way with `--upload` (always bundle + upload) or `--no-upload` (server
+reads the path; only valid when client and server share a filesystem).
 
 ## When you DO need a toml
 

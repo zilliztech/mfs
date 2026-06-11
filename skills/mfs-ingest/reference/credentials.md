@@ -1,15 +1,27 @@
 # Credential handling
 
-The connector TOML files under `$MFS_HOME/connectors/` are stored on
-disk, chmod 0600 by default. Plaintext secrets work, but:
+## Client / server model
 
-- They survive on disk after the process exits.
-- They show up in backups, container image layers (if baked in), and
-  `tar` snapshots.
-- They're easy to leak via `git add` mistakes if the directory is ever
-  inside a repo.
+MFS is client-server: the `mfs` CLI (and the agent driving it) is the client,
+while the connector and its source/API calls run in the server. Secrets live with
+the server, so the TOML carries a **credential reference** that the server
+resolves at ingest time against its own environment and filesystem:
 
-Two indirection forms eliminate plaintext at the TOML layer.
+- `env:NAME` — the server reads `NAME` from the `mfs-server` process environment.
+- `file:/abs/path` — the server reads that file's contents on the server host.
+
+`env:` and `file:` are two sources of the same thing — a server-resolved
+reference. Use whichever the server already has, and put the reference (not the
+literal value) in the TOML.
+
+Make sure the referenced value is present where the server runs: an env var
+exported to `mfs-server`, or a file on the server host. When the CLI talks to a
+loopback endpoint, client and server share a machine, so a value in your shell is
+also the server's; otherwise it needs to be set on the server — ask the user if
+you can't confirm it. A missing reference fails ingest fast with a clear
+"environment variable NAME is not set", so it never falls through to literal text.
+
+The two reference forms in detail:
 
 ## `env:VAR`
 

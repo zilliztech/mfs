@@ -101,6 +101,23 @@ Look at the `error` field. Common patterns:
   giant row in a DB record_collection — lower `chunk_max` for that
   table, or trim `text_fields` to fewer columns.
 
+## B2. A large sync exhausts the server
+
+A large `mfs add` (a busy chat workspace, a big table) can be followed by the
+server becoming unreachable or the job ending without a clear error — the server
+ran out of memory under the load.
+
+To recover:
+
+1. Re-run with a tighter scope and a lower `max_read_rows` (fewer channels /
+   projects, or `--since`) so the sync does less at once. `--force-index` /
+   `--full` re-embed everything, so they add load here rather than relieve it —
+   narrow the work instead.
+2. If you manage the server (same host, and you have access), lower
+   `[chunks_producer].concurrency` in its `server.toml` and restart it, then re-run
+   the smaller sync. Otherwise let the operator know the server may need more
+   memory, a lower concurrency, or a scaled-out Milvus backend.
+
 ## C. Job ends `succeeded` but `succeeded_objects == 0`
 
 The connector connected fine but found nothing to index.

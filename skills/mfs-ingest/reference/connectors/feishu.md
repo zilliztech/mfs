@@ -20,14 +20,22 @@ Needs an **App ID** + **App Secret** from the Lark Developer Console:
 
 ### `user` (default, recommended)
 
-Indexes everything the authorizing user can see. `mfs connector add feishu://<alias>`
-runs a one-time browser authorization inline: **the user must open the printed URL and
-approve — this consent can't be automated**, so surface the URL and wait for them.
+Indexes everything the authorizing user can see. User mode authenticates with an
+OAuth token that lives on the server (the server makes the Feishu calls). The
+one-time browser consent that creates it is a server-side step — run on the server
+with `mfs-server connector add` (or the server's Feishu device-login) — which
+writes the token to `oauth_state_file`. The browser approval can't be automated:
+surface the printed URL to the user.
 
-The token then refreshes automatically **while the connector is actively synced**; if it
-sits unused for several days the authorization expires and the next use reports it needs
-re-auth. To re-authorize, run `mfs connector auth feishu://<alias>` and again have the
-user approve the printed URL (existing index data is unaffected).
+- Point `oauth_state_file` at an existing token on the server to reuse a prior
+  consent — no new approval needed.
+- The token refreshes automatically while the connector is actively synced; after
+  a few days of disuse it expires and the next sync reports that re-authorization
+  is needed — have the user re-run the server-side consent. Indexed data is
+  unaffected.
+
+As the client, register the connector with `oauth_state_file` set; when there's no
+valid token yet, ask the user to run the server-side consent.
 
 ### `tenant` (app-only bot)
 

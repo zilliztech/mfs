@@ -41,4 +41,7 @@ site/
 .cc-use/
 .memsearch/
 
+# Scratch / temp
+tmp/
+
 /TODO.md

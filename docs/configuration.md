@@ -160,6 +160,17 @@ If you see such failures:
 Inspect a job's per-object failures and their `last_error` with
 `mfs job show <job_id>`, or check the aggregate counts with `mfs status`.
 
+On a memory-tight host a large sync can push total usage past the limit and the
+kernel terminates the whole `mfs-server` process rather than failing a single
+object. Alongside `batch_size` / `chunk_size`, the levers that lower peak memory
+are:
+
+- Lower `[chunks_producer] concurrency` (default `8`) — fewer objects held in
+  memory and processed in parallel.
+- Run a Milvus backend other than Lite (Standalone / Cluster / Cloud), so the
+  vector store uses its own memory instead of the server process's.
+- Narrow each sync with the connector's `max_read_rows`, scope, or `--since`.
+
 ## Auth Modes
 
 `/v1` endpoints require `Authorization: Bearer <token>` when `auth_token` is

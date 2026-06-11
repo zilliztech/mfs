@@ -37,7 +37,7 @@ Branch on the result:
 | Signal | Action |
 |---|---|
 | `mfs` not found | install: `uv tool install mfs` |
-| `mfs status` connection refused | tell user: `uv tool install mfs-server && mfs-server setup && mfs-server run`. Cannot proceed without a server. |
+| `mfs status` connection refused | the configured server is down. Tell the user how to bring it up (`uv tool install mfs-server && mfs-server setup && mfs-server run`) and wait — work only through the configured endpoint rather than pointing the CLI at a different server. |
 | `mfs status` returns 401 unauthorized | the user's `MFS_API_TOKEN` is missing/wrong. Use `mfs config show` to confirm the endpoint/profile, then set the intended token source and retry. |
 | server up + `connector list` empty | first-ever connector; jump to **§B (greenfield walk-through)** when intent matches |
 | server up + N connectors registered | proceed to Step 1 intent classification |
@@ -77,18 +77,19 @@ to the user, then write toml + run `mfs add`.
    - If only `<scheme>` was given (no alias), ASK: "What should I call
      this instance? (free-form; appears as the URI host part, e.g.
      `postgres://**prod-db**`)"
+   - **`file` takes a bare path, not an alias.** The target is a local
+     path: `mfs add /abs/path` (the URI is derived as `file://local/abs/path`).
+     The path is client-side: on the same host the server reads it directly; on
+     a different host the CLI bundles and uploads the tree (`--upload` /
+     `--no-upload` to force).
 
 2. **Read the matching `reference/connectors/<scheme>.md`** for the
-   required field set, then for each required field:
-   - Check if a likely env var is set:
-     ```bash
-     env | grep -iE '<scheme>_DSN|<scheme>_TOKEN|<COMMON_NAME>'
-     ```
-     If found, suggest: "Use `env:VAR_NAME` (recommended — keeps secret
-     out of the toml)?" — wait for yes/no.
-   - Otherwise ASK for the value. For secrets, recommend `env:VAR` or
-     `file:/path` form rather than pasting plaintext. See
-     `reference/credentials.md` for the indirection syntax.
+   required field set, and `reference/credentials.md` for how credentials
+   work. For each credential field, put a **reference** in the toml —
+   `env:VAR_NAME` or `file:/abs/path` — which the server resolves against its
+   own environment / filesystem at ingest time. Make sure that value is present
+   where the server runs (client and server share a machine on a loopback
+   endpoint; otherwise it lives on the server — ask the user if unsure).
 
 3. **Write the toml** to a temp path:
    ```toml
@@ -273,12 +274,19 @@ User wants to change a registered connector — new token, different
 |---|---|
 | auth token, DSN host | no — re-runs sync only |
 | `max_read_rows` increased | partial — picks up newly visible records |
-| `text_fields` (which columns become content) | yes — content shape changed |
+| `text_fields` (which columns become content) | yes, with `--force-index` (see below) |
 | `embedding.*` in server config | yes (and affects ALL connectors) |
 | `[[objects]] indexable = false` | drops that object from index |
 
+**Applying a `text_fields` change to existing objects needs
+`mfs add <uri> --force-index`.** A plain `mfs connector update` saves the new
+config, but an incremental sync re-chunks an object only when its source content
+changed — a config-only change leaves existing objects on their previous shape.
+Run `mfs add <uri> --force-index` after the update to re-chunk them with the new
+`text_fields`.
+
 If the change forces re-embedding and the source is large, ask the user before
-running the update if the cost cannot be estimated from the CLI.
+running it if the cost cannot be estimated from the CLI.
 
 ---
 

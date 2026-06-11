@@ -37,7 +37,10 @@ That's a 17-19 digit numeric string.
 
 | key | default | meaning |
 |---|---|---|
-| `max_read_rows` | 100000 | per-channel message cap |
+| `max_read_rows` | 50000 | per-channel message cap |
+
+For a large/busy guild, scope to the channels you need and bound the volume with
+`max_read_rows` before a full sync, so each sync stays a manageable size.
 
 No `[[objects]]` block — `discord.messages` preset auto-applies.
 
