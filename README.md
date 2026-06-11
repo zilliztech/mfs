@@ -36,21 +36,44 @@ already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
   <img src="docs/assets/architecture.png" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
 </p>
 
-## Use it, or build with it
+## Use it
 
-MFS serves two audiences at once. You might just want to search
-across every source you own from the shell. Or you might be building
-an agent whose central problem *is* searching across many sources —
-and you'd rather use a layer than write one yourself. The same CLI
-and the same URI tree work for both:
+MFS gathers every source you've registered into a single file tree
+under one URI scheme. Local repos, Postgres tables, Slack workspaces,
+Gmail inboxes, Notion pages, Google Drive folders, HubSpot deals —
+all answer to the same handful of shell verbs (`ls`, `cat`, `tree`,
+`grep`, `head`, `tail`). One query — `mfs search "..." --all` —
+searches every registered source at once.
+
+The single biggest scenario this opens: **one search-and-read
+surface for an AI agent over your entire work context**. The agent
+stops asking *which tool was that in?* — it queries the whole
+namespace once, walks into the hit's neighborhood, and confirms
+exact bytes:
+
+```text
+  user asks the agent a question
+        ↓
+  mfs search "..." --all             ← candidates across every source
+        ↓
+  mfs ls / tree on the hit's parent  ← what else is around it?
+        ↓
+  mfs cat --locator '{...}'          ← exact evidence, ready to quote
+        ↓
+  agent answers, citing the source URI
+```
+
+Same loop works for you at the shell — search broadly, browse into
+the hit's parent, read the exact range. Together they cut what an
+agent (or a human) has to load — and pay for — by orders of
+magnitude.
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│   Use it directly                      Build agents on top of it             │
-│   ─────────────────                    ───────────────────────               │
-│   you at the shell, agent at your      coding agents · memory systems        │
-│   side: one query across files,        skill managers · multi-source RAG     │
-│   chats, tickets, mail, code, ...      knowledge copilots · …                │
+│   Your agent (or you at the shell)                                           │
+│   ─────────────────────────────────                                          │
+│   one query across every source you've registered ─ no per-tool switching,   │
+│   no new query language, no per-source SDK to learn                          │
 └───────────────────────────────────┬──────────────────────────────────────────┘
                                     │  drives via CLI / SDK / Skill pack
                                     ▼
@@ -80,14 +103,7 @@ and the same URI tree work for both:
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Use it directly
-
-One CLI finds evidence across every source you've registered —
-`mfs search "..." --all` searches your entire namespace at once.
-Then `ls`, `tree`, and `cat` let you (or your agent) walk in and
-confirm with minimum context: search for the candidates, browse for
-what's around them, read only the exact bytes. The two together cut
-what an agent has to load — and pay for — by orders of magnitude.
+A few concrete shapes the unified UX takes:
 
 **Give an AI agent every context you have.** Slack threads, Gmail,
 Notion, GitHub PRs, Drive folders, your design docs — all in one
@@ -97,12 +113,12 @@ query. The agent stops asking *which tool was that in?*
 mfs search "how did we handle the SSO outage last quarter" --all
 ```
 
-**Manage your agent's memory, skills, code, and work data.** A
-modern agent setup scatters state everywhere: skill packs and session
-memory on local disk, your codebases in your editor, team docs and
-tickets in Notion and Linear, chats in Slack or Feishu, customer
-records in HubSpot, raw events in Postgres or BigQuery. MFS gathers
-all of it into one searchable layer:
+**Pull together everything the agent needs to be useful — memory,
+skills, code, work data — into one search layer.** A modern agent
+setup scatters state everywhere: skill packs and session memory on
+local disk, your codebases in your editor, team docs and tickets in
+Notion and Linear, chats in Slack or Feishu, customer records in
+HubSpot, raw events in Postgres or BigQuery. MFS gathers all of it:
 
 ```bash
 mfs add ~/.agents/skills          # skill packs the agent loads
@@ -114,15 +130,6 @@ mfs add hubspot://acme            # CRM contacts, deals, support tickets
 mfs add postgres://prod-db        # production data
 
 mfs search "the prompt I tuned for refund disputes" --all
-```
-
-**Build a multi-source RAG or coding agent without writing connectors
-for every source.** MFS already speaks Postgres, GitHub, Notion, Drive,
-Slack, Gmail, S3, BigQuery, Snowflake, and more. You build the agent;
-MFS is the retrieval layer underneath.
-
-```bash
-mfs --json search "user requested deletion" --all --top-k 20
 ```
 
 **Debug across sources in one shot.** Logs, Slack history, Jira
@@ -141,31 +148,6 @@ actually lives.
 mfs grep "API_SECRET_xyz" --all
 mfs search "auth architecture" --all
 ```
-
-### Build agents on top of it
-
-If you're building the agent (not just calling MFS from it), MFS is
-the harness — the context layer your agent sits on top of, not a
-passive index it queries occasionally.
-
-A modern agent project juggles several streams of state:
-
-- **Memory** — past sessions, recaps, decision logs, scratch notes
-- **Skills** — reusable `SKILL.md` packs, prompts, runbooks
-- **Code** — every repo the agent reads or writes
-- **Knowledge** — docs, PDFs, design specs, meeting transcripts
-- **Work signals** — Slack threads, emails, tickets, CRM records,
-  database state, dashboards
-
-Without a harness this stuff scatters across local folders, SaaS
-apps, and private databases. With MFS, the agent gets one CLI
-surface — `mfs search`, `mfs cat`, `mfs grep` — over all of it.
-
-Drop the
-[`skills/mfs-find`](skills/mfs-find/SKILL.md) and
-[`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) packs into Claude
-Code, Codex CLI, OpenCode, or your own agent runtime — the agent
-inherits the whole context layer with no custom integration.
 
 ## Run it
 
@@ -358,89 +340,74 @@ mfs add linear://workspace --config ./linear.toml
 Per-connector credential setup and TOML shape:
 [docs/connector-reference.md](docs/connector-reference.md).
 
+## Build agents on top of MFS
+
+If you're building an agent project (not just calling MFS from a
+shell), MFS becomes the harness — the retrieval and context layer
+your agent sits on top of, not a passive index it queries
+occasionally.
+
+A modern agent project juggles several streams of state at once:
+
+- **Memory** — past sessions, recaps, decision logs, scratch notes
+- **Skills** — reusable `SKILL.md` packs, prompts, runbooks
+- **Code** — every repo the agent reads or writes
+- **Knowledge** — docs, PDFs, design specs, meeting transcripts
+- **Work signals** — Slack threads, emails, tickets, CRM records,
+  database state, dashboards
+
+Without a harness this spreads across local folders, SaaS apps, and
+private databases. With MFS the agent gets one CLI surface over all
+of it — and you skip writing a connector per source.
+
+Three ways to wire MFS into your agent:
+
+- **Skill packs.** Drop [`skills/mfs-find`](skills/mfs-find/SKILL.md)
+  and [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) into Claude
+  Code, Codex CLI, OpenCode, or your own agent runtime — the agent
+  inherits the whole search-and-browse loop with no custom
+  integration code.
+- **SDKs.** Generated Python and TypeScript clients under `sdks/`
+  cover the cases where shelling out to `mfs` is awkward (long-
+  running daemons, language runtimes without a shell).
+- **HTTP `/v1`.** Skills and SDKs are thin wrappers around the same
+  OpenAPI surface — go direct when you need to.
+
 ## Robust by design
 
-MFS treats the index as **derived state** — losable, rebuildable, and
-crash-safe. A few mechanisms make that work:
+The index is **derived state** — losable, rebuildable, crash-safe:
 
-### Rename detection: three tiers, zero waste
+- **Rename detection in three tiers** — `(size, mtime)` first,
+  then inode pairing for same-filesystem moves, then sha1 fallback
+  for cross-filesystem / Windows / git-rewrite cases. Moving or
+  renaming files costs **zero embedding API calls**.
+- **Content-addressable cache.** Embeddings, conversions, summaries
+  are keyed by `sha1(content + tool + version)` — survives `git
+  checkout`, vector-DB rebuilds, and embedding-model rollbacks with
+  cache hits.
+- **Idempotent everything.** `chunk_id` is a content hash; writes
+  are `DELETE + INSERT`. No `mfs retry`, no `mfs resume` — recovery
+  collapses to *"crash → just rerun `mfs add`"*.
+- **Three-layer ignore.** Built-in defaults + `.gitignore` +
+  `.mfsignore`. Ignored files don't even become MFS objects.
 
-Rename a 1 GB Markdown file, move your `notes/` folder, or check out
-a different git branch. MFS catches it in three layers:
-
-1. **Stat-first lazy hashing.** Scan compares `(size, mtime_ns)`
-   first. Match → skip. Different → check `sha1`. If `sha1` matches,
-   only `mtime` is touched. No work done.
-2. **Inode pairing.** A same-filesystem `mv` keeps the inode → rename
-   detected with **zero hashing**.
-3. **Content pairing.** Cross-filesystem moves, Windows, or git
-   operations that re-create files lose the inode — MFS falls back to
-   size-prefilter + sha1 across the added/deleted set.
-
-Result: renaming or relocating files costs **zero bytes uploaded**
-(in client/server mode) and **zero embedding API calls**.
-
-### Caches that survive `git checkout`, branch flips, model rollbacks
-
-Every expensive operation — PDF→Markdown conversion, embedding, VLM
-description, summary — is keyed by `sha1(content + tool + version)`.
-You get free hits in three real situations:
-
-- **Git branch flip.** Same content, different mtime → mtime updates,
-  sha1 unchanged → **zero embedding calls**.
-- **Vector DB rebuild.** Drop your Milvus collection by accident; rerun
-  `mfs add` — every chunk hits cache. You only pay for the Milvus
-  INSERT.
-- **Model rollback.** Switch your embedding model back to a previous
-  version → previous results restored from cache, no API spend.
-
-Cache is content-addressable and cross-object — the same paragraph in
-a Slack thread and a code comment is embedded **once**.
-
-### Idempotent everything → recovery = "rerun"
-
-```
-chunk_id = sha1(namespace + connector + object_uri + chunk_kind + locator + lines)
-```
-
-Writing a chunk is `DELETE by chunk_id + INSERT`. Retries, concurrent
-workers, mid-job crashes — they all converge on the same final state.
-There's no `mfs retry`, no `mfs resume`, no checkpoint state machine.
-Recovery collapses to one rule:
-
-> **Crash → just rerun `mfs add`.**
-
-State commits at per-object boundaries, so a kill mid-job never leaves
-a half-indexed object in your index.
-
-### Three-layer ignore — what never enters
-
-Ignored files don't merely skip indexing — they don't become MFS
-objects. `ls`, `cat`, `grep`, `search` behave as if they don't exist:
-
-1. Built-in defaults (`.git/`, `node_modules/`, common binaries).
-2. The repo's own `.gitignore` — respected automatically.
-3. `.mfsignore` (highest priority, supports `!pattern` to re-include).
+Full mechanics: [docs/architecture.md](docs/architecture.md).
 
 ## Why it works the way it does
 
-A few principles run through the architecture above:
+Three principles run through the architecture:
 
-**Upstream stays the source of truth.** Your files, your Postgres
-rows, your Slack history — those are the truth. MFS just keeps a
-derived index. Delete `~/.mfs/` and you lose no data; `mfs add`
-rebuilds the index from the actual sources.
+- **Upstream is the source of truth.** MFS keeps a derived index;
+  delete `~/.mfs/` and you lose no data — `mfs add` rebuilds from
+  the original sources.
+- **Search × browse — two legs of one loop.** Like a library: point
+  at the shelf, flip pages, read the right one. Never trust a search
+  hit until you've reopened it.
+- **File-like URIs because agents already speak shell.** No new
+  query language, no per-source SDK. The same handful of verbs cover
+  every connector.
 
-**Search and browse are two legs of the same loop.** A library doesn't
-hand you the book — it points at a shelf, you flip a few pages, then
-you read the right one. MFS works the same way: `search` and `grep`
-find candidates, `ls` / `tree` show what's around them, `cat` reads
-the exact passage. Don't trust a search hit until you've reopened it.
-
-**File-like URIs because agents already speak shell.** No new query
-language to learn, no per-source SDK to import. `ls`, `cat`, `grep`,
-`tree`, `head`, `tail` work on every connector the same way. The
-abstraction every dev (and every agent) already knows.
+Full design notes: [docs/design-philosophy.md](docs/design-philosophy.md).
 
 ## Docs
 
