@@ -55,6 +55,7 @@ nav:
   - Developer Guide:
     - Content Model: content-model.md
     - Development: development.md
+    - Ingest Pipeline: ingest-pipeline.md
     - Server: server.md
     - HTTP API: api.md
     - SDKs: sdks.md
