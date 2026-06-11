@@ -38,6 +38,13 @@ already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
 
 ## What you can do with it
 
+One CLI finds evidence across every source you've registered —
+`mfs search "..." --all` searches your entire namespace at once.
+Then `ls`, `tree`, and `cat` let an agent walk in and confirm with
+minimum context: search for the candidates, browse for what's around
+them, read only the exact bytes. The two together cut what an agent
+has to load — and pay for — by orders of magnitude.
+
 **Give an AI agent every context you have.** Slack threads, Gmail,
 Notion, GitHub PRs, Drive folders, your design docs — all in one
 query. The agent stops asking *which tool was that in?*
@@ -65,8 +72,8 @@ mfs add postgres://prod-db        # production data
 mfs search "the prompt I tuned for refund disputes" --all
 ```
 
-**Build a multi-source RAG or coding agent without writing 19
-connectors.** MFS already speaks Postgres, GitHub, Notion, Drive,
+**Build a multi-source RAG or coding agent without writing connectors
+for every source.** MFS already speaks Postgres, GitHub, Notion, Drive,
 Slack, Gmail, S3, BigQuery, Snowflake, and more. You build the agent;
 MFS is the retrieval layer underneath.
 
@@ -79,7 +86,7 @@ tickets, database rows — when an incident hits, search every layer in
 one command instead of flipping between five tabs.
 
 ```bash
-mfs search "rate-limit pegged at 22:00" slack://acme jira://acme ./repo
+mfs search "rate-limit pegged at 22:00" --all
 ```
 
 **Audit or onboard.** Find every place a key, email, or function
@@ -88,7 +95,7 @@ actually lives.
 
 ```bash
 mfs grep "API_SECRET_xyz" --all
-mfs search "auth architecture" notion://team gdrive://design github://owner/repo
+mfs search "auth architecture" --all
 ```
 
 ## A harness for agent builders
@@ -144,25 +151,49 @@ First boot downloads the default embedding model (~600 MB) into
 
 ## Run it in production
 
-The CLI is a thin Rust client (2–4 ms cold start, ~6 MB binary). The
-server holds everything heavy: queues, Metadata DB, Milvus, caches,
-workers, and the credentials for every connector. So you can put them
-on different machines.
+The quick-start above ran the CLI and the server on the **same
+machine** — the simplest setup, the fastest to boot, and the one
+where the client and the server share a filesystem so `mfs add
+./my-repo` just works without any upload step.
+
+In production you **split them**: the server (with all the heavy
+state, credentials, workers, and indexes) lives in your data center,
+VPC, or k8s cluster; the CLI and SDKs run wherever your developers
+and agents are. Because the client is a few-MB Rust binary with no
+persistent state, moving it onto a new laptop, a CI runner, or
+inside an agent runtime is free.
+
+```text
+ Local quick-start                       Production
+ ─────────────────                       ──────────
+
+  ┌──────────────────┐                    ┌────────────┐     ┌─────────────────────┐
+  │  one machine     │                    │   CLI      │     │      mfs-server     │
+  │                  │                    │   SDK      │HTTPS│ (VM / container /   │
+  │ CLI  ↔  server   │                    │   agent    │─────│  k8s pod, anywhere) │
+  │ (shared fs)      │                    │   skills   │     │                     │
+  │                  │                    └────────────┘     │  queue · workers    │
+  │  ~/.mfs/         │                                       │  Milvus · Postgres  │
+  │  Milvus Lite     │                                       │  caches · creds     │
+  └──────────────────┘                                       └─────────────────────┘
+```
+
+Server-side configuration is the same in both modes — the wizard walks
+through embedding provider, vector backend, database, cache, and auth
+(see the next section for what it looks like). For deeper knobs, edit
+`~/.mfs/server.toml` directly.
 
 ```bash
-# Server: run in Docker / on a remote VM
-docker compose -f deployments/compose/docker-compose.yml up
+uv run mfs-server setup                          # walk the wizard on the server
 
-# Client: point at the remote server from anywhere
-export MFS_API_URL=https://mfs.your-corp.internal
+export MFS_API_URL=https://mfs.your-corp.internal   # point the CLI at the remote server
 export MFS_API_TOKEN=...
 mfs status
-
-# Swap in cloud-grade backends as you grow
-uv run mfs-server setup --section embedding   # ONNX → OpenAI / Gemini / Ollama
-uv run mfs-server setup --section milvus      # Milvus Lite → self-hosted / Zilliz Cloud
-uv run mfs-server setup --section database    # SQLite → Postgres (for multi-replica)
 ```
+
+Docker images, a Compose file, and a Helm chart for split
+api / worker deployments live under
+[`deployments/`](deployments/).
 
 ## How the C / S split works
 
@@ -223,11 +254,12 @@ full field reference.
 
 ## Try a cross-source search
 
-After registering a few connectors:
+`--all` searches every registered connector at once — local files,
+ticket trackers, chat workspaces, databases. Same JSON-friendly
+output across all of them:
 
 ```text
-$ mfs search "rate-limit guard misfires under burst" \
-    ./repo slack://acme jira://acme
+$ mfs search "rate-limit guard misfires under burst" --all
 
 slack://acme/channels/oncall/messages.jsonl  score=0.91
   [Mon 22:14] @alice: ratelimiter pegged 500ms p99 tail, dump attached
@@ -254,8 +286,9 @@ mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
 
 ## Connectors
 
-Beyond local files, MFS ships 18 more connectors. Each exposes its
-source as a URI tree you can `ls` / `cat` / `search` like a directory:
+Beyond local files, MFS ships a growing catalog of connectors. Each
+exposes its source as a URI tree you can `ls` / `cat` / `search` like
+a directory:
 
 | Group | Schemes |
 |---|---|
@@ -381,9 +414,9 @@ The full guide lives in **[docs/](docs/)** (also served via MkDocs):
 
 ## Status
 
-`v0.4.0-beta.2`. The CLI surface and connector matrix are stable; the
-HTTP API may still shift before `v0.4.0` final, so pin versions in
-scripts. Found a bug? Open an issue:
+`v0.4.0-beta.2`. The CLI surface and connector catalog are stable;
+the HTTP API may still shift before `v0.4.0` final, so pin versions
+in scripts. Found a bug? Open an issue:
 <https://github.com/zilliztech/mfs/issues>.
 
 ## Acknowledgements
