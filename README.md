@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="MFS logo" width="140" />
+  <img src="https://github.com/user-attachments/assets/1a14c3e3-32c3-4474-a081-ce737bfc439a" alt="MFS logo" width="140" />
 </p>
 
 <h1 align="center">MFS — Multi-source File-like Search</h1>
@@ -33,7 +33,7 @@ already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
 `tail`. Plus `search` for hybrid semantic + keyword retrieval.
 
 <p align="center">
-  <img src="docs/assets/architecture.png" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
+  <img src="https://github.com/user-attachments/assets/1430d872-4184-4fb3-9168-a0b715dc621a" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
 </p>
 
 ## Use it
