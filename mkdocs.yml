@@ -8,8 +8,8 @@ theme:
   favicon: assets/logo.svg
   palette:
     scheme: slate
-    primary: black
-    accent: cyan
+    primary: custom
+    accent: custom
   features:
     - navigation.tabs
     - navigation.tabs.sticky
