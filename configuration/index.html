@@ -2047,6 +2047,17 @@ the other objects in the run continue.</p>
 </ol>
 <p>Inspect a job's per-object failures and their <code>last_error</code> with
 <code>mfs job show &lt;job_id&gt;</code>, or check the aggregate counts with <code>mfs status</code>.</p>
+<p>On a memory-tight host a large sync can push total usage past the limit and the
+kernel terminates the whole <code>mfs-server</code> process rather than failing a single
+object. Alongside <code>batch_size</code> / <code>chunk_size</code>, the levers that lower peak memory
+are:</p>
+<ul>
+<li>Lower <code>[chunks_producer] concurrency</code> (default <code>8</code>) — fewer objects held in
+  memory and processed in parallel.</li>
+<li>Run a Milvus backend other than Lite (Standalone / Cluster / Cloud), so the
+  vector store uses its own memory instead of the server process's.</li>
+<li>Narrow each sync with the connector's <code>max_read_rows</code>, scope, or <code>--since</code>.</li>
+</ul>
 <h2 id="auth-modes">Auth Modes<a class="headerlink" href="#auth-modes" title="Permanent link">&para;</a></h2>
 <p><code>/v1</code> endpoints require <code>Authorization: Bearer &lt;token&gt;</code> when <code>auth_token</code> is
 configured. <code>GET /healthz</code> is exempt so health probes work without secrets.</p>
