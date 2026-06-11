@@ -20,18 +20,16 @@
 ---
 
 Modern AI agents need a place to keep their **context**: codebases,
-memory, skills, knowledge, work messages, documents, databases. Most of
-that lives scattered across `~/notes/`, `~/.claude/`, ten SaaS apps,
-three databases.
+memory, skills, knowledge, work messages, documents, databases. Most
+of that ends up spread across local folders (`~/.claude/skills/`,
+`~/.claude/projects/`, `~/.codex/`, your repos), team SaaS (Slack,
+Gmail, Notion, Drive), and production stores (Postgres, Mongo, S3).
 
 MFS gathers it under one shell. Every source — local folders, a
 Postgres table, a Slack workspace, a Google Drive, a Notion graph — is
 mounted as a **file-like tree under a stable URI**. The shell verbs you
 already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
 `tail`. Plus `search` for hybrid semantic + keyword retrieval.
-
-Defaults run entirely on your laptop. No API keys. No cloud account.
-No GPU.
 
 <p align="center">
   <img src="docs/assets/architecture.png" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
@@ -47,13 +45,24 @@ query. The agent stops asking *which tool was that in?*
 mfs search "how did we handle the SSO outage last quarter" --all
 ```
 
-**Manage your agent's memory, skills, and code.** Markdown notes,
-JSONL session logs, SKILL packs, working repos — usually scattered
-across `~/notes/`, `~/.claude/skills/`, `~/repos/`. MFS turns the
-whole spread into one searchable layer.
+**Manage your coding agent's memory, skills, code, and work files.**
+A modern agent setup scatters state across a dozen places: Claude Code
+keeps skill packs in `~/.claude/skills/` and per-project session memory
+under `~/.claude/projects/<encoded-path>/memory/`; Codex CLI keeps its
+sessions in `~/.codex/`; Aider drops `.aider.chat.history.md` in every
+repo it touches. Add the codebases the agent reads, your design notes
+in `~/Documents/` or Obsidian, plus team docs in Notion and tickets in
+Linear — the working context is everywhere no single agent can see at
+once. MFS pulls it all into one searchable layer:
 
 ```bash
-mfs add ~/notes ~/.claude/skills ~/repos/agents
+mfs add ~/.claude/skills          # global skill packs
+mfs add ~/.claude/projects        # per-project session memory
+mfs add ~/.codex                  # Codex CLI sessions
+mfs add ~/mfs ~/myagent           # codebases (whatever your layout)
+mfs add notion://team             # design docs and wiki
+mfs add linear://workspace        # tickets and product context
+
 mfs search "the prompt I tuned for refund disputes" --all
 ```
 
