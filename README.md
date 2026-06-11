@@ -36,14 +36,58 @@ already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
   <img src="docs/assets/architecture.png" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
 </p>
 
-## What you can do with it
+## Use it, or build with it
+
+MFS serves two audiences at once. You might just want to search
+across every source you own from the shell. Or you might be building
+an agent whose central problem *is* searching across many sources —
+and you'd rather use a layer than write one yourself. The same CLI
+and the same URI tree work for both:
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│   Use it directly                      Build agents on top of it             │
+│   ─────────────────                    ───────────────────────               │
+│   you at the shell, agent at your      coding agents · memory systems        │
+│   side: one query across files,        skill managers · multi-source RAG     │
+│   chats, tickets, mail, code, ...      knowledge copilots · …                │
+└───────────────────────────────────┬──────────────────────────────────────────┘
+                                    │  drives via CLI / SDK / Skill pack
+                                    ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│   MFS   ← you are here                                                       │
+│   ─────                                                                      │
+│   CLI    mfs search · grep · ls · cat · tree · head · tail · add · remove    │
+│   SDK    Python · TypeScript                                                 │
+│   Skill  skills/mfs-find · skills/mfs-ingest                                 │
+│                                                                              │
+│   hybrid search · progressive browse · content cache · idempotent · CS split │
+└───────────────────────────────────┬──────────────────────────────────────────┘
+                                    │  one URI per source
+                                    ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│   Your context (any URI is a file-tree)                                      │
+│   ──────────────────────────────────────                                     │
+│                                                                              │
+│   local files        databases       chats & mail        team work           │
+│   ~/.agents/         postgres        slack               notion (docs)       │
+│   ~/repos/           mysql           discord             gdrive (files)      │
+│   ~/Documents/       mongo           gmail               hubspot (CRM)       │
+│                      bigquery        feishu              zendesk (support)   │
+│                      snowflake                           jira (issues)       │
+│                      s3                                  linear (issues)     │
+│                                                          web (crawls)        │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Use it directly
 
 One CLI finds evidence across every source you've registered —
 `mfs search "..." --all` searches your entire namespace at once.
-Then `ls`, `tree`, and `cat` let an agent walk in and confirm with
-minimum context: search for the candidates, browse for what's around
-them, read only the exact bytes. The two together cut what an agent
-has to load — and pay for — by orders of magnitude.
+Then `ls`, `tree`, and `cat` let you (or your agent) walk in and
+confirm with minimum context: search for the candidates, browse for
+what's around them, read only the exact bytes. The two together cut
+what an agent has to load — and pay for — by orders of magnitude.
 
 **Give an AI agent every context you have.** Slack threads, Gmail,
 Notion, GitHub PRs, Drive folders, your design docs — all in one
@@ -98,10 +142,11 @@ mfs grep "API_SECRET_xyz" --all
 mfs search "auth architecture" --all
 ```
 
-## A harness for agent builders
+### Build agents on top of it
 
-MFS isn't just *callable* by agents — it's the harness you use to
-*build* them.
+If you're building the agent (not just calling MFS from it), MFS is
+the harness — the context layer your agent sits on top of, not a
+passive index it queries occasionally.
 
 A modern agent project juggles several streams of state:
 
@@ -114,57 +159,49 @@ A modern agent project juggles several streams of state:
 
 Without a harness this stuff scatters across local folders, SaaS
 apps, and private databases. With MFS, the agent gets one CLI
-surface — `mfs search`, `mfs cat`, `mfs grep` — over all of it, and
-so do you, the human building the agent.
-
-Here's where MFS sits in your stack:
-
-```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│   Your agent application                                                     │
-│   ───────────────────────                                                    │
-│   coding agents · memory systems · skill managers · multi-source RAG ·       │
-│   knowledge copilots · …or whatever you are building                         │
-└───────────────────────────────────┬──────────────────────────────────────────┘
-                                    │  drives via CLI / SDK / Skill pack
-                                    ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│   MFS   ← you are here                                                       │
-│   ─────                                                                      │
-│   CLI    mfs search · grep · ls · cat · tree · head · tail · add · remove    │
-│   SDK    Python · TypeScript                                                 │
-│   Skill  skills/mfs-find · skills/mfs-ingest                                 │
-│                                                                              │
-│   hybrid search · progressive browse · content cache · idempotent · CS split │
-└───────────────────────────────────┬──────────────────────────────────────────┘
-                                    │  one URI per source
-                                    ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│   Your context (any URI is a file-tree)                                      │
-│   ──────────────────────────────────────                                     │
-│                                                                              │
-│   local files        databases       chats & mail        team work           │
-│   ~/.agents/         postgres        slack               notion (docs)       │
-│   ~/repos/           mysql           discord             gdrive (files)      │
-│   ~/Documents/       mongo           gmail               hubspot (CRM)       │
-│                      bigquery        feishu              zendesk (support)   │
-│                      snowflake                           jira (issues)       │
-│                      s3                                  linear (issues)     │
-│                                                          web (crawls)        │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+surface — `mfs search`, `mfs cat`, `mfs grep` — over all of it.
 
 Drop the
 [`skills/mfs-find`](skills/mfs-find/SKILL.md) and
 [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) packs into Claude
-Code, Codex CLI, OpenCode, or your own agent runtime — your agent
+Code, Codex CLI, OpenCode, or your own agent runtime — the agent
 inherits the whole context layer with no custom integration.
 
-## Get running in 60 seconds
+## Run it
 
-The local path needs **no API key, no GPU, no cloud account**.
-Defaults are local ONNX embeddings + Milvus Lite + SQLite, all stored
-under `~/.mfs/`.
+The CLI is a thin Rust client; the server holds all the heavy state,
+secrets, and workers. Same defaults work two ways — keep both on the
+**same machine** (the simplest path, no API key or cloud account
+needed) or **split them** for production (server in your data
+center / VPC / k8s cluster, CLI and SDKs anywhere your developers
+and agents are):
+
+```text
+ Local quick-start                       Production
+ ─────────────────                       ──────────
+
+  ┌──────────────────┐                    ┌────────────┐     ┌─────────────────────┐
+  │  one machine     │                    │   CLI      │     │      mfs-server     │
+  │                  │                    │   SDK      │HTTPS│ (VM / container /   │
+  │ CLI  ↔  server   │                    │   agent    │─────│  k8s pod, anywhere) │
+  │ (shared fs)      │                    │   skills   │     │                     │
+  │                  │                    └────────────┘     │  queue · workers    │
+  │  ~/.mfs/         │                                       │  Milvus · Postgres  │
+  │  Milvus Lite     │                                       │  caches · creds     │
+  └──────────────────┘                                       └─────────────────────┘
+```
+
+The client is a few-MB Rust binary with no persistent state, so
+moving it onto a new laptop, a CI runner, or inside an agent runtime
+is free. The server is where the secrets, the index, and the
+expensive work live.
+
+### On one machine (60 seconds)
+
+CLI and server share a filesystem so `mfs add ./my-repo` just works
+without any upload step. **No API key, no GPU, no cloud account.**
+Defaults are local ONNX embeddings + Milvus Lite + SQLite, all
+stored under `~/.mfs/`.
 
 ```bash
 # 1. Install the CLI
@@ -188,38 +225,12 @@ First boot downloads the default embedding model (~600 MB) into
 > macOS first launch may prompt about an unidentified developer. Run
 > `xattr -d com.apple.quarantine $(which mfs)` once after install.
 
-## Run it in production
-
-The quick-start above ran the CLI and the server on the **same
-machine** — the simplest setup, the fastest to boot, and the one
-where the client and the server share a filesystem so `mfs add
-./my-repo` just works without any upload step.
-
-In production you **split them**: the server (with all the heavy
-state, credentials, workers, and indexes) lives in your data center,
-VPC, or k8s cluster; the CLI and SDKs run wherever your developers
-and agents are. Because the client is a few-MB Rust binary with no
-persistent state, moving it onto a new laptop, a CI runner, or
-inside an agent runtime is free.
-
-```text
- Local quick-start                       Production
- ─────────────────                       ──────────
-
-  ┌──────────────────┐                    ┌────────────┐     ┌─────────────────────┐
-  │  one machine     │                    │   CLI      │     │      mfs-server     │
-  │                  │                    │   SDK      │HTTPS│ (VM / container /   │
-  │ CLI  ↔  server   │                    │   agent    │─────│  k8s pod, anywhere) │
-  │ (shared fs)      │                    │   skills   │     │                     │
-  │                  │                    └────────────┘     │  queue · workers    │
-  │  ~/.mfs/         │                                       │  Milvus · Postgres  │
-  │  Milvus Lite     │                                       │  caches · creds     │
-  └──────────────────┘                                       └─────────────────────┘
-```
+### Split across machines (production)
 
 Server-side configuration is the same in both modes — the wizard walks
 through embedding provider, vector backend, database, cache, and auth
-(see the next section for what it looks like). For deeper knobs, edit
+(see [Configure the server](#configure-the-server-wizard-or-toml)
+below for what it looks like). For deeper knobs, edit
 `~/.mfs/server.toml` directly.
 
 ```bash
