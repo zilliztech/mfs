@@ -103,51 +103,50 @@ magnitude.
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-A few concrete shapes the unified UX takes:
+Three concrete shapes this unified UX takes:
 
-**Give an AI agent every context you have.** Slack threads, Gmail,
-Notion, GitHub PRs, Drive folders, your design docs — all in one
-query. The agent stops asking *which tool was that in?*
+**Give your agent every context you have — and a real memory of
+your team's work.** Slack threads, Gmail, Notion, GitHub PRs, Drive
+folders, Jira tickets, Postgres rows, design notes — all collapse
+into one searchable namespace. A decision buried in a chat from
+three months ago, a spec the team mentioned in passing, the
+customer's last support note — `mfs search "..." --all` finds it
+across every source in seconds and feeds the exact bytes into the
+agent's context. The unified namespace doubles as long-term memory
+for everything your team has actually written down — a quality
+leap for any agent whose usefulness depends on knowing what your
+team already knows.
 
 ```bash
 mfs search "how did we handle the SSO outage last quarter" --all
+mfs search "what did we decide about the Q3 pricing experiment" --all
 ```
 
-**Pull together everything the agent needs to be useful — memory,
-skills, code, work data — into one search layer.** A modern agent
-setup scatters state everywhere: skill packs and session memory on
-local disk, your codebases in your editor, team docs and tickets in
-Notion and Linear, chats in Slack or Feishu, customer records in
-HubSpot, raw events in Postgres or BigQuery. MFS gathers all of it:
+**Manage every artifact your AI workflow leaves behind.** Skill
+packs in Markdown, session memory in JSONL, scratch code, design
+notes — the files a coding agent produces pile up across
+`~/.agents/skills/`, `~/.agents/memory/`, and your scratch repos.
+MFS indexes all of it through the same search surface, so the next
+agent run can pull from the whole library on demand — and so can
+the agent app you're building on top.
 
 ```bash
-mfs add ~/.agents/skills          # skill packs the agent loads
-mfs add ~/.agents/memory          # past-session memory
-mfs add notion://workspace        # design docs and team wiki
+mfs add ~/.agents/skills          # skill packs your agents load
+mfs add ~/.agents/memory          # past-session JSONL / Markdown
+mfs add ~/repos                   # codebases the agent reads
+mfs add notion://workspace        # team docs and wiki
 mfs add linear://workspace        # tickets and product context
-mfs add feishu://my-workspace     # Feishu / Lark chats and docs
-mfs add hubspot://acme            # CRM contacts, deals, support tickets
-mfs add postgres://prod-db        # production data
 
 mfs search "the prompt I tuned for refund disputes" --all
 ```
 
-**Debug across sources in one shot.** Logs, Slack history, Jira
-tickets, database rows — when an incident hits, search every layer in
-one command instead of flipping between five tabs.
-
-```bash
-mfs search "rate-limit pegged at 22:00" --all
-```
-
-**Audit or onboard.** Find every place a key, email, or function
-name shows up. Or point a new hire at every design doc — wherever it
-actually lives.
-
-```bash
-mfs grep "API_SECRET_xyz" --all
-mfs search "auth architecture" --all
-```
+**A production-grade retrieval base for the AI apps you build on
+top.** Queues, content-addressable caches, incremental sync, worker
+pools, idempotent indexing — the pipeline that turns raw sources
+into searchable chunks is a finished engineering surface, not glue
+code you have to maintain. Wire MFS in as the base layer and skip
+rebuilding "yet another embedding pipeline" for every project your
+team ships.
 
 ## Run it
 
