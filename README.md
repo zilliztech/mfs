@@ -36,7 +36,7 @@ already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
   <img src="https://github.com/user-attachments/assets/1430d872-4184-4fb3-9168-a0b715dc621a" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
 </p>
 
-## Use it
+## 🚀 Use it
 
 MFS gathers every source you've registered into a single file tree
 under one URI scheme. Local repos, Postgres tables, Slack workspaces,
@@ -105,7 +105,7 @@ magnitude.
 
 Three concrete shapes this unified UX takes:
 
-**Give your agent every context you have — and a real memory of
+**🧠 Give your agent every context you have — and a real memory of
 your team's work.** Slack threads, Gmail, Notion, GitHub PRs, Drive
 folders, Jira tickets, Postgres rows, design notes — all collapse
 into one searchable namespace. A decision buried in a chat from
@@ -122,7 +122,7 @@ mfs search "how did we handle the SSO outage last quarter" --all
 mfs search "what did we decide about the Q3 pricing experiment" --all
 ```
 
-**Manage every artifact your AI workflow leaves behind.** Skill
+**🗂️ Manage every artifact your AI workflow leaves behind.** Skill
 packs in Markdown, session memory in JSONL, scratch code, design
 notes — the files a coding agent produces pile up across
 `~/.agents/skills/`, `~/.agents/memory/`, and your scratch repos.
@@ -140,7 +140,7 @@ mfs add linear://workspace        # tickets and product context
 mfs search "the prompt I tuned for refund disputes" --all
 ```
 
-**A production-grade retrieval base for the AI apps you build on
+**⚙️ A production-grade retrieval base for the AI apps you build on
 top.** Queues, content-addressable caches, incremental sync, worker
 pools, idempotent indexing — the pipeline that turns raw sources
 into searchable chunks is a finished engineering surface, not glue
@@ -283,7 +283,7 @@ namespace, custom worker count) — edit `~/.mfs/server.toml`
 directly. See [docs/configuration.md](docs/configuration.md) for the
 full field reference.
 
-## Try a cross-source search
+## 🔍 Try a cross-source search
 
 `--all` searches every registered connector at once — local files,
 ticket trackers, chat workspaces, databases. Same JSON-friendly
@@ -339,7 +339,7 @@ mfs add linear://workspace --config ./linear.toml
 Per-connector credential setup and TOML shape:
 [docs/connector-reference.md](docs/connector-reference.md).
 
-## Build agents on top of MFS
+## 🛠️ Build agents on top of MFS
 
 If you're building an agent project (not just calling MFS from a
 shell), MFS becomes the harness — the retrieval and context layer
@@ -361,38 +361,38 @@ of it — and you skip writing a connector per source.
 
 Three ways to wire MFS into your agent:
 
-- **Skill packs.** Drop [`skills/mfs-find`](skills/mfs-find/SKILL.md)
+- **🧩 Skill packs.** Drop [`skills/mfs-find`](skills/mfs-find/SKILL.md)
   and [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) into Claude
   Code, Codex CLI, OpenCode, or your own agent runtime — the agent
   inherits the whole search-and-browse loop with no custom
   integration code.
-- **SDKs.** Generated Python and TypeScript clients under `sdks/`
+- **📦 SDKs.** Generated Python and TypeScript clients under `sdks/`
   cover the cases where shelling out to `mfs` is awkward (long-
   running daemons, language runtimes without a shell).
-- **HTTP `/v1`.** Skills and SDKs are thin wrappers around the same
-  OpenAPI surface — go direct when you need to.
+- **🔗 HTTP `/v1`.** Skills and SDKs are thin wrappers around the
+  same OpenAPI surface — go direct when you need to.
 
-## Robust by design
+## 🛡️ Robust by design
 
 The index is **derived state** — losable, rebuildable, crash-safe:
 
-- **Rename detection in three tiers** — `(size, mtime)` first,
+- **🔁 Rename detection in three tiers** — `(size, mtime)` first,
   then inode pairing for same-filesystem moves, then sha1 fallback
   for cross-filesystem / Windows / git-rewrite cases. Moving or
   renaming files costs **zero embedding API calls**.
-- **Content-addressable cache.** Embeddings, conversions, summaries
-  are keyed by `sha1(content + tool + version)` — survives `git
-  checkout`, vector-DB rebuilds, and embedding-model rollbacks with
-  cache hits.
-- **Idempotent everything.** `chunk_id` is a content hash; writes
+- **💾 Content-addressable cache.** Embeddings, conversions,
+  summaries are keyed by `sha1(content + tool + version)` —
+  survives `git checkout`, vector-DB rebuilds, and embedding-model
+  rollbacks with cache hits.
+- **♻️ Idempotent everything.** `chunk_id` is a content hash; writes
   are `DELETE + INSERT`. No `mfs retry`, no `mfs resume` — recovery
   collapses to *"crash → just rerun `mfs add`"*.
-- **Three-layer ignore.** Built-in defaults + `.gitignore` +
+- **🚫 Three-layer ignore.** Built-in defaults + `.gitignore` +
   `.mfsignore`. Ignored files don't even become MFS objects.
 
 Full mechanics: [docs/architecture.md](docs/architecture.md).
 
-## Why it works the way it does
+## 💭 Why it works the way it does
 
 Three principles run through the architecture:
 
