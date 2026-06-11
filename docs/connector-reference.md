@@ -139,12 +139,25 @@ Fine-grained PAT:
 1. Open <https://github.com/settings/tokens?type=beta> → **Generate new
    token**. Pick a name and expiration (90-day default; set a reminder to
    rotate).
+
+   ![GitHub personal access tokens page](https://github.com/user-attachments/assets/d7fee707-304f-4195-9e45-de1577493558)
+
+   ![GitHub generate token menu](https://github.com/user-attachments/assets/c837450e-48ed-43ef-893a-7828f2741bc5)
+
+   ![GitHub fine-grained token form](https://github.com/user-attachments/assets/62d9923f-52bb-4e2a-a9f8-b9707bc48bc4)
+
 2. Repository access: **Only select repositories** → pick the ones to index.
+
+   ![GitHub repository access options](https://github.com/user-attachments/assets/d901ba9a-b8cb-4a39-9a20-27eb6668cafa)
+
 3. Repository permissions:
     - **Contents** → Read-only
     - **Issues** → Read-only
     - **Pull requests** → Read-only
     - **Metadata** → Read-only (always required)
+
+   ![GitHub repository permissions](https://github.com/user-attachments/assets/a887d024-26b1-418e-b063-24def34ccde9)
+
 4. Generate the token and copy the `github_pat_...` value. That goes into
    `GITHUB_TOKEN`.
 
@@ -393,6 +406,13 @@ For a bot token:
 
 1. Open <https://api.slack.com/apps> and click **Create New App** → "From
    scratch". Pick a name and the target workspace.
+
+   ![Slack Create New App button](https://github.com/user-attachments/assets/40ffd973-84d2-483f-beca-720c723223c2)
+
+   ![Slack Create an app dialog](https://github.com/user-attachments/assets/5119276e-cde3-405e-bd86-7fb33b2218d9)
+
+   ![Slack From scratch app form](https://github.com/user-attachments/assets/abbdc1cf-012a-44ed-ae62-210abc252980)
+
 2. Left sidebar → **OAuth & Permissions** → scroll to "Bot Token Scopes" and
    add:
     - `channels:read` — list public channels
@@ -459,14 +479,30 @@ Bot token:
 
 1. Open <https://discord.com/developers/applications> and click **New
    Application**. Name it.
+
+   ![Discord applications page](https://github.com/user-attachments/assets/50d550fc-6e35-41e2-bbc2-deafa3aa81ca)
+
+   ![Discord create app dialog](https://github.com/user-attachments/assets/59893fdb-b152-4f7f-83bd-8b4cf429080b)
+
 2. Left sidebar → **Bot** → click **Add Bot** → **Reset Token** → copy the
    token. This is the value that goes into `DISCORD_BOT_TOKEN`.
+
+   ![Discord bot token settings](https://github.com/user-attachments/assets/c6b2f7cd-0ef3-4de8-afdd-8389295f2be8)
+
 3. On the same Bot page, scroll down to **Privileged Gateway Intents** and
    enable **Message Content Intent**. Without this the bot connects fine
    but every message comes back with empty `content`.
+
+   ![Discord message content intent](https://github.com/user-attachments/assets/19905907-5ac7-47ed-b285-59c824660834)
+
 4. Left sidebar → **OAuth2** → **URL Generator**:
     - Scopes: `bot`
     - Bot Permissions: `View Channels`, `Read Message History`
+
+    ![Discord OAuth2 URL generator scopes](https://github.com/user-attachments/assets/70942093-8c13-4cd8-ab2a-39f65ea8777c)
+
+    ![Discord bot permissions](https://github.com/user-attachments/assets/56c5ca0a-fd36-4454-94db-f7d20555a7ce)
+
     - Copy the generated URL, open it in a browser, and pick the server
       (guild) to add the bot to. You must be the guild owner or have
       Manage Server permission.
@@ -522,9 +558,17 @@ are not supported by the current plugin.
 
 1. Open <https://console.cloud.google.com> → create or pick a project.
 2. **APIs & Services → Library → Gmail API** → click **Enable**.
+
+   ![Google Cloud Gmail API page](https://github.com/user-attachments/assets/8a2b96ab-8ea6-4442-9e25-f186c879dd14)
+
 3. **APIs & Services → Credentials → Create Credentials → OAuth client
    ID** → Application type: **Desktop app** → **Download JSON** (this
    is the client credentials file, not the token yet).
+
+   ![Google Cloud Create credentials menu](https://github.com/user-attachments/assets/fc27a2aa-8eaf-4338-ada4-067be970857d)
+
+   ![Google Cloud OAuth desktop client form](https://github.com/user-attachments/assets/2872163a-18d2-4592-ac43-b7ffc49693ed)
+
 4. Run Google's OAuth flow once on a machine with a browser (e.g. the
    `google-auth-oauthlib` `InstalledAppFlow.run_local_server` snippet)
    requesting scope `https://www.googleapis.com/auth/gmail.readonly`.
@@ -587,9 +631,18 @@ records are `notion://<alias>/data_sources/<data-source-id>/records.jsonl` with
 plus explicit page-level sharing.
 
 1. Open <https://www.notion.so/profile/integrations> → **New integration**.
+
+   ![Notion connections page](https://github.com/user-attachments/assets/8e45d871-8304-4d4d-aab0-3a18ddba7cca)
+
 2. Pick a name and the target workspace.
+
+   ![Notion new connection auth method](https://github.com/user-attachments/assets/bf97bf0a-654c-43da-82d5-ac0c42ba71cc)
+
 3. Under **Capabilities**, tick `Read content` (the other capabilities are
    not needed for MFS).
+
+   ![Notion read content capability](https://github.com/user-attachments/assets/e0b7569f-bbf6-454a-94c1-3f74fb0923aa)
+
 4. Submit, then copy the **Internal Integration Token** (`secret_...`).
    That goes into `NOTION_TOKEN`.
 
@@ -653,6 +706,11 @@ mfs cat notion://workspace/data_sources/<data-source-id>/records.jsonl --locator
       <https://id.atlassian.com/manage-profile/security/api-tokens> →
       **Create API token** → label it `mfs` → copy. Goes into
       `JIRA_API_TOKEN`.
+
+      ![Atlassian API tokens page](https://github.com/user-attachments/assets/578f84bc-f847-49a1-b318-495091f9c2cc)
+
+      ![Atlassian create API token dialog](https://github.com/user-attachments/assets/2118ce0d-4901-497d-aea8-2ecbf430d848)
+
 - **Atlassian Server / Data Center** (self-hosted):
     - URL: `https://jira.acme.internal`
     - Username: leave empty
@@ -711,26 +769,33 @@ mfs cat jira://acme/projects/ENG/issues.jsonl --locator '{"key":"ENG-1234"}'
 
 **Obtain credentials:** a **Personal API key** from Linear:
 
-1. Open <https://linear.app> → **Settings → Account → API → Personal
-   API keys**.
-2. Click **Create new key**, name it `mfs`, copy the value (starts with
-   `lin_api_...`). That goes into `LINEAR_API_KEY`.
+1. Open <https://linear.app> → **Settings → Personal → Security & access**
+   and scroll to **Personal API keys**.
 
-The key inherits the issuing user's workspace access (all teams and
-projects visible to them in the Linear UI).
+   ![Linear Personal API keys section](https://github.com/user-attachments/assets/d89e4d97-7fc6-47ce-8dab-436d3c6e3e18)
+
+2. Click **New API key**, name it `mfs`, and choose the permission and team
+   access that covers the teams you plan to sync.
+
+   ![Linear Create API key dialog](https://github.com/user-attachments/assets/6e2a3f03-9dab-4753-a8e7-607f04190f8f)
+
+3. Click **Create** and copy the value (starts with `lin_api_...`). That goes
+   into `LINEAR_API_KEY`.
+
+The key is tied to the issuing user's account. If you leave team access broad,
+MFS can enumerate all teams visible to that user; if you restrict team access,
+make sure the teams in `teams = [...]` are included.
 
 **Minimum config:**
 
 ```toml
 api_key = "env:LINEAR_API_KEY"
 teams = ["ENG"]
-
-[[objects]]
-match = "/teams/ENG"
-text_fields = ["title", "description"]
-locator_fields = ["identifier"]
-metadata_fields = ["state", "priority", "updatedAt"]
 ```
+
+The current connector has built-in presets for `issues.jsonl` and
+`users.jsonl`, so `[[objects]]` is not required for normal issue and user
+indexing. Add object rules only when you need to override the default fields.
 
 **Start:**
 
@@ -751,7 +816,10 @@ mfs cat linear://workspace/teams/ENG/issues.jsonl --locator '{"identifier":"ENG-
 - The GraphQL API key is sent as the raw `Authorization` header value, not
   `Bearer <token>`.
 - If `teams` is omitted, all visible teams are enumerated.
-- Add `[[objects]]`; the current plugin has no built-in Linear preset.
+- If the Linear API key uses restricted team access, a team listed in TOML but
+  missing from the key's team scope appears empty.
+- Built-in presets index issue `title` and `description`, plus user `name` and
+  `email`. Use custom `[[objects]]` rules only if you need different fields.
 - The current flattened issue record contains `identifier`, not an `id` field.
 
 ## `zendesk`
@@ -817,12 +885,24 @@ mfs cat zendesk://acme/tickets/records.jsonl --locator '{"id":12345}'
 
 1. Open <https://app.hubspot.com> → **Settings** (gear icon) →
    **Integrations → Private Apps** → **Create a private app**.
+
+   If HubSpot shows the **Legacy Apps** page for the private app flow, click
+   **Create legacy app** and choose the private app option for one account.
+
+   ![HubSpot Create legacy app button](https://github.com/user-attachments/assets/eead666d-2e61-43b6-af9d-0a6453a4e96c)
+
 2. Pick a name and description.
+
+   ![HubSpot private app basic info form](https://github.com/user-attachments/assets/dffe73cb-d60c-41c2-89d2-eb7ce59c8954)
+
 3. On the **Scopes** tab, enable the read scopes you need:
     - `crm.objects.contacts.read`
     - `crm.objects.companies.read`
     - `crm.objects.deals.read`
     - `tickets` (Service Hub only) — read tickets
+
+   ![HubSpot selected read scopes](https://github.com/user-attachments/assets/92dd7813-bb96-4f91-8e63-67805f654483)
+
 4. **Create app**. On the next screen copy the access token (`pat-na1-...`
    for the NA1 region, `pat-eu1-...` for EU). **The token is shown only
    once.** It goes into `HUBSPOT_ACCESS_TOKEN`.
@@ -874,6 +954,15 @@ rows and `schema.json` for table schemas.
 visible to the server process. Three common ways:
 
 1. **Service account JSON file** (most common in production):
+
+    In Google Cloud Console, confirm **BigQuery API** is enabled, then create
+    or choose a service account for the dataset access boundary.
+
+    ![Google Cloud BigQuery API page](https://github.com/user-attachments/assets/fd034ea0-4607-4e74-b65a-106460830889)
+
+    ![Google Cloud service accounts page](https://github.com/user-attachments/assets/6d7dfb43-f7f9-46dc-a049-ed9cc251afea)
+
+    ![Google Cloud create service account form](https://github.com/user-attachments/assets/d8275bc9-1792-44fd-951a-18dd3cc789fd)
 
     ```bash
     export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json
@@ -962,6 +1051,12 @@ before relying on this in production.
 user in the Snowflake UI, attach a network policy that includes your
 egress IPs, and put the token into `credential_ref`. Rotation is just
 "issue a new PAT, replace the secret" — no key-pair re-registration.
+
+![Snowflake Users and roles page](https://github.com/user-attachments/assets/102fd1cf-3841-4606-918e-0cff54f356c2)
+
+![Snowflake programmatic access tokens section](https://github.com/user-attachments/assets/7fae2256-cf98-4750-8236-0fca285ab69f)
+
+![Snowflake new programmatic access token dialog](https://github.com/user-attachments/assets/9a2ba38a-8bed-4c9b-8c6b-1b6dcafd7909)
 
 The user should have a read-only role; grant `USAGE` on the warehouse,
 database, schemas, plus `SELECT` on the in-scope tables.
@@ -1095,9 +1190,17 @@ are not supported by the current plugin.
 
 1. GCP Console → **APIs & Services → Library** → enable **Google Drive
    API**.
+
+   ![Google Cloud Drive API page](https://github.com/user-attachments/assets/523b9021-f809-4b1f-a1ad-16703739c409)
+
 2. **Credentials → Create Credentials → OAuth client ID** → Application
    type: **Desktop app** → **Download JSON** (the client credentials
    file).
+
+   ![Google Cloud Create credentials menu](https://github.com/user-attachments/assets/fc27a2aa-8eaf-4338-ada4-067be970857d)
+
+   ![Google Cloud OAuth desktop client form](https://github.com/user-attachments/assets/2872163a-18d2-4592-ac43-b7ffc49693ed)
+
 3. Run Google's OAuth flow once on a machine with a browser (e.g. the
    `google-auth-oauthlib` `InstalledAppFlow.run_local_server` snippet)
    requesting scope `https://www.googleapis.com/auth/drive.readonly`.
@@ -1169,10 +1272,22 @@ from the Lark Developer Console.
 
 1. Go to <https://open.feishu.cn/app> (feishu / China) or
    <https://open.larksuite.com/app> (lark / overseas).
+
+   ![Feishu Create Custom App button](https://github.com/user-attachments/assets/1099fb06-aa59-4b5f-ba1b-543f7551e508)
+
 2. **Create Custom App** → name + icon. Note the **App ID** (`cli_...`) and
    **App Secret**.
+
+   ![Feishu Create custom app dialog](https://github.com/user-attachments/assets/99a2a7e2-769a-49b4-b3ba-2e8ee2409bea)
+
+   ![Feishu app credentials section](https://github.com/user-attachments/assets/478ddc09-79e5-4d8c-a3c2-e441ebb37c66)
+
 3. **Permissions & Scopes** → add the read scopes below, then **Version
    Management & Release** → request admin approval if your org requires it.
+
+   ![Feishu Permissions and Scopes page](https://github.com/user-attachments/assets/4183bc00-e351-4576-9f19-8520290d114c)
+
+   ![Feishu Version Management and Release page](https://github.com/user-attachments/assets/f1fa494a-46eb-4934-a65f-97fbd9f6eef8)
 
 ### User mode (default, recommended)
 
