@@ -1842,6 +1842,21 @@ class Engine:
             )
         return data
 
+    async def _converted_md_stale(self, cid: str, object_uri: str, live_fp: str | None) -> bool:
+        """True when the source's live fingerprint differs from the one recorded at ingest, so
+        the cached converted_md no longer reflects the source. `live_fp` comes from the stat()
+        the read already did, so this costs one local metadata lookup. A connector that yields
+        no fingerprint (live_fp falsy) can't be cheaply checked -> serve the cached copy (the
+        deferred snapshot/recheck path for those is TODO §10.9)."""
+        if not live_fp:
+            return False
+        row = await self.meta.fetchone(
+            "SELECT fingerprint FROM objects WHERE connector_id=? AND object_uri=?",
+            (cid, object_uri),
+        )
+        stored = row["fingerprint"] if row else None
+        return bool(stored) and stored != live_fp
+
     async def _read_artifact_fresh(
         self, ns: str, object_uri: str, kind: str, currency: str
     ) -> bytes | None:
@@ -2496,7 +2511,7 @@ class Engine:
 
         from ..connectors.base import Range
 
-        _, curi, rel, plugin = await self._open_path(path)
+        cid, curi, rel, plugin = await self._open_path(path)
         try:
             st = await plugin.stat(rel)
             if st.type == "dir":
@@ -2609,7 +2624,20 @@ class Engine:
             # converted markdown artifact: pdf/docx/html (CONVERT_EXTS) AND web/github pages,
             # whose .md is generated at ingest — read it from the artifact store so cat works
             # across restarts / fresh plugin instances, not just in-memory.
-            if ext in CONVERT_EXTS or curi.startswith(("web://", "github://")):
+            if ext in CONVERT_EXTS:
+                # On-read freshness: stat() above already fetched the live source fingerprint,
+                # so comparing it to the one recorded at ingest is free. If it changed, the
+                # cached markdown is stale -> re-convert from the current source.
+                if await self._converted_md_stale(cid, rel, st.fingerprint):
+                    raw = bytearray()
+                    async for ch in plugin.read(rel):
+                        raw += ch
+                    text = await self.converter.convert(bytes(raw), ext)
+                else:
+                    art = await self._read_artifact(self.ns, curi + rel, "converted_md")
+                    if art is not None:
+                        text = art.decode("utf-8", errors="replace")
+            elif curi.startswith(("web://", "github://")):
                 art = await self._read_artifact(self.ns, curi + rel, "converted_md")
                 if art is not None:
                     text = art.decode("utf-8", errors="replace")
@@ -2650,7 +2678,7 @@ class Engine:
         N lines), export surfaces it."""
         import json as _json
 
-        _, curi, rel, plugin = await self._open_path(path)
+        cid, curi, rel, plugin = await self._open_path(path)
         try:
             st = await plugin.stat(rel)
             if st.type == "dir":
@@ -2670,7 +2698,22 @@ class Engine:
                     self._warn_if_huge_export(curi + rel, text)
                     return text, partial
             ext = os.path.splitext(rel)[1].lower()
-            if ext in CONVERT_EXTS or curi.startswith(("web://", "github://")):
+            if ext in CONVERT_EXTS:
+                # On-read freshness (same as cat): a changed source fingerprint means the
+                # cached markdown is stale, so re-convert from the current source.
+                if await self._converted_md_stale(cid, rel, st.fingerprint):
+                    raw = bytearray()
+                    async for ch in plugin.read(rel):
+                        raw += ch
+                    text = await self.converter.convert(bytes(raw), ext)
+                    self._warn_if_huge_export(curi + rel, text)
+                    return text, False
+                art = await self._read_artifact(self.ns, curi + rel, "converted_md")
+                if art is not None:
+                    text = art.decode("utf-8", errors="replace")
+                    self._warn_if_huge_export(curi + rel, text)
+                    return text, False
+            elif curi.startswith(("web://", "github://")):
                 art = await self._read_artifact(self.ns, curi + rel, "converted_md")
                 if art is not None:
                     text = art.decode("utf-8", errors="replace")
