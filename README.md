@@ -361,11 +361,40 @@ Without a harness this spreads across local folders, SaaS apps, and
 private databases. With MFS the agent gets one CLI surface over all
 of it — and you skip writing a connector per source.
 
+### Install the skill packs
+
+Install using [npx skills](https://skills.sh):
+
+```bash
+# Global: available in all projects, all supported agents
+npx skills add zilliztech/mfs --all -g
+
+# Project-level: current project only, all supported agents
+npx skills add zilliztech/mfs --all
+```
+
+Install to a specific agent:
+
+```bash
+npx skills add zilliztech/mfs -a codex -g
+npx skills add zilliztech/mfs -a cursor -g
+```
+
+Check and update globally installed skills:
+
+```bash
+npx skills check
+npx skills update
+```
+
+For project-level installs, re-run the `npx skills add` command to
+update.
+
 Three ways to wire MFS into your agent:
 
 - **🧩 Skill packs.** Drop [`skills/mfs-find`](skills/mfs-find/SKILL.md)
-  and [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) into Claude
-  Code, Codex CLI, OpenCode, or your own agent runtime — the agent
+  and [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) into your
+  coding agent runtime, and the agent
   inherits the whole search-and-browse loop with no custom
   integration code.
 - **📦 SDKs.** Generated Python and TypeScript clients under `sdks/`
