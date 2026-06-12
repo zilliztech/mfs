@@ -72,119 +72,166 @@ update.
 
 </details>
 
-## 🚀 Use it
+## Quick start
 
-MFS gathers every source you've registered into a single file tree
-under one URI scheme. Local repos, Postgres tables, Slack workspaces,
-Gmail inboxes, Notion pages, Google Drive folders, HubSpot deals —
-all answer to the same handful of shell verbs (`ls`, `cat`, `tree`,
-`grep`, `head`, `tail`). One query — `mfs search "..." --all` —
-searches every registered source at once.
+With the skills installed (above) and the server running ([Run it](#run-it)),
+point an agent at a folder and ask. **No API key, no GPU, no cloud account** —
+the first search downloads a ~600 MB local embedding model into `~/.mfs/`, and
+after that the whole stack runs offline.
 
-The single biggest scenario this opens: **one search-and-read
-surface for an AI agent over your entire work context**. The agent
-stops asking *which tool was that in?* — it queries the whole
-namespace once, walks into the hit's neighborhood, and confirms
-exact bytes:
+In your agent (Claude Code, Codex, …) — plain language, or the explicit skill
+commands:
 
 ```text
-  user asks the agent a question
-        ↓
-  mfs search "..." --all             ← candidates across every source
-        ↓
-  mfs ls / tree on the hit's parent  ← what else is around it?
-        ↓
-  mfs cat --locator '{...}'          ← exact evidence, ready to quote
-        ↓
-  agent answers, citing the source URI
+You    /mfs-ingest  index ~/notes        ← registers + indexes the folder
+You    /mfs-find     what did I decide about the pricing model?
+Agent  → searches, opens the top hit, quotes the exact lines, cites the file
 ```
 
-Same loop works for you at the shell — search broadly, browse into
-the hit's parent, read the exact range. Together they cut what an
-agent (or a human) has to load — and pay for — by orders of
-magnitude.
-
-```text
-┌──────────────────────────────────────────────────────────────────────────────┐
-│   Your agent (or you at the shell)                                           │
-│   ─────────────────────────────────                                          │
-│   one query across every source you've registered ─ no per-tool switching,   │
-│   no new query language, no per-source SDK to learn                          │
-└───────────────────────────────────┬──────────────────────────────────────────┘
-                                    │  drives via CLI / SDK / Skill pack
-                                    ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│   MFS   ← you are here                                                       │
-│   ─────                                                                      │
-│   CLI    mfs search · grep · ls · cat · tree · head · tail · add · remove    │
-│   SDK    Python · TypeScript                                                 │
-│   Skill  skills/mfs-find · skills/mfs-ingest                                 │
-│                                                                              │
-│   hybrid search · progressive browse · content cache · idempotent · CS split │
-└───────────────────────────────────┬──────────────────────────────────────────┘
-                                    │  one URI per source
-                                    ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│   Your context (any URI is a file-tree)                                      │
-│   ──────────────────────────────────────                                     │
-│                                                                              │
-│   local files        databases       chats & mail        team work           │
-│   ~/.agents/         postgres        slack               notion (docs)       │
-│   ~/repos/           mysql           discord             gdrive (files)      │
-│   ~/Documents/       mongo           gmail               hubspot (CRM)       │
-│                      bigquery        feishu              zendesk (support)   │
-│                      snowflake                           jira (issues)       │
-│                      s3                                  linear (issues)     │
-│                                                          web (crawls)        │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-A few shapes this unified UX takes:
-
-**🧠 Scenario 1 — One memory layer for everything your team
-produces and your agent leaves behind.** External sources — Slack,
-Gmail, Notion, GitHub PRs, Drive, Jira, Postgres, design docs —
-collapse into the same namespace as your AI workflow's own
-artifacts (skill packs, session memory in JSONL, generated scratch
-code, design notes). A decision buried in a chat three months ago,
-the prompt you tuned last week, the customer's last support note —
-`mfs search "..." --all` finds it across every source in seconds
-and feeds the exact bytes into the agent's context. The namespace
-doubles as long-term memory: for your team's work, and for every
-artifact the agent itself has produced.
+The same loop straight at the shell, no agent required:
 
 ```bash
-mfs add ~/.agents/skills          # skill packs your agents load
+mfs add ~/notes
+mfs search "the pricing model decision" ~/notes --top-k 5
+```
+
+That's the whole thing — **ingest a source → search it → read the exact
+bytes** — on any folder of text, Markdown, code, or PDFs.
+
+<details>
+<summary>Rather use OpenAI than download the local model?</summary>
+
+Set the embedding provider to OpenAI in `~/.mfs/server.toml` (or run
+`uv run mfs-server setup`) and export your key — no model download:
+
+```toml
+[embedding]
+provider = "openai"      # instead of the default local "onnx"
+```
+
+```bash
+export OPENAI_API_KEY=sk-...
+```
+
+</details>
+
+## Use cases
+
+Different sources, same `ingest → search → read` loop. (Outputs are
+illustrative — expand to see the shape.)
+
+### One query across every source
+
+`--all` fans a single query across every registered connector at once — local
+files, databases, ticket trackers, chat. One stable result shape, so any hit
+copies straight into `mfs cat` for the exact evidence.
+
+```bash
+mfs search "rate-limit guard misfires under burst" --all
+```
+
+<details>
+<summary>Output</summary>
+
+```text
+slack://acme/channels/oncall/messages.jsonl  score=0.91
+  [Mon 22:14] @alice: ratelimiter pegged 500ms p99 tail, dump attached
+  [Mon 22:18] @bob:   smells like the burst guard from PR #418
+
+jira://acme/teams/PLAT/issues.jsonl  score=0.83
+  PLAT-491  "rate-limit guard misfires under burst"  state=In Progress
+
+file://local/repo/src/throttle.go  score=0.71
+  42  func handleRateLimit(req Request) error {
+```
+
+Copy any hit into a read — same locators everywhere:
+
+```bash
+mfs cat ./repo/src/throttle.go --range 42:78
+mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
+```
+
+</details>
+
+### Your agent's own memory, skills, and code
+
+Point MFS at the streams an agent project juggles — past-session memory
+(Markdown / JSONL), reusable skill packs, the repos it reads — and they become
+one searchable namespace. The prompt you tuned last week, a decision logged
+three sessions ago, the helper you wrote yesterday: one query finds it.
+
+```bash
 mfs add ~/.agents/memory          # past-session JSONL / Markdown
-mfs add ~/repos                   # codebases the agent reads
-mfs add notion://workspace        # team docs and wiki
-mfs add linear://workspace        # tickets and product context
-
+mfs add ~/.agents/skills          # reusable SKILL.md packs
+mfs add ~/repos                   # the codebases the agent reads
 mfs search "the prompt I tuned for refund disputes" --all
-mfs search "how did we handle the SSO outage last quarter" --all
 ```
 
-**🔍 Scenario 2 — Pinpoint context across massive, heterogeneous
-sources — at a fraction of the token cost.** Hybrid search (BM25 +
-dense vector, fused in one query) locates candidates fast across
-the whole namespace. Then progressive browse (`mfs ls`, `tree`,
-`cat --range`, `cat --locator`) lets the agent walk into the hit
-and read only the exact bytes it needs — not the whole file, not
-the whole directory. An agent equipped with MFS spends a fraction
-of the tokens (and a fraction of the wall-clock) of a single
-dump-everything retrieval call.
+<details>
+<summary>Output</summary>
+
+```text
+file://local/.agents/memory/2026-05-31.jsonl  score=0.88
+  {"role":"note","text":"refund-dispute prompt: lead with the order ID, then ..."}
+
+file://local/.agents/skills/support-triage/SKILL.md  score=0.74
+  ## Refund disputes — confirm the order ID first, then check the gateway log ...
+```
+
+</details>
+
+### Docs, PDFs, and web pages
+
+Drop a folder of PDFs and design docs, or crawl a documentation site — MFS
+converts each page to Markdown **locally** (no API key) and indexes the text,
+so search reads across all of it.
 
 ```bash
-mfs search "auth refresh logic" --all           # hybrid recall
-mfs cat ./src/throttle.go --range 42:78         # exact bytes only
+mfs add ./design-docs                 # .pdf, .docx, .md — converted locally
+mfs search "retention policy for audit logs" ./design-docs
 ```
 
-**⚙️ Scenario 3 — One production-grade pipeline behind every app
-you build on top.** The retrieval pipeline — sources to searchable
-chunks — is engineered and robust enough to ship. You don't
-rebuild it for every project; the same MFS underneath serves every
-agent, every use case, every app your team makes next. Skip "yet
-another embedding pipeline" and focus on the agent layer above.
+<details>
+<summary>Output</summary>
+
+```text
+file://local/design-docs/data-governance.pdf  score=0.86
+  ... Audit logs are retained for 400 days, then moved to cold storage; access
+  beyond 90 days requires a break-glass approval ...
+```
+
+</details>
+
+### Images, too
+
+With image descriptions turned on, a folder of screenshots or diagrams becomes
+searchable by what's *in* them. This one needs a vision model — set
+`[description].enabled = true` with a provider in `~/.mfs/server.toml` and
+export its key:
+
+```toml
+[description]
+enabled  = true
+provider = "openai"      # gpt-4o-mini by default — needs OPENAI_API_KEY
+```
+
+```bash
+mfs add ./screenshots
+mfs search "the dashboard where p99 latency spikes" ./screenshots
+```
+
+<details>
+<summary>Output</summary>
+
+```text
+file://local/screenshots/grafana-2026-06-02.png  score=0.79
+  A Grafana dashboard; the p99 latency panel climbs to ~800 ms around 14:10,
+  well above the 200 ms band on the other panels ...
+```
+
+</details>
+
 
 ## Run it
 
@@ -320,38 +367,6 @@ For advanced knobs (cache size, eviction policy, chunker thresholds,
 namespace, custom worker count) — edit `~/.mfs/server.toml`
 directly. See [docs/configuration.md](docs/configuration.md) for the
 full field reference.
-
-## 🔍 Try a cross-source search
-
-`--all` searches every registered connector at once — local files,
-ticket trackers, chat workspaces, databases. Same JSON-friendly
-output across all of them:
-
-```text
-$ mfs search "rate-limit guard misfires under burst" --all
-
-slack://acme/channels/oncall/messages.jsonl  score=0.91
-  [Mon 22:14] @alice: ratelimiter pegged 500ms p99 tail, dump attached
-  [Mon 22:18] @bob:   smells like the burst guard from PR #418
-
-jira://acme/teams/PLAT/issues.jsonl  score=0.83
-  PLAT-491  "rate-limit guard misfires under burst"
-            state=In Progress  assignee=alice
-
-file://local/repo/src/throttle.go  score=0.71
-  42  func handleRateLimit(req Request) error {
-  43      if exceedsBudget(req.UserID) {
-  44          return ErrTooManyRequests
-```
-
-The result list is one stable shape across connectors, so you can
-copy any hit into `mfs cat --range` or `mfs cat --locator` to read
-exact evidence:
-
-```bash
-mfs cat ./repo/src/throttle.go --range 42:78
-mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
-```
 
 ## Connectors
 
