@@ -2,10 +2,7 @@
   <img src="https://github.com/user-attachments/assets/42c4e26c-c26a-463f-bd97-c5bb2d38eabe" alt="MFS multi-source analysis demo" width="880" />
 </p>
 
-<h1 align="center">
-  <img src="https://github.com/user-attachments/assets/1a14c3e3-32c3-4474-a081-ce737bfc439a" alt="MFS logo" width="56" />
-  MFS — Multi-source File-like Search
-</h1>
+<h1 align="center"><img src="https://github.com/user-attachments/assets/1a14c3e3-32c3-4474-a081-ce737bfc439a" alt="MFS logo" width="48" align="absmiddle" /> MFS — Multi-source File-like Search</h1>
 
 <p align="center">
   <strong>A context harness for AI agents — and for building them.</strong><br/>
