@@ -2,7 +2,18 @@
 name: mfs-ingest
 version: 0.4.0
 mfs_compat: ">=0.4,<0.5"
-description: Register, update, or re-sync data sources for MFS so they become searchable — postgres / mysql / mongo / snowflake / bigquery, github / jira / linear / notion / hubspot / zendesk, slack / discord / gmail / feishu, s3 / gdrive / web / file. Use whenever the user wants to ADD a new data source to MFS, change an existing connector's config, re-ingest / re-index a source, list registered connectors, or troubleshoot a sync that's not picking up data. Trigger phrases include "add X to MFS", "ingest my [postgres/slack/github/etc]", "register this repo / database / workspace", "make X searchable", "re-sync Y", "update the slack token", "what connectors do I have". Do NOT use for: searching / finding / reading content (use `mfs-find`); raw mutation of the source itself (MFS only reads).
+description: >-
+  Register, update, or re-sync data sources for MFS so they become searchable —
+  postgres / mysql / mongo / snowflake / bigquery, github / jira / linear /
+  notion / hubspot / zendesk, slack / discord / gmail / feishu, s3 / gdrive /
+  web / file. Use whenever the user wants to ADD a new data source to MFS,
+  change an existing connector's config, re-ingest / re-index a source, list
+  registered connectors, or troubleshoot a sync that's not picking up data.
+  Trigger phrases include "add X to MFS", "ingest my [postgres/slack/github/etc]",
+  "register this repo / database / workspace", "make X searchable", "re-sync Y",
+  "update the slack token", "what connectors do I have". Do NOT use for:
+  searching / finding / reading content (use `mfs-find`); raw mutation of the
+  source itself (MFS only reads).
 ---
 
 # MFS — register / update / re-sync data sources

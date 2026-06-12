@@ -2,7 +2,19 @@
 name: mfs-find
 version: 0.4.0
 mfs_compat: ">=0.4,<0.5"
-description: Search, grep, browse, and read across registered MFS data sources via the `mfs` CLI — codebases, docs, PDFs, web crawls, databases (postgres/mysql/mongo/snowflake/bigquery), issue trackers (jira/linear/github), CRMs (hubspot), chat (slack/discord/gmail/feishu), object stores (s3/gdrive). Use whenever the user asks to find, locate, look up, look across, or read something out of an already-configured MFS index. Trigger phrases include "search the codebase for", "find anywhere about", "where is X mentioned", "look across our [slack/jira/postgres/etc]", "any past tickets/RFCs/commits about", "what does our wiki say about", "cat / head / tail / ls / tree this MFS path". Do NOT use for: registering a NEW data source (use `mfs-ingest`), changing connector config, kicking off re-ingest, or any write/delete operation — `mfs` is read-only.
+description: >-
+  Search, grep, browse, and read across registered MFS data sources via the
+  `mfs` CLI — codebases, docs, PDFs, web crawls, databases
+  (postgres/mysql/mongo/snowflake/bigquery), issue trackers
+  (jira/linear/github), CRMs (hubspot), chat (slack/discord/gmail/feishu),
+  object stores (s3/gdrive). Use whenever the user asks to find, locate,
+  look up, look across, or read something out of an already-configured MFS
+  index. Trigger phrases include "search the codebase for", "find anywhere
+  about", "where is X mentioned", "look across our [slack/jira/postgres/etc]",
+  "any past tickets/RFCs/commits about", "what does our wiki say about",
+  "cat / head / tail / ls / tree this MFS path". Do NOT use for:
+  registering a NEW data source (use `mfs-ingest`), changing connector config,
+  kicking off re-ingest, or any write/delete operation — `mfs` is read-only.
 ---
 
 # MFS — find / read across configured sources

@@ -36,6 +36,42 @@ already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
   <img src="https://github.com/user-attachments/assets/1430d872-4184-4fb3-9168-a0b715dc621a" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
 </p>
 
+## Install the agent skills
+
+Install the MFS skill packs before asking an agent to search, browse,
+or ingest through MFS:
+
+```bash
+# Global: available in all projects, all supported agents
+npx skills add zilliztech/mfs --all -g
+
+# Project-level: current project only, all supported agents
+npx skills add zilliztech/mfs --all
+```
+
+<details>
+<summary>Install to a specific agent</summary>
+
+```bash
+npx skills add zilliztech/mfs -a claude-code -g
+npx skills add zilliztech/mfs -a codex -g
+```
+
+</details>
+
+<details>
+<summary>Check for updates</summary>
+
+```bash
+npx skills check
+npx skills update
+```
+
+For project-level installs, re-run the `npx skills add` command to
+update.
+
+</details>
+
 ## 🚀 Use it
 
 MFS gathers every source you've registered into a single file tree
@@ -360,35 +396,6 @@ A modern agent project juggles several streams of state at once:
 Without a harness this spreads across local folders, SaaS apps, and
 private databases. With MFS the agent gets one CLI surface over all
 of it — and you skip writing a connector per source.
-
-### Install the skill packs
-
-Install using [npx skills](https://skills.sh):
-
-```bash
-# Global: available in all projects, all supported agents
-npx skills add zilliztech/mfs --all -g
-
-# Project-level: current project only, all supported agents
-npx skills add zilliztech/mfs --all
-```
-
-Install to a specific agent:
-
-```bash
-npx skills add zilliztech/mfs -a codex -g
-npx skills add zilliztech/mfs -a cursor -g
-```
-
-Check and update globally installed skills:
-
-```bash
-npx skills check
-npx skills update
-```
-
-For project-level installs, re-run the `npx skills add` command to
-update.
 
 Three ways to wire MFS into your agent:
 
