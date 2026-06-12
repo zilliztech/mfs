@@ -37,12 +37,12 @@ def test_accumulation_pending_counts():
     sub1 = b.tree["/sub1"]
     assert [u for u, _ in sub1.children_files] == ["/sub1/f1.md", "/sub1/f3.md"]
     assert sub1.children_dirs == []  # true leaf
-    assert sub1.pending == 2  # two files
+    assert sub1.pending == 0  # files do NOT gate a dir; only sub-dirs do
     assert sub1.parent == "/" and sub1.depth == 1
 
     sub2 = b.tree["/sub2"]
     assert [u for u, _ in sub2.children_files] == ["/sub2/f2.md"]
-    assert sub2.pending == 1
+    assert sub2.pending == 0
 
 
 def test_okind_stored_per_file():
@@ -53,28 +53,29 @@ def test_okind_stored_per_file():
     assert files == {"/d/pic.png": "image", "/d/code.py": "code"}
 
 
-def test_finalize_before_sync_done_pushes_nothing_until_called():
+def test_finalize_flips_sync_done_and_pushes_leaf_dirs():
     b = DirTreeBuilder("j", "c")
     b.add("/sub/f.md", "document")
     q = _FakeQueue()
     assert b.sync_done is False
-    # leaves with outstanding files are NOT pushed at finalize (they await file successes)
+    # finalize is the trigger: /sub is a leaf (no sub-dirs) so it is ready to fold the moment
+    # enumeration completes — it does NOT wait on its file's embedding. Root still has a sub-dir.
     b.finalize(q)
     assert b.sync_done is True
-    assert q.pushed == []  # /sub has pending=1 (its file), root has a sub-dir -> neither ready
+    assert q.pushed == [("j", "/sub", 1)]
 
 
-def test_finalize_pushes_only_ready_true_leaves():
+def test_finalize_pushes_all_leaf_dirs():
     b = DirTreeBuilder("j", "c")
     b.add("/withfile/f.md", "document")
-    # manufacture an empty leaf dir (no sub-dirs, no files) to prove finalize pushes it
+    # an empty leaf dir (no sub-dirs, no files) is also ready
     from mfs_server.engine.reduce.tree import DirNode
 
     b.tree["/empty"] = DirNode(parent="/", depth=1)
     q = _FakeQueue()
     b.finalize(q)
-    # only /empty is a ready true-leaf (no sub-dirs AND pending 0); /withfile still pending its file
-    assert q.pushed == [("j", "/empty", 1)]
+    # every dir with pending == 0 (no un-summarized sub-dirs) is pushed; root has a sub-dir.
+    assert q.pushed == [("j", "/withfile", 1), ("j", "/empty", 1)]
 
 
 def test_non_recursive_flattens_to_root():
@@ -84,4 +85,4 @@ def test_non_recursive_flattens_to_root():
     assert set(b.tree) == {"/"}
     root = b.tree["/"]
     assert [u for u, _ in root.children_files] == ["/a/deep/f1.md", "/b/g.md"]
-    assert root.children_dirs == [] and root.pending == 2
+    assert root.children_dirs == [] and root.pending == 0  # files do not gate

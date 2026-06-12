@@ -1,9 +1,14 @@
 """DirTreeBuilder — per-job in-memory directory tree for the Reduce subsystem (§6.4.1).
 
 Accumulated synchronously as sync() yields ObjectChanges (no extra DB hit — the okind is
-passed in by the caller). At sync end finalize() flips sync_done and pushes any already-ready
-leaf dirs (empty dirs) into the SummaryQueue; non-empty leaves are pushed later, as their
-Map file tasks succeed (the Map→Reduce notification, §6.4.4).
+passed in by the caller). At sync end finalize() flips sync_done and pushes every dir that
+has no un-summarized sub-directories (all leaf dirs, plus any whose sub-dirs are already
+done) into the SummaryQueue; the rest are pushed bottom-up as their sub-dirs summarize.
+
+A directory summary folds its children's *source* content (re-read / converted on demand),
+not their embeddings, so a dir does NOT wait for its files' Object-Lane embedding — only
+sub-directory summaries gate it (the intrinsic bottom-up reduce dependency). The two lanes
+therefore run in parallel.
 """
 
 from __future__ import annotations
@@ -36,7 +41,7 @@ class DirNode:
     depth: int
     children_files: list[tuple[str, str]] = field(default_factory=list)  # (object_uri, okind)
     children_dirs: list[str] = field(default_factory=list)  # direct sub-dir uris
-    pending: int = 0  # subtree children (files + sub-dirs) not yet done
+    pending: int = 0  # direct sub-dirs not yet summarized (files do NOT gate a dir)
     summary: Optional[str] = None
 
 
@@ -67,15 +72,16 @@ class DirTreeBuilder:
             # non-recursive: a single root summary folding every object directly
             root = self._node("/")
             root.children_files.append((uri, okind))
-            root.pending += 1
             return
         ancestors = ancestor_dirs(uri)
         parent_dir = posixpath.dirname(uri) or "/"
         for d in ancestors:
             node = self._node(d)
             if d == parent_dir:
+                # Files are recorded but do NOT increment pending: a dir's summary folds
+                # their source content, not their embeddings, so it never waits on the
+                # Object Lane. Only sub-dirs (below) gate a dir.
                 node.children_files.append((uri, okind))
-                node.pending += 1
             # link the direct sub-dir of d that lies on this object's ancestor chain
             for sub in ancestors:
                 if (
@@ -87,13 +93,13 @@ class DirTreeBuilder:
                     node.pending += 1
 
     def finalize(self, summary_queue) -> list[str]:
-        """sync() ended: flip sync_done and push leaf dirs that are already complete (no
-        sub-dirs AND no outstanding files — i.e. empty dirs). Returns the pushed uris.
-        Non-empty leaves are pushed later by on_object_task_succeeded as their files land."""
+        """sync() ended: flip sync_done and push every dir with no un-summarized sub-dirs
+        (pending == 0) — i.e. all leaf dirs, ready to fold now that enumeration is complete.
+        Dirs with sub-dirs are pushed later, bottom-up, as those sub-dirs summarize."""
         self.sync_done = True
         pushed = []
         for dir_uri, node in self.tree.items():
-            if not node.children_dirs and node.pending == 0:
+            if node.pending == 0:
                 summary_queue.push(self.job_id, dir_uri, node.depth)
                 pushed.append(dir_uri)
         return pushed

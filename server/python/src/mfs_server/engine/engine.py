@@ -934,12 +934,12 @@ class Engine:
                         ),
                     )
                     if ch.kind != "deleted":
-                        # Accumulate the dir tree (okind passed in — no extra DB hit, §6.4.1),
-                        # but ONLY for okinds that actually flow through the EmbedConsumer. A
-                        # non-pipeline okind (binary, image with [description] off, table_schema
-                        # with [summary] off) takes the inline tail and never fires
-                        # on_embed_succeeded, so counting it would leave its parent dir's pending
-                        # stuck and the job's reduce phase would never finish.
+                        # Accumulate the dir tree (okind passed in — no extra DB hit, §6.4.1).
+                        # We only register pipeline okinds: those are the foldable children a
+                        # directory summary draws on. A non-pipeline okind (binary, image with
+                        # [description] off, table_schema with [summary] off) would fold to
+                        # nothing anyway, so it is skipped. (Files do not gate a dir, so this is
+                        # purely about what the summary folds — not about completion accounting.)
                         okind = plugin.object_kind_of(ch.uri)
                         if self._routes_to_pipeline(okind):
                             self._reduce.on_yield_object_change(job_id, ch.uri, okind)
