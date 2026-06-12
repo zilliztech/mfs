@@ -22,7 +22,7 @@ flowchart LR
   classify["object_kind"]
   process["convert / render / summarize<br/>chunk and embed"]
   index["Milvus chunks<br/>content, locator, chunk_kind, metadata"]
-  artifacts["Artifact cache<br/>converted_md / vlm_text / head_cache"]
+  artifacts["Artifact cache<br/>converted_md / head_cache"]
   search["SearchResponse<br/>ResultEnvelope[]"]
   read["cat / head / tail / export<br/>exact readback"]
 
@@ -181,7 +181,6 @@ and the Milvus chunk rows.
 | Artifact kind | Produced from | Read behavior |
 |---|---|---|
 | `converted_md` | Converted document text and generated markdown for supported document/web paths. | `cat`, `head`, `tail`, and `export` may read the converted text instead of raw bytes. |
-| `vlm_text` | Image description text from the VLM path. | `cat` can return the description text; search uses `vlm_description` chunks when generated. |
 | `head_cache` | First rows from structured objects. | `head` can serve a fast preview without rereading the full source. |
 
 For storage backends and persisted paths, see [Configuration](configuration.md)

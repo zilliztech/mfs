@@ -179,8 +179,8 @@ connector state only after a job succeeds.
 | Concern | Constructor or module | Backends | Local default | Stores |
 |---|---|---|---|---|
 | Metadata | `make_metadata_store(cfg)` in `storage/metadata/` | SQLite or Postgres | `$MFS_HOME/metadata.db` | Connectors, objects, jobs, object tasks, connector state, file state, and related metadata. |
-| Transformation cache | `make_transformation_cache(cfg)` in `storage/transformation_cache/` | SQLite or Postgres | `$MFS_HOME/transformation_cache.db` | Content-addressed lookup data for embedding, conversion, VLM, and summary work. |
-| Artifact cache | `make_artifact_cache(cfg)` in `storage/artifact_cache.py` | Local filesystem | `$MFS_HOME/cache` | Derived per-object blobs such as converted markdown and image descriptions. Mount a volume at the cache root to persist them. |
+| Transformation cache | `make_transformation_cache(cfg)` in `storage/transformation_cache/` | SQLite or Postgres | `$MFS_HOME/transformation_cache.db` | Content-addressed lookup data for embedding, VLM, and summary work. |
+| Artifact cache | `make_artifact_cache(cfg)` in `storage/artifact_cache.py` | Local filesystem | `$MFS_HOME/cache` | Derived per-object blobs such as converted markdown and structured head previews. Mount a volume at the cache root to persist them. |
 | Vector index | `MilvusStore(cfg)` in `storage/milvus.py` | Milvus Lite file or remote Milvus/Zilliz URI | `$MFS_HOME/milvus.db` | Indexed chunks with dense vectors, BM25 sparse vectors, locators, content, chunk kinds, and metadata. |
 
 The Engine constructs all four stores during initialization. During startup it

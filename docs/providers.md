@@ -157,15 +157,14 @@ flowchart LR
   chunks["Search chunks<br/>body / row_text / thread_aggregate<br/>directory_summary / schema_summary / vlm_description"]
   embed["Embedding provider"]
   index["Milvus dense vectors<br/>plus BM25 content"]
-  artifacts["Artifact cache<br/>converted_md / vlm_text / head_cache"]
-  txcache["Transformation cache<br/>convert / embedding / vlm / summary"]
+  artifacts["Artifact cache<br/>converted_md / head_cache"]
+  txcache["Transformation cache<br/>embedding / vlm / summary"]
 
   source --> classify
   classify --> convert --> chunks
   classify --> text --> chunks
   classify --> vlm --> chunks
   convert --> artifacts
-  vlm --> artifacts
   chunks --> embed
   embed --> index
   convert --> txcache

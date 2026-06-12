@@ -1,7 +1,8 @@
 """VLM client: image bytes -> description text, memoized in transformation cache.
 
 Multi-provider (openai/anthropic/gemini); the configured [description].provider drives
-the lookup. Result is stored as a vlm_text artifact + indexed as a vlm_description chunk.
+the lookup. The description is indexed as a vlm_description chunk and memoized here in
+the transformation cache; `mfs cat` of an image re-derives it through this same client.
 
 This client holds NO concurrency control of its own: the [description].concurrency ceiling
 is enforced by the shared DescriptionConcurrencyGate (engine/producers/base.py) at every

@@ -19,7 +19,7 @@ def _task(uri, plugin, job="job1"):
     )
 
 
-async def test_image_produces_vlm_description_and_artifact(tmp_path):
+async def test_image_produces_vlm_description(tmp_path):
     store = FakeArtifactStore(tmp_path)
     plugin = FakePlugin(data={"/cat.png": b"\x89PNGdata"})
     ctx = build_ctx(artifacts=store)
@@ -32,9 +32,9 @@ async def test_image_produces_vlm_description_and_artifact(tmp_path):
     assert c.locator is None
     assert c.uri == "file:///r/cat.png" and c.connector_job_id == "job1"
     assert isinstance(items[-1], EndOfTask)
-    # description persisted as vlm_text artifact
-    art = await store.get_artifact("default", "file:///r/cat.png", "vlm_text")
-    assert art is not None and art == c.content.encode()
+    # The description is a model output: it lives in the transformation cache (via the VLM
+    # client), not as an artifact. The producer no longer writes a vlm_text artifact.
+    assert await store.get_artifact("default", "file:///r/cat.png", "vlm_text") is None
 
 
 async def test_description_gate_caps_in_flight(tmp_path):

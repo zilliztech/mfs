@@ -162,7 +162,7 @@ class ProducerContext:
     cfg: Any  # ServerConfig
     namespace_id: str
     artifacts: ArtifactStore
-    converter: Any  # CachingConverterClient: async convert(data, ext) -> str
+    converter: Any  # ConverterClient: async convert(data, ext) -> str
     vlm: Any  # CachingVlmClient: async describe(data, ext) -> str
     summary: Any  # CachingSummaryClient: async summarize(text, kind) -> str
     description_gate: ConcurrencyGate

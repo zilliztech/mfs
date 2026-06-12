@@ -17,7 +17,7 @@ import uuid
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 
-from ..common.converter import CONVERT_EXTS, CachingConverterClient
+from ..common.converter import CONVERT_EXTS, ConverterClient
 from ..common.embedding import CachingEmbeddingClient
 from ..common.retrieval import build_filter, collapse_results, to_envelope
 from ..common.summary import CachingSummaryClient
@@ -192,7 +192,7 @@ class Engine:
         self.artifact_cache = make_artifact_cache(cfg)
         self.tx_cache = make_transformation_cache(cfg)
         self.embed = CachingEmbeddingClient(cfg, self.tx_cache)
-        self.converter = CachingConverterClient(cfg, self.tx_cache)
+        self.converter = ConverterClient(cfg)
         self.vlm = CachingVlmClient(cfg, self.tx_cache)
         self.summary = CachingSummaryClient(cfg, self.tx_cache)
         self._artifact_writes = 0  # throttles LRU eviction sweeps
@@ -2588,10 +2588,18 @@ class Engine:
                 art = await self._read_artifact(self.ns, curi + rel, "converted_md")
                 if art is not None:
                     text = art.decode("utf-8", errors="replace")
-            if text is None:
-                art_vlm = await self._read_artifact(self.ns, curi + rel, "vlm_text")
-                if art_vlm is not None:  # image -> VLM description
-                    return art_vlm.decode("utf-8", errors="replace")
+            if text is None and okind == "image" and self.cfg.description.enabled:
+                # An image's description is a model output served through the transformation
+                # cache: describe() returns the description memoized at ingest, or computes it
+                # on a miss. (Re-reading the bytes here is the source round-trip — cheap for
+                # local files; see TODO §10.9 for the snapshot path on remote connectors.)
+                raw = bytearray()
+                async for ch in plugin.read(rel):
+                    raw += ch
+                try:
+                    return await self.vlm.describe(bytes(raw), ext)
+                except Exception:  # noqa: BLE001 — fall through to the raw read on provider error
+                    pass
             if text is None:
                 if range is None and st.size_hint and st.size_hint > _BARE_CAT_MAX_BYTES:
                     raise ValueError("object_too_large_for_cat")
@@ -2643,11 +2651,16 @@ class Engine:
                     text = art.decode("utf-8", errors="replace")
                     self._warn_if_huge_export(curi + rel, text)
                     return text, False
-            art_vlm = await self._read_artifact(self.ns, curi + rel, "vlm_text")
-            if art_vlm is not None:
-                text = art_vlm.decode("utf-8", errors="replace")
-                self._warn_if_huge_export(curi + rel, text)
-                return text, False
+            if okind == "image" and self.cfg.description.enabled:
+                raw = bytearray()
+                async for ch in plugin.read(rel):
+                    raw += ch
+                try:
+                    text = await self.vlm.describe(bytes(raw), ext)
+                    self._warn_if_huge_export(curi + rel, text)
+                    return text, False
+                except Exception:  # noqa: BLE001 — fall through to the raw read on provider error
+                    pass
             buf = bytearray()
             async for ch in plugin.read(rel):
                 buf += ch

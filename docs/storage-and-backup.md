@@ -17,7 +17,7 @@ module map behind these statements, see [Server](server.md).
 flowchart LR
   api["mfs-server API / worker"]
   meta["Metadata DB<br/>connectors, objects, jobs, tasks, state, file_state"]
-  tx["Transformation cache<br/>convert/embed/VLM/summary lookup"]
+  tx["Transformation cache<br/>embed/VLM/summary lookup"]
   artifacts["Artifact cache<br/>derived blobs"]
   staging["Upload staging<br/>local files/uploads"]
   milvus["Milvus chunks<br/>Lite file or remote Milvus/Zilliz"]
@@ -48,7 +48,7 @@ image and Compose file set `MFS_HOME=/data`.
 | `$MFS_HOME/server.token` | Auto-generated bearer token when no `auth_token` or server-side `MFS_API_TOKEN` is configured. | Back up or intentionally rotate. Clients using the old token will fail after rotation. | Deleting it makes the next auto-token start create a new token. It is not a cache. |
 | `$MFS_HOME/client.toml` | Local CLI profiles, active endpoint, profile tokens, and stable client id. | Back up for operator workstations and upload-mode identity continuity. | Delete only to reset local CLI profiles. This does not reset server state. |
 | `$MFS_HOME/metadata.db` | SQLite metadata: connectors, objects, jobs, object tasks, connector state, file state, and artifact-cache rows. | Critical for local SQLite deployments. | Do not delete independently of Milvus/artifacts unless doing a full reset or restoring a consistent snapshot. |
-| `$MFS_HOME/transformation_cache.db` | SQLite transformation cache for conversion, embedding, VLM, and summary lookup data. | Optional for correctness; useful for recovery speed and cost control. | Can be rebuilt by recomputation after the server is stopped. |
+| `$MFS_HOME/transformation_cache.db` | SQLite transformation cache for embedding, VLM, and summary lookup data. | Optional for correctness; useful for recovery speed and cost control. | Can be rebuilt by recomputation after the server is stopped. |
 | `$MFS_HOME/cache/` | Local artifact cache root. Holds artifact bytes and local upload staging. | Back up if artifacts or upload-mode staged bytes matter. | Do not delete blindly. See [Artifact Cache Boundary](#artifact-cache-boundary). |
 | `$MFS_HOME/milvus.db` | Milvus Lite vector database when no remote Milvus/Zilliz URI is configured. | Critical if you want search to work after restore without a full re-index. | Delete only as part of a full local reset or a planned full re-index. |
 | `$MFS_HOME/onnx-cache/` | Cached files for the default local ONNX embedding model. | Optional; keep it to avoid startup downloads. | Can be removed after stopping the server if you accept a later model download. |
@@ -65,8 +65,8 @@ image and Compose file set `MFS_HOME=/data`.
 | Server config | TOML file plus env overrides | `$MFS_HOME/server.toml` | Persistent configuration | Backend choices, auth, namespace, provider, worker, chunking, and search settings. | Back up config and record runtime env vars. |
 | API token | TOML `auth_token`, server env `MFS_API_TOKEN`, or token file | `$MFS_HOME/server.token` | Secret state | Bearer token for `/v1` when auth is enabled. | Back up or rotate deliberately. Do not publish it in tickets or logs. |
 | Metadata | SQLite or Postgres | `$MFS_HOME/metadata.db` | Persistent state | Connector rows, object rows, job rows, object tasks, connector state, file state, and artifact-cache index rows. | Must be backed up for connector/job/object continuity. |
-| Transformation cache | SQLite or Postgres | `$MFS_HOME/transformation_cache.db` | Cache | Content-addressed conversion, embedding, VLM, and summary results. | Optional for correctness; backing it up reduces recompute. |
-| Artifact bytes | Local filesystem | `$MFS_HOME/cache/artifacts/...` | Derived cache with metadata references | Converted markdown, image/VLM text, structured head cache, and similar per-object blobs. | Back up with metadata when you want read paths and cache hits to survive restore. |
+| Transformation cache | SQLite or Postgres | `$MFS_HOME/transformation_cache.db` | Cache | Content-addressed embedding, VLM, and summary results. | Optional for correctness; backing it up reduces recompute. |
+| Artifact bytes | Local filesystem | `$MFS_HOME/cache/artifacts/...` | Derived cache with metadata references | Converted markdown, structured head cache, and similar per-object blobs. | Back up with metadata when you want read paths and cache hits to survive restore. |
 | Upload staging | Local filesystem only | `$MFS_HOME/cache/files/...` and `$MFS_HOME/cache/uploads/...` | Local staging/scratch | Server-side copies and upload request staging for client/server upload mode. | Include when upload-mode file connectors should survive without re-upload. |
 | Vector index | Milvus Lite file or remote Milvus/Zilliz | `$MFS_HOME/milvus.db` | Persistent search state | Dense vectors, BM25 sparse vectors, locators, chunk content, chunk kind, metadata, and indexed timestamps. | Back up local Lite data, or use the remote service backup policy. |
 | ONNX cache | Local filesystem | `$MFS_HOME/onnx-cache/` | Provider cache | Hugging Face model and tokenizer files for the default ONNX embedding provider. | Optional; keep for offline or faster restarts. |
@@ -221,7 +221,7 @@ mfs connector inspect TARGET
 | Remove one connector | `mfs connector remove TARGET --yes` or `mfs remove TARGET --yes` | Removes MFS-owned metadata rows, artifact rows/bytes, file state, object tasks/jobs, and Milvus chunks for that connector after running work has stopped. | Do not manually delete connector rows or Milvus chunks. |
 | Rebuild one connector | `mfs add --force-index TARGET` | Forces a full re-index without deleting the whole server home. | Do not delete metadata just to force a rebuild. |
 | Re-upload and rebuild an upload-mode connector | `mfs add --force-upload PATH` | Re-sends file bytes and forces a full re-index through upload mode. | Do not remove local upload staging for an active connector unless you are ready to re-upload. |
-| Reset transformation cache | Stop the server, then remove the transformation cache DB for the backend you use. | Loses memoized conversion, embedding, VLM, and summary outputs. | Do not remove Postgres tables manually without using your database change controls. |
+| Reset transformation cache | Stop the server, then remove the transformation cache DB for the backend you use. | Loses memoized embedding, VLM, and summary outputs. | Do not remove Postgres tables manually without using your database change controls. |
 | Reset ONNX model cache | Stop the server, then remove `$MFS_HOME/onnx-cache/`. | Forces the default ONNX provider to download model files again. | Do not do this in offline environments unless the model is already available elsewhere. |
 | Full local reset | Stop the server and workers, then move aside or replace the whole `$MFS_HOME` or `/data` volume. | Removes config, token, metadata, caches, upload staging, and Milvus Lite state. | Do not run this without a backup if any connector, token, or index state matters. |
 

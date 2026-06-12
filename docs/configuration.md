@@ -64,7 +64,7 @@ run it defaults to `~/.mfs`; the Docker image and Compose setup use `/data`.
 | `$MFS_HOME/client.toml` | CLI | `mfs profile add`, `mfs profile use`, or first `client_id` generation | Active profile, profile endpoints, profile tokens, and stable client id. |
 | `$MFS_HOME/metadata.db` | Server | Server defaults when SQLite is used | Connector registry, object metadata, jobs, and related metadata. |
 | `$MFS_HOME/transformation_cache.db` | Server | Server defaults when SQLite transformation cache is used | Transformation-cache lookup table. |
-| `$MFS_HOME/cache` | Server | Server defaults when local artifact cache is used | Derived artifact blobs such as converted document text or image descriptions. |
+| `$MFS_HOME/cache` | Server | Server defaults when local artifact cache is used | Derived artifact blobs such as converted document text and structured head previews. |
 | `$MFS_HOME/milvus.db` | Server | Server defaults when no remote Milvus URI is configured | Milvus Lite vector database. |
 | `$MFS_HOME/onnx-cache/` | Server embedding provider | First local ONNX server/worker startup, or setup dimension probe | Cached ONNX model files for `gpahal/bge-m3-onnx-int8`. |
 

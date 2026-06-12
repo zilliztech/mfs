@@ -164,9 +164,9 @@ async def test_image_routes_through_pipeline(tmp_path):
     assert all(r["content"].startswith("desc:") for r in rows)
     assert {r["object_uri"] for r in rows} == {"file:///repo/a.png", "file:///repo/b.png"}
 
-    # description persisted as a vlm_text artifact (for `mfs cat`)
-    art = eng.artifact_cache.get_artifact(eng.ns, "file:///repo/a.png", "vlm_text")
-    assert art is not None and art.decode().startswith("desc:")
+    # the description is a model output: it lives in the transformation cache (via the VLM
+    # client), not as an artifact. No vlm_text artifact is written.
+    assert eng.artifact_cache.get_artifact(eng.ns, "file:///repo/a.png", "vlm_text") is None
 
     # per-object atomic: delete_by_object once per image
     assert sorted(eng.milvus.deletes) == sorted(

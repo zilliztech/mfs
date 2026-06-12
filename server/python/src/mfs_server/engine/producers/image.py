@@ -3,7 +3,8 @@
 The VLM call goes through the process-shared description_gate (a ConcurrencyGate)
 so at most [description].concurrency calls are in flight at once, and through the
 CachingVlmClient (transformation-cache memoized, so a repeated image skips the LLM).
-The description is also persisted as a vlm_text artifact for `mfs cat`.
+The description is a model output, so it lives only in the transformation cache;
+`mfs cat` of an image re-derives it through the same memoized client.
 """
 
 from __future__ import annotations
@@ -28,12 +29,10 @@ class ImageChunksProducer:
         self.ctx = ctx
 
     async def produce(self, task: ObjectTask) -> AsyncIterator[ProducedItem]:
-        ns = self.ctx.namespace_id
         full_uri = task.full_uri
         raw = await read_bytes(task.plugin, task.object_uri)
         async with self.ctx.description_gate:
             desc = await self.ctx.vlm.describe(raw, task.ext)
-        await self.ctx.artifacts.put_artifact(ns, full_uri, "vlm_text", desc.encode())
         if desc.strip():
             # A VLM description is normally short, but route it through the SAME document
             # chunker (force-split HARD cap) so even a pathologically long description can

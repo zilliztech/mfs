@@ -90,8 +90,8 @@ class TransformationCacheBase(ABC):
         callers that all miss the same key compute it EXACTLY ONCE (§3.4).
 
         Why the lock: the Map subsystem (ChunksProducer) and the Reduce subsystem
-        (SummaryWorker, step 9) can both miss the same converted_md / vlm_text hash at the
-        same moment; without the lock each would fire the (expensive) provider call. With it,
+        (SummaryWorker) can both miss the same VLM / summary hash at the same moment; without
+        the lock each would fire the (expensive) provider call. With it,
         the first misser computes while the rest await the lock and then pick up its result
         via the double-check. The cache itself stays best-effort: a disabled cache just makes
         every call recompute (batch_get always misses, batch_put no-ops), still serialized
