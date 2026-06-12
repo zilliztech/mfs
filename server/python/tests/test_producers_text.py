@@ -89,6 +89,31 @@ async def test_document_convert_ext_uses_converter_and_caches_artifact(tmp_path)
     assert md is not None and md.decode().startswith("# Converted .pdf")
 
 
+async def test_document_reuses_fresh_converted_md_artifact(tmp_path):
+    # A cached converted_md whose currency token matches (same source + converter version) is
+    # reused instead of re-converting — this is how the Object and Job lanes avoid double work.
+    store = FakeArtifactStore(tmp_path)
+    ctx = build_ctx(artifacts=store)
+    same = {"/report.pdf": b"raw pdf bytes here"}
+
+    await collect(
+        TextChunksProducer(ctx), _task("/report.pdf", "file:///r", "document", FakePlugin(data=same))
+    )
+    assert ctx.converter.calls == 1
+    # second run over identical content: artifact hit, no second conversion
+    await collect(
+        TextChunksProducer(ctx), _task("/report.pdf", "file:///r", "document", FakePlugin(data=same))
+    )
+    assert ctx.converter.calls == 1
+
+    # changed content -> currency token differs -> re-convert
+    await collect(
+        TextChunksProducer(ctx),
+        _task("/report.pdf", "file:///r", "document", FakePlugin(data={"/report.pdf": b"new bytes"})),
+    )
+    assert ctx.converter.calls == 2
+
+
 async def test_web_text_persists_converted_md(tmp_path):
     store = FakeArtifactStore(tmp_path)
     plugin = FakePlugin(data={"/page": b"# Title\n\nbody text"})

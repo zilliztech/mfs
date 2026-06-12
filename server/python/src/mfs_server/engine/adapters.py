@@ -108,21 +108,28 @@ class ArtifactStoreAdapter:
 
     def __init__(
         self,
-        put_fn: Callable[[str, str, str, bytes], Awaitable[str]],
+        put_fn: Callable[..., Awaitable[str]],
         read_fn: Callable[[str, str, str], Awaitable[Optional[bytes]]],
         artifact_path_fn: Callable[[str, str, str], Any],
+        read_fresh_fn: Callable[[str, str, str, str], Awaitable[Optional[bytes]]],
     ):
         self._put = put_fn
         self._read = read_fn
         self._artifact_path = artifact_path_fn
+        self._read_fresh = read_fresh_fn
 
     async def put_artifact(
-        self, namespace_id: str, object_uri: str, kind: str, data: bytes
+        self, namespace_id: str, object_uri: str, kind: str, data: bytes, currency: str = ""
     ) -> None:
-        await self._put(namespace_id, object_uri, kind, data)
+        await self._put(namespace_id, object_uri, kind, data, currency)
 
     async def get_artifact(self, namespace_id: str, object_uri: str, kind: str) -> Optional[bytes]:
         return await self._read(namespace_id, object_uri, kind)
+
+    async def get_artifact_fresh(
+        self, namespace_id: str, object_uri: str, kind: str, currency: str
+    ) -> Optional[bytes]:
+        return await self._read_fresh(namespace_id, object_uri, kind, currency)
 
     def artifact_path(self, namespace_id: str, object_uri: str, kind: str) -> str:
         return str(self._artifact_path(namespace_id, object_uri, kind))

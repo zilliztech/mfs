@@ -51,6 +51,8 @@ class ReduceCoordinator:
         vlm,
         converter,
         chunks_q,
+        artifacts=None,
+        namespace_id="default",
         description_gate=None,
         summary_gate=None,
     ):
@@ -67,6 +69,10 @@ class ReduceCoordinator:
         self.vlm = vlm
         self.converter = converter
         self.chunks_q = chunks_q
+        # Artifact store + namespace let a SummaryWorker reuse the Object Lane's converted_md
+        # for a child document (via the converter currency token) instead of re-converting.
+        self.artifacts = artifacts
+        self.namespace_id = namespace_id
         # Concurrency gates (§5.5) shared with the Map producers, so a SummaryWorker's summary /
         # VLM provider call draws from the same in-flight budget as image / table_schema. Default
         # to fresh gates sized by cfg when none is injected (e.g. unit tests).
@@ -282,11 +288,22 @@ class ReduceCoordinator:
 
 
 def build_reduce_subsystem(
-    cfg, *, tx_cache, summary, vlm, converter, chunks_q, description_gate=None, summary_gate=None
+    cfg,
+    *,
+    tx_cache,
+    summary,
+    vlm,
+    converter,
+    chunks_q,
+    artifacts=None,
+    namespace_id="default",
+    description_gate=None,
+    summary_gate=None,
 ) -> ReduceCoordinator:
     """Construct the Reduce coordinator. The caller (engine) registers its on_embed_succeeded
     with the EmbedConsumer and calls start() after the event loop is running. The
-    description/summary gates are shared with the Map producers (§5.5)."""
+    description/summary gates are shared with the Map producers (§5.5); the artifact store is
+    shared too, so the Job Lane reuses the Object Lane's converted_md."""
     return ReduceCoordinator(
         cfg,
         tx_cache=tx_cache,
@@ -294,6 +311,8 @@ def build_reduce_subsystem(
         vlm=vlm,
         converter=converter,
         chunks_q=chunks_q,
+        artifacts=artifacts,
+        namespace_id=namespace_id,
         description_gate=description_gate,
         summary_gate=summary_gate,
     )

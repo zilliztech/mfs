@@ -298,7 +298,10 @@ class Engine:
             cfg=self.cfg,
             namespace_id=self.ns,
             artifacts=ArtifactStoreAdapter(
-                self._put_artifact, self._read_artifact, self.artifact_cache.artifact_path
+                self._put_artifact,
+                self._read_artifact,
+                self.artifact_cache.artifact_path,
+                self._read_artifact_fresh,
             ),
             converter=self.converter,
             vlm=self.vlm,
@@ -316,6 +319,8 @@ class Engine:
             vlm=self.vlm,
             converter=self.converter,
             chunks_q=self._chunks_q,
+            artifacts=self._producer_ctx.artifacts,
+            namespace_id=self.ns,
             description_gate=self._description_gate,
             summary_gate=self._summary_gate,
         )
@@ -1785,16 +1790,20 @@ class Engine:
 
     # --- artifact cache: bytes on the local filesystem + a metadata row
     #     in artifact_cache, with LRU size eviction ---
-    async def _put_artifact(self, ns: str, object_uri: str, kind: str, data: bytes) -> str:
+    async def _put_artifact(
+        self, ns: str, object_uri: str, kind: str, data: bytes, currency: str = ""
+    ) -> str:
         """Store artifact bytes and record/refresh its artifact_cache row (size +
-        content fingerprint + timestamps), then run a throttled LRU sweep so the cache
-        stays under budget. fingerprint = sha1(bytes) — lets a re-build detect a
-        no-op (same content) and gives a stale-check handle."""
+        currency token + timestamps), then run a throttled LRU sweep so the cache stays
+        under budget. The `fingerprint` column carries the caller's currency token (source
+        content hash + producer version) when given — `_read_artifact_fresh` compares against
+        it so a reuse only hits when source AND producer version still match; it falls back to
+        sha1(bytes) for kinds that do not pass one."""
         import hashlib
 
         path = await asyncio.to_thread(self.artifact_cache.put_artifact, ns, object_uri, kind, data)
         now = _now()
-        fp = hashlib.sha1(data).hexdigest()
+        fp = currency or hashlib.sha1(data).hexdigest()
         await self.meta.execute(
             "INSERT INTO artifact_cache (namespace_id, object_uri, artifact_kind, storage_path, "
             " fingerprint, size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?,?) "
@@ -1832,6 +1841,22 @@ class Engine:
                 (_now(), ns, object_uri, kind),
             )
         return data
+
+    async def _read_artifact_fresh(
+        self, ns: str, object_uri: str, kind: str, currency: str
+    ) -> bytes | None:
+        """Return the artifact bytes only if its stored currency token matches `currency`
+        (same source content + producer version). A mismatch (stale content / upgraded
+        producer) returns None so the caller recomputes — this is what lets the Job Lane
+        safely reuse the Object Lane's converted_md under parallelism."""
+        row = await self.meta.fetchone(
+            "SELECT fingerprint FROM artifact_cache "
+            "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
+            (ns, object_uri, kind),
+        )
+        if not row or row["fingerprint"] != currency:
+            return None
+        return await self._read_artifact(ns, object_uri, kind)
 
     async def _evict_artifacts_if_needed(self, ns: str) -> int:
         """Evict least-recently-accessed artifacts until total bytes fall under

@@ -68,11 +68,22 @@ class FakeArtifactStore:
     def __init__(self, root: str) -> None:
         self.root = str(root)
         self.store: dict[tuple[str, str, str], bytes] = {}
+        self.currency: dict[tuple[str, str, str], str] = {}
 
-    async def put_artifact(self, ns: str, uri: str, kind: str, data: bytes) -> None:
+    async def put_artifact(
+        self, ns: str, uri: str, kind: str, data: bytes, currency: str = ""
+    ) -> None:
         self.store[(ns, uri, kind)] = data
+        self.currency[(ns, uri, kind)] = currency
 
     async def get_artifact(self, ns: str, uri: str, kind: str) -> Optional[bytes]:
+        return self.store.get((ns, uri, kind))
+
+    async def get_artifact_fresh(
+        self, ns: str, uri: str, kind: str, currency: str
+    ) -> Optional[bytes]:
+        if self.currency.get((ns, uri, kind)) != currency:
+            return None
         return self.store.get((ns, uri, kind))
 
     def artifact_path(self, ns: str, uri: str, kind: str) -> str:
@@ -129,8 +140,15 @@ class FakeSummary:
 
 
 class FakeConverter:
+    version_tag = "markitdown.markitdown.1"
+
     def __init__(self) -> None:
         self.calls = 0
+
+    def currency(self, data: bytes) -> str:
+        import hashlib
+
+        return f"{hashlib.sha1(data).hexdigest()}:{self.version_tag}"
 
     async def convert(self, data: bytes, ext: str) -> str:
         self.calls += 1

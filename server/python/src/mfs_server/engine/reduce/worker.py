@@ -40,6 +40,22 @@ async def _child_text(coord, job_id: str, child_uri: str, okind: str) -> str:
         return out[:cap]
     if okind == "document" and ext in CONVERT_EXTS:
         raw = await read_bytes(plugin, child_uri)
+        # Reuse the Object Lane's converted_md when it matches this source + converter version
+        # (currency token), else convert and cache it so the Object Lane reuses it in turn.
+        if coord.artifacts is not None:
+            currency = coord.converter.currency(raw)
+            builder = coord.builders.get(job_id)
+            full_uri = (builder.connector_uri if builder else "") + child_uri
+            art = await coord.artifacts.get_artifact_fresh(
+                coord.namespace_id, full_uri, "converted_md", currency
+            )
+            if art is not None:
+                return art.decode("utf-8", errors="replace")[:cap]
+            md = await coord.converter.convert(raw, ext)
+            await coord.artifacts.put_artifact(
+                coord.namespace_id, full_uri, "converted_md", md.encode(), currency
+            )
+            return md[:cap]
         return (await coord.converter.convert(raw, ext))[:cap]
     if okind in ("document", "code", "text_blob"):
         return (await read_text(plugin, child_uri))[:cap]

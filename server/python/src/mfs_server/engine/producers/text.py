@@ -100,8 +100,17 @@ class TextChunksProducer:
 
         if okind == "document" and ext in CONVERT_EXTS:
             raw = await read_bytes(task.plugin, task.object_uri)
-            text = await self.ctx.converter.convert(raw, ext)
-            await self.ctx.artifacts.put_artifact(ns, full_uri, "converted_md", text.encode())
+            # Reuse a converted_md the Job Lane may have already produced this run (currency =
+            # source hash + converter version); otherwise convert and cache it for both lanes.
+            currency = self.ctx.converter.currency(raw)
+            art = await self.ctx.artifacts.get_artifact_fresh(ns, full_uri, "converted_md", currency)
+            if art is not None:
+                text = art.decode("utf-8", errors="replace")
+            else:
+                text = await self.ctx.converter.convert(raw, ext)
+                await self.ctx.artifacts.put_artifact(
+                    ns, full_uri, "converted_md", text.encode(), currency
+                )
         else:
             text = await read_text(task.plugin, task.object_uri)
             # web/github markdown isn't backed by a source file `cat` can re-read, so
