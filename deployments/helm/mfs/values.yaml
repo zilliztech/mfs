@@ -29,17 +29,13 @@ metadata:
   type: postgres
   dsn: "postgresql://mfs:mfs@mfs-postgres:5432/mfs"
 
-objectStore:
-  type: s3
-  endpoint: ""        # e.g. https://s3.amazonaws.com, or R2/GCS/MinIO endpoint
-  bucket: "mfs"
-  region: ""
-  prefix: ""
-  # access/secret keys come from the secret below (object-store-access-key / -secret-key)
+# The artifact cache is local-filesystem. In a multi-replica topology, mount a shared
+# RWX volume at the cache root ($MFS_HOME/cache) so artifacts and upload staging are
+# visible to every pod.
 
-# secret holding the shared API bearer token + ZILLIZ_TOKEN / OPENAI_API_KEY / object-store creds.
-# Required keys: api-token, zilliz-token, openai-api-key, object-store-access-key,
-# object-store-secret-key. The same api-token must be shared by every API replica.
+# secret holding the shared API bearer token + ZILLIZ_TOKEN / OPENAI_API_KEY.
+# Required keys: api-token, zilliz-token, openai-api-key. The same api-token must be
+# shared by every API replica.
 existingSecret: "mfs-secrets"
 
 env: {}

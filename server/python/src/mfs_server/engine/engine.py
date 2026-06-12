@@ -1783,7 +1783,7 @@ class Engine:
             buf += chunk
         return bytes(buf)
 
-    # --- artifact cache: bytes in the object store + a metadata row
+    # --- artifact cache: bytes on the local filesystem + a metadata row
     #     in artifact_cache, with LRU size eviction ---
     async def _put_artifact(self, ns: str, object_uri: str, kind: str, data: bytes) -> str:
         """Store artifact bytes and record/refresh its artifact_cache row (size +

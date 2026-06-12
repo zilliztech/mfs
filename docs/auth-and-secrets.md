@@ -15,7 +15,7 @@ credential error. For the full setting tables, see
 | Direct HTTP or SDK client | Bearer token for the target `/v1` server | The caller's own secret source | Send `Authorization: Bearer <token>` when server auth is enabled. |
 | Connector plugin | Connector credentials such as database DSNs, SaaS tokens, or PEM keys | Top-level connector config values resolved from `env:VAR` or `file:/abs/path` by the server/plugin process | The client shell does not resolve connector credential references. |
 | Docker or Compose server container | Server API token and provider/backend secrets | Container environment and `/data/server.token` | Compose sets `MFS_HOME=/data`; persist `/data` to keep generated tokens and state. |
-| Helm API and worker pods | Shared API token plus backend/provider/object-store secrets | The configured Kubernetes Secret and chart values | The chart helper injects the same environment block into API and worker pods. |
+| Helm API and worker pods | Shared API token plus backend/provider secrets | The configured Kubernetes Secret and chart values | The chart helper injects the same environment block into API and worker pods. |
 
 ## Server API Auth
 
@@ -97,10 +97,10 @@ For connector-specific fields and pitfalls, see [Connectors](connectors.md) and
 
 | Topology | API token path | Other secret paths | Notes |
 |---|---|---|---|
-| Source server | `MFS_API_TOKEN` in the server environment, or `$MFS_HOME/server.token` in auto mode | Server environment variables such as `MILVUS_TOKEN`, `ZILLIZ_TOKEN`, `ZILLIZ_API_KEY`, object-store keys, and provider SDK env vars | `MFS_HOME` defaults to `~/.mfs`. |
+| Source server | `MFS_API_TOKEN` in the server environment, or `$MFS_HOME/server.token` in auto mode | Server environment variables such as `MILVUS_TOKEN`, `ZILLIZ_TOKEN`, `ZILLIZ_API_KEY`, and provider SDK env vars | `MFS_HOME` defaults to `~/.mfs`. |
 | Docker all-in-one | `docker run -e MFS_API_TOKEN=...`, or `/data/server.token` when omitted | `docker run -e ...` for server-read env vars | Mount `/data` so generated tokens and state survive container removal. |
 | Compose all-in-one | `MFS_API_TOKEN: ${MFS_API_TOKEN:-}` and `MFS_HOME=/data` in `deployments/compose/docker-compose.yml` | Compose passes `OPENAI_API_KEY`; it also sets `MFS_MILVUS_URI` and `MFS_MILVUS_TOKEN` from host `ZILLIZ_*` values | If `MFS_API_TOKEN` is empty, read `/data/server.token` from the container. |
-| Helm-rendered API/worker | `MFS_API_TOKEN` from existing Secret key `api-token` | Secret keys `zilliz-token`, `openai-api-key`, `object-store-access-key`, and `object-store-secret-key`; object-store values from chart values | Every API replica must share the same `api-token`. API probes use unauthenticated `/healthz`. |
+| Helm-rendered API/worker | `MFS_API_TOKEN` from existing Secret key `api-token` | Secret keys `zilliz-token` and `openai-api-key` | Every API replica must share the same `api-token`. API probes use unauthenticated `/healthz`. |
 
 !!! warning "Rendered Milvus env name mismatch"
     The current Compose file and Helm helper render `MFS_MILVUS_URI` and

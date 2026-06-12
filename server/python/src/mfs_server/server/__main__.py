@@ -143,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(
             f"config OK — milvus={'lite' if not cfg.milvus.uri.startswith('http') else 'remote'}, "
-            f"metadata={cfg.metadata.backend}, artifact_cache={cfg.artifact_cache.backend}. "
+            f"metadata={cfg.metadata.backend}. "
             "Restart the server process to apply changes."
         )
         return 0

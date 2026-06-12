@@ -17,7 +17,7 @@ For state backup, restore, and reset boundaries, see
 | Source development server | Host `mfs-server run` plus host `mfs` CLI | Local evaluation and connector development | Supported beta path | `$MFS_HOME`, default `~/.mfs` | Use normal path mode when the server can read the path. |
 | Docker all-in-one | One container running `mfs-server run` | Smoke tests and isolated server runtime | Runnable v0.4 topology | `/data` volume | Use `mfs add --upload` from the host unless the path is mounted into the container. |
 | Docker Compose all-in-one | Compose wrapper around the same all-in-one container | Repeatable local container startup | Runnable v0.4 topology | `mfs-data` volume mounted at `/data` | Same as Docker all-in-one. |
-| Helm-rendered api/worker | Kubernetes API Deployment, Worker Deployment, and API Service | Future scalable client/server topology | Rendered chart, post-v0.4 direction | Postgres, object store, and remote Milvus/Zilliz are expected | Use client/server upload mode; do not depend on shared local paths. |
+| Helm-rendered api/worker | Kubernetes API Deployment, Worker Deployment, and API Service | Future scalable client/server topology | Rendered chart, post-v0.4 direction | Postgres, a shared artifact-cache volume, and remote Milvus/Zilliz are expected | Use client/server upload mode; do not depend on shared local paths. |
 
 ```mermaid
 flowchart LR
@@ -287,8 +287,6 @@ these keys:
 | `api-token` | Shared API bearer token for all API replicas |
 | `zilliz-token` | Zilliz/Milvus token rendered by the chart helper |
 | `openai-api-key` | OpenAI API key when OpenAI-backed features are configured |
-| `object-store-access-key` | S3-compatible artifact cache access key when object store type is `s3` |
-| `object-store-secret-key` | S3-compatible artifact cache secret key when object store type is `s3` |
 
 Example secret creation:
 
@@ -296,9 +294,7 @@ Example secret creation:
 kubectl create secret generic mfs-secrets \
   --from-literal=api-token="$MFS_API_TOKEN" \
   --from-literal=zilliz-token="$ZILLIZ_TOKEN" \
-  --from-literal=openai-api-key="$OPENAI_API_KEY" \
-  --from-literal=object-store-access-key="$MFS_OBJECT_STORE_ACCESS_KEY" \
-  --from-literal=object-store-secret-key="$MFS_OBJECT_STORE_SECRET_KEY"
+  --from-literal=openai-api-key="$OPENAI_API_KEY"
 ```
 
 Check Kubernetes health and API auth separately:
@@ -342,12 +338,6 @@ curl -H "Authorization: Bearer $MFS_API_TOKEN" \
 | `MFS_METADATA_DSN` | Server | Sets the unified database backend to Postgres and applies it to metadata. | If unset, metadata uses SQLite under `MFS_HOME`. |
 | `MFS_TX_CACHE_DSN` | Server | Optional Postgres DSN for transformation cache. | Takes effect only when `MFS_TX_CACHE_PG` is also set. |
 | `MFS_TX_CACHE_PG` | Server | Opts the transformation cache into Postgres. | Without it, the transformation cache keeps the default backend. |
-| `MFS_OBJECT_STORE_BUCKET` | Server | Switches artifact cache to the S3-compatible backend and sets the bucket. | If unset, artifact cache uses local filesystem. |
-| `MFS_OBJECT_STORE_ENDPOINT` | Server | S3-compatible endpoint URL. | Used when `MFS_OBJECT_STORE_BUCKET` is set. |
-| `MFS_OBJECT_STORE_REGION` | Server | S3-compatible region. | Used when `MFS_OBJECT_STORE_BUCKET` is set. |
-| `MFS_OBJECT_STORE_PREFIX` | Server | S3-compatible object prefix. | Used when `MFS_OBJECT_STORE_BUCKET` is set. |
-| `MFS_OBJECT_STORE_ACCESS_KEY` | Server | S3-compatible access key. | Used when `MFS_OBJECT_STORE_BUCKET` is set. |
-| `MFS_OBJECT_STORE_SECRET_KEY` | Server | S3-compatible secret key. | Used when `MFS_OBJECT_STORE_BUCKET` is set. |
 | `MFS_SUMMARY_ENABLED` | Server | Enables or disables directory summaries from the environment. | Truthy values are `1`, `true`, `yes`, and `on`. |
 | `MFS_MILVUS_URI` / `MFS_MILVUS_TOKEN` | Deployment assets only | Currently rendered or set by Compose/Helm assets. | Not read by the current server config code as runtime Milvus overrides. |
 

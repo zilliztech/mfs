@@ -103,7 +103,7 @@ The wizard walks these sections in order:
 | `description` | `[summary] enabled`, `include_image_description`, `provider`, `model`; `[description] provider`, `model` | Off by default. Image objects can be listed without generating image descriptions. | Enable when you need image descriptions in the searchable index and accept the provider cost. |
 | `milvus` | `[milvus] uri`, `token` | Milvus Lite under `$MFS_HOME/milvus.db`. | Set an HTTP(S) URI for Milvus or Zilliz Cloud. |
 | `database` | `[database] backend`, `dsn` | SQLite. The same backend feeds metadata and the transformation-cache lookup table. | Use Postgres when multiple server processes need shared relational state. |
-| `cache` | `[artifact_cache] backend`, `root`, S3-compatible fields | Local filesystem under `$MFS_HOME/cache`. | Use S3, MinIO, R2, or GCS-compatible storage for shared artifact blobs. |
+| `cache` | `[artifact_cache] root`, `max_size_gb`, `eviction` | Local filesystem under `$MFS_HOME/cache`. | Mount a volume at `root` to persist the cache in container deployments. |
 | `auth` | top-level `auth_token` | Auto mode omits `auth_token` in TOML and creates or reuses `server.token`. | Provide a known token, or set `-` only for an intentionally open trusted network. |
 
 ??? note "Advanced and legacy TOML blocks"
@@ -208,12 +208,6 @@ apply after TOML is loaded and default paths are resolved.
 | `MFS_METADATA_DSN` | Server | Switches the unified database backend to Postgres and applies the DSN to metadata. |
 | `MFS_TX_CACHE_DSN` | Server | Optional transformation-cache Postgres DSN. |
 | `MFS_TX_CACHE_PG` | Server | Enables Postgres for transformation cache when paired with `MFS_TX_CACHE_DSN` or `MFS_METADATA_DSN`. |
-| `MFS_OBJECT_STORE_BUCKET` | Server | Switches artifact cache to S3-compatible storage and sets the bucket. |
-| `MFS_OBJECT_STORE_ENDPOINT` | Server | Sets S3-compatible endpoint URL when object-store bucket is configured. |
-| `MFS_OBJECT_STORE_REGION` | Server | Sets S3-compatible region when object-store bucket is configured. |
-| `MFS_OBJECT_STORE_PREFIX` | Server | Sets S3-compatible prefix when object-store bucket is configured. |
-| `MFS_OBJECT_STORE_ACCESS_KEY` | Server | Sets S3-compatible access key when object-store bucket is configured. |
-| `MFS_OBJECT_STORE_SECRET_KEY` | Server | Sets S3-compatible secret key when object-store bucket is configured. |
 | `OPENAI_API_KEY` | OpenAI provider SDK | Needed only when OpenAI-backed embedding, summary, or VLM settings are selected. The default ONNX path does not require it. |
 
 !!! warning "Do not use `MFS_MILVUS_*` as runtime overrides"
@@ -318,16 +312,6 @@ token = "env:MFS_API_TOKEN"
     uv run mfs-server run
     ```
 
-=== "S3-compatible artifact cache"
-
-    ```bash
-    export MFS_OBJECT_STORE_BUCKET="mfs-artifacts"
-    export MFS_OBJECT_STORE_ENDPOINT="https://s3.example.com"
-    export MFS_OBJECT_STORE_REGION="us-east-1"
-    export MFS_OBJECT_STORE_ACCESS_KEY="..."
-    export MFS_OBJECT_STORE_SECRET_KEY="..."
-    uv run mfs-server run
-    ```
 
 ## Related Guides
 

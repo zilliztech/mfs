@@ -7,7 +7,7 @@
 #   ZILLIZ_URI=https://xxx.zillizcloud.com ZILLIZ_TOKEN=... OPENAI_API_KEY=... \
 #     docker compose up --build
 #
-# The api/worker split + Postgres metadata + MinIO object store is the team /
+# The api/worker split + Postgres metadata + a shared cache volume is the team /
 # client-server target; the Postgres metadata backend is wired (MFS_METADATA_DSN),
 # the standalone worker daemon lands post-v0.4. Sketch at the bottom (disabled).
 services:
@@ -45,7 +45,7 @@ volumes:
 # and standalone worker daemon ship (post-0.4):
 #
 #   postgres:    image: postgres:16          # metadata  (MFS_METADATA_DSN=postgresql://...)
-#   minio:       image: minio/minio          # object store
+#   (artifact cache is local — mount a shared RWX volume at /data/cache across pods)
 #   mfs-api:     image: mfs-server:0.4.0      # command: ["api",    "--bind", "0.0.0.0:13619"]
 #   mfs-worker:  image: mfs-server:0.4.0      # command: ["worker", "--concurrency", "auto"]
 # ---------------------------------------------------------------------------

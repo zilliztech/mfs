@@ -56,7 +56,7 @@ flowchart LR
   jobs --> worker["inline processing or<br/>mfs-server worker"]
   engine --> metadata["Metadata DB<br/>SQLite or Postgres"]
   engine --> txcache["Transformation cache<br/>SQLite or Postgres"]
-  engine --> artifacts["Artifact cache<br/>local or S3-compatible"]
+  engine --> artifacts["Artifact cache<br/>local filesystem"]
   engine --> milvus["MilvusStore<br/>Lite or remote Milvus/Zilliz"]
   engine --> source["Connector plugins<br/>source systems"]
 ```
@@ -107,7 +107,7 @@ behavior.
 | `server/python/src/mfs_server/connectors/registry.py` | URI scheme to plugin registry. `file` is imported directly; optional built-ins are loaded lazily and skipped when their dependencies are not installed. |
 | `server/python/src/mfs_server/storage/metadata/` | Metadata store factory and SQLite/Postgres implementations for connector registry rows, objects, jobs, tasks, state, and related metadata. |
 | `server/python/src/mfs_server/storage/transformation_cache/` | Transformation-cache factory and SQLite/Postgres implementations for content-addressed conversion, embedding, VLM, and summary lookup data. |
-| `server/python/src/mfs_server/storage/artifact_cache.py` | Local and S3-compatible artifact-cache backends, plus local upload/file staging directories. |
+| `server/python/src/mfs_server/storage/artifact_cache.py` | Local-filesystem artifact cache, plus upload/file staging directories. |
 | `server/python/src/mfs_server/storage/milvus.py` | Milvus client, collection creation/loading, chunk upsert/delete, dense search, BM25 sparse search, and hybrid search. |
 | `server-rs/` | Optional Rust acceleration for server hot paths when installed; the Python server falls back when it is absent. |
 
@@ -180,7 +180,7 @@ connector state only after a job succeeds.
 |---|---|---|---|---|
 | Metadata | `make_metadata_store(cfg)` in `storage/metadata/` | SQLite or Postgres | `$MFS_HOME/metadata.db` | Connectors, objects, jobs, object tasks, connector state, file state, and related metadata. |
 | Transformation cache | `make_transformation_cache(cfg)` in `storage/transformation_cache/` | SQLite or Postgres | `$MFS_HOME/transformation_cache.db` | Content-addressed lookup data for embedding, conversion, VLM, and summary work. |
-| Artifact cache | `make_artifact_cache(cfg)` in `storage/artifact_cache.py` | Local filesystem or S3-compatible storage | `$MFS_HOME/cache` | Derived per-object blobs such as converted markdown and image descriptions. Upload/file staging directories stay local even when artifact bytes use S3-compatible storage. |
+| Artifact cache | `make_artifact_cache(cfg)` in `storage/artifact_cache.py` | Local filesystem | `$MFS_HOME/cache` | Derived per-object blobs such as converted markdown and image descriptions. Mount a volume at the cache root to persist them. |
 | Vector index | `MilvusStore(cfg)` in `storage/milvus.py` | Milvus Lite file or remote Milvus/Zilliz URI | `$MFS_HOME/milvus.db` | Indexed chunks with dense vectors, BM25 sparse vectors, locators, content, chunk kinds, and metadata. |
 
 The Engine constructs all four stores during initialization. During startup it

@@ -284,41 +284,20 @@ def _wizard_cache(current: ArtifactCacheConfig, step: int, total: int) -> dict[s
     ui.section(
         "Cache",
         "Where derived artifact blobs live (PDF→markdown conversions, VLM\n"
-        "image descriptions, …). Default = local filesystem under $MFS_HOME.\n"
-        "Switch to S3 (or MinIO / R2 / GCS via endpoint_url) for shared\n"
-        "storage across server replicas.\n\n"
+        "image descriptions, …). Stored on the local filesystem under\n"
+        "$MFS_HOME/cache by default — mount a volume there in container\n"
+        "deployments to keep it across restarts.\n\n"
         "(Size + eviction policy are advanced knobs — defaults are fine; edit\n"
         "[artifact_cache].max_size_gb / eviction in the TOML to change them.)",
         step=step,
         total=total,
     )
-    backend = ui.select(
-        "Backend",
-        [
-            ("local", "filesystem under $MFS_HOME (no setup)"),
-            ("s3", "S3 / MinIO / R2 / GCS via endpoint_url"),
-        ],
-        default=current.backend or "local",
+    root = ui.text(
+        "Cache directory",
+        default=current.root,
+        hint="leave blank for $MFS_HOME/cache",
     )
-    if backend == "local":
-        return {"backend": "local"}
-    bucket = ui.text("Bucket", default=current.bucket, required=True)
-    endpoint_url = ui.text(
-        "Endpoint URL",
-        default=current.endpoint_url,
-        hint="leave blank for AWS S3 / set for MinIO / R2 / GCS",
-    )
-    region = ui.text("Region", default=current.region or "us-east-1")
-    access_key = ui.password("Access key id", default=current.access_key_id, required=True)
-    secret_key = ui.password("Secret access key", default=current.secret_access_key, required=True)
-    return {
-        "backend": "s3",
-        "bucket": bucket,
-        "endpoint_url": endpoint_url,
-        "region": region,
-        "access_key_id": access_key,
-        "secret_access_key": secret_key,
-    }
+    return {"root": root} if root else {}
 
 
 def _wizard_auth(current_token: str, step: int, total: int) -> dict[str, Any]:

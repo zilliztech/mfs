@@ -20,7 +20,7 @@
 #   5. Reinstall the local package with --no-deps over the stub — fast (no
 #      network, just rebuild the local wheel)
 #
-# Backends (DB / Milvus / object store) are all RUNTIME — pass env at `docker run`:
+# Backends (DB / Milvus) are all RUNTIME — pass env at `docker run`:
 #   MFS_METADATA_DSN=postgresql://...   # default = SQLite under /data
 #   MILVUS_URI=https://...zillizcloud.com / MILVUS_TOKEN=...  # default = Lite under /data
 #   MFS_API_TOKEN=...                   # default = auto-generated to /data/server.token

@@ -54,14 +54,13 @@ Compose wrapper (same image): `cd deployments/compose && docker compose up`.
 | VLM / image summary | (via `mfs-server setup --section vlm`) | OFF (opt-in) |
 | Metadata DB | `MFS_METADATA_DSN=postgresql://...` | SQLite under `/data` |
 | Milvus | `MILVUS_URI=...` + `MILVUS_TOKEN=...` | Lite at `/data/milvus.db` |
-| Object store | `MFS_OBJECT_STORE_*` | Local fs under `/data` |
 | API token | `MFS_API_TOKEN=...` | Auto-generated to `/data/server.token` |
 
 ## Team / client-server (compose) and Kubernetes (helm)
 
 `deployments/compose/docker-compose.yml` (bottom, disabled) and
 `deployments/helm/mfs` render the scalable api/worker split with Postgres
-metadata, MinIO object store, and Milvus via Zilliz Cloud. The Postgres
+metadata, a shared artifact-cache volume, and Milvus via Zilliz Cloud. The Postgres
 metadata backend is already wired (`MFS_METADATA_DSN`); the standalone worker
 daemon lands post-v0.4. See the chart's NOTES.txt.
 
