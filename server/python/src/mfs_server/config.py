@@ -10,11 +10,11 @@ Outward concept map (design doc §2 terms table):
               lookup table. Power users wanting split backends can still
               override [metadata] / [transformation_cache] explicitly.
   Cache     — one outward "Cache" concept covering both halves:
-              - artifact half: blobs (PDF→md, VLM summaries) under
-                [artifact_cache] (backend = local | s3)
-              - transformation half: KV lookups under
-                [transformation_cache] (policy; backend inherits from
-                [database])
+              - artifact half: derived blobs (PDF→md, …) under
+                [artifact_cache] (local filesystem)
+              - transformation half: model-output KV lookups (embeddings,
+                VLM, summaries) under [transformation_cache] (policy;
+                backend inherits from [database])
 
 The wizard writes [database] + [artifact_cache] directly. Legacy tomls
 with [metadata] backend / [object_store] / [artifact_cache] policy are
@@ -158,11 +158,11 @@ class EmbeddingConfig(StrictConfigModel):
 
 
 class SummaryConfig(StrictConfigModel):
-    """[summary] — directory / file summaries (Reduce subsystem, §3.5)."""
+    """[summary] — directory / file summaries (Job Lane, §3.5)."""
 
     # Master opt-in. §7.2's example omits this, but it is kept so the default stays OFF
     # (directory summaries cost an LLM call per directory — opt-in avoids surprise bills);
-    # the ReduceCoordinator is fully inert unless enabled.
+    # the JobLaneCoordinator is fully inert unless enabled.
     enabled: bool = False
     provider: str = "openai"
     model: str = "gpt-4o-mini"

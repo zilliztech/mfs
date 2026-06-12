@@ -1,12 +1,12 @@
 """Config tests for the V0.4 TOML rename (§7): new schema loads, old names fail loudly,
-[summary].dir/file toggles reach the ReduceCoordinator."""
+[summary].dir/file toggles reach the JobLaneCoordinator."""
 
 from __future__ import annotations
 
 import pytest
 
 from mfs_server.config import ServerConfig, load_server_config
-from mfs_server.engine.reduce import ReduceCoordinator
+from mfs_server.engine.job_lane import JobLaneCoordinator
 
 
 def _write(tmp_path, text):
@@ -153,7 +153,7 @@ def test_removed_keys_fail_loudly(tmp_path, block):
 
 
 def _coord(cfg):
-    return ReduceCoordinator(
+    return JobLaneCoordinator(
         cfg, tx_cache=None, summary=None, vlm=None, converter=None, chunks_q=None
     )
 

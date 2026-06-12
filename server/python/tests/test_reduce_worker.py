@@ -6,8 +6,8 @@ import asyncio
 
 from mfs_server.config import ServerConfig
 from mfs_server.engine.producers.base import Chunk, EndOfTask
-from mfs_server.engine.reduce import ReduceCoordinator
-from mfs_server.engine.reduce.worker import fold_and_summarize
+from mfs_server.engine.job_lane import JobLaneCoordinator
+from mfs_server.engine.job_lane.worker import fold_and_summarize
 
 
 class _FakePlugin:
@@ -62,7 +62,7 @@ def _coord(files, *, include_image_desc=False, description_enabled=True):
     cfg.summary.enabled = True
     cfg.summary.include_image_description = include_image_desc
     cfg.description.enabled = description_enabled
-    coord = ReduceCoordinator(
+    coord = JobLaneCoordinator(
         cfg,
         tx_cache=_FakeTx(),
         summary=_FakeSummary(),

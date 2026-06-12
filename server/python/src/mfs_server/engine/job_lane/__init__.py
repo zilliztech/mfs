@@ -1,11 +1,11 @@
-"""Reduce subsystem (§3.3 / §3.5 / §6.4): dir_summary as its own scheduling lane.
+"""Job Lane (§3.3 / §3.5 / §6.4): directory summaries as their own scheduling lane.
 
-Unlike Map work (per-object, self-contained, in the object_tasks table), a directory summary
-is a REDUCE over a directory's children — it has a DAG dependency (sub-dirs before parents)
-and bottom-up ordering. So it lives OUTSIDE object_tasks: a per-job in-memory DirTree
-(reduce/tree.py) + a global priority queue (reduce/queue.py) + a SummaryWorker pool
-(reduce/worker.py). Summaries are emitted as Chunks into the SAME chunks_q the Map producers
-use, so the EmbedConsumer indexes them uniformly.
+The Object Lane works at object granularity (per-object, self-contained, in the object_tasks
+table). The Job Lane works at job granularity: a directory summary folds a directory's
+children, with a DAG dependency (sub-dirs before parents) and bottom-up ordering. So it lives
+OUTSIDE object_tasks: a per-job in-memory DirTree (job_lane/tree.py) + a global priority queue
+(job_lane/queue.py) + a SummaryWorker pool (job_lane/worker.py). The two lanes run in parallel
+and both emit Chunks into the SAME chunks_q, so the EmbedConsumer indexes them uniformly.
 
 Coordinator hooks the engine calls:
   register_job(job_id, connector_uri, plugin)  — at sync start
@@ -14,7 +14,7 @@ Coordinator hooks the engine calls:
   on_embed_succeeded(task_uri, job_id)          — registered with EmbedConsumer; counts a
                                                   dir_summary as persisted (file successes are
                                                   ignored — files do not gate a dir)
-  await_reduce_done(job_id)                     — block until all of a job's dir summaries
+  await_done(job_id)                     — block until all of a job's dir summaries
                                                   are computed + persisted
   evict_job(job_id)                             — free a terminal job's DirTree
 
@@ -38,10 +38,10 @@ from .queue import SummaryQueue
 from .tree import DirTreeBuilder
 from .worker import run_summary_worker
 
-__all__ = ["ReduceCoordinator", "build_reduce_subsystem"]
+__all__ = ["JobLaneCoordinator", "build_job_lane"]
 
 
-class ReduceCoordinator:
+class JobLaneCoordinator:
     def __init__(
         self,
         cfg,
@@ -73,7 +73,7 @@ class ReduceCoordinator:
         # for a child document (via the converter currency token) instead of re-converting.
         self.artifacts = artifacts
         self.namespace_id = namespace_id
-        # Concurrency gates (§5.5) shared with the Map producers, so a SummaryWorker's summary /
+        # Concurrency gates (§5.5) shared with the Object Lane producers, so a SummaryWorker's summary /
         # VLM provider call draws from the same in-flight budget as image / table_schema. Default
         # to fresh gates sized by cfg when none is injected (e.g. unit tests).
         self.summary_gate = summary_gate or SummaryConcurrencyGate(cfg.summary.concurrency)
@@ -180,7 +180,7 @@ class ReduceCoordinator:
     ) -> None:
         """Emit one directory as a per-object task into chunks_q: a directory_summary Chunk
         (when non-empty) plus an EndOfTask. The EmbedConsumer delete-then-upserts it (per-object
-        atomic) exactly like a Map chunk; an empty summary becomes a chunk-less task that just
+        atomic) exactly like an Object Lane chunk; an empty summary becomes a chunk-less task that just
         purges any stale summary. Either way the persist success hook lands in on_embed_succeeded."""
         full_uri = connector_uri + dir_uri
         task_id = f"reduce:{job_id}:{dir_uri}"
@@ -212,7 +212,7 @@ class ReduceCoordinator:
         )
 
     # --- completion + teardown ---
-    async def await_reduce_done(self, job_id: str) -> None:
+    async def await_done(self, job_id: str) -> None:
         if not self.enabled:
             return
         st = self._completion.get(job_id)
@@ -220,7 +220,7 @@ class ReduceCoordinator:
             return
         await st["event"].wait()
 
-    def is_reduce_done(self, job_id: str) -> bool:
+    def is_done(self, job_id: str) -> bool:
         """Synchronous completion check for the ConnectorJobWatcher: True when this job has
         no outstanding directory summaries (or no reduce work at all)."""
         if not self.enabled:
@@ -287,7 +287,7 @@ class ReduceCoordinator:
             st["event"].set()
 
 
-def build_reduce_subsystem(
+def build_job_lane(
     cfg,
     *,
     tx_cache,
@@ -299,12 +299,12 @@ def build_reduce_subsystem(
     namespace_id="default",
     description_gate=None,
     summary_gate=None,
-) -> ReduceCoordinator:
-    """Construct the Reduce coordinator. The caller (engine) registers its on_embed_succeeded
+) -> JobLaneCoordinator:
+    """Construct the Job Lane coordinator. The caller (engine) registers its on_embed_succeeded
     with the EmbedConsumer and calls start() after the event loop is running. The
-    description/summary gates are shared with the Map producers (§5.5); the artifact store is
+    description/summary gates are shared with the Object Lane producers (§5.5); the artifact store is
     shared too, so the Job Lane reuses the Object Lane's converted_md."""
-    return ReduceCoordinator(
+    return JobLaneCoordinator(
         cfg,
         tx_cache=tx_cache,
         summary=summary,

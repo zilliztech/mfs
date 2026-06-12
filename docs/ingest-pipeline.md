@@ -6,16 +6,25 @@ the system-level map, see [Architecture](architecture.md); for the server's
 process and module layout, see [Server](server.md). The code lives under
 `server/python/src/mfs_server/engine/`.
 
-The pipeline has two halves:
+The pipeline has two lanes, distinguished by the granularity of the work they
+collect. They run **in parallel** and feed one shared tail:
 
-- **Map** — always on. Every object becomes a stream of chunks, the chunks
-  become vectors, the vectors become rows in the index.
-- **Reduce** — optional, controlled by `[summary].enabled`. As Map finishes
-  objects, their parent directories are folded into summaries bottom-up. Each
-  summary travels back through the same Map tail and lands in the same index
-  as one more chunk kind.
+- **Object Lane** — always on, works at object granularity. Every object becomes
+  a stream of chunks, the chunks become vectors, the vectors become rows in the
+  index.
+- **Job Lane** — optional, controlled by `[summary].enabled`, works at job
+  granularity. It folds each directory of a connector job into a summary,
+  bottom-up. Each summary travels back through the same tail and lands in the
+  same index as one more chunk kind.
 
-Both halves are wired around the same four concepts. The diagrams below mark
+The lanes are not phases: the Job Lane does not wait for the Object Lane to
+finish. A directory summary folds its children's **source content** (re-read or
+reused from the cache), not their embeddings, so the moment enumeration
+completes the Job Lane can summarize a directory while its files are still being
+embedded. The two lanes hit different backend services (the embedder vs. the
+LLM/VLM), so running them together keeps both busy.
+
+Both lanes are wired around the same four concepts. The diagrams below mark
 them with the same icons:
 
 - 📋 **Metadata** — durable state describing what work exists and what work is
@@ -23,7 +32,7 @@ them with the same icons:
 - 🟦 **Queues** — the durable `ObjectTask` queue plus the in-memory `chunks_q`
   and `SummaryQueue`.
 - 💾 **Caches** — Transformation Cache (content-addressed memoization of model
-  outputs) and Artifact Cache (per-object derived blobs).
+  outputs) and Artifact Cache (per-object derived blobs, local filesystem).
 - 🟩 **Index** — the vector store (Milvus Lite by default, or a configured
   Milvus / Zilliz endpoint).
 
@@ -52,23 +61,23 @@ The shape that falls out:
 | **Batch density** | One process-wide `EmbedConsumer` accumulates chunks across every task and every object kind, then flushes one embed call + one upsert per batch. Small tasks piggyback on large tasks' batches. |
 | **Per-object correctness** | The consumer issues `delete_by_object` on a task's first chunk, before any new upsert lands. Re-running a task is idempotent; the index never holds an overlap between old and new versions of the same object. |
 | **Extensible to new object kinds** | A typed `ChunksProducer` interface per okind. Adding a new kind (audio, video, …) is one new producer file plus one dispatch entry — no change to the consumer, the cache, or the index path. |
-| **Extensible to new aggregate kinds** | Reduce emits its output back into `chunks_q` as a new `chunk_kind`. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path. |
-| **Crash recovery** | `ObjectTask` is durable. `DirTreeBuilder` is in-memory but rebuilt from the durable Map success history on restart. |
-| **Provider cost** | The Transformation Cache is content-addressed and single-flight, so Map and Reduce never double-call the same provider for the same input — even when they miss the cache concurrently. |
+| **Extensible to new aggregate kinds** | The Job Lane emits its output back into `chunks_q` as a new `chunk_kind`. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path. |
+| **Crash recovery** | `ObjectTask` is durable. The Job Lane's `DirTreeBuilder` is in-memory but rebuilt from durable object state on restart. |
+| **Provider cost** | Model outputs (VLM, summary) are memoized in the content-addressed, single-flight Transformation Cache, and file conversions in the per-object Artifact Cache keyed by a content+version token — so the two lanes never re-run the same conversion or double-call the same provider for the same input, even when they miss concurrently. |
 
 ## High-level overview
 
 ```
    ╔═════════════════════════════╗    ╔══════════════════════════════════╗
    ║  📋  ObjectTask queue       ║    ║  📋  Connector Job context       ║
-   ║      (per-object, durable)  ║    ║      + Map success events        ║
-   ║                             ║    ║      (per-job, in-memory)        ║
-   ║   the entry point of Map    ║    ║   the entry point of Reduce      ║
+   ║      (per-object, durable)  ║    ║      + directory tree            ║
+   ║                             ║    ║      (built during sync)         ║
+   ║   the entry of Object Lane  ║    ║   the entry of the Job Lane      ║
    ╚══════════════╤══════════════╝    ╚═══════════════╤══════════════════╝
                   │                                   │
                   ▼                                   ▼
    ┌─────────────────────────────┐    ┌──────────────────────────────────┐
-   │   MAP   (always on)         │    │   REDUCE   (optional,            │
+   │   OBJECT LANE  (always on)  │    │   JOB LANE   (optional,          │
    │                             │    │             [summary].enabled)   │
    │   workers claim one         │    │                                  │
    │   ObjectTask at a time      │    │   DirTreeBuilder                 │
@@ -102,28 +111,32 @@ The shape that falls out:
         └──────────────────────────────────────────────────────┘
 ```
 
-The two halves feed into one tail.
+The two lanes feed into one tail.
 
-- **Map is the always-on side and works at object granularity** — it claims
-  one `ObjectTask` (a file, an image, a table-rows batch, a message stream, …)
-  at a time. Each task becomes one stream of chunks.
-- **Reduce is optional and works at job granularity** — it builds one
-  in-memory directory tree per connector job and folds directories bottom-up
-  as Map finishes their children. Each ready directory becomes one chunk.
+- **The Object Lane works at object granularity** — it claims one `ObjectTask`
+  (a file, an image, a table-rows batch, a message stream, …) at a time. Each
+  task becomes one stream of chunks.
+- **The Job Lane works at job granularity** — it builds one in-memory directory
+  tree per connector job and folds directories bottom-up. A directory is ready
+  to fold once enumeration is complete (for a leaf) and its sub-directories are
+  summarized; it does **not** wait for its own files to be embedded. Each ready
+  directory becomes one chunk.
 - **From `chunks_q` onward, everything is shared.** One `chunks_q`, one
-  `EmbedConsumer`, one cache pair, one index. Reduce has no separate embed
+  `EmbedConsumer`, one cache pair, one index. The Job Lane has no separate embed
   path, no separate upsert path, no separate collection — its output is just
   one more `chunk_kind` (`directory_summary`) alongside `file`, `code`,
   `image`, and the rest.
-- **The shared cache pays off across the two halves.** Folding a directory in
-  Reduce re-reads whatever PDF was converted or whatever image was VLM-described
-  by Map. Because the Transformation Cache is keyed on content hash and has a
-  per-key single-flight lock, Map and Reduce never double-charge the provider —
-  even if they miss the same cache key at the same moment.
+- **The shared cache pays off across the two lanes.** Folding a directory
+  re-reads whatever PDF was converted or whatever image was VLM-described in the
+  Object Lane. A conversion is reused from the Artifact Cache when its
+  content+version token still matches; a VLM/summary call is memoized in the
+  content-addressed Transformation Cache under a single-flight lock. Either way
+  the two lanes never re-run the same work, even if they reach the same input at
+  the same moment.
 
-The next two sections open each half.
+The next two sections open each lane.
 
-## Map: object → chunks → vectors
+## Object Lane: object → chunks → vectors
 
 ```
    ╔══════════════════════════════════════════════════════════════════╗
@@ -145,15 +158,15 @@ The next two sections open each half.
    │   one object → a stream of Chunks            │           │   │   • Transformation Cache       │
    └─────────────────────┬────────────────────────┘           │   │     content-addressed          │
                          ▼                                    │   │     memoization of model       │
-   ┌──────────────────────────────────────────────┐           │   │     outputs (single-flight)    │
-   │   🟦  Queue ②   chunks_q                     │           │   │     kind: convert / vlm /      │
-   │   in-memory, bounded, backpressure           │           │   │           summary / embedding  │
-   └─────────────────────┬────────────────────────┘           │   │                                │
-                         ▼                                    │   │   • Artifact Cache             │
-   ┌──────────────────────────────────────────────┐           │   │     per-object derived         │
-   │   EmbedConsumer  (process singleton)         │ ◄─ r/w ─► │   │     blobs, serves              │
-   │   batch → one embed → one upsert             │           │   │     cat / head / tail          │
-   │   per-object atomic: delete-then-write       │── hook ───┘   └────────────────────────────────┘
+   ┌──────────────────────────────────────────────┐           │   │     outputs (single-flight):   │
+   │   🟦  Queue ②   chunks_q                     │           │   │     vlm / summary / embedding  │
+   │   in-memory, bounded, backpressure           │           │   │                                │
+   └─────────────────────┬────────────────────────┘           │   │   • Artifact Cache             │
+                         ▼                                    │   │     per-object derived blobs   │
+   ┌──────────────────────────────────────────────┐           │   │     (converted_md, …), serves  │
+   │   EmbedConsumer  (process singleton)         │ ◄─ r/w ─► │   │     cat / head / tail          │
+   │   batch → one embed → one upsert             │           │   └────────────────────────────────┘
+   │   per-object atomic: delete-then-write       │── hook ───┘
    └─────────────────────┬────────────────────────┘
                          ▼
    ┌──────────────────────────────────────────────┐
@@ -188,15 +201,16 @@ Notes:
 - **The success hook closes the loop.** When every chunk for a task is written
   and its `EndOfTask` has been seen, the consumer fires registered hooks: one
   flips the `ObjectTask` row to `succeeded` and writes the `Objects` row;
-  another notifies Reduce (next section). Failure in a flush is also delivered
-  through the hook, with an error string, so the task can be marked failed.
+  another advances the Job Lane's completion count when the task was a persisted
+  `directory_summary`. Failure in a flush is also delivered through the hook,
+  with an error string, so the task can be marked failed.
 
-## Reduce: directory summaries
+## Job Lane: directory summaries
 
 ```
                        ╔══════════════════════════════════════╗
-                       ║  From Map: EmbedConsumer success hook║
-                       ║  "file X is indexed"                 ║
+                       ║  Connector sync: every yielded object ║
+                       ║  is added to the in-memory dir tree   ║
                        ╚══════════════════╤═══════════════════╝
                                           ▼
    ┌──────────────────────────────────────────────────────────────────────┐
@@ -204,14 +218,14 @@ Notes:
    │                                                                      │
    │       a directory tree; every node records:                          │
    │         ▸ child files / child sub-directories                        │
-   │         ▸ pending: number of children not yet done                   │
+   │         ▸ pending: number of sub-directories not yet summarized       │
+   │           (files do NOT gate a directory)                            │
    │         ▸ summary: the directory's own summary (written back here    │
    │           after folding)                                             │
    │                                                                      │
-   │       the whole tree is built during sync                            │
-   │       every Map success notification decrements pending on the       │
-   │       owning directory; pending reaches zero → the directory is      │
-   │       ready and pushed into SummaryQueue                             │
+   │       built during sync; at sync end finalize() pushes every leaf    │
+   │       directory (pending == 0). A parent is pushed bottom-up once    │
+   │       its sub-directory summaries land and its pending reaches zero. │
    └─────────────────────────────────┬────────────────────────────────────┘
                                      ▼
    ┌──────────────────────────────────────────────────────────────────────┐
@@ -228,16 +242,16 @@ Notes:
    │                                                                      │
    │   each worker pulls a (job, dir):                                    │
    │                                                                      │
-   │     ① fold child content                                              │
+   │     ① fold child SOURCE content (not embeddings)                      │
    │         ▸ child file:  text / code / converted markdown ─┐           │
-   │         ▸ child file:  image → VLM description           │ ─── hits  │
-   │         ▸ child dir:   its already-written summary       │   Transformation
-   │                                                          ─┘  + Artifact
+   │         ▸ child file:  image → VLM description           │ ─── reuse │
+   │         ▸ child dir:   its already-written summary       │   Artifact│
+   │                                                          ─┘   + Transf.
    │                                                              Cache    │
-   │                                                              (single- │
-   │                                                              flight,  │
-   │                                                              shared   │
-   │                                                              with Map)│
+   │                                                              (shared  │
+   │                                                              with the │
+   │                                                              Object   │
+   │                                                              Lane)    │
    │                                                                      │
    │     ② concatenate → call the summary LLM                              │
    │         (the result also lands in Transformation Cache,              │
@@ -252,10 +266,10 @@ Notes:
                                      ▼
               ┌─────────────────────────────────────────────┐
               │   🟦  Queue ②   chunks_q                    │
-              │   ◄── the same chunks_q from the Map diagram│
+              │   ◄── the same chunks_q the Object Lane uses│
               │                                             │
               │   directory_summary travels the exact same  │
-              │   Map downstream:                           │
+              │   downstream:                               │
               │      → EmbedConsumer                        │
               │      → embed (Transformation Cache,         │
               │              kind = embedding)              │
@@ -268,32 +282,35 @@ Notes:
 
 Notes:
 
-- **`DirTreeBuilder` is in-memory state.** Unlike the durable Map queue, the
-  tree is rebuilt during connector sync and lost on crash. Crash recovery
-  reconstructs it from the durable Map success history — see `_recover_reduce`
+- **`DirTreeBuilder` is in-memory state.** Unlike the durable `ObjectTask`
+  queue, the tree is built during connector sync and lost on crash. Crash
+  recovery reconstructs it from durable object state — see `_recover_job_lane`
   in `engine/engine.py`.
-- **Reduce is triggered by Map success hooks.** When a file's index write
-  finishes, the parent directory's `pending` counter is decremented. Zero
-  pending means every child is ready, so the directory can be summarized.
+- **Files do not gate a directory.** A summary folds its children's source
+  content, not their embeddings, so a directory's `pending` counts only its
+  un-summarized sub-directories. At sync end every leaf directory is ready
+  immediately; the two lanes then run in parallel — a directory can be
+  summarized while its files are still being embedded by the Object Lane.
 - **Bottom-up ordering.** `SummaryQueue` is a per-job heap keyed on negative
   depth, so the deepest ready directory pops first. A cross-job round-robin
   dispatcher fans the per-job heaps into a single `ready_q`, so one large
   deep job cannot starve another job's shallow tree.
-- **Cache reuse pays off here.** Folding a directory's children re-reads
-  whatever was already converted or VLM-described during Map. Because the
-  Transformation Cache is keyed by content hash and has a single-flight lock,
-  Map and Reduce never double-charge the provider for the same image or PDF —
-  even if they miss the cache concurrently.
-- **Reduce shares the Map tail.** Every `directory_summary` chunk is written
-  back into the same `chunks_q`. There is no separate embed path, no separate
-  upsert path, no separate index. From the `EmbedConsumer`'s perspective,
+- **Cache reuse pays off here.** Folding a directory's children reuses whatever
+  was already converted or VLM-described in the Object Lane. A conversion is
+  reused from the Artifact Cache when its content+version token matches (else it
+  is converted once and cached for both lanes); a VLM/summary call is memoized
+  in the Transformation Cache under a single-flight lock. The two lanes never
+  re-run the same work for the same input, even if they reach it concurrently.
+- **The Job Lane shares the tail.** Every `directory_summary` chunk is written
+  into the same `chunks_q`. There is no separate embed path, no separate upsert
+  path, no separate index. From the `EmbedConsumer`'s perspective,
   `directory_summary` is just one more `chunk_kind`, sitting next to `file`,
   `code`, `image`, and the rest in the same Milvus collection.
 - **Shared provider budgets.** The VLM and summary providers are protected by
-  process-wide concurrency gates (`description_gate`, `summary_gate`) that
-  Map and Reduce share. Reduce folding an image draws from the same in-flight
-  VLM budget as the Map image producer, so adding Reduce does not double the
-  pressure on the provider.
+  process-wide concurrency gates (`description_gate`, `summary_gate`) that both
+  lanes share. The Job Lane folding an image draws from the same in-flight VLM
+  budget as the Object Lane image producer, so enabling summaries does not
+  double the pressure on the provider.
 
 ## Related docs
 

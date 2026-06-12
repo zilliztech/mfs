@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mfs_server.engine.reduce.tree import DirTreeBuilder, ancestor_dirs, dir_depth
+from mfs_server.engine.job_lane.tree import DirTreeBuilder, ancestor_dirs, dir_depth
 
 
 class _FakeQueue:
@@ -69,7 +69,7 @@ def test_finalize_pushes_all_leaf_dirs():
     b = DirTreeBuilder("j", "c")
     b.add("/withfile/f.md", "document")
     # an empty leaf dir (no sub-dirs, no files) is also ready
-    from mfs_server.engine.reduce.tree import DirNode
+    from mfs_server.engine.job_lane.tree import DirNode
 
     b.tree["/empty"] = DirNode(parent="/", depth=1)
     q = _FakeQueue()

@@ -3,7 +3,7 @@ and finalizes them out-of-band.
 
 In the new pipeline there is no per-job worker loop bound to a job, so something has to notice
 when a job's work is finished and flip connector_jobs.status. The watcher does that by SQL on a
-short interval, and folds in the Reduce subsystem teardown:
+short interval, and folds in the Job Lane teardown:
 
   - completion: a 'running' job with >=1 task and no pending/running tasks AND no outstanding
     directory summaries -> 'succeeded' + evict the job's DirTree.
@@ -47,12 +47,12 @@ class ConnectorJobWatcher:
     def __init__(
         self,
         meta: Any,
-        reduce_coordinator: Any,
+        job_lane_coordinator: Any,
         *,
         poll_interval_s: float = _JOB_WATCH_INTERVAL_S,
     ):
         self.meta = meta
-        self.reduce = reduce_coordinator
+        self.job_lane = job_lane_coordinator
         self.poll_interval_s = poll_interval_s
         self._stop = asyncio.Event()
 
@@ -74,9 +74,9 @@ class ConnectorJobWatcher:
 
     async def tick(self) -> None:
         """One poll cycle: finalize completed/failed running jobs, then clean up terminal
-        jobs that still hold Reduce state."""
+        jobs that still hold Job Lane state."""
         await self._sweep_running_jobs()
-        await self._evict_terminal_reduce_jobs()
+        await self._evict_terminal_job_lane()
 
     # --- running jobs -> completion / failure ---
     async def _sweep_running_jobs(self) -> None:
@@ -94,18 +94,18 @@ class ConnectorJobWatcher:
             # Completion needs >=1 task so a job mid-enumeration (process=True jobs are
             # created 'running' and accrue tasks as sync() yields) isn't finalized at 0 tasks;
             # while enumerating, the just-inserted tasks are 'pending', so `live > 0` holds.
-            if total > 0 and live == 0 and self.reduce.is_reduce_done(job_id):
+            if total > 0 and live == 0 and self.job_lane.is_done(job_id):
                 won = await self.meta.execute_rowcount(
                     "UPDATE connector_jobs SET status='succeeded', finished_at=? "
                     "WHERE id=? AND status='running'",
                     (_now(), job_id),
                 )
                 if won == 1:
-                    self.reduce.evict_job(job_id)
+                    self.job_lane.evict_job(job_id)
 
     # --- terminal jobs still holding a DirTree (cancelled / late evict) ---
-    async def _evict_terminal_reduce_jobs(self) -> None:
-        for job_id in list(self.reduce.active_jobs()):
+    async def _evict_terminal_job_lane(self) -> None:
+        for job_id in list(self.job_lane.active_jobs()):
             row = await self.meta.fetchone(
                 "SELECT status FROM connector_jobs WHERE id=?", (job_id,)
             )
@@ -117,4 +117,4 @@ class ConnectorJobWatcher:
                         "WHERE connector_job_id=? AND status='pending'",
                         (job_id,),
                     )
-                self.reduce.evict_job(job_id)
+                self.job_lane.evict_job(job_id)

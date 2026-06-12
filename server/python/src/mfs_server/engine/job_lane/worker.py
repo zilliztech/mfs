@@ -18,7 +18,7 @@ from ..producers.base import read_bytes, read_text
 
 async def _child_text(coord, job_id: str, child_uri: str, okind: str) -> str:
     """Content excerpt for one child file, capped at per_file_max_kb. image/document-convert
-    reuse a hash already produced by the Map subsystem — the single-flight + memoization lives
+    reuse a hash already produced by the Object Lane — the single-flight + memoization lives
     inside the vlm / converter clients (tx_cache.get_or_compute, §3.4) — while code / markdown
     are read directly."""
     plugin = coord.job_plugins.get(job_id)
@@ -34,7 +34,7 @@ async def _child_text(coord, job_id: str, child_uri: str, okind: str) -> str:
             return ""
         raw = await read_bytes(plugin, child_uri)
         # share the description gate so a folded-in image draws from the same VLM in-flight
-        # budget as the Map ImageChunksProducer (§5.5).
+        # budget as the Object Lane ImageChunksProducer (§5.5).
         async with coord.description_gate:
             out = await coord.vlm.describe(raw, ext)
         return out[:cap]

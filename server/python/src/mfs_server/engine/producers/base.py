@@ -1,4 +1,4 @@
-"""ChunksProducer protocol + shared types for the Map subsystem.
+"""ChunksProducer protocol + shared types for the Object Lane.
 
 A ChunksProducer turns one ObjectTask into a stream of `Chunk` objects followed
 by an `EndOfTask` sentinel (per-object atomic boundary, see design §6.1). The

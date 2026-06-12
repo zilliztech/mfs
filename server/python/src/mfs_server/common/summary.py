@@ -6,7 +6,7 @@ re-summarizes). Lazy provider so the server boots without any API key.
 
 This client holds NO concurrency control of its own: the [summary].concurrency ceiling is
 enforced by the shared SummaryConcurrencyGate (engine/producers/base.py) at every call site
-(TableSchemaProducer, the Reduce SummaryWorker), so a single process-wide budget governs
+(TableSchemaProducer, the Job Lane SummaryWorker), so a single process-wide budget governs
 in-flight summary calls regardless of where summarize() is invoked (§5.5).
 """
 
@@ -76,7 +76,7 @@ class CachingSummaryClient:
             return out.encode()
 
         # per-key lock: concurrent callers that miss the same input (TableSchemaProducer +
-        # Reduce SummaryWorker) compute it once (§3.4).
+        # Job Lane SummaryWorker) compute it once (§3.4).
         out = await self.tx_cache.get_or_compute(
             key,
             _compute,

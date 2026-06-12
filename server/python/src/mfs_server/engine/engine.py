@@ -44,7 +44,7 @@ from .producers.base import (
 )
 from .producers.render import render_record, resolve_path
 from .job_watcher import ConnectorJobWatcher
-from .reduce import build_reduce_subsystem
+from .job_lane import build_job_lane
 from .state import ConnectorStateStore
 
 _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
@@ -181,7 +181,7 @@ class _PipelineEmbedConsumer(EmbedConsumer):
 class Engine:
     # okinds always routed to the producer + chunks_q + EmbedConsumer path (§3.2). image and
     # table_schema route conditionally (see _routes_to_pipeline); everything else is
-    # metadata-only. dir_summary is not an object_task — the Reduce subsystem owns it (§3.5).
+    # metadata-only. dir_summary is not an object_task — the Job Lane owns it (§3.5).
     _PIPELINE_OKINDS = ("document", "code", "message_stream", "record_collection", "table_rows")
 
     def __init__(self, cfg: ServerConfig):
@@ -205,8 +205,8 @@ class Engine:
         # when the EmbedConsumer reports the task done.
         self._pending_finalize: dict[str, tuple] = {}
         self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
-        # Reduce subsystem (dir_summary lane); built in _build_pipeline, inert when summary off.
-        self._reduce = None
+        # Job Lane (dir_summary lane); built in _build_pipeline, inert when summary off.
+        self._job_lane = None
         # ConnectorJobWatcher: out-of-band job completion / cancel / reduce-evict (§5.7).
         self._job_watcher = None
         self._job_watcher_task: asyncio.Task | None = None
@@ -221,10 +221,10 @@ class Engine:
         if preload_local_models:
             await self._preload_startup_models()
         self._build_pipeline()
-        await self._recover_reduce()
+        await self._recover_job_lane()
         # ConnectorJobWatcher runs in this same event loop as the EmbedConsumer + SummaryWorker
         # pool, finalizing jobs out-of-band (§5.7).
-        self._job_watcher = ConnectorJobWatcher(self.meta, self._reduce)
+        self._job_watcher = ConnectorJobWatcher(self.meta, self._job_lane)
         self._job_watcher_task = asyncio.create_task(self._job_watcher.run())
 
     async def _preload_startup_models(self) -> None:
@@ -247,10 +247,10 @@ class Engine:
                 except (asyncio.CancelledError, Exception):  # noqa: BLE001
                     pass
             self._job_watcher = None
-        if self._reduce is not None:
+        if self._job_lane is not None:
             # stop the SummaryWorker pool first so no new dir chunks are produced, then
             # drain whatever already reached the queue.
-            await self._reduce.stop()
+            await self._job_lane.stop()
         if self._embed_consumer is not None:
             # drain the queue + flush the final batch before the loop closes, so an
             # in-flight task's chunks aren't lost on shutdown.
@@ -289,7 +289,7 @@ class Engine:
         )
         self._embed_consumer.register_on_succeeded(self._on_pipeline_object_indexed)
         # ONE description gate + ONE summary gate per process (§5.5), shared by BOTH the Map
-        # producers (image / table_schema) and the Reduce SummaryWorker pool, so every VLM /
+        # producers (image / table_schema) and the Job Lane SummaryWorker pool, so every VLM /
         # summary provider call — wherever it originates — draws from the same in-flight budget
         # ([description].concurrency / [summary].concurrency).
         self._description_gate = DescriptionConcurrencyGate(self.cfg.description.concurrency)
@@ -309,10 +309,10 @@ class Engine:
             description_gate=self._description_gate,
             summary_gate=self._summary_gate,
         )
-        # Reduce subsystem (§3.5): dir summaries emit into the SAME chunks_q. Its
-        # on_embed_succeeded is registered alongside the Map per-task hook so a file's
-        # success both unblocks _index_via_pipeline AND notifies the dir tree (§6.4.4).
-        self._reduce = build_reduce_subsystem(
+        # Job Lane (§3.5): dir summaries emit into the SAME chunks_q. Its on_embed_succeeded
+        # is registered alongside the Object Lane per-task hook; it ignores file successes
+        # (files don't gate a dir) and counts a persisted directory_summary toward completion.
+        self._job_lane = build_job_lane(
             self.cfg,
             tx_cache=self.tx_cache,
             summary=self.summary,
@@ -324,9 +324,9 @@ class Engine:
             description_gate=self._description_gate,
             summary_gate=self._summary_gate,
         )
-        self._embed_consumer.register_on_succeeded(self._reduce.on_embed_succeeded)
+        self._embed_consumer.register_on_succeeded(self._job_lane.on_embed_succeeded)
         self._embed_consumer.start(self._chunks_q)
-        self._reduce.start()  # no-op unless cfg.summary.enabled
+        self._job_lane.start()  # no-op unless cfg.summary.enabled
 
     def _routes_to_pipeline(self, okind: str) -> bool:
         """Whether this okind goes through the producer -> chunks_q -> EmbedConsumer path.
@@ -336,7 +336,7 @@ class Engine:
         ImageChunksProducer makes a VLM call, so with it off the image is recorded metadata-only.
         table_schema routes only when [summary] is enabled — its TableSchemaProducer makes a
         summary LLM call; with it off the schema is metadata-only. dir_summary is not an
-        object_task at all — the Reduce subsystem owns it (§3.5)."""
+        object_task at all — the Job Lane owns it (§3.5)."""
         if okind in self._PIPELINE_OKINDS:
             return True
         if okind == "image":
@@ -345,12 +345,12 @@ class Engine:
             return self.summary.enabled
         return False
 
-    async def _recover_reduce(self) -> None:
-        """Rebuild the Reduce subsystem's in-memory dir trees for jobs left 'running' by a
+    async def _recover_job_lane(self) -> None:
+        """Rebuild the Job Lane's in-memory dir trees for jobs left 'running' by a
         crash (§6.4.5). Best-effort: a per-job failure is logged and skipped, never blocking
         boot. Already-written directory summaries are recomputed (idempotent + summary-cache
         cheap) rather than queried back from Milvus."""
-        if self._reduce is None or not self._reduce.enabled:
+        if self._job_lane is None or not self._job_lane.enabled:
             return
         import json as _json
 
@@ -381,7 +381,7 @@ class Engine:
                     (r["object_uri"], plugin.object_kind_of(r["object_uri"]), r["status"])
                     for r in rows
                 ]
-                self._reduce.recover_job(job_id, connector_uri, plugin, objects, [])
+                self._job_lane.recover_job(job_id, connector_uri, plugin, objects, [])
             except Exception as e:  # noqa: BLE001
                 print(
                     f"mfs-server: WARNING reduce recovery for job {job_id} failed: {e}", flush=True
@@ -400,7 +400,7 @@ class Engine:
         partial flag. When `error` is set the flush dropped this task's chunks: record it failed
         (objects.search_status='failed', object_tasks.last_error) and do NOT advance the
         connector cursor, so a later sync can retry. Skips tasks it has no stashed context for
-        (e.g. a Reduce directory_summary success, which has no objects row)."""
+        (e.g. a Job Lane directory_summary success, which has no objects row)."""
         ctx = self._pending_finalize.pop(task_uri, None)
         if ctx is None:
             return
@@ -912,8 +912,8 @@ class Engine:
             # job is 'running'/'preparing' here with no other heartbeat source).
             stop_hb = asyncio.Event()
             hb = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
-            # Reduce subsystem: build this job's in-memory dir tree as sync() yields (§6.4).
-            self._reduce.register_job(job_id, connector_uri, plugin)
+            # Job Lane: build this job's in-memory dir tree as sync() yields (§6.4).
+            self._job_lane.register_job(job_id, connector_uri, plugin)
             try:
                 async for ch in plugin.sync(opts):
                     if ch.kind == "deleted" and (
@@ -947,7 +947,7 @@ class Engine:
                         # purely about what the summary folds — not about completion accounting.)
                         okind = plugin.object_kind_of(ch.uri)
                         if self._routes_to_pipeline(okind):
-                            self._reduce.on_yield_object_change(job_id, ch.uri, okind)
+                            self._job_lane.on_yield_object_change(job_id, ch.uri, okind)
             finally:
                 stop_hb.set()
                 hb.cancel()
@@ -955,10 +955,10 @@ class Engine:
                     await hb
                 except (asyncio.CancelledError, Exception):  # noqa: BLE001
                     pass
-            # sync enumeration finished: finalize the dir tree (pushes ready leaves; the rest
-            # are pushed as Map file tasks succeed). Done for both inline and enqueue models so
-            # an in-process worker can drain the summaries later.
-            self._reduce.on_sync_done(job_id)
+            # sync enumeration finished: finalize the dir tree (pushes every leaf dir; parents
+            # are pushed bottom-up as their sub-dir summaries land). Done for both inline and
+            # enqueue models so an in-process worker can drain the summaries later.
+            self._job_lane.on_sync_done(job_id)
             if not process:
                 # enqueue model: stash staged state on the job; the worker commits it only
                 # after the job succeeds, so a failed background job doesn't
@@ -1269,9 +1269,9 @@ class Engine:
                 job_id,
             ),
         )
-        # job reached a terminal state: free the Reduce subsystem's in-memory dir tree (§6.4.6)
-        if self._reduce is not None:
-            self._reduce.evict_job(job_id)
+        # job reached a terminal state: free the Job Lane's in-memory dir tree (§6.4.6)
+        if self._job_lane is not None:
+            self._job_lane.evict_job(job_id)
 
     # --- standalone worker: poll DB queue, process queued jobs ---
     async def cancel_job(self, job_id: str) -> bool:
@@ -1494,7 +1494,7 @@ class Engine:
         so a worker coroutine picks up the highest-priority pending task across that connector's
         jobs (a late high-priority job interleaves with an older one). The `change_kind !=
         'dir_summary'` clause is a defensive guard: dir_summary is never enqueued as an
-        object_task — the Reduce subsystem (§3.5) owns it entirely — so it only excludes a
+        object_task — the Job Lane (§3.5) owns it entirely — so it only excludes a
         stray row.
 
         Scoped to connector_id because the worker loop processes each claimed task with the
@@ -1683,12 +1683,13 @@ class Engine:
             # finalized before its chunks are in Milvus (§6.1) and the dir tree's file
             # notifications have all fired.
             await self._await_map_drained(job_id)
-            if self.summary.enabled and self._reduce is not None:
-                # Reduce subsystem (§3.5): the dir tree was accumulated during sync and is
-                # driven bottom-up by the Map success notifications + the SummaryWorker pool.
-                # Block until every directory_summary for this job is computed AND persisted,
+            if self.summary.enabled and self._job_lane is not None:
+                # Job Lane (§3.5): the dir tree was accumulated during sync and is driven
+                # bottom-up by the SummaryWorker pool (sub-dirs before parents), in parallel
+                # with the Object Lane. Block until every directory_summary for this job is
+                # computed AND persisted,
                 # so the job isn't marked succeeded before its summaries are in Milvus.
-                await self._reduce.await_reduce_done(job_id)
+                await self._job_lane.await_done(job_id)
             return None
         finally:
             stop_hb.set()
@@ -1716,8 +1717,8 @@ class Engine:
     async def _run_job_loop(
         self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int, consec_fail: int
     ) -> str | None:
-        # Map phase claims this connector's pending object_tasks. dir_summary is not an
-        # object_task — the Reduce subsystem owns it (§3.5), driven by the success notifications.
+        # Object Lane claims this connector's pending object_tasks. dir_summary is not an
+        # object_task — the Job Lane owns it (§3.5), driven by the success notifications.
         while True:
             if await self._should_stop(job_id, cid):
                 return "cancelled"
@@ -2034,7 +2035,7 @@ class Engine:
             return "deferred"
 
         # Directory summaries are NOT produced here per enumerated object. They are built
-        # bottom-up by the independent Reduce subsystem (engine/reduce/, §3.5) from the
+        # bottom-up by the independent Job Lane (engine/job_lane/, §3.5) from the
         # in-memory dir tree, so a parent folder's summary can fold in its children's summaries.
 
         # Inline tail — only reached for NON-pipeline okinds (pipeline okinds return early

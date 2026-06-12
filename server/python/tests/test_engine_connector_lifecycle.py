@@ -34,7 +34,7 @@ async def _build_engine(tmp_path) -> Engine:
     cfg.milvus.uri = str(tmp_path / "milvus.db")
     eng = Engine(cfg)
     eng.milvus = _NoopMilvus()
-    eng._reduce = _NoopReduce()
+    eng._job_lane = _NoopReduce()
     await eng.meta.connect()
     await eng.meta.init_schema()
     return eng

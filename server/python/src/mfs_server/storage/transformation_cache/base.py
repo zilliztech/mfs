@@ -89,7 +89,7 @@ class TransformationCacheBase(ABC):
         (an async `() -> bytes`) and store them — with a per-key async lock so concurrent
         callers that all miss the same key compute it EXACTLY ONCE (§3.4).
 
-        Why the lock: the Map subsystem (ChunksProducer) and the Reduce subsystem
+        Why the lock: the Object Lane (ChunksProducer) and the Job Lane
         (SummaryWorker) can both miss the same VLM / summary hash at the same moment; without
         the lock each would fire the (expensive) provider call. With it,
         the first misser computes while the rest await the lock and then pick up its result

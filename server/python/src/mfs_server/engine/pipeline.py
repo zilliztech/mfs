@@ -1,15 +1,15 @@
 """Pipeline tail: chunks_q + the process-level EmbedConsumer (§3.1 / §5.1 / §5.2).
 
-The Map producers and the Reduce subsystem both emit Chunk streams into a
-single bounded `chunks_q` (§5.1 — embed is the real bottleneck, so one queue decouples
-chunk production from embed consumption). One process-level EmbedConsumer (§5.2) drains
-that queue across ALL connector jobs so embed batches always fill to `batch_size`,
+The Object Lane (per-object producers) and the Job Lane (directory summaries) both emit Chunk
+streams into a single bounded `chunks_q` (§5.1 — embed is the real bottleneck, so one queue
+decouples chunk production from embed consumption). One process-level EmbedConsumer (§5.2)
+drains that queue across ALL connector jobs so embed batches always fill to `batch_size`,
 then upserts to Milvus.
 
 Per-object atomicity (§6.1) is enforced here: `delete_by_object` runs once per task
 (on its first chunk, before any upsert), and a per-task pending counter + the
 `EndOfTask` sentinel decide when a task is fully written — at which point the
-on_object_task_succeeded hooks fire (the Map → Reduce notification, §6.4.4).
+on_object_task_succeeded hooks fire (the objects-table + Job Lane completion update).
 
 Queue transport — `Chunk` carries `uri` + `connector_job_id`, but `EndOfTask` is a bare
 identity-less sentinel (producers/base.py). Since this consumer interleaves many tasks
@@ -83,7 +83,7 @@ class TaskEnvelope:
     task_id    — pending-counter key (the object_tasks row id).
     task_uri   — full object uri; passed to delete_by_object + the success hook.
     connector_uri — for delete_by_object(connector_uri, object_uri).
-    job_id     — connector_job_id, passed to the success hook (Map → Reduce, §6.4.4)."""
+    job_id     — connector_job_id, passed to the success hook (Job Lane completion, §6.4.4)."""
 
     task_id: str
     task_uri: str
@@ -166,7 +166,7 @@ class EmbedConsumer:
         """Add a per-task finalize hook, invoked as callback(task_uri, job_id, chunk_count,
         partial, error) when a task reaches a terminal state — either all its chunks were
         written + its EndOfTask was seen (error is None), or a flush dropped its chunks (error
-        carries the exception). Map → Reduce notification §6.4.4; objects-table update.
+        carries the exception). Job Lane completion §6.4.4; objects-table update.
         Callbacks may ignore the trailing args."""
         self._on_succeeded.append(callback)
 

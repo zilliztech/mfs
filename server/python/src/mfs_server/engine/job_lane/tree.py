@@ -1,4 +1,4 @@
-"""DirTreeBuilder — per-job in-memory directory tree for the Reduce subsystem (§6.4.1).
+"""DirTreeBuilder — per-job in-memory directory tree for the Job Lane (§6.4.1).
 
 Accumulated synchronously as sync() yields ObjectChanges (no extra DB hit — the okind is
 passed in by the caller). At sync end finalize() flips sync_done and pushes every dir that
@@ -47,7 +47,7 @@ class DirNode:
 
 class DirTreeBuilder:
     """Per-job dir tree. Keyed on connector-RELATIVE dir uris ('/', '/a', '/a/b'); the
-    job's connector_uri is stored so the coordinator can map a Map success hook's full uri
+    job's connector_uri is stored so the coordinator can map an embed success hook's full uri
     back to a relative dir, and prefix dir uris when emitting summary chunks."""
 
     def __init__(self, job_id: str, connector_uri: str, recursive: bool = True):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from mfs_server.engine.reduce.queue import SummaryQueue
+from mfs_server.engine.job_lane.queue import SummaryQueue
 
 
 async def _drain(q: SummaryQueue, n: int) -> list[tuple]:

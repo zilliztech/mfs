@@ -10,7 +10,7 @@ from mfs_server.storage.metadata import make_metadata_store
 
 
 class _FakeReduce:
-    """Stand-in ReduceCoordinator: records evict_job calls; tracks 'active' jobs whose
+    """Stand-in JobLaneCoordinator: records evict_job calls; tracks 'active' jobs whose
     DirTree the watcher should evict on terminal status."""
 
     def __init__(self, active=(), done=True):
@@ -18,7 +18,7 @@ class _FakeReduce:
         self._done = done
         self.evicted: list[str] = []
 
-    def is_reduce_done(self, job_id):
+    def is_done(self, job_id):
         return self._done
 
     def active_jobs(self):

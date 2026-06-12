@@ -67,11 +67,11 @@ async def test_engine_shares_one_gate_across_map_and_reduce(tmp_path):
     await eng.meta.init_schema()
     eng._build_pipeline()
     try:
-        assert eng._producer_ctx.summary_gate is eng._reduce.summary_gate
-        assert eng._producer_ctx.description_gate is eng._reduce.description_gate
-        assert isinstance(eng._reduce.summary_gate, SummaryConcurrencyGate)
-        assert isinstance(eng._reduce.description_gate, DescriptionConcurrencyGate)
+        assert eng._producer_ctx.summary_gate is eng._job_lane.summary_gate
+        assert eng._producer_ctx.description_gate is eng._job_lane.description_gate
+        assert isinstance(eng._job_lane.summary_gate, SummaryConcurrencyGate)
+        assert isinstance(eng._job_lane.description_gate, DescriptionConcurrencyGate)
     finally:
-        await eng._reduce.stop()
+        await eng._job_lane.stop()
         await eng._embed_consumer.shutdown()
         await eng.meta.close()

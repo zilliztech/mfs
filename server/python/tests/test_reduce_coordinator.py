@@ -1,11 +1,11 @@
-"""Unit tests for ReduceCoordinator scheduling — files do not gate dirs + crash recovery."""
+"""Unit tests for JobLaneCoordinator scheduling — files do not gate dirs + crash recovery."""
 
 from __future__ import annotations
 
 import asyncio
 
 from mfs_server.config import ServerConfig
-from mfs_server.engine.reduce import ReduceCoordinator
+from mfs_server.engine.job_lane import JobLaneCoordinator
 
 
 class _FakePlugin:
@@ -15,7 +15,7 @@ class _FakePlugin:
 def _coord():
     cfg = ServerConfig()
     cfg.summary.enabled = True
-    return ReduceCoordinator(
+    return JobLaneCoordinator(
         cfg, tx_cache=None, summary=None, vlm=None, converter=None, chunks_q=asyncio.Queue()
     )
 

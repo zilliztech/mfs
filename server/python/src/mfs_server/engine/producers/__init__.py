@@ -1,8 +1,8 @@
-"""ChunksProducer package — the Map subsystem's per-okind producers (§3.2 / §5.3).
+"""ChunksProducer package — the Object Lane's per-okind producers (§3.2 / §5.3).
 
 Each ObjectTask is dispatched by okind to one of five producers, which turn it into a
 stream of Chunk objects + a trailing EndOfTask sentinel. dir_summary / file_summary are
-NOT here — they belong to the Reduce subsystem (§3.5).
+NOT here — they belong to the Job Lane (§3.5).
 """
 
 from __future__ import annotations
