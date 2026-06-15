@@ -46,12 +46,24 @@ npx skills add zilliztech/mfs --all -g
 ```
 
 <details>
-<summary>Install to one agent · check for updates</summary>
+<summary>Install to a specific agent</summary>
 
 ```bash
-npx skills add zilliztech/mfs -a claude-code -g    # or: -a codex
-npx skills check && npx skills update              # re-run `npx skills add` for project installs
+npx skills add zilliztech/mfs -a claude-code -g
+npx skills add zilliztech/mfs -a codex -g
 ```
+
+</details>
+
+<details>
+<summary>Check for updates</summary>
+
+```bash
+npx skills check
+npx skills update
+```
+
+For project-level installs, re-run the `npx skills add` command to update.
 
 </details>
 
@@ -70,12 +82,30 @@ Use the mfs-find skill to find where the greeting is printed in the hello-mfs
 project, and show me the exact lines
 ```
 
-🎉 That's it — you're up and running. Point MFS at your real sources next.
+🎉 That's it — you're up and running. Next, point MFS at your real sources — see
+the [use cases](#-use-cases) and the [connector catalog](#-connectors).
 
 > 🛠️ **The first run is a one-time setup, and the agent walks you through it:**
 > it installs the `mfs` CLI, helps you start a local server, and downloads a
 > ~600 MB local embedding model into `~/.mfs/`. Give it a minute. After that the
 > whole stack runs locally and offline — **no API key, no GPU, no cloud account.**
+
+<details>
+<summary>Use OpenAI instead of the local model?</summary>
+
+Set the embedding provider to OpenAI in `~/.mfs/server.toml` (or run
+`uv run mfs-server setup`) and export your key — no model download:
+
+```toml
+[embedding]
+provider = "openai"      # instead of the default local "onnx"
+```
+
+```bash
+export OPENAI_API_KEY=sk-...
+```
+
+</details>
 
 <details>
 <summary>Prefer the shell, no agent?</summary>
@@ -97,23 +127,6 @@ mfs search "where the greeting is printed" ~/hello-mfs
 
 </details>
 
-<details>
-<summary>Use OpenAI instead of the local model?</summary>
-
-Set the embedding provider to OpenAI in `~/.mfs/server.toml` (or run
-`uv run mfs-server setup`) and export your key — no model download:
-
-```toml
-[embedding]
-provider = "openai"      # instead of the default local "onnx"
-```
-
-```bash
-export OPENAI_API_KEY=sk-...
-```
-
-</details>
-
 ## 💡 Use cases
 
 Every source rides the same **ingest → search → read** loop. The outputs below
@@ -127,8 +140,8 @@ searchable namespace. The prompt you tuned last week, a decision logged three
 sessions ago: one query finds it.
 
 ```bash
-mfs add PATH_TO_MEMORY            # /mfs-ingest index my session memory
-mfs add PATH_TO_SKILLS            # /mfs-ingest index my skill packs
+mfs add path/to/memory.jsonl   # /mfs-ingest index my session memory
+mfs add path/to/SKILL.md       # /mfs-ingest index my skill packs
 mfs search "the prompt I tuned for refund disputes" --all   # /mfs-find the refund-dispute prompt
 ```
 
@@ -151,7 +164,7 @@ Add every repo the agent reads or writes and grep them by meaning — find the
 helper by what it *does*, not the name you can't remember.
 
 ```bash
-mfs add PATH_TO_REPOS             # /mfs-ingest index my repos
+mfs add path/to/repo   # /mfs-ingest index my repos
 mfs search "where do we retry failed webhook deliveries?" --all   # /mfs-find our webhook retry logic
 ```
 
@@ -177,8 +190,8 @@ vision model turned on, describes images too, so one search reads across every
 format and modality at once.
 
 ```bash
-mfs add PATH_TO_DOCS             # /mfs-ingest index my design docs
-mfs add PATH_TO_IMAGES           # /mfs-ingest index my screenshots
+mfs add path/to/design-doc.pdf   # /mfs-ingest index my design docs
+mfs add path/to/screenshot.png   # /mfs-ingest index my screenshots
 mfs search "audit-log retention and the dashboards that show it" --all   # /mfs-find audit-log retention + dashboards
 ```
 
@@ -309,8 +322,8 @@ mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
 
 ## 🧰 Commands
 
-Every source — local folder or remote connector — answers the same small set of
-commands. They fall into four groups:
+Every source — a local folder or a remote [connector](#-connectors) — answers
+the same small set of commands. They fall into four groups:
 
 **Ingest & manage sources**
 
@@ -375,7 +388,7 @@ local directory. Same verbs, same result shape, everywhere.
 | | Web | `web://` | crawled pages, converted to Markdown |
 
 Every connector reads the same way once registered — register + index, browse,
-then search, all with the verbs you already know:
+then search, all with the [same commands](#-commands):
 
 ```bash
 mfs add    github://your-org/your-repo --config ./github.toml   # register + index
@@ -431,8 +444,8 @@ The client carries no persistent state, so re-creating it on a new laptop, a CI
 runner, or inside an agent runtime is free — everything that matters lives on
 the server.
 
-**Going split (production).** Configure the server once
-([below](#configure-the-server)), then point the CLI at it:
+**Going split (production).** Configure the server once (below), then point the
+CLI at it:
 
 ```bash
 export MFS_API_URL=https://mfs.your-corp.internal
