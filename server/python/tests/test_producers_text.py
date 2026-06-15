@@ -97,19 +97,23 @@ async def test_document_reuses_fresh_converted_md_artifact(tmp_path):
     same = {"/report.pdf": b"raw pdf bytes here"}
 
     await collect(
-        TextChunksProducer(ctx), _task("/report.pdf", "file:///r", "document", FakePlugin(data=same))
+        TextChunksProducer(ctx),
+        _task("/report.pdf", "file:///r", "document", FakePlugin(data=same)),
     )
     assert ctx.converter.calls == 1
     # second run over identical content: artifact hit, no second conversion
     await collect(
-        TextChunksProducer(ctx), _task("/report.pdf", "file:///r", "document", FakePlugin(data=same))
+        TextChunksProducer(ctx),
+        _task("/report.pdf", "file:///r", "document", FakePlugin(data=same)),
     )
     assert ctx.converter.calls == 1
 
     # changed content -> currency token differs -> re-convert
     await collect(
         TextChunksProducer(ctx),
-        _task("/report.pdf", "file:///r", "document", FakePlugin(data={"/report.pdf": b"new bytes"})),
+        _task(
+            "/report.pdf", "file:///r", "document", FakePlugin(data={"/report.pdf": b"new bytes"})
+        ),
     )
     assert ctx.converter.calls == 2
 

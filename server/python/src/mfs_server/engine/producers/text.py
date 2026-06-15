@@ -103,7 +103,9 @@ class TextChunksProducer:
             # Reuse a converted_md the Job Lane may have already produced this run (currency =
             # source hash + converter version); otherwise convert and cache it for both lanes.
             currency = self.ctx.converter.currency(raw)
-            art = await self.ctx.artifacts.get_artifact_fresh(ns, full_uri, "converted_md", currency)
+            art = await self.ctx.artifacts.get_artifact_fresh(
+                ns, full_uri, "converted_md", currency
+            )
             if art is not None:
                 text = art.decode("utf-8", errors="replace")
             else:

@@ -220,6 +220,4 @@ def note(text_: str) -> None:
 def list_kv(items: Iterable[tuple[str, str]], indent: str = "    ") -> None:
     """Print a list of (label, value) pairs (for summary screens)."""
     for k, v in items:
-        console.print(
-            Text(indent) + Text(f"{k}: ", style=_BRAND_MUTED) + Text(v, style="bold")
-        )
+        console.print(Text(indent) + Text(f"{k}: ", style=_BRAND_MUTED) + Text(v, style="bold"))

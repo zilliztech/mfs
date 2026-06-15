@@ -384,7 +384,8 @@ class Engine:
                 self._job_lane.recover_job(job_id, connector_uri, plugin, objects, [])
             except Exception as e:  # noqa: BLE001
                 print(
-                    f"mfs-server: WARNING Job Lane recovery for job {job_id} failed: {e}", flush=True
+                    f"mfs-server: WARNING Job Lane recovery for job {job_id} failed: {e}",
+                    flush=True,
                 )
 
     async def _on_pipeline_object_indexed(
