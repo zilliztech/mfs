@@ -126,9 +126,9 @@ searchable namespace. The prompt you tuned last week, a decision logged three
 sessions ago: one query finds it.
 
 ```bash
-mfs add ~/.agents/memory          # past-session JSONL / Markdown
-mfs add ~/.agents/skills          # reusable SKILL.md packs
-mfs search "the prompt I tuned for refund disputes" --all
+mfs add ~/.agents/memory          # /mfs-ingest index my session memory
+mfs add ~/.agents/skills          # /mfs-ingest index my skill packs
+mfs search "the prompt I tuned for refund disputes" --all   # /mfs-find the refund-dispute prompt
 ```
 
 <details>
@@ -150,8 +150,8 @@ Add every repo the agent reads or writes and grep them by meaning — find the
 helper by what it *does*, not the name you can't remember.
 
 ```bash
-mfs add ~/repos
-mfs search "where do we retry failed webhook deliveries?" --all
+mfs add ~/repos                   # /mfs-ingest index my repos
+mfs search "where do we retry failed webhook deliveries?" --all   # /mfs-find our webhook retry logic
 ```
 
 <details>
@@ -176,9 +176,9 @@ vision model turned on, describes images too, so one search reads across every
 format and modality at once.
 
 ```bash
-mfs add ./design-docs            # .pdf, .docx, .md — converted locally
-mfs add ./screenshots            # .png, .jpg — needs a vision model (see note)
-mfs search "audit-log retention and the dashboards that show it" --all
+mfs add ./design-docs            # /mfs-ingest index my design docs
+mfs add ./screenshots            # /mfs-ingest index my screenshots
+mfs search "audit-log retention and the dashboards that show it" --all   # /mfs-find audit-log retention + dashboards
 ```
 
 <details>
@@ -206,9 +206,9 @@ content lands in the same namespace as your local files, with no manual
 download step.
 
 ```bash
-mfs add web://docs.your-product.com
-mfs add github://your-org/your-repo --config ./github.toml
-mfs search "how do we rotate signing keys?" --all
+mfs add web://docs.your-product.com                          # /mfs-ingest crawl our docs site
+mfs add github://your-org/your-repo --config ./github.toml   # /mfs-ingest add our github repo
+mfs search "how do we rotate signing keys?" --all            # /mfs-find signing-key rotation
 ```
 
 <details>
@@ -231,9 +231,9 @@ Mount Slack, Gmail, Jira, Linear — the conversational trail behind a decision 
 and pull the thread, the ticket, and the email into a single answer.
 
 ```bash
-mfs add slack://acme --config ./slack.toml
-mfs add jira://acme  --config ./jira.toml
-mfs search "why did we revert the burst guard?" --all
+mfs add slack://acme --config ./slack.toml   # /mfs-ingest add our slack
+mfs add jira://acme  --config ./jira.toml    # /mfs-ingest add our jira
+mfs search "why did we revert the burst guard?" --all   # /mfs-find why we reverted the burst guard
 ```
 
 <details>
@@ -257,8 +257,8 @@ a file-like object, so `mfs cat` pulls back the full record for the exact
 values.
 
 ```bash
-mfs add postgres://prod/orders --config ./pg.toml
-mfs search "refunds stuck in pending over 7 days" postgres://prod/orders
+mfs add postgres://prod/orders --config ./pg.toml                         # /mfs-ingest add the prod orders table
+mfs search "refunds stuck in pending over 7 days" postgres://prod/orders  # /mfs-find stuck pending refunds
 ```
 
 <details>
@@ -279,7 +279,7 @@ them — local files, databases, ticket trackers, chat — and returns one stabl
 result shape, so any hit copies straight into `mfs cat` for the exact evidence.
 
 ```bash
-mfs search "rate-limit guard misfires under burst" --all
+mfs search "rate-limit guard misfires under burst" --all   # /mfs-find the burst rate-limit bug
 ```
 
 <details>
