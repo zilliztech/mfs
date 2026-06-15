@@ -1724,7 +1724,7 @@ credential error. For the full setting tables, see
 </tr>
 <tr>
 <td>Helm API and worker pods</td>
-<td>Shared API token plus backend/provider/object-store secrets</td>
+<td>Shared API token plus backend/provider secrets</td>
 <td>The configured Kubernetes Secret and chart values</td>
 <td>The chart helper injects the same environment block into API and worker pods.</td>
 </tr>
@@ -1883,7 +1883,7 @@ For connector-specific fields and pitfalls, see <a href="../connectors/">Connect
 <tr>
 <td>Source server</td>
 <td><code>MFS_API_TOKEN</code> in the server environment, or <code>$MFS_HOME/server.token</code> in auto mode</td>
-<td>Server environment variables such as <code>MILVUS_TOKEN</code>, <code>ZILLIZ_TOKEN</code>, <code>ZILLIZ_API_KEY</code>, object-store keys, and provider SDK env vars</td>
+<td>Server environment variables such as <code>MILVUS_TOKEN</code>, <code>ZILLIZ_TOKEN</code>, <code>ZILLIZ_API_KEY</code>, and provider SDK env vars</td>
 <td><code>MFS_HOME</code> defaults to <code>~/.mfs</code>.</td>
 </tr>
 <tr>
@@ -1901,7 +1901,7 @@ For connector-specific fields and pitfalls, see <a href="../connectors/">Connect
 <tr>
 <td>Helm-rendered API/worker</td>
 <td><code>MFS_API_TOKEN</code> from existing Secret key <code>api-token</code></td>
-<td>Secret keys <code>zilliz-token</code>, <code>openai-api-key</code>, <code>object-store-access-key</code>, and <code>object-store-secret-key</code>; object-store values from chart values</td>
+<td>Secret keys <code>zilliz-token</code> and <code>openai-api-key</code></td>
 <td>Every API replica must share the same <code>api-token</code>. API probes use unauthenticated <code>/healthz</code>.</td>
 </tr>
 </tbody>

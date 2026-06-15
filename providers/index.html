@@ -1916,15 +1916,14 @@ not use this framework converter path.</p>
   chunks["Search chunks&lt;br/&gt;body / row_text / thread_aggregate&lt;br/&gt;directory_summary / schema_summary / vlm_description"]
   embed["Embedding provider"]
   index["Milvus dense vectors&lt;br/&gt;plus BM25 content"]
-  artifacts["Artifact cache&lt;br/&gt;converted_md / vlm_text / head_cache"]
-  txcache["Transformation cache&lt;br/&gt;convert / embedding / vlm / summary"]
+  artifacts["Artifact cache&lt;br/&gt;converted_md / head_cache"]
+  txcache["Transformation cache&lt;br/&gt;embedding / vlm / summary"]
 
   source --&gt; classify
   classify --&gt; convert --&gt; chunks
   classify --&gt; text --&gt; chunks
   classify --&gt; vlm --&gt; chunks
   convert --&gt; artifacts
-  vlm --&gt; artifacts
   chunks --&gt; embed
   embed --&gt; index
   convert --&gt; txcache

@@ -1871,7 +1871,7 @@ For state backup, restore, and reset boundaries, see
 <td>Kubernetes API Deployment, Worker Deployment, and API Service</td>
 <td>Future scalable client/server topology</td>
 <td>Rendered chart, post-v0.4 direction</td>
-<td>Postgres, object store, and remote Milvus/Zilliz are expected</td>
+<td>Postgres, a shared artifact-cache volume, and remote Milvus/Zilliz are expected</td>
 <td>Use client/server upload mode; do not depend on shared local paths.</td>
 </tr>
 </tbody>
@@ -2232,23 +2232,13 @@ these keys:</p>
 <td><code>openai-api-key</code></td>
 <td>OpenAI API key when OpenAI-backed features are configured</td>
 </tr>
-<tr>
-<td><code>object-store-access-key</code></td>
-<td>S3-compatible artifact cache access key when object store type is <code>s3</code></td>
-</tr>
-<tr>
-<td><code>object-store-secret-key</code></td>
-<td>S3-compatible artifact cache secret key when object store type is <code>s3</code></td>
-</tr>
 </tbody>
 </table>
 <p>Example secret creation:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>kubectl<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span>mfs-secrets<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span>--from-literal<span class="o">=</span>api-token<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$MFS_API_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span>--from-literal<span class="o">=</span>zilliz-token<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$ZILLIZ_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span>--from-literal<span class="o">=</span>openai-api-key<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$OPENAI_API_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">  </span>--from-literal<span class="o">=</span>object-store-access-key<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$MFS_OBJECT_STORE_ACCESS_KEY</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">  </span>--from-literal<span class="o">=</span>object-store-secret-key<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$MFS_OBJECT_STORE_SECRET_KEY</span><span class="s2">&quot;</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span>--from-literal<span class="o">=</span>openai-api-key<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$OPENAI_API_KEY</span><span class="s2">&quot;</span>
 </code></pre></div>
 <p>Check Kubernetes health and API auth separately:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-l<span class="w"> </span>app.kubernetes.io/name<span class="o">=</span>mfs
@@ -2361,42 +2351,6 @@ on the rendered api/worker topology.</p>
 <td>Server</td>
 <td>Opts the transformation cache into Postgres.</td>
 <td>Without it, the transformation cache keeps the default backend.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_BUCKET</code></td>
-<td>Server</td>
-<td>Switches artifact cache to the S3-compatible backend and sets the bucket.</td>
-<td>If unset, artifact cache uses local filesystem.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_ENDPOINT</code></td>
-<td>Server</td>
-<td>S3-compatible endpoint URL.</td>
-<td>Used when <code>MFS_OBJECT_STORE_BUCKET</code> is set.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_REGION</code></td>
-<td>Server</td>
-<td>S3-compatible region.</td>
-<td>Used when <code>MFS_OBJECT_STORE_BUCKET</code> is set.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_PREFIX</code></td>
-<td>Server</td>
-<td>S3-compatible object prefix.</td>
-<td>Used when <code>MFS_OBJECT_STORE_BUCKET</code> is set.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_ACCESS_KEY</code></td>
-<td>Server</td>
-<td>S3-compatible access key.</td>
-<td>Used when <code>MFS_OBJECT_STORE_BUCKET</code> is set.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_SECRET_KEY</code></td>
-<td>Server</td>
-<td>S3-compatible secret key.</td>
-<td>Used when <code>MFS_OBJECT_STORE_BUCKET</code> is set.</td>
 </tr>
 <tr>
 <td><code>MFS_SUMMARY_ENABLED</code></td>

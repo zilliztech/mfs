@@ -1894,7 +1894,7 @@ run it defaults to <code>~/.mfs</code>; the Docker image and Compose setup use <
 <td><code>$MFS_HOME/cache</code></td>
 <td>Server</td>
 <td>Server defaults when local artifact cache is used</td>
-<td>Derived artifact blobs such as converted document text or image descriptions.</td>
+<td>Derived artifact blobs such as converted document text and structured head previews.</td>
 </tr>
 <tr>
 <td><code>$MFS_HOME/milvus.db</code></td>
@@ -1965,9 +1965,9 @@ token when the container is removed.</p>
 </tr>
 <tr>
 <td><code>cache</code></td>
-<td><code>[artifact_cache] backend</code>, <code>root</code>, S3-compatible fields</td>
+<td><code>[artifact_cache] root</code>, <code>max_size_gb</code>, <code>eviction</code></td>
 <td>Local filesystem under <code>$MFS_HOME/cache</code>.</td>
-<td>Use S3, MinIO, R2, or GCS-compatible storage for shared artifact blobs.</td>
+<td>Mount a volume at <code>root</code> to persist the cache in container deployments.</td>
 </tr>
 <tr>
 <td><code>auth</code></td>
@@ -2198,36 +2198,6 @@ apply after TOML is loaded and default paths are resolved.</p>
 <td>Enables Postgres for transformation cache when paired with <code>MFS_TX_CACHE_DSN</code> or <code>MFS_METADATA_DSN</code>.</td>
 </tr>
 <tr>
-<td><code>MFS_OBJECT_STORE_BUCKET</code></td>
-<td>Server</td>
-<td>Switches artifact cache to S3-compatible storage and sets the bucket.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_ENDPOINT</code></td>
-<td>Server</td>
-<td>Sets S3-compatible endpoint URL when object-store bucket is configured.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_REGION</code></td>
-<td>Server</td>
-<td>Sets S3-compatible region when object-store bucket is configured.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_PREFIX</code></td>
-<td>Server</td>
-<td>Sets S3-compatible prefix when object-store bucket is configured.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_ACCESS_KEY</code></td>
-<td>Server</td>
-<td>Sets S3-compatible access key when object-store bucket is configured.</td>
-</tr>
-<tr>
-<td><code>MFS_OBJECT_STORE_SECRET_KEY</code></td>
-<td>Server</td>
-<td>Sets S3-compatible secret key when object-store bucket is configured.</td>
-</tr>
-<tr>
 <td><code>OPENAI_API_KEY</code></td>
 <td>OpenAI provider SDK</td>
 <td>Needed only when OpenAI-backed embedding, summary, or VLM settings are selected. The default ONNX path does not require it.</td>
@@ -2320,7 +2290,7 @@ practical host-versus-container examples, see <a href="../deployment/">Deploymen
 and <a href="../troubleshooting/">Troubleshooting</a>.</p>
 </div>
 <h2 id="minimal-examples">Minimal Examples<a class="headerlink" href="#minimal-examples" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:5"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><input id="__tabbed_1_5" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Local defaults</label><label for="__tabbed_1_2">Known token</label><label for="__tabbed_1_3">Remote Milvus</label><label for="__tabbed_1_4">Postgres metadata</label><label for="__tabbed_1_5">S3-compatible artifact cache</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Local defaults</label><label for="__tabbed_1_2">Known token</label><label for="__tabbed_1_3">Remote Milvus</label><label for="__tabbed_1_4">Postgres metadata</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>mfs/server/python
@@ -2352,15 +2322,6 @@ and <a href="../troubleshooting/">Troubleshooting</a>.</p>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_METADATA_DSN</span><span class="o">=</span><span class="s2">&quot;postgresql://user:pass@host:5432/mfs&quot;</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
-</code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_OBJECT_STORE_BUCKET</span><span class="o">=</span><span class="s2">&quot;mfs-artifacts&quot;</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_OBJECT_STORE_ENDPOINT</span><span class="o">=</span><span class="s2">&quot;https://s3.example.com&quot;</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_OBJECT_STORE_REGION</span><span class="o">=</span><span class="s2">&quot;us-east-1&quot;</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_OBJECT_STORE_ACCESS_KEY</span><span class="o">=</span><span class="s2">&quot;...&quot;</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_OBJECT_STORE_SECRET_KEY</span><span class="o">=</span><span class="s2">&quot;...&quot;</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
 </code></pre></div>
 </div>
 </div>

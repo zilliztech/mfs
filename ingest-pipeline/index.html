@@ -1249,10 +1249,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#map-object-chunks-vectors" class="md-nav__link">
+  <a href="#object-lane-object-chunks-vectors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Map: object → chunks → vectors
+        Object Lane: object → chunks → vectors
       
     </span>
   </a>
@@ -1260,10 +1260,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reduce-directory-summaries" class="md-nav__link">
+  <a href="#job-lane-directory-summaries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reduce: directory summaries
+        Job Lane: directory summaries
       
     </span>
   </a>
@@ -1601,10 +1601,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#map-object-chunks-vectors" class="md-nav__link">
+  <a href="#object-lane-object-chunks-vectors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Map: object → chunks → vectors
+        Object Lane: object → chunks → vectors
       
     </span>
   </a>
@@ -1612,10 +1612,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reduce-directory-summaries" class="md-nav__link">
+  <a href="#job-lane-directory-summaries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reduce: directory summaries
+        Job Lane: directory summaries
       
     </span>
   </a>
@@ -1659,16 +1659,24 @@ into rows in the vector index. It is the deepest layer of the architecture — f
 the system-level map, see <a href="../architecture/">Architecture</a>; for the server's
 process and module layout, see <a href="../server/">Server</a>. The code lives under
 <code>server/python/src/mfs_server/engine/</code>.</p>
-<p>The pipeline has two halves:</p>
+<p>The pipeline has two lanes, distinguished by the granularity of the work they
+collect. They run <strong>in parallel</strong> and feed one shared tail:</p>
 <ul>
-<li><strong>Map</strong> — always on. Every object becomes a stream of chunks, the chunks
-  become vectors, the vectors become rows in the index.</li>
-<li><strong>Reduce</strong> — optional, controlled by <code>[summary].enabled</code>. As Map finishes
-  objects, their parent directories are folded into summaries bottom-up. Each
-  summary travels back through the same Map tail and lands in the same index
-  as one more chunk kind.</li>
+<li><strong>Object Lane</strong> — always on, works at object granularity. Every object becomes
+  a stream of chunks, the chunks become vectors, the vectors become rows in the
+  index.</li>
+<li><strong>Job Lane</strong> — optional, controlled by <code>[summary].enabled</code>, works at job
+  granularity. It folds each directory of a connector job into a summary,
+  bottom-up. Each summary travels back through the same tail and lands in the
+  same index as one more chunk kind.</li>
 </ul>
-<p>Both halves are wired around the same four concepts. The diagrams below mark
+<p>The lanes are not phases: the Job Lane does not wait for the Object Lane to
+finish. A directory summary folds its children's <strong>source content</strong> (re-read or
+reused from the cache), not their embeddings, so the moment enumeration
+completes the Job Lane can summarize a directory while its files are still being
+embedded. The two lanes hit different backend services (the embedder vs. the
+LLM/VLM), so running them together keeps both busy.</p>
+<p>Both lanes are wired around the same four concepts. The diagrams below mark
 them with the same icons:</p>
 <ul>
 <li>📋 <strong>Metadata</strong> — durable state describing what work exists and what work is
@@ -1676,7 +1684,7 @@ them with the same icons:</p>
 <li>🟦 <strong>Queues</strong> — the durable <code>ObjectTask</code> queue plus the in-memory <code>chunks_q</code>
   and <code>SummaryQueue</code>.</li>
 <li>💾 <strong>Caches</strong> — Transformation Cache (content-addressed memoization of model
-  outputs) and Artifact Cache (per-object derived blobs).</li>
+  outputs) and Artifact Cache (per-object derived blobs, local filesystem).</li>
 <li>🟩 <strong>Index</strong> — the vector store (Milvus Lite by default, or a configured
   Milvus / Zilliz endpoint).</li>
 </ul>
@@ -1723,29 +1731,29 @@ them with the same icons:</p>
 </tr>
 <tr>
 <td><strong>Extensible to new aggregate kinds</strong></td>
-<td>Reduce emits its output back into <code>chunks_q</code> as a new <code>chunk_kind</code>. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path.</td>
+<td>The Job Lane emits its output back into <code>chunks_q</code> as a new <code>chunk_kind</code>. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path.</td>
 </tr>
 <tr>
 <td><strong>Crash recovery</strong></td>
-<td><code>ObjectTask</code> is durable. <code>DirTreeBuilder</code> is in-memory but rebuilt from the durable Map success history on restart.</td>
+<td><code>ObjectTask</code> is durable. The Job Lane's <code>DirTreeBuilder</code> is in-memory but rebuilt from durable object state on restart.</td>
 </tr>
 <tr>
 <td><strong>Provider cost</strong></td>
-<td>The Transformation Cache is content-addressed and single-flight, so Map and Reduce never double-call the same provider for the same input — even when they miss the cache concurrently.</td>
+<td>Model outputs (VLM, summary) are memoized in the content-addressed, single-flight Transformation Cache, and file conversions in the per-object Artifact Cache keyed by a content+version token — so the two lanes never re-run the same conversion or double-call the same provider for the same input, even when they miss concurrently.</td>
 </tr>
 </tbody>
 </table>
 <h2 id="high-level-overview">High-level overview<a class="headerlink" href="#high-level-overview" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   ╔═════════════════════════════╗    ╔══════════════════════════════════╗
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   ║  📋  ObjectTask queue       ║    ║  📋  Connector Job context       ║
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   ║      (per-object, durable)  ║    ║      + Map success events        ║
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   ║                             ║    ║      (per-job, in-memory)        ║
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   ║   the entry point of Map    ║    ║   the entry point of Reduce      ║
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   ║      (per-object, durable)  ║    ║      + directory tree            ║
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   ║                             ║    ║      (built during sync)         ║
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   ║   the entry of Object Lane  ║    ║   the entry of the Job Lane      ║
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   ╚══════════════╤══════════════╝    ╚═══════════════╤══════════════════╝
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                  │                                   │
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                  ▼                                   ▼
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   ┌─────────────────────────────┐    ┌──────────────────────────────────┐
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   │   MAP   (always on)         │    │   REDUCE   (optional,            │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   │   OBJECT LANE  (always on)  │    │   JOB LANE   (optional,          │
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   │                             │    │             [summary].enabled)   │
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>   │   workers claim one         │    │                                  │
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>   │   ObjectTask at a time      │    │   DirTreeBuilder                 │
@@ -1778,27 +1786,31 @@ them with the same icons:</p>
 <a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>        │  🟩  Index  (Milvus)                                 │
 <a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>        └──────────────────────────────────────────────────────┘
 </code></pre></div>
-<p>The two halves feed into one tail.</p>
+<p>The two lanes feed into one tail.</p>
 <ul>
-<li><strong>Map is the always-on side and works at object granularity</strong> — it claims
-  one <code>ObjectTask</code> (a file, an image, a table-rows batch, a message stream, …)
-  at a time. Each task becomes one stream of chunks.</li>
-<li><strong>Reduce is optional and works at job granularity</strong> — it builds one
-  in-memory directory tree per connector job and folds directories bottom-up
-  as Map finishes their children. Each ready directory becomes one chunk.</li>
+<li><strong>The Object Lane works at object granularity</strong> — it claims one <code>ObjectTask</code>
+  (a file, an image, a table-rows batch, a message stream, …) at a time. Each
+  task becomes one stream of chunks.</li>
+<li><strong>The Job Lane works at job granularity</strong> — it builds one in-memory directory
+  tree per connector job and folds directories bottom-up. A directory is ready
+  to fold once enumeration is complete (for a leaf) and its sub-directories are
+  summarized; it does <strong>not</strong> wait for its own files to be embedded. Each ready
+  directory becomes one chunk.</li>
 <li><strong>From <code>chunks_q</code> onward, everything is shared.</strong> One <code>chunks_q</code>, one
-  <code>EmbedConsumer</code>, one cache pair, one index. Reduce has no separate embed
+  <code>EmbedConsumer</code>, one cache pair, one index. The Job Lane has no separate embed
   path, no separate upsert path, no separate collection — its output is just
   one more <code>chunk_kind</code> (<code>directory_summary</code>) alongside <code>file</code>, <code>code</code>,
   <code>image</code>, and the rest.</li>
-<li><strong>The shared cache pays off across the two halves.</strong> Folding a directory in
-  Reduce re-reads whatever PDF was converted or whatever image was VLM-described
-  by Map. Because the Transformation Cache is keyed on content hash and has a
-  per-key single-flight lock, Map and Reduce never double-charge the provider —
-  even if they miss the same cache key at the same moment.</li>
+<li><strong>The shared cache pays off across the two lanes.</strong> Folding a directory
+  re-reads whatever PDF was converted or whatever image was VLM-described in the
+  Object Lane. A conversion is reused from the Artifact Cache when its
+  content+version token still matches; a VLM/summary call is memoized in the
+  content-addressed Transformation Cache under a single-flight lock. Either way
+  the two lanes never re-run the same work, even if they reach the same input at
+  the same moment.</li>
 </ul>
-<p>The next two sections open each half.</p>
-<h2 id="map-object-chunks-vectors">Map: object → chunks → vectors<a class="headerlink" href="#map-object-chunks-vectors" title="Permanent link">&para;</a></h2>
+<p>The next two sections open each lane.</p>
+<h2 id="object-lane-object-chunks-vectors">Object Lane: object → chunks → vectors<a class="headerlink" href="#object-lane-object-chunks-vectors" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>   ╔══════════════════════════════════════════════════════════════════╗
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>   ║   📋  METADATA   (SQLite / Postgres)                             ║
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>   ║                                                                  ║
@@ -1818,15 +1830,15 @@ them with the same icons:</p>
 <a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>   │   one object → a stream of Chunks            │           │   │   • Transformation Cache       │
 <a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>   └─────────────────────┬────────────────────────┘           │   │     content-addressed          │
 <a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>                         ▼                                    │   │     memoization of model       │
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>   ┌──────────────────────────────────────────────┐           │   │     outputs (single-flight)    │
-<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>   │   🟦  Queue ②   chunks_q                     │           │   │     kind: convert / vlm /      │
-<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>   │   in-memory, bounded, backpressure           │           │   │           summary / embedding  │
-<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>   └─────────────────────┬────────────────────────┘           │   │                                │
-<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>                         ▼                                    │   │   • Artifact Cache             │
-<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>   ┌──────────────────────────────────────────────┐           │   │     per-object derived         │
-<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>   │   EmbedConsumer  (process singleton)         │ ◄─ r/w ─► │   │     blobs, serves              │
-<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>   │   batch → one embed → one upsert             │           │   │     cat / head / tail          │
-<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>   │   per-object atomic: delete-then-write       │── hook ───┘   └────────────────────────────────┘
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>   ┌──────────────────────────────────────────────┐           │   │     outputs (single-flight):   │
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>   │   🟦  Queue ②   chunks_q                     │           │   │     vlm / summary / embedding  │
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>   │   in-memory, bounded, backpressure           │           │   │                                │
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>   └─────────────────────┬────────────────────────┘           │   │   • Artifact Cache             │
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>                         ▼                                    │   │     per-object derived blobs   │
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>   ┌──────────────────────────────────────────────┐           │   │     (converted_md, …), serves  │
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>   │   EmbedConsumer  (process singleton)         │ ◄─ r/w ─► │   │     cat / head / tail          │
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>   │   batch → one embed → one upsert             │           │   └────────────────────────────────┘
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>   │   per-object atomic: delete-then-write       │── hook ───┘
 <a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>   └─────────────────────┬────────────────────────┘
 <a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>                         ▼
 <a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>   ┌──────────────────────────────────────────────┐
@@ -1860,13 +1872,14 @@ them with the same icons:</p>
 <li><strong>The success hook closes the loop.</strong> When every chunk for a task is written
   and its <code>EndOfTask</code> has been seen, the consumer fires registered hooks: one
   flips the <code>ObjectTask</code> row to <code>succeeded</code> and writes the <code>Objects</code> row;
-  another notifies Reduce (next section). Failure in a flush is also delivered
-  through the hook, with an error string, so the task can be marked failed.</li>
+  another advances the Job Lane's completion count when the task was a persisted
+  <code>directory_summary</code>. Failure in a flush is also delivered through the hook,
+  with an error string, so the task can be marked failed.</li>
 </ul>
-<h2 id="reduce-directory-summaries">Reduce: directory summaries<a class="headerlink" href="#reduce-directory-summaries" title="Permanent link">&para;</a></h2>
+<h2 id="job-lane-directory-summaries">Job Lane: directory summaries<a class="headerlink" href="#job-lane-directory-summaries" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>                       ╔══════════════════════════════════════╗
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                       ║  From Map: EmbedConsumer success hook║
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>                       ║  &quot;file X is indexed&quot;                 ║
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                       ║  Connector sync: every yielded object ║
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>                       ║  is added to the in-memory dir tree   ║
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>                       ╚══════════════════╤═══════════════════╝
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>                                          ▼
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>   ┌──────────────────────────────────────────────────────────────────────┐
@@ -1874,14 +1887,14 @@ them with the same icons:</p>
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>   │                                                                      │
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>   │       a directory tree; every node records:                          │
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>   │         ▸ child files / child sub-directories                        │
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>   │         ▸ pending: number of children not yet done                   │
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>   │         ▸ summary: the directory&#39;s own summary (written back here    │
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>   │           after folding)                                             │
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>   │                                                                      │
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>   │       the whole tree is built during sync                            │
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>   │       every Map success notification decrements pending on the       │
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>   │       owning directory; pending reaches zero → the directory is      │
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>   │       ready and pushed into SummaryQueue                             │
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>   │         ▸ pending: number of sub-directories not yet summarized       │
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>   │           (files do NOT gate a directory)                            │
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>   │         ▸ summary: the directory&#39;s own summary (written back here    │
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>   │           after folding)                                             │
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>   │                                                                      │
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>   │       built during sync; at sync end finalize() pushes every leaf    │
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>   │       directory (pending == 0). A parent is pushed bottom-up once    │
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>   │       its sub-directory summaries land and its pending reaches zero. │
 <a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>   └─────────────────────────────────┬────────────────────────────────────┘
 <a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>                                     ▼
 <a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>   ┌──────────────────────────────────────────────────────────────────────┐
@@ -1898,16 +1911,16 @@ them with the same icons:</p>
 <a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a>   │                                                                      │
 <a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a>   │   each worker pulls a (job, dir):                                    │
 <a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a>   │                                                                      │
-<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a>   │     ① fold child content                                              │
+<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a>   │     ① fold child SOURCE content (not embeddings)                      │
 <a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a>   │         ▸ child file:  text / code / converted markdown ─┐           │
-<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a>   │         ▸ child file:  image → VLM description           │ ─── hits  │
-<a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a>   │         ▸ child dir:   its already-written summary       │   Transformation
-<a id="__codelineno-2-39" name="__codelineno-2-39" href="#__codelineno-2-39"></a>   │                                                          ─┘  + Artifact
+<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a>   │         ▸ child file:  image → VLM description           │ ─── reuse │
+<a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a>   │         ▸ child dir:   its already-written summary       │   Artifact│
+<a id="__codelineno-2-39" name="__codelineno-2-39" href="#__codelineno-2-39"></a>   │                                                          ─┘   + Transf.
 <a id="__codelineno-2-40" name="__codelineno-2-40" href="#__codelineno-2-40"></a>   │                                                              Cache    │
-<a id="__codelineno-2-41" name="__codelineno-2-41" href="#__codelineno-2-41"></a>   │                                                              (single- │
-<a id="__codelineno-2-42" name="__codelineno-2-42" href="#__codelineno-2-42"></a>   │                                                              flight,  │
-<a id="__codelineno-2-43" name="__codelineno-2-43" href="#__codelineno-2-43"></a>   │                                                              shared   │
-<a id="__codelineno-2-44" name="__codelineno-2-44" href="#__codelineno-2-44"></a>   │                                                              with Map)│
+<a id="__codelineno-2-41" name="__codelineno-2-41" href="#__codelineno-2-41"></a>   │                                                              (shared  │
+<a id="__codelineno-2-42" name="__codelineno-2-42" href="#__codelineno-2-42"></a>   │                                                              with the │
+<a id="__codelineno-2-43" name="__codelineno-2-43" href="#__codelineno-2-43"></a>   │                                                              Object   │
+<a id="__codelineno-2-44" name="__codelineno-2-44" href="#__codelineno-2-44"></a>   │                                                              Lane)    │
 <a id="__codelineno-2-45" name="__codelineno-2-45" href="#__codelineno-2-45"></a>   │                                                                      │
 <a id="__codelineno-2-46" name="__codelineno-2-46" href="#__codelineno-2-46"></a>   │     ② concatenate → call the summary LLM                              │
 <a id="__codelineno-2-47" name="__codelineno-2-47" href="#__codelineno-2-47"></a>   │         (the result also lands in Transformation Cache,              │
@@ -1922,10 +1935,10 @@ them with the same icons:</p>
 <a id="__codelineno-2-56" name="__codelineno-2-56" href="#__codelineno-2-56"></a>                                     ▼
 <a id="__codelineno-2-57" name="__codelineno-2-57" href="#__codelineno-2-57"></a>              ┌─────────────────────────────────────────────┐
 <a id="__codelineno-2-58" name="__codelineno-2-58" href="#__codelineno-2-58"></a>              │   🟦  Queue ②   chunks_q                    │
-<a id="__codelineno-2-59" name="__codelineno-2-59" href="#__codelineno-2-59"></a>              │   ◄── the same chunks_q from the Map diagram│
+<a id="__codelineno-2-59" name="__codelineno-2-59" href="#__codelineno-2-59"></a>              │   ◄── the same chunks_q the Object Lane uses│
 <a id="__codelineno-2-60" name="__codelineno-2-60" href="#__codelineno-2-60"></a>              │                                             │
 <a id="__codelineno-2-61" name="__codelineno-2-61" href="#__codelineno-2-61"></a>              │   directory_summary travels the exact same  │
-<a id="__codelineno-2-62" name="__codelineno-2-62" href="#__codelineno-2-62"></a>              │   Map downstream:                           │
+<a id="__codelineno-2-62" name="__codelineno-2-62" href="#__codelineno-2-62"></a>              │   downstream:                               │
 <a id="__codelineno-2-63" name="__codelineno-2-63" href="#__codelineno-2-63"></a>              │      → EmbedConsumer                        │
 <a id="__codelineno-2-64" name="__codelineno-2-64" href="#__codelineno-2-64"></a>              │      → embed (Transformation Cache,         │
 <a id="__codelineno-2-65" name="__codelineno-2-65" href="#__codelineno-2-65"></a>              │              kind = embedding)              │
@@ -1937,32 +1950,35 @@ them with the same icons:</p>
 </code></pre></div>
 <p>Notes:</p>
 <ul>
-<li><strong><code>DirTreeBuilder</code> is in-memory state.</strong> Unlike the durable Map queue, the
-  tree is rebuilt during connector sync and lost on crash. Crash recovery
-  reconstructs it from the durable Map success history — see <code>_recover_reduce</code>
+<li><strong><code>DirTreeBuilder</code> is in-memory state.</strong> Unlike the durable <code>ObjectTask</code>
+  queue, the tree is built during connector sync and lost on crash. Crash
+  recovery reconstructs it from durable object state — see <code>_recover_job_lane</code>
   in <code>engine/engine.py</code>.</li>
-<li><strong>Reduce is triggered by Map success hooks.</strong> When a file's index write
-  finishes, the parent directory's <code>pending</code> counter is decremented. Zero
-  pending means every child is ready, so the directory can be summarized.</li>
+<li><strong>Files do not gate a directory.</strong> A summary folds its children's source
+  content, not their embeddings, so a directory's <code>pending</code> counts only its
+  un-summarized sub-directories. At sync end every leaf directory is ready
+  immediately; the two lanes then run in parallel — a directory can be
+  summarized while its files are still being embedded by the Object Lane.</li>
 <li><strong>Bottom-up ordering.</strong> <code>SummaryQueue</code> is a per-job heap keyed on negative
   depth, so the deepest ready directory pops first. A cross-job round-robin
   dispatcher fans the per-job heaps into a single <code>ready_q</code>, so one large
   deep job cannot starve another job's shallow tree.</li>
-<li><strong>Cache reuse pays off here.</strong> Folding a directory's children re-reads
-  whatever was already converted or VLM-described during Map. Because the
-  Transformation Cache is keyed by content hash and has a single-flight lock,
-  Map and Reduce never double-charge the provider for the same image or PDF —
-  even if they miss the cache concurrently.</li>
-<li><strong>Reduce shares the Map tail.</strong> Every <code>directory_summary</code> chunk is written
-  back into the same <code>chunks_q</code>. There is no separate embed path, no separate
-  upsert path, no separate index. From the <code>EmbedConsumer</code>'s perspective,
+<li><strong>Cache reuse pays off here.</strong> Folding a directory's children reuses whatever
+  was already converted or VLM-described in the Object Lane. A conversion is
+  reused from the Artifact Cache when its content+version token matches (else it
+  is converted once and cached for both lanes); a VLM/summary call is memoized
+  in the Transformation Cache under a single-flight lock. The two lanes never
+  re-run the same work for the same input, even if they reach it concurrently.</li>
+<li><strong>The Job Lane shares the tail.</strong> Every <code>directory_summary</code> chunk is written
+  into the same <code>chunks_q</code>. There is no separate embed path, no separate upsert
+  path, no separate index. From the <code>EmbedConsumer</code>'s perspective,
   <code>directory_summary</code> is just one more <code>chunk_kind</code>, sitting next to <code>file</code>,
   <code>code</code>, <code>image</code>, and the rest in the same Milvus collection.</li>
 <li><strong>Shared provider budgets.</strong> The VLM and summary providers are protected by
-  process-wide concurrency gates (<code>description_gate</code>, <code>summary_gate</code>) that
-  Map and Reduce share. Reduce folding an image draws from the same in-flight
-  VLM budget as the Map image producer, so adding Reduce does not double the
-  pressure on the provider.</li>
+  process-wide concurrency gates (<code>description_gate</code>, <code>summary_gate</code>) that both
+  lanes share. The Job Lane folding an image draws from the same in-flight VLM
+  budget as the Object Lane image producer, so enabling summaries does not
+  double the pressure on the provider.</li>
 </ul>
 <h2 id="related-docs">Related docs<a class="headerlink" href="#related-docs" title="Permanent link">&para;</a></h2>
 <table>

@@ -1788,7 +1788,7 @@ For operator state, backup, and reset guidance, open
   jobs --&gt; worker["inline processing or&lt;br/&gt;mfs-server worker"]
   engine --&gt; metadata["Metadata DB&lt;br/&gt;SQLite or Postgres"]
   engine --&gt; txcache["Transformation cache&lt;br/&gt;SQLite or Postgres"]
-  engine --&gt; artifacts["Artifact cache&lt;br/&gt;local or S3-compatible"]
+  engine --&gt; artifacts["Artifact cache&lt;br/&gt;local filesystem"]
   engine --&gt; milvus["MilvusStore&lt;br/&gt;Lite or remote Milvus/Zilliz"]
   engine --&gt; source["Connector plugins&lt;br/&gt;source systems"]</code></pre>
 <p>The HTTP layer is deliberately thin: it validates request/response models,
@@ -1917,7 +1917,7 @@ the <code>run</code> / <code>api</code> / <code>worker</code> / <code>reload</co
 </tr>
 <tr>
 <td><code>server/python/src/mfs_server/storage/artifact_cache.py</code></td>
-<td>Local and S3-compatible artifact-cache backends, plus local upload/file staging directories.</td>
+<td>Local-filesystem artifact cache, plus upload/file staging directories.</td>
 </tr>
 <tr>
 <td><code>server/python/src/mfs_server/storage/milvus.py</code></td>
@@ -2065,14 +2065,14 @@ connector state only after a job succeeds.</p>
 <td><code>make_transformation_cache(cfg)</code> in <code>storage/transformation_cache/</code></td>
 <td>SQLite or Postgres</td>
 <td><code>$MFS_HOME/transformation_cache.db</code></td>
-<td>Content-addressed lookup data for embedding, conversion, VLM, and summary work.</td>
+<td>Content-addressed lookup data for embedding, VLM, and summary work.</td>
 </tr>
 <tr>
 <td>Artifact cache</td>
 <td><code>make_artifact_cache(cfg)</code> in <code>storage/artifact_cache.py</code></td>
-<td>Local filesystem or S3-compatible storage</td>
+<td>Local filesystem</td>
 <td><code>$MFS_HOME/cache</code></td>
-<td>Derived per-object blobs such as converted markdown and image descriptions. Upload/file staging directories stay local even when artifact bytes use S3-compatible storage.</td>
+<td>Derived per-object blobs such as converted markdown and structured head previews. Mount a volume at the cache root to persist them.</td>
 </tr>
 <tr>
 <td>Vector index</td>

@@ -1738,7 +1738,7 @@ setup, use <a href="../connectors/">Connectors</a>. For endpoint schemas, use
   classify["object_kind"]
   process["convert / render / summarize&lt;br/&gt;chunk and embed"]
   index["Milvus chunks&lt;br/&gt;content, locator, chunk_kind, metadata"]
-  artifacts["Artifact cache&lt;br/&gt;converted_md / vlm_text / head_cache"]
+  artifacts["Artifact cache&lt;br/&gt;converted_md / head_cache"]
   search["SearchResponse&lt;br/&gt;ResultEnvelope[]"]
   read["cat / head / tail / export&lt;br/&gt;exact readback"]
 
@@ -2080,11 +2080,6 @@ and the Milvus chunk rows.</p>
 <td><code>converted_md</code></td>
 <td>Converted document text and generated markdown for supported document/web paths.</td>
 <td><code>cat</code>, <code>head</code>, <code>tail</code>, and <code>export</code> may read the converted text instead of raw bytes.</td>
-</tr>
-<tr>
-<td><code>vlm_text</code></td>
-<td>Image description text from the VLM path.</td>
-<td><code>cat</code> can return the description text; search uses <code>vlm_description</code> chunks when generated.</td>
 </tr>
 <tr>
 <td><code>head_cache</code></td>

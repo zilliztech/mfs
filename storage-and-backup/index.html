@@ -1799,7 +1799,7 @@ module map behind these statements, see <a href="../server/">Server</a>.</p>
 <pre class="mermaid"><code>flowchart LR
   api["mfs-server API / worker"]
   meta["Metadata DB&lt;br/&gt;connectors, objects, jobs, tasks, state, file_state"]
-  tx["Transformation cache&lt;br/&gt;convert/embed/VLM/summary lookup"]
+  tx["Transformation cache&lt;br/&gt;embed/VLM/summary lookup"]
   artifacts["Artifact cache&lt;br/&gt;derived blobs"]
   staging["Upload staging&lt;br/&gt;local files/uploads"]
   milvus["Milvus chunks&lt;br/&gt;Lite file or remote Milvus/Zilliz"]
@@ -1855,7 +1855,7 @@ image and Compose file set <code>MFS_HOME=/data</code>.</p>
 </tr>
 <tr>
 <td><code>$MFS_HOME/transformation_cache.db</code></td>
-<td>SQLite transformation cache for conversion, embedding, VLM, and summary lookup data.</td>
+<td>SQLite transformation cache for embedding, VLM, and summary lookup data.</td>
 <td>Optional for correctness; useful for recovery speed and cost control.</td>
 <td>Can be rebuilt by recomputation after the server is stopped.</td>
 </tr>
@@ -1927,15 +1927,15 @@ then snapshot the relevant files together.</p>
 <td>SQLite or Postgres</td>
 <td><code>$MFS_HOME/transformation_cache.db</code></td>
 <td>Cache</td>
-<td>Content-addressed conversion, embedding, VLM, and summary results.</td>
+<td>Content-addressed embedding, VLM, and summary results.</td>
 <td>Optional for correctness; backing it up reduces recompute.</td>
 </tr>
 <tr>
 <td>Artifact bytes</td>
-<td>Local filesystem or S3-compatible object storage</td>
+<td>Local filesystem</td>
 <td><code>$MFS_HOME/cache/artifacts/...</code></td>
 <td>Derived cache with metadata references</td>
-<td>Converted markdown, image/VLM text, structured head cache, and similar per-object blobs.</td>
+<td>Converted markdown, structured head cache, and similar per-object blobs.</td>
 <td>Back up with metadata when you want read paths and cache hits to survive restore.</td>
 </tr>
 <tr>
@@ -2009,11 +2009,11 @@ file and any adjacent <code>-wal</code> or <code>-shm</code> files that exist.</
 place creates orphaned state. Use connector removal or a full reset instead.</p>
 </div>
 <h2 id="artifact-cache-boundary">Artifact Cache Boundary<a class="headerlink" href="#artifact-cache-boundary" title="Permanent link">&para;</a></h2>
-<p>The artifact cache has two backends for derived artifact bytes:</p>
+<p>The artifact cache stores derived artifact bytes on the local filesystem under
+the cache root:</p>
 <table>
 <thead>
 <tr>
-<th>Backend</th>
 <th>Where artifact bytes live</th>
 <th>Where upload staging lives</th>
 <th>Notes</th>
@@ -2021,38 +2021,21 @@ place creates orphaned state. Use connector removal or a full reset instead.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>local</code></td>
 <td><code>$MFS_HOME/cache/artifacts/&lt;namespace&gt;/&lt;object-hash&gt;/&lt;artifact-kind&gt;</code></td>
 <td><code>$MFS_HOME/cache/files/...</code> and <code>$MFS_HOME/cache/uploads/...</code></td>
-<td>Default for source, Docker, and Compose unless configured otherwise.</td>
-</tr>
-<tr>
-<td><code>s3</code></td>
-<td><code>s3://&lt;bucket&gt;/&lt;prefix&gt;/artifacts/&lt;namespace&gt;/&lt;object-hash&gt;/&lt;artifact-kind&gt;</code></td>
-<td>The resolved local <code>artifact_cache.root</code></td>
-<td>S3-compatible covers S3, R2, GCS, and MinIO through endpoint configuration.</td>
+<td>Mount a volume at the cache root to persist it across container restarts.</td>
 </tr>
 </tbody>
 </table>
-<p>Only artifact bytes move to S3-compatible storage. The server-side upload
-staging directories returned by <code>files_root()</code> and <code>uploads_dir()</code> remain local
-filesystem state under the artifact cache root. This matters for container and
-Kubernetes layouts: object storage does not make uploaded local files available
-to every pod by itself.</p>
-<p>S3-compatible artifact cache is selected by TOML or by <code>MFS_OBJECT_STORE_BUCKET</code>
-plus the related endpoint, region, prefix, access key, and secret key env vars.
-When S3 is enabled, back up or protect both:</p>
-<ul>
-<li>the metadata backend, because it stores artifact-cache rows and connector
-  state;</li>
-<li>the S3 bucket/prefix that stores artifact bytes;</li>
-<li>any local upload staging root needed by active upload-mode file connectors.</li>
-</ul>
+<p>The cache is a regenerable derivative: artifact metadata rows live in the
+metadata database, the bytes live under the cache root. To survive a restore
+with read paths and cache hits intact, back up the cache root alongside the
+metadata backend. Otherwise losing it only costs recompute on the next read.</p>
 <div class="admonition warning">
 <p class="admonition-title">Do not reset artifact bytes in isolation</p>
-<p>Artifact metadata rows live in the metadata database. If you manually remove
-artifact bytes while keeping the metadata rows, read paths can lose expected
-cache hits. Prefer connector removal plus re-add, or a full state reset.</p>
+<p>If you manually remove artifact bytes while keeping the metadata rows, read
+paths can lose expected cache hits. Prefer connector removal plus re-add, or
+a full state reset.</p>
 </div>
 <h2 id="milvus-boundary">Milvus Boundary<a class="headerlink" href="#milvus-boundary" title="Permanent link">&para;</a></h2>
 <p>MFS writes chunks through <code>MilvusStore</code>.</p>
@@ -2104,7 +2087,7 @@ Milvus configuration.</p>
 <td>Source server</td>
 <td><code>$MFS_HOME</code>, default <code>~/.mfs</code></td>
 <td>Local defaults use SQLite metadata, SQLite transformation cache, local artifact cache, Milvus Lite, and ONNX cache unless configured otherwise.</td>
-<td>Snapshot <code>$MFS_HOME</code> plus any external Postgres, S3, or remote Milvus service you configured.</td>
+<td>Snapshot <code>$MFS_HOME</code> plus any external Postgres or remote Milvus service you configured.</td>
 </tr>
 <tr>
 <td>Docker all-in-one</td>
@@ -2120,7 +2103,7 @@ Milvus configuration.</p>
 </tr>
 <tr>
 <td>Helm-rendered api/worker</td>
-<td>Rendered values target Postgres metadata, S3-compatible object storage, and remote Milvus/Zilliz</td>
+<td>Rendered values target Postgres metadata, a shared artifact-cache volume, and remote Milvus/Zilliz</td>
 <td>The chart renders API and worker deployments, but current docs describe this as the post-v0.4 scalable direction and note runtime/env mismatches to resolve.</td>
 <td>Back up external services according to their policies; do not assume local pod files are durable.</td>
 </tr>
@@ -2138,8 +2121,8 @@ Milvus configuration.</p>
 <li>Include local artifact cache and upload staging when local artifacts or
    upload-mode connectors must survive restore.</li>
 <li>Include <code>onnx-cache/</code> only when you need faster or offline restarts.</li>
-<li>For Postgres, S3-compatible object storage, and remote Milvus/Zilliz, use
-   those services' backup and retention controls.</li>
+<li>For Postgres and remote Milvus/Zilliz, use those services' backup and
+   retention controls.</li>
 </ol>
 <p>Useful non-destructive inspection commands:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>status
@@ -2171,8 +2154,8 @@ Milvus configuration.</p>
    that select external services.</li>
 <li>Restore metadata first, then local Milvus Lite state, then local artifact
    cache and upload staging.</li>
-<li>Restore or point to the correct Postgres database, S3-compatible
-   bucket/prefix, and remote Milvus/Zilliz service when those backends are used.</li>
+<li>Restore or point to the correct Postgres database and remote Milvus/Zilliz
+   service when those backends are used.</li>
 <li>Start the server and run the inspection ladder.</li>
 <li>If search chunks, artifact bytes, or upload staging were intentionally not
    restored, re-run <code>mfs add --force-index TARGET</code> or re-upload as needed.</li>
@@ -2226,7 +2209,7 @@ build, or plan a fresh database and re-index.</p>
 <tr>
 <td>Reset transformation cache</td>
 <td>Stop the server, then remove the transformation cache DB for the backend you use.</td>
-<td>Loses memoized conversion, embedding, VLM, and summary outputs.</td>
+<td>Loses memoized embedding, VLM, and summary outputs.</td>
 <td>Do not remove Postgres tables manually without using your database change controls.</td>
 </tr>
 <tr>
