@@ -74,46 +74,47 @@ update.
 
 ## ⚡ Quick start
 
-A fully local stack — **no API key, no GPU, no cloud account.** Defaults are
-local ONNX embeddings + Milvus Lite + SQLite, all under `~/.mfs/`.
+**No API key, no GPU, no cloud account** — defaults are local ONNX embeddings +
+Milvus Lite + SQLite under `~/.mfs/`.
+
+Start a local server (from source until it's published):
 
 ```bash
-# 1. Install the CLI (a small Rust binary)
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.2/mfs-cli-installer.sh | sh
-
-# 2. Start the server (from source until it's on PyPI)
 git clone https://github.com/zilliztech/mfs.git
 cd mfs/server/python && uv sync && uv run mfs-server run
 ```
 
-The first search downloads a ~600 MB local embedding model into `~/.mfs/`;
-after that the whole stack runs offline.
-
-Then drive the **ingest → search → read** loop — through an agent, or straight
-at the shell.
-
-**In your agent** (Claude Code, Codex, …) — with the skills installed (above),
-ask in plain language or call them directly:
+Then install the skills (above) and just ask your agent — on first run the
+`mfs-ingest` skill pre-flights and installs the `mfs` CLI for you, so there's
+little left to set up by hand:
 
 ```text
 /mfs-ingest index ~/notes
 /mfs-find what did I decide about the pricing model?
 ```
 
-The agent indexes the folder, runs the search, opens the top hit, and quotes
-the exact lines back — with the file path, so you can trust the answer instead
-of a paraphrase.
+The agent indexes the folder, runs the search, opens the top hit, and quotes the
+exact lines back with the file path — so you can trust the answer instead of a
+paraphrase. (The first search pulls a ~600 MB local model into `~/.mfs/`, then
+the stack runs offline.)
 
-**Or straight at the shell**, no agent required:
+<details>
+<summary>Prefer the shell, no agent?</summary>
+
+Install the CLI (a small Rust binary), then run the same loop directly:
 
 ```bash
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.2/mfs-cli-installer.sh | sh
+
 mfs add ~/notes
 mfs search "the pricing model decision" ~/notes --top-k 5
 ```
 
-> macOS first launch may prompt about an unidentified developer. Run
-> `xattr -d com.apple.quarantine $(which mfs)` once after install.
+> macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if it prompts
+> about an unidentified developer.
+
+</details>
 
 <details>
 <summary>Rather use OpenAI than download the local model?</summary>
