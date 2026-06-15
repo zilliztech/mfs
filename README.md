@@ -74,13 +74,27 @@ update.
 
 ## ⚡ Quick start
 
-With the skills installed (above) and the server running ([Run it](#run-it)),
-point an agent at a folder and ask. **No API key, no GPU, no cloud account** —
-the first search downloads a ~600 MB local embedding model into `~/.mfs/`, and
+A fully local stack — **no API key, no GPU, no cloud account.** Defaults are
+local ONNX embeddings + Milvus Lite + SQLite, all under `~/.mfs/`.
+
+```bash
+# 1. Install the CLI (a small Rust binary)
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.2/mfs-cli-installer.sh | sh
+
+# 2. Start the server (from source until it's on PyPI)
+git clone https://github.com/zilliztech/mfs.git
+cd mfs/server/python && uv sync && uv run mfs-server run
+```
+
+The first search downloads a ~600 MB local embedding model into `~/.mfs/`;
 after that the whole stack runs offline.
 
-In your agent (Claude Code, Codex, …), point it at a folder and ask in plain
-language — or call the skills directly:
+Then drive the **ingest → search → read** loop — through an agent, or straight
+at the shell.
+
+**In your agent** (Claude Code, Codex, …) — with the skills installed (above),
+ask in plain language or call them directly:
 
 ```text
 /mfs-ingest index ~/notes
@@ -91,15 +105,15 @@ The agent indexes the folder, runs the search, opens the top hit, and quotes
 the exact lines back — with the file path, so you can trust the answer instead
 of a paraphrase.
 
-The same loop straight at the shell, no agent required:
+**Or straight at the shell**, no agent required:
 
 ```bash
 mfs add ~/notes
 mfs search "the pricing model decision" ~/notes --top-k 5
 ```
 
-That's the whole thing — **ingest a source → search it → read the exact
-bytes** — on any folder of text, Markdown, code, or PDFs.
+> macOS first launch may prompt about an unidentified developer. Run
+> `xattr -d com.apple.quarantine $(which mfs)` once after install.
 
 <details>
 <summary>Rather use OpenAI than download the local model?</summary>
@@ -312,14 +326,13 @@ postgres://prod/orders  score=0.79
 </details>
 
 
-## 🚀 Run it
+## 🏗️ Architecture: thin client, stateful server
 
-The CLI is a thin Rust client; the server holds all the heavy state,
-secrets, and workers. Same defaults work two ways — keep both on the
-**same machine** (the simplest path, no API key or cloud account
-needed) or **split them** for production (server in your data
-center / VPC / k8s cluster, CLI and SDKs anywhere your developers
-and agents are):
+The `mfs` CLI is a thin Rust client; the **server** holds all the heavy state,
+secrets, and workers. The same build runs two ways — both on **one machine**
+(the quick-start path above) or **split** for production: the server in your
+data center / VPC / k8s cluster, the CLI and SDKs wherever your developers and
+agents are.
 
 ```text
  Local quick-start                       Production
@@ -336,76 +349,33 @@ and agents are):
   └──────────────────┘                                       └─────────────────────┘
 ```
 
-The client is a few-MB Rust binary with no persistent state, so
-moving it onto a new laptop, a CI runner, or inside an agent runtime
-is free. The server is where the secrets, the index, and the
-expensive work live.
+**Four client surfaces** reach the server over the same HTTP `/v1` API, so the
+expensive work always stays in one place:
 
-### On one machine (60 seconds)
+| On the client | On the server |
+|---|---|
+| `mfs` **CLI** (Rust, 2–4 ms cold start, ~6 MB binary) | Connector credentials, env vars, TOML config |
+| Generated **SDKs** (Python, TypeScript) | Queue + workers, indexing jobs |
+| Agent **skill packs** (`mfs-find`, `mfs-ingest`) | Metadata DB (SQLite or Postgres) |
+| **HTTP `/v1`** (OpenAPI) for anything custom | Vector index (Milvus Lite, self-hosted Milvus, or Zilliz Cloud) |
+| Endpoint / token resolution + output rendering | Caches + model work (embedding, VLM, summary, chunking, conversion) |
 
-CLI and server share a filesystem so `mfs add ./my-repo` just works
-without any upload step. **No API key, no GPU, no cloud account.**
-Defaults are local ONNX embeddings + Milvus Lite + SQLite, all
-stored under `~/.mfs/`.
+The client carries no persistent state, so re-creating it on a new laptop, a CI
+runner, or inside an agent runtime is free — everything that matters lives on
+the server.
 
-```bash
-# 1. Install the CLI
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.2/mfs-cli-installer.sh | sh
-
-# 2. Run the server from source (until it's on PyPI)
-git clone https://github.com/zilliztech/mfs.git
-cd mfs/server/python
-uv sync
-uv run mfs-server run
-
-# 3. In another terminal — try it
-mfs add ./my-repo
-mfs search "rate limit handler" ./my-repo --top-k 5
-```
-
-First boot downloads the default embedding model (~600 MB) into
-`~/.mfs/onnx-cache/`. After that the local stack is fully offline.
-
-> macOS first launch may prompt about an unidentified developer. Run
-> `xattr -d com.apple.quarantine $(which mfs)` once after install.
-
-### Split across machines (production)
-
-Server-side configuration is the same in both modes — the wizard walks
-through embedding provider, vector backend, database, cache, and auth
-(see [Configure the server](#configure-the-server-wizard-or-toml)
-below for what it looks like). For deeper knobs, edit
-`~/.mfs/server.toml` directly.
+**Going split (production).** Configure the server once
+([below](#configure-the-server-wizard-or-toml)), then point the CLI at it:
 
 ```bash
-uv run mfs-server setup                          # walk the wizard on the server
-
-export MFS_API_URL=https://mfs.your-corp.internal   # point the CLI at the remote server
+export MFS_API_URL=https://mfs.your-corp.internal
 export MFS_API_TOKEN=...
 mfs status
 ```
 
-Docker images, a Compose file, and a Helm chart for split
-api / worker deployments live under
-[`deployments/`](deployments/).
-
-## 🔀 How the C / S split works
-
-| On the client | On the server |
-|---|---|
-| `mfs` CLI (Rust, 2–4 ms cold start, ~6 MB binary) | All connector credentials, env vars, and TOML config |
-| Generated SDKs (Python, TypeScript) | Queue + workers, indexing jobs |
-| Agent skill packs (`mfs-find`, `mfs-ingest`) | Metadata DB (SQLite or Postgres) |
-| Endpoint / profile / token resolution | Vector index (Milvus Lite, self-hosted Milvus, or Zilliz Cloud) |
-| Output rendering | Artifact + transformation caches |
-| | Embedding, VLM, summary, chunking, conversion |
-
-Client and server can sit on the **same machine** (the quick-start
-mode above) or on **different machines** (production mode). The client
-is nearly stateless, so re-creating it on a new laptop, in a Docker
-image, or inside an agent runtime is free. The server is where the
-state, the secrets, and the expensive work live.
+Docker images, a Compose file, and a Helm chart for split api / worker
+deployments live under [`deployments/`](deployments/); see
+[docs/deployment.md](docs/deployment.md) for the walkthrough.
 
 ## ⚙️ Configure the server: wizard or TOML
 
