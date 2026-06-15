@@ -106,8 +106,8 @@ Past-session memory (chat transcripts as JSONL, notes as Markdown) and reusable
 skills become one searchable namespace — the prompt you tuned last week or a
 decision logged three sessions ago, one query away.
 
-> Each `mfs …` line is the CLI; the trailing `# /mfs-…` is the same request to an
-> agent.
+> The `mfs` line is the CLI; the trailing `#` comment is the same request to an
+> agent (`/mfs-ingest` or `/mfs-find`).
 
 ```bash
 mfs add path/to/memory     # /mfs-ingest index my session memory
