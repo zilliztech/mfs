@@ -1,8 +1,7 @@
 <h1 align="center"><img src="https://github.com/user-attachments/assets/1a14c3e3-32c3-4474-a081-ce737bfc439a" alt="MFS logo" width="48" align="absmiddle" /> MFS — Multi-source File-like Search</h1>
 
 <p align="center">
-  <strong>A context harness for AI agents — and for building them.</strong><br/>
-  One shell over your codebases, memory, skills, documents, messages, and every data source you work in.
+  <strong>A context harness for AI agents — and for building them: one shell over your code, memory, skills, docs, messages, and every data source.</strong>
 </p>
 
 <p align="center">
@@ -206,6 +205,30 @@ file://local/screenshots/grafana-2026-06-02.png  score=0.71
 
 </details>
 
+### ☁️ Cloud drives and buckets
+
+Mount a Google Drive or an S3 bucket and the files inside become searchable text
+right next to your local ones — no syncing, no manual download.
+
+```bash
+mfs add gdrive://my-drive --config ./gdrive.toml   # /mfs-ingest add my google drive
+mfs add s3://acme-exports --config ./s3.toml       # /mfs-ingest add our s3 exports bucket
+mfs search "the Q3 board deck" --all               # /mfs-find the Q3 board deck
+```
+
+<details>
+<summary>Output</summary>
+
+```text
+gdrive://my-drive/Board/2026-Q3-review.pdf  score=0.87
+  ... Q3 highlights: net revenue retention 118%, two enterprise logos closed ...
+
+s3://acme-exports/finance/2026-q3-summary.csv  score=0.70
+  quarter,net_revenue,nrr,churn  2026Q3,4.2M,1.18,1.4% ...
+```
+
+</details>
+
 ### 🌍 Online sources
 
 Crawl a documentation site or mount a GitHub repo with its issues — remote
@@ -253,6 +276,31 @@ slack://acme/channels/platform/messages.jsonl  score=0.90
 
 jira://acme/teams/PLAT/issues.jsonl  score=0.81
   PLAT-491  "rate-limit guard misfires under burst"  state=Reopened
+```
+
+</details>
+
+### 🎫 Customers and support
+
+Pull your CRM and help desk into the same namespace — find the account, the open
+tickets, and the notes behind a customer issue in one query.
+
+```bash
+mfs add hubspot://acme --config ./hubspot.toml   # /mfs-ingest add our hubspot crm
+mfs add zendesk://acme --config ./zendesk.toml   # /mfs-ingest add our zendesk
+mfs search "why is Globex unhappy with onboarding?" --all   # /mfs-find Globex onboarding issues
+```
+
+<details>
+<summary>Output</summary>
+
+```text
+zendesk://acme/tickets.jsonl  score=0.88
+  #5821  "Onboarding blocked on SSO setup"  status=open  priority=high
+  requester ops@globex.com — "third week without working SSO ..."
+
+hubspot://acme/companies/globex/notes.jsonl  score=0.74
+  call note: Globex renewal at risk; onboarding friction flagged by the CSM ...
 ```
 
 </details>
@@ -344,7 +392,7 @@ object stores, databases, code hosts, issue trackers, CRMs, chat, mail, docs —
 and mounts each one as a **URI tree** you `ls` / `cat` / `grep` / `search` like a
 local directory. Same verbs, same result shape, everywhere.
 
-| Category | Source | Scheme | What you search |
+| Category | Source | URI prefix | What you search |
 |---|---|---|---|
 | 📁 Files & objects | Local files | `file://` | any folder — text, Markdown, code, PDF, docx, images |
 | | Amazon S3 (& R2 / GCS / MinIO) | `s3://` | bucket objects, converted to text |
@@ -366,8 +414,12 @@ local directory. Same verbs, same result shape, everywhere.
 | 🌐 Docs & web | Notion | `notion://` | pages and databases |
 | | Web | `web://` | crawled pages, converted to Markdown |
 
-Every connector reads the same way once registered — register + index, browse,
-then search, all with the verbs you already know:
+Once registered, a connector answers the same commands. **Browse and search are
+complementary — there's no fixed order.** Browsing (`ls` · `cat` · `tree`) needs
+no index and is fast and exact — ideal for navigating a small or local tree and
+pinpointing the right spot. Search needs an upfront index, but then finds things
+fast across huge volumes with fuzzy, approximate matching — ideal for rough
+filtering when you don't know exactly where to look. Use whichever fits:
 
 ```bash
 mfs add    github://your-org/your-repo --config ./github.toml   # register + index
