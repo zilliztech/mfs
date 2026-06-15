@@ -53,9 +53,7 @@ Create a ~/mfs-demo folder with a couple of short notes, index it with mfs,
 then tell me what I decided about pricing
 ```
 
-That's the whole loop — **ingest → search → read**. Keep the first run **small**
-(a handful of notes, or a single web page) rather than a 50k-file monorepo — the
-very first index can take a while.
+That's the whole loop — **ingest → search → read**.
 
 > 🛠️ **The first run is a one-time setup, and the agent walks you through it:**
 > it installs the `mfs` CLI, helps you start a local server, and downloads a
@@ -113,40 +111,6 @@ export OPENAI_API_KEY=sk-...
 
 Every source rides the same **ingest → search → read** loop. The outputs below
 are illustrative — expand each to see the result shape.
-
-### 🌐 One query across everything
-
-`--all` fans a single query across every registered connector at once — local
-files, databases, ticket trackers, chat. One stable result shape, so any hit
-copies straight into `mfs cat` for the exact evidence.
-
-```bash
-mfs search "rate-limit guard misfires under burst" --all
-```
-
-<details>
-<summary>Output</summary>
-
-```text
-slack://acme/channels/oncall/messages.jsonl  score=0.91
-  [Mon 22:14] @alice: ratelimiter pegged 500ms p99 tail, dump attached
-  [Mon 22:18] @bob:   smells like the burst guard from PR #418
-
-jira://acme/teams/PLAT/issues.jsonl  score=0.83
-  PLAT-491  "rate-limit guard misfires under burst"  state=In Progress
-
-file://local/repo/src/throttle.go  score=0.71
-  42  func handleRateLimit(req Request) error {
-```
-
-Copy any hit into a read — same locators everywhere:
-
-```bash
-mfs cat ./repo/src/throttle.go --range 42:78
-mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
-```
-
-</details>
 
 ### 🧠 Your agent's memory and skills
 
@@ -208,7 +172,7 @@ format and modality at once.
 ```bash
 mfs add ./design-docs            # .pdf, .docx, .md — converted locally
 mfs add ./screenshots            # .png, .jpg — needs a vision model (see note)
-mfs search "audit-log retention and the dashboards that show it"
+mfs search "audit-log retention and the dashboards that show it" --all
 ```
 
 <details>
@@ -302,6 +266,74 @@ postgres://prod/orders  score=0.79
 
 </details>
 
+### 🌐 …or one query across all of them at once
+
+Register a few sources, then `--all` fans a single query across every one of
+them — local files, databases, ticket trackers, chat — and returns one stable
+result shape, so any hit copies straight into `mfs cat` for the exact evidence.
+
+```bash
+mfs search "rate-limit guard misfires under burst" --all
+```
+
+<details>
+<summary>Output</summary>
+
+```text
+slack://acme/channels/oncall/messages.jsonl  score=0.91
+  [Mon 22:14] @alice: ratelimiter pegged 500ms p99 tail, dump attached
+  [Mon 22:18] @bob:   smells like the burst guard from PR #418
+
+jira://acme/teams/PLAT/issues.jsonl  score=0.83
+  PLAT-491  "rate-limit guard misfires under burst"  state=In Progress
+
+file://local/repo/src/throttle.go  score=0.71
+  42  func handleRateLimit(req Request) error {
+```
+
+Copy any hit into a read — same locators everywhere:
+
+```bash
+mfs cat ./repo/src/throttle.go --range 42:78
+mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
+```
+
+</details>
+
+## 🔌 Connectors
+
+Local files are only the start. MFS speaks to a growing catalog of sources —
+object stores, databases, code hosts, issue trackers, CRMs, chat, mail, docs —
+and mounts each one as a **URI tree** you `ls` / `cat` / `grep` / `search` like a
+local directory. Same verbs, same result shape, everywhere.
+
+| Group | Connectors |
+|---|---|
+| 📁 Files & object stores | `file` · `s3` · `gdrive` |
+| 🗄️ Databases | `postgres` · `mysql` · `mongo` · `bigquery` · `snowflake` |
+| 💻 Code & issues | `github` · `jira` · `linear` |
+| 🧑‍💼 CRM & support | `hubspot` · `zendesk` |
+| 💬 Chat & mail | `slack` · `discord` · `gmail` · `feishu` |
+| 🌐 Docs & web | `notion` · `web` |
+
+Every connector reads the same way once registered — register + index, browse,
+then search, all with the verbs you already know:
+
+```bash
+mfs add    github://your-org/your-repo --config ./github.toml   # register + index
+mfs ls     github://your-org/your-repo                          # browse the tree
+mfs search "flaky retry logic" github://your-org/your-repo      # scoped search
+```
+
+Not sure a source will connect? Probe it first — no registration, no writes:
+
+```bash
+mfs connector probe linear://workspace --config ./linear.toml
+```
+
+New connectors slot in behind the same interface, so the catalog keeps growing
+without changing how you use it. Per-connector credentials and TOML shape live
+in [docs/connector-reference.md](docs/connector-reference.md).
 
 ## 🏗️ Architecture: thin client, stateful server
 
@@ -342,7 +374,7 @@ runner, or inside an agent runtime is free — everything that matters lives on
 the server.
 
 **Going split (production).** Configure the server once
-([below](#configure-the-server-wizard-or-toml)), then point the CLI at it:
+([below](#configure-the-server)), then point the CLI at it:
 
 ```bash
 export MFS_API_URL=https://mfs.your-corp.internal
@@ -354,50 +386,36 @@ Docker images, a Compose file, and a Helm chart for split api / worker
 deployments live under [`deployments/`](deployments/); see
 [docs/deployment.md](docs/deployment.md) for the walkthrough.
 
-## ⚙️ Configure the server: wizard or TOML
+## ⚙️ Configure the server
 
-The interactive `mfs-server setup` wizard walks seven sections. The defaults
-are self-contained, so you can press Enter through to a working local server
-and opt into hosted backends only where you need them.
+Almost all configuration lives **on the server** — the embedding provider, the
+vector backend, the metadata database, caches, auth, and every connector's
+credentials all sit in the server's `server.toml`. The **client** barely has any
+config: a tiny TOML that just says *which server to talk to* (endpoint + token),
+so pointing the CLI at a local or a remote server is the whole client story.
+
+There are two ways to configure the server, and they write the same `server.toml`:
+
+- **The wizard** — `mfs-server setup` is a convenient interactive walk through
+  the common choices (embedding provider, vector DB, database, cache, auth).
+  Defaults are self-contained, so you can press Enter through to a working local
+  server and opt into hosted backends (OpenAI, Zilliz Cloud, Postgres, …) only
+  where you need them.
+- **The TOML** — everything the wizard writes, plus the advanced knobs it
+  doesn't surface (cache size / eviction, chunker thresholds, namespace, worker
+  counts, per-connector tuning), lives in `~/.mfs/server.toml`. Edit it directly
+  for anything beyond the basics.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/2adc8090-76e2-4073-aae8-776ca4ba541e" alt="mfs-server setup wizard demo" width="820" />
 </p>
 
-Run a single section any time:
-
 ```bash
-uv run mfs-server setup --section embedding
+uv run mfs-server setup                      # full interactive walkthrough
+uv run mfs-server setup --section embedding  # re-run just one section
 ```
 
-For advanced knobs (cache size, eviction policy, chunker thresholds,
-namespace, custom worker count) — edit `~/.mfs/server.toml`
-directly. See [docs/configuration.md](docs/configuration.md) for the
-full field reference.
-
-## 🔌 Connectors
-
-Beyond local files, MFS ships a growing catalog of connectors. Each
-exposes its source as a URI tree you can `ls` / `cat` / `search` like
-a directory:
-
-| Group | Schemes |
-|---|---|
-| Files & objects | `file`, `s3`, `gdrive` |
-| Databases | `postgres`, `mysql`, `mongo`, `bigquery`, `snowflake` |
-| Code & issues | `github`, `jira`, `linear` |
-| CRM & support | `hubspot`, `zendesk` |
-| Chat, mail, docs | `slack`, `discord`, `gmail`, `feishu`, `notion`, `web` |
-
-Probe before adding:
-
-```bash
-mfs connector probe linear://workspace --config ./linear.toml
-mfs add linear://workspace --config ./linear.toml
-```
-
-Per-connector credential setup and TOML shape:
-[docs/connector-reference.md](docs/connector-reference.md).
+Full field reference: [docs/configuration.md](docs/configuration.md).
 
 ## 🛠️ Build agents on top of MFS
 
@@ -432,25 +450,28 @@ Three ways to wire MFS into your agent:
 - **🔗 HTTP `/v1`.** Skills and SDKs are thin wrappers around the
   same OpenAPI surface — go direct when you need to.
 
-## 🛡️ Robust by design
+## ✨ Features
 
-The index is **derived state** — losable, rebuildable, crash-safe:
+- **🗂️ One file-like interface over everything** — `ls` · `cat` · `tree` ·
+  `grep` · `head` · `tail` · `search`, across local files and every connector,
+  with one stable result shape.
+- **🔍 Hybrid search you can trust** — semantic + keyword retrieval, and every
+  hit reopens to the exact bytes or rows via its locator. Never trust a hit blind.
+- **🏠 Local-first, no cloud needed** — default ONNX embeddings + Milvus Lite +
+  SQLite run fully offline; no API key, no GPU. Swap in OpenAI / Zilliz Cloud /
+  Postgres when you want.
+- **🔌 A growing connector catalog** — files, object stores, databases, code,
+  issues, CRM, chat, mail, docs — all behind the same verbs.
+- **📄 Local conversion, any format** — PDF / docx → Markdown locally; an
+  optional vision model makes images searchable too.
+- **🧱 Thin client, stateful server** — a few-MB Rust CLI plus SDKs / skills /
+  HTTP `/v1`; run both on a laptop or split for production.
+- **🛡️ Robust by design** — the index is derived state: crash-safe and
+  rebuildable, content-addressable caching, idempotent `DELETE + INSERT` writes,
+  three-tier rename detection (rename ≠ re-embed), and a three-layer ignore.
+  Recovery is just *rerun `mfs add`*.
 
-- **🔁 Rename detection in three tiers** — `(size, mtime)` first,
-  then inode pairing for same-filesystem moves, then sha1 fallback
-  for cross-filesystem / Windows / git-rewrite cases. Moving or
-  renaming files costs **zero embedding API calls**.
-- **💾 Content-addressable cache.** Embeddings, conversions,
-  summaries are keyed by `sha1(content + tool + version)` —
-  survives `git checkout`, vector-DB rebuilds, and embedding-model
-  rollbacks with cache hits.
-- **♻️ Idempotent everything.** `chunk_id` is a content hash; writes
-  are `DELETE + INSERT`. No `mfs retry`, no `mfs resume` — recovery
-  collapses to *"crash → just rerun `mfs add`"*.
-- **🚫 Three-layer ignore.** Built-in defaults + `.gitignore` +
-  `.mfsignore`. Ignored files don't even become MFS objects.
-
-Full mechanics: [docs/architecture.md](docs/architecture.md).
+Deeper mechanics: [docs/architecture.md](docs/architecture.md).
 
 ## 💭 Why it works the way it does
 
