@@ -130,13 +130,13 @@ mfs search "where the greeting is printed" /tmp/hello-mfs
 ### 🧠 Your agent's memory and skills
 
 Point MFS at the local streams an agent project juggles — past-session memory
-(Markdown / JSONL) and reusable skill packs — and they collapse into one
-searchable namespace. The prompt you tuned last week, a decision logged three
-sessions ago: one query finds it.
+(chat transcripts as JSONL, notes as Markdown) and reusable skill packs — and
+they collapse into one searchable namespace. The prompt you tuned last week, a
+decision logged three sessions ago: one query finds it.
 
 ```bash
-mfs add path/to/memory.jsonl   # /mfs-ingest index my session memory
-mfs add path/to/SKILL.md       # /mfs-ingest index my skill packs
+mfs add path/to/transcript.jsonl   # /mfs-ingest index my session memory
+mfs add path/to/SKILL.md           # /mfs-ingest index my skill packs
 mfs search "the prompt I tuned for refund disputes" --all   # /mfs-find the refund-dispute prompt
 ```
 
@@ -503,9 +503,10 @@ local directory. Same verbs, same result shape, everywhere.
 Once registered, a connector answers the same commands. **Browse and search are
 complementary — there's no fixed order.** Browsing (`ls` · `cat` · `tree`) needs
 no index and is fast and exact — ideal for navigating a small or local tree and
-pinpointing the right spot. Search needs an upfront index, but then finds things
-fast across huge volumes with fuzzy, approximate matching — ideal for rough
-filtering when you don't know exactly where to look. Use whichever fits:
+pinpointing the right spot. Searching (`search` · `grep`) needs an upfront index,
+but then finds things fast across huge volumes with fuzzy, approximate matching —
+ideal for rough filtering when you don't know exactly where to look. Use whichever
+fits:
 
 ```bash
 mfs add    github://your-org/your-repo --config ./github.toml   # register + index
@@ -553,23 +554,19 @@ agents are.
   └──────────────────┘                                       └─────────────────────┘
 ```
 
-**Four client surfaces** reach the server over the same HTTP `/v1` API, so the
-expensive work always stays in one place:
+The client (CLI, SDKs, skill packs) carries no persistent state and reaches the
+server over one HTTP `/v1` API, so re-creating it on a new laptop, a CI runner,
+or inside an agent runtime is free — everything that matters lives wherever the
+server runs. So the one real choice is **where the server runs**, and that's also
+where almost everything you configure lives. Everything above uses the simplest
+mode: **client and server on the same machine.**
 
-| On the client | On the server |
-|---|---|
-| `mfs` **CLI** (Rust, 2–4 ms cold start, ~6 MB binary) | Connector credentials, env vars, TOML config |
-| Generated **SDKs** (Python, TypeScript) | Queue + workers, indexing jobs |
-| Agent **skill packs** (`mfs-find`, `mfs-ingest`) | Metadata DB (SQLite or Postgres) |
-| **HTTP `/v1`** (OpenAPI) for anything custom | Vector index (Milvus Lite, self-hosted Milvus, or Zilliz Cloud) |
-| Endpoint / token resolution + output rendering | Caches + model work (embedding, VLM, summary, chunking, conversion) |
+| Deployment | Server config, credentials, env vars, secret files live… | The client needs… |
+|---|---|---|
+| **Same machine** (the quick start) | on your machine — `~/.mfs/server.toml`, env vars in the server process, secret files on local disk | nothing; it talks to `localhost` |
+| **Split** (server in a VM / container / k8s) | on the server host — its `server.toml`, process env, or mounted Docker / k8s secrets | just `MFS_API_URL` + `MFS_API_TOKEN` |
 
-The client carries no persistent state, so re-creating it on a new laptop, a CI
-runner, or inside an agent runtime is free — everything that matters lives on
-the server.
-
-**Going split (production).** Configure the server once (below), then point the
-CLI at it:
+For a split deployment, point the CLI at the server and you're set:
 
 ```bash
 export MFS_API_URL=https://mfs.your-corp.internal
