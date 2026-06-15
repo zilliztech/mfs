@@ -37,7 +37,7 @@ collecting fields** for any scheme.
 ## Step 0: Pre-flight (always run first)
 
 ```bash
-mfs --version            # missing? `uv tool install mfs`
+mfs --version            # missing? `cargo install mfs-cli` (see install row below)
 mfs status               # server reachable? connectors/jobs visible?
 mfs config show          # endpoint/profile/client id/server-info debugging
 mfs connector list       # what's already configured?
@@ -47,8 +47,8 @@ Branch on the result:
 
 | Signal | Action |
 |---|---|
-| `mfs` not found | install: `uv tool install mfs` |
-| `mfs status` connection refused | the configured server is down. Tell the user how to bring it up (`uv tool install mfs-server && mfs-server setup && mfs-server run`) and wait — work only through the configured endpoint rather than pointing the CLI at a different server. |
+| `mfs` not found | install the CLI (Rust): `cargo install mfs-cli`, or the shell installer from the project's GitHub releases page. |
+| `mfs status` connection refused | the configured server is down. Tell the user how to bring it up — pre-release, the server runs from source: `git clone https://github.com/zilliztech/mfs.git && cd mfs/server/python && uv sync && uv run mfs-server setup && uv run mfs-server run` — and wait. Work only through the configured endpoint rather than pointing the CLI at a different server. |
 | `mfs status` returns 401 unauthorized | the user's `MFS_API_TOKEN` is missing/wrong. Use `mfs config show` to confirm the endpoint/profile, then set the intended token source and retry. |
 | server up + `connector list` empty | first-ever connector; jump to **§B (greenfield walk-through)** when intent matches |
 | server up + N connectors registered | proceed to Step 1 intent classification |
