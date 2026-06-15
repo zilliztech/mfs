@@ -128,9 +128,6 @@ mfs search "where the greeting is printed" ~/hello-mfs
 
 ## 💡 Use cases
 
-Every source rides the same **ingest → search → read** loop. The outputs below
-are illustrative — expand each to see the result shape.
-
 ### 🧠 Your agent's memory and skills
 
 Point MFS at the local streams an agent project juggles — past-session memory
@@ -164,7 +161,7 @@ helper by what it *does*, not the name you can't remember.
 
 ```bash
 mfs add path/to/repo   # /mfs-ingest index my repos
-mfs search "where do we retry failed webhook deliveries?" --all   # /mfs-find our webhook retry logic
+mfs search "where do we retry failed webhook deliveries?" path/to/repo   # /mfs-find our webhook retry logic
 ```
 
 <details>
@@ -208,9 +205,6 @@ file://local/screenshots/grafana-2026-06-02.png  score=0.71
 ```
 
 </details>
-
-> 🖼️ Image search needs image descriptions on: set `[description].enabled = true`
-> with a provider in `~/.mfs/server.toml` and export its key.
 
 ### 🌍 Online sources
 
@@ -321,41 +315,27 @@ mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
 
 ## 🧰 Commands
 
-Every source — a local folder or a remote connector — answers the same small set
-of commands. They fall into four groups:
+Every source — a local folder or a remote connector — answers the same small
+command set. The core loop is **`mfs add`** → **`mfs search`** → **`mfs cat`**;
+the rest browse and operate.
 
-**Ingest & manage sources**
+| Group | Command | What it does |
+|---|---|---|
+| **Ingest & manage** | **`mfs add <path\|uri> [--config x.toml]`** | register a source and index it; re-run to re-sync |
+| | `mfs connector probe <uri> --config x.toml` | dry-run a connection before registering |
+| | `mfs connector list` · `inspect` · `remove` | see and manage what's registered |
+| **Search** | **`mfs search "<query>" [<path\|uri>] [--all]`** | hybrid semantic + keyword; scope to a path/URI, or `--all` |
+| | `mfs grep <pattern> <path>` | exact keyword / full-text |
+| **Browse & read** | `mfs ls <uri>` · `mfs tree <uri>` | list one level, or a whole subtree |
+| | **`mfs cat <uri> [--range a:b] [--locator '{…}']`** | read the exact bytes, or one structured record |
+| | `mfs head <uri>` · `mfs tail <uri>` | sample the first / last entries |
+| **Operate** | `mfs status` | server, connectors, and jobs at a glance |
+| | `mfs job list` · `show <id>` · `cancel <id>` | track indexing jobs |
+| | `mfs config show` | resolved endpoint / profile / token |
+| | `mfs serve start` · `stop` | manage a local server process |
 
-- `mfs add <path|uri> [--config x.toml]` — register a source and index it; re-run
-  any time to re-sync.
-- `mfs connector probe <uri> --config x.toml` — dry-run a connection before you
-  register it.
-- `mfs connector list` · `inspect <uri>` · `remove <uri>` — see and manage what's
-  registered.
-
-**Search**
-
-- `mfs search "<query>" [<path|uri>] [--all]` — hybrid semantic + keyword
-  retrieval; scope to a path/URI, or fan out across everything with `--all`.
-- `mfs grep <pattern> <path>` — exact keyword / full-text, pushed down to the
-  source where the connector supports it.
-
-**Browse & read** — the file-like verbs
-
-- `mfs ls <uri>` · `mfs tree <uri>` — list one level, or a whole subtree.
-- `mfs cat <uri> [--range a:b] [--locator '{...}']` — read the exact bytes, or a
-  single structured record straight from a search hit's locator.
-- `mfs head <uri>` · `mfs tail <uri>` — sample the first / last entries.
-
-**Operate**
-
-- `mfs status` — server, connectors, and jobs at a glance.
-- `mfs job list` · `show <id>` · `cancel <id>` — track indexing jobs.
-- `mfs config show` — the resolved endpoint / profile / token.
-- `mfs serve start` · `stop` — manage a local server process.
-
-Through an agent it's the same set in natural language: the **mfs-find** skill
-wraps search + browse, and **mfs-ingest** wraps register + manage.
+Through an agent it's the same set in natural language — the **mfs-find** skill
+wraps search + browse, **mfs-ingest** wraps register + manage.
 
 ## 🔌 Connectors
 
