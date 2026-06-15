@@ -307,14 +307,27 @@ object stores, databases, code hosts, issue trackers, CRMs, chat, mail, docs —
 and mounts each one as a **URI tree** you `ls` / `cat` / `grep` / `search` like a
 local directory. Same verbs, same result shape, everywhere.
 
-| Group | Connectors |
-|---|---|
-| 📁 Files & object stores | `file` · `s3` · `gdrive` |
-| 🗄️ Databases | `postgres` · `mysql` · `mongo` · `bigquery` · `snowflake` |
-| 💻 Code & issues | `github` · `jira` · `linear` |
-| 🧑‍💼 CRM & support | `hubspot` · `zendesk` |
-| 💬 Chat & mail | `slack` · `discord` · `gmail` · `feishu` |
-| 🌐 Docs & web | `notion` · `web` |
+| Category | Source | Scheme | What you search |
+|---|---|---|---|
+| 📁 Files & objects | Local files | `file://` | any folder — text, Markdown, code, PDF, docx, images |
+| | Amazon S3 (& R2 / GCS / MinIO) | `s3://` | bucket objects, converted to text |
+| | Google Drive | `gdrive://` | Docs, Sheets, PDFs and files in a Drive |
+| 🗄️ Databases | PostgreSQL | `postgres://` | tables and rows as searchable records |
+| | MySQL | `mysql://` | tables and rows as searchable records |
+| | MongoDB | `mongo://` | collections and documents |
+| | BigQuery | `bigquery://` | datasets and tables |
+| | Snowflake | `snowflake://` | databases and tables |
+| 💻 Code & issues | GitHub | `github://` | repo files, issues, and PRs |
+| | Jira | `jira://` | projects, issues, comments |
+| | Linear | `linear://` | teams, issues, comments |
+| 🧑‍💼 CRM & support | HubSpot | `hubspot://` | contacts, companies, deals, notes |
+| | Zendesk | `zendesk://` | support tickets and comments |
+| 💬 Chat & mail | Slack | `slack://` | channels and message history |
+| | Discord | `discord://` | servers, channels, threads |
+| | Gmail | `gmail://` | mail threads and messages |
+| | Feishu / Lark | `feishu://` | docs and messages |
+| 🌐 Docs & web | Notion | `notion://` | pages and databases |
+| | Web | `web://` | crawled pages, converted to Markdown |
 
 Every connector reads the same way once registered — register + index, browse,
 then search, all with the verbs you already know:
@@ -417,40 +430,7 @@ uv run mfs-server setup --section embedding  # re-run just one section
 
 Full field reference: [docs/configuration.md](docs/configuration.md).
 
-## 🛠️ Build agents on top of MFS
-
-If you're building an agent project (not just calling MFS from a
-shell), MFS becomes the harness — the retrieval and context layer
-your agent sits on top of, not a passive index it queries
-occasionally.
-
-A modern agent project juggles several streams of state at once:
-
-- **Memory** — past sessions, recaps, decision logs, scratch notes
-- **Skills** — reusable `SKILL.md` packs, prompts, runbooks
-- **Code** — every repo the agent reads or writes
-- **Knowledge** — docs, PDFs, design specs, meeting transcripts
-- **Work signals** — Slack threads, emails, tickets, CRM records,
-  database state, dashboards
-
-Without a harness this spreads across local folders, SaaS apps, and
-private databases. With MFS the agent gets one CLI surface over all
-of it — and you skip writing a connector per source.
-
-Three ways to wire MFS into your agent:
-
-- **🧩 Skill packs.** Drop [`skills/mfs-find`](skills/mfs-find/SKILL.md)
-  and [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) into your
-  coding agent runtime, and the agent
-  inherits the whole search-and-browse loop with no custom
-  integration code.
-- **📦 SDKs.** Generated Python and TypeScript clients under `sdks/`
-  cover the cases where shelling out to `mfs` is awkward (long-
-  running daemons, language runtimes without a shell).
-- **🔗 HTTP `/v1`.** Skills and SDKs are thin wrappers around the
-  same OpenAPI surface — go direct when you need to.
-
-## ✨ Features
+## ✨ Features & how it works
 
 - **🗂️ One file-like interface over everything** — `ls` · `cat` · `tree` ·
   `grep` · `head` · `tail` · `search`, across local files and every connector,
@@ -471,23 +451,48 @@ Three ways to wire MFS into your agent:
   three-tier rename detection (rename ≠ re-embed), and a three-layer ignore.
   Recovery is just *rerun `mfs add`*.
 
-Deeper mechanics: [docs/architecture.md](docs/architecture.md).
+Three principles run underneath all of it:
 
-## 💭 Why it works the way it does
+- **Upstream is the source of truth** — MFS keeps a derived index; delete
+  `~/.mfs/` and you lose no data, `mfs add` rebuilds from the original sources.
+- **Search × browse, two legs of one loop** — like a library: point at the
+  shelf, flip pages, read the right one. Never trust a hit until you've reopened it.
+- **File-like URIs because agents already speak shell** — no new query language,
+  no per-source SDK; the same handful of verbs cover every connector.
 
-Three principles run through the architecture:
+Deeper mechanics: [docs/architecture.md](docs/architecture.md) · design notes:
+[docs/design-philosophy.md](docs/design-philosophy.md).
 
-- **Upstream is the source of truth.** MFS keeps a derived index;
-  delete `~/.mfs/` and you lose no data — `mfs add` rebuilds from
-  the original sources.
-- **Search × browse — two legs of one loop.** Like a library: point
-  at the shelf, flip pages, read the right one. Never trust a search
-  hit until you've reopened it.
-- **File-like URIs because agents already speak shell.** No new
-  query language, no per-source SDK. The same handful of verbs cover
-  every connector.
+## 🛠️ Build agents on top of MFS
 
-Full design notes: [docs/design-philosophy.md](docs/design-philosophy.md).
+If you're building an agent project (not just calling MFS from a shell), MFS
+becomes the harness — the retrieval and context layer your agent sits on top of,
+not a passive index it queries occasionally.
+
+A modern agent project juggles several streams of state at once:
+
+- **Memory** — past sessions, recaps, decision logs, scratch notes
+- **Skills** — reusable `SKILL.md` packs, prompts, runbooks
+- **Code** — every repo the agent reads or writes
+- **Knowledge** — docs, PDFs, design specs, meeting transcripts
+- **Work signals** — Slack threads, emails, tickets, CRM records, database
+  state, dashboards
+
+Without a harness this spreads across local folders, SaaS apps, and private
+databases. With MFS the agent gets one CLI surface over all of it — and you skip
+writing a connector per source.
+
+Three ways to wire MFS into your agent:
+
+- **🧩 Skill packs.** Drop [`skills/mfs-find`](skills/mfs-find/SKILL.md) and
+  [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) into your coding agent
+  runtime, and the agent inherits the whole search-and-browse loop with no
+  custom integration code.
+- **📦 SDKs.** Generated Python and TypeScript clients under `sdks/` cover the
+  cases where shelling out to `mfs` is awkward (long-running daemons, language
+  runtimes without a shell).
+- **🔗 HTTP `/v1`.** Skills and SDKs are thin wrappers around the same OpenAPI
+  surface — go direct when you need to.
 
 ## 📚 Docs
 
