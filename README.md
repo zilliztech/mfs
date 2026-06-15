@@ -461,7 +461,7 @@ the rest browse and operate.
 | **Search** | **`mfs search "<query>" [<path\|uri>] [--all]`** | hybrid semantic + keyword; scope to a path/URI, or `--all` |
 | | `mfs grep <pattern> <path>` | exact keyword / full-text |
 | **Browse & read** | `mfs ls <uri>` · `mfs tree <uri>` | list one level, or a whole subtree |
-| | **`mfs cat <uri> [--range a:b] [--locator '{…}']`** | read the exact bytes, or one structured record |
+| | **`mfs cat <uri> [--range a:b] [--locator '{...}']`** | read the exact bytes, or one structured record |
 | | `mfs head <uri>` · `mfs tail <uri>` | sample the first / last entries |
 | **Operate** | `mfs status` | server, connectors, and jobs at a glance |
 | | `mfs job list` · `show <id>` · `cancel <id>` | track indexing jobs |
@@ -557,14 +557,27 @@ agents are.
 The client (CLI, SDKs, skill packs) carries no persistent state and reaches the
 server over one HTTP `/v1` API, so re-creating it on a new laptop, a CI runner,
 or inside an agent runtime is free — everything that matters lives wherever the
-server runs. So the one real choice is **where the server runs**, and that's also
-where almost everything you configure lives. Everything above uses the simplest
-mode: **client and server on the same machine.**
+server runs. Everything above uses the simplest mode: **client and server on the
+same machine.**
 
-| Deployment | Server config, credentials, env vars, secret files live… | The client needs… |
-|---|---|---|
-| **Same machine** (the quick start) | on your machine — `~/.mfs/server.toml`, env vars in the server process, secret files on local disk | nothing; it talks to `localhost` |
-| **Split** (server in a VM / container / k8s) | on the server host — its `server.toml`, process env, or mounted Docker / k8s secrets | just `MFS_API_URL` + `MFS_API_TOKEN` |
+For anything more involved you **split the two** — the server moves to a VM, a
+Docker Compose stack, or a Kubernetes cluster while the CLI and skills stay with
+you. The rule of thumb: the agent's **CLI and skill packs live on the client**;
+the **server owns all config, credentials, env vars, and data stores**, so
+`env:` / `file:` secret references always resolve on the server, never the
+client. Where each piece sits by mode:
+
+| Piece | Local (one machine) | Split (server on a VM) | Containerized (Compose / k8s) |
+|---|---|---|---|
+| `mfs` CLI | your machine | your laptop / CI | your laptop / CI |
+| Agent skill packs | client side | client side | client side |
+| `mfs-server` + workers | your machine | the VM | api + worker pods |
+| `mfs-server setup` wizard | your machine | on the VM | run against the server, or pre-bake the config |
+| `server.toml` | `~/.mfs/server.toml` | on the VM | ConfigMap or mounted file |
+| Connector credentials, secret files | local disk | on the VM | Docker / k8s secrets, mounted |
+| Env vars (for `env:` refs) | the server's process env | the VM's env | pod env |
+| Vector DB | Milvus Lite (local file) | self-hosted Milvus or Zilliz Cloud | Zilliz Cloud |
+| Metadata DB | SQLite (local file) | Postgres | Postgres |
 
 For a split deployment, point the CLI at the server and you're set:
 
