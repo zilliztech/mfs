@@ -88,51 +88,17 @@ project, and show me the exact lines
 > ~600 MB local embedding model into `~/.mfs/`. Give it a minute. After that the
 > whole stack runs locally and offline — **no API key, no GPU, no cloud account.**
 
-<details>
-<summary>Use OpenAI instead of the local model?</summary>
-
-Set the embedding provider to OpenAI in `~/.mfs/server.toml` (or run
-`uv run mfs-server setup`) and export your key — no model download:
-
-```toml
-[embedding]
-provider = "openai"      # instead of the default local "onnx"
-```
-
-```bash
-export OPENAI_API_KEY=sk-...
-```
-
-</details>
-
-<details>
-<summary>Prefer the shell, no agent?</summary>
-
-Run a local server, install the CLI, and drive the same loop directly:
-
-```bash
-# server — from source until it's published
-git clone https://github.com/zilliztech/mfs.git
-cd mfs/server/python && uv sync && uv run mfs-server run
-
-# CLI — `cargo install mfs-cli`, or the installer on the releases page
-mfs add /tmp/hello-mfs
-mfs search "where the greeting is printed" /tmp/hello-mfs
-```
-
-> macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if prompted about
-> an unidentified developer.
-
-</details>
-
 ## 💡 Use cases
+
+In each example the `mfs …` line is the CLI; the trailing `# /mfs-…` comment is
+the same request phrased to an agent (the `mfs-ingest` / `mfs-find` skills).
+Outputs are illustrative — expand each.
 
 ### 🧠 Your agent's memory and skills
 
-Point MFS at the local streams an agent project juggles — past-session memory
-(chat transcripts as JSONL, notes as Markdown) and reusable skill packs — and
-they collapse into one searchable namespace. The prompt you tuned last week, a
-decision logged three sessions ago: one query finds it.
+Past-session memory (chat transcripts as JSONL, notes as Markdown) and reusable
+skill packs become one searchable namespace — the prompt you tuned last week or a
+decision logged three sessions ago, one query away.
 
 ```bash
 mfs add path/to/transcript.jsonl   # /mfs-ingest index my session memory
@@ -163,8 +129,8 @@ window is confirmed."}
 
 ### 💻 Your codebases
 
-Add every repo the agent reads or writes and grep them by meaning — find the
-helper by what it *does*, not the name you can't remember.
+Index the repos your agent reads or writes and grep them by meaning — find the
+helper by what it *does*, not the name you've forgotten.
 
 ```bash
 mfs add path/to/repo   # /mfs-ingest index my repos
@@ -202,10 +168,9 @@ func (d *Dispatcher) retryDelivery(ev Event) error {
 
 ### 📄 Documents, images, any format
 
-Drop a folder of PDFs, Word docs, Markdown, and screenshots. MFS converts each
-file to text **locally** — PDF / docx → Markdown, no API key — and, with a
-vision model turned on, describes images too, so one search reads across every
-format and modality at once.
+PDFs, Word docs, Markdown, screenshots — MFS converts each to text **locally**
+(PDF / docx → Markdown, no API key), and with a vision model on it describes
+images too. One search spans every format.
 
 ```bash
 mfs add path/to/design-doc.pdf   # /mfs-ingest index my design docs
@@ -239,8 +204,8 @@ beyond 90 days requires a break-glass approval recorded in the change log.
 
 ### ☁️ Cloud drives and buckets
 
-Mount a Google Drive or an S3 bucket and the files inside become searchable text
-right next to your local ones — no syncing, no manual download.
+Mount a Google Drive or S3 bucket; its files become searchable text alongside
+your local ones — no syncing, no downloads.
 
 ```bash
 mfs add gdrive://my-drive --config ./gdrive.toml   # /mfs-ingest add my google drive
@@ -273,9 +238,8 @@ Open the hit — `mfs cat gdrive://my-drive/Board/2026-Q3-review.pdf`:
 
 ### 🌍 Online sources
 
-Crawl a documentation site or mount a GitHub repo with its issues — remote
-content lands in the same namespace as your local files, with no manual
-download step.
+Crawl a docs site or mount a GitHub repo with its issues — remote content lands
+in the same namespace as your local files.
 
 ```bash
 mfs add web://docs.your-product.com                          # /mfs-ingest crawl our docs site
@@ -309,8 +273,8 @@ for a 24-hour overlap so in-flight tokens keep verifying.
 
 ### 💬 Team chat and tickets
 
-Mount Slack, Gmail, Jira, Linear — the conversational trail behind a decision —
-and pull the thread, the ticket, and the email into a single answer.
+Mount Slack, Gmail, Jira, Linear and pull the thread, the ticket, and the email
+behind a decision into one answer.
 
 ```bash
 mfs add slack://acme --config ./slack.toml   # /mfs-ingest add our slack
@@ -343,8 +307,8 @@ PR #604. Re-tuning the window before re-enabling.
 
 ### 🎫 Customers and support
 
-Pull your CRM and help desk into the same namespace — find the account, the open
-tickets, and the notes behind a customer issue in one query.
+Pull your CRM and help desk together — the account, its open tickets, and the
+call notes behind a customer issue in one query.
 
 ```bash
 mfs add hubspot://acme --config ./hubspot.toml   # /mfs-ingest add our hubspot crm
@@ -377,9 +341,8 @@ requester: ops@globex.com
 
 ### 🗄️ Production data
 
-Point MFS at Postgres, Mongo, or BigQuery and search rows as text. Each row is
-a file-like object, so `mfs cat` pulls back the full record for the exact
-values.
+Point MFS at Postgres, Mongo, or BigQuery and search rows as text — each row is a
+file-like object, so `mfs cat` pulls back the full record.
 
 ```bash
 mfs add postgres://prod/orders --config ./pg.toml                         # /mfs-ingest add the prod orders table
@@ -410,9 +373,9 @@ note                 customer disputed, awaiting gateway confirmation
 
 ### 🌐 One query across all of them at once
 
-Register a few sources, then `--all` fans a single query across every one of
-them — local files, databases, ticket trackers, chat — and returns one stable
-result shape, so any hit copies straight into `mfs cat` for the exact evidence.
+With a few sources registered, `--all` fans one query across all of them — files,
+databases, trackers, chat — in a single result shape, so any hit copies straight
+into `mfs cat`.
 
 ```bash
 mfs search "rate-limit guard misfires under burst" --all   # /mfs-find the burst rate-limit bug
@@ -500,13 +463,13 @@ local directory. Same verbs, same result shape, everywhere.
 | 🌐 Docs & web | Notion | `notion://` | pages and databases |
 | | Web | `web://` | crawled pages, converted to Markdown |
 
-Once registered, a connector answers the same commands. **Browse and search are
-complementary — there's no fixed order.** Browsing (`ls` · `cat` · `tree`) needs
-no index and is fast and exact — ideal for navigating a small or local tree and
-pinpointing the right spot. Searching (`search` · `grep`) needs an upfront index,
-but then finds things fast across huge volumes with fuzzy, approximate matching —
-ideal for rough filtering when you don't know exactly where to look. Use whichever
-fits:
+Once registered, a connector answers the same commands — **browse and search are
+complementary, with no fixed order:**
+
+- **Browse** (`ls` · `cat` · `tree`) — no index, fast and exact; best for walking
+  a small or local tree.
+- **Search** (`search` · `grep`) — needs an upfront index, then finds things fast
+  across huge volumes with fuzzy matching; best for rough filtering.
 
 ```bash
 mfs add    github://your-org/your-repo --config ./github.toml   # register + index
@@ -514,22 +477,15 @@ mfs ls     github://your-org/your-repo                          # browse the tre
 mfs search "flaky retry logic" github://your-org/your-repo      # scoped search
 ```
 
-Not sure a source will connect? Probe it first — no registration, no writes:
+New connectors slot in behind the same interface, so the catalog keeps growing.
+Each needs a small TOML (credentials + what to expose) — three ways to get it
+right:
 
-```bash
-mfs connector probe linear://workspace --config ./linear.toml
-```
-
-New connectors slot in behind the same interface, so the catalog keeps growing
-without changing how you use it.
-
-Each connector needs a small TOML — its credentials plus what to expose — and
-there are a few ways to get it right. The quickest is to **describe the source to
-your agent** in plain language: the **mfs-ingest** skill works out which
-credentials you need, tells you where to get them, and writes the TOML for you.
-Doing it by hand instead? `mfs connector probe` (above) dry-runs a config before
-you commit, and each connector's reference documents its exact fields and auth
-options.
+- **Ask your agent** — describe the source in plain language; the `mfs-ingest`
+  skill finds the credentials, says where to get them, and writes the TOML.
+- **Probe first** — `mfs connector probe <uri> --config x.toml` dry-runs a
+  config, no registration and no writes.
+- **Read the reference** — each connector documents its exact fields and auth.
 
 ## 🏗️ Architecture
 
@@ -631,13 +587,49 @@ uv run mfs-server setup                      # full interactive walkthrough
 uv run mfs-server setup --section embedding  # re-run just one section
 ```
 
+<details>
+<summary>Use OpenAI instead of the local model?</summary>
+
+Set the embedding provider to OpenAI and export your key — no model download:
+
+```toml
+[embedding]
+provider = "openai"      # instead of the default local "onnx"
+```
+
+```bash
+export OPENAI_API_KEY=sk-...
+```
+
+</details>
+
+<details>
+<summary>Prefer the shell, no agent?</summary>
+
+Run a local server, install the CLI, and drive the loop directly:
+
+```bash
+# server — from source until it's published
+git clone https://github.com/zilliztech/mfs.git
+cd mfs/server/python && uv sync && uv run mfs-server run
+
+# CLI — `cargo install mfs-cli`, or the installer on the releases page
+mfs add /tmp/hello-mfs
+mfs search "where the greeting is printed" /tmp/hello-mfs
+```
+
+> macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if prompted about
+> an unidentified developer.
+
+</details>
+
 ## ✨ Features & how it works
 
 - **🗂️ One file-like interface over everything** — `ls` · `cat` · `tree` ·
   `grep` · `head` · `tail` · `search`, across local files and every connector,
   with one stable result shape.
 - **🔍 Hybrid search you can trust** — semantic + keyword retrieval, and every
-  hit reopens to the exact bytes or rows via its locator. Never trust a hit blind.
+  hit reopens to the exact bytes or rows via its locator.
 - **📚 Any source, any format** — a growing connector catalog (files, object
   stores, databases, code, chat, CRM, docs) plus local PDF / docx → Markdown
   conversion and optional image descriptions, all behind the same verbs.
@@ -657,7 +649,7 @@ Three principles run underneath all of it:
 - **File-like URIs because agents already speak shell** — no new query language,
   no per-source SDK; the same handful of verbs cover every connector.
 
-## 🛠️ Build agents on top of MFS
+## 🤖 Build agents on top of MFS
 
 If you're building an agent project (not just calling MFS from a shell), MFS
 becomes the harness — the retrieval and context layer your agent sits on top of,
