@@ -345,10 +345,10 @@ mfs connector probe linear://workspace --config ./linear.toml
 ```
 
 New connectors slot in behind the same interface, so the catalog keeps growing
-without changing how you use it. Per-connector credentials and TOML shape live
-in [docs/connector-reference.md](docs/connector-reference.md).
+without changing how you use it. Each connector has its own credential setup and
+TOML shape.
 
-## 🏗️ Architecture: thin client, stateful server
+## 🏗️ Architecture
 
 The `mfs` CLI is a thin Rust client; the **server** holds all the heavy state,
 secrets, and workers. The same build runs two ways — both on **one machine**
@@ -396,8 +396,7 @@ mfs status
 ```
 
 Docker images, a Compose file, and a Helm chart for split api / worker
-deployments live under [`deployments/`](deployments/); see
-[docs/deployment.md](docs/deployment.md) for the walkthrough.
+deployments live under [`deployments/`](deployments/).
 
 ## ⚙️ Configure the server
 
@@ -427,8 +426,6 @@ There are two ways to configure the server, and they write the same `server.toml
 uv run mfs-server setup                      # full interactive walkthrough
 uv run mfs-server setup --section embedding  # re-run just one section
 ```
-
-Full field reference: [docs/configuration.md](docs/configuration.md).
 
 ## ✨ Features & how it works
 
@@ -460,9 +457,6 @@ Three principles run underneath all of it:
 - **File-like URIs because agents already speak shell** — no new query language,
   no per-source SDK; the same handful of verbs cover every connector.
 
-Deeper mechanics: [docs/architecture.md](docs/architecture.md) · design notes:
-[docs/design-philosophy.md](docs/design-philosophy.md).
-
 ## 🛠️ Build agents on top of MFS
 
 If you're building an agent project (not just calling MFS from a shell), MFS
@@ -493,19 +487,6 @@ Three ways to wire MFS into your agent:
   runtimes without a shell).
 - **🔗 HTTP `/v1`.** Skills and SDKs are thin wrappers around the same OpenAPI
   surface — go direct when you need to.
-
-## 📚 Docs
-
-The full guide lives in **[docs/](docs/)** (also served via MkDocs):
-
-- [Quickstart](docs/getting-started.md) — first local run, end to end.
-- [Search and Browse](docs/search-and-browse.md) — the search →
-  locate → read loop.
-- [Connectors](docs/connectors.md) — catalog and per-connector setup.
-- [Configuration](docs/configuration.md) — server settings, env vars,
-  auth.
-- [Deployment](docs/deployment.md) — Docker, Compose, remote server.
-- [Troubleshooting](docs/troubleshooting.md) — when things break.
 
 ## 🗺️ Roadmap
 
