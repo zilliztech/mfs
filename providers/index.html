@@ -1870,27 +1870,30 @@ so query vectors and indexed vectors come from the same embedding space:</p>
 </tr>
 </tbody>
 </table>
-<p>Directory and schema summaries are off by default. VLM provider defaults are
-configured separately:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[summary]</span>
+<p>Image descriptions and directory/file summaries are both off by default. They
+are two independent subsystems — each has its own enable switch and its own
+wizard section:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[description]</span><span class="w">            </span><span class="c1"># vision LLM — one call per image</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">include_image_description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpt-4o-mini&quot;</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="k">[description]</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpt-4o-mini&quot;</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpt-4o-mini&quot;</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="k">[summary]</span><span class="w">                </span><span class="c1"># text LLM — one call per directory (and optionally per file)</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpt-4o-mini&quot;</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="w">               </span><span class="c1"># summarize directories (recursive, bottom-up)</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">             </span><span class="c1"># also summarize each individual file (~2x cost)</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">include_image_description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">  </span><span class="c1"># fold image-description text into directory summaries</span>
 </code></pre></div>
-<p>Run the description setup section when you want the wizard to write summary
-settings and image-description provider/model settings:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>description
+<p>Configure them with their own wizard sections:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>description<span class="w">   </span><span class="c1"># images</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>summary<span class="w">       </span><span class="c1"># directories / files</span>
 </code></pre></div>
-<p>When enabled through the wizard, this section sets <code>summary.enabled</code>,
-<code>summary.include_image_description</code>, the summary provider/model, and the
-image-description provider/model. You can also set <code>MFS_SUMMARY_ENABLED</code> in the
-server environment; truthy values are <code>1</code>, <code>true</code>, <code>yes</code>, and <code>on</code>.</p>
+<p>The <code>description</code> section writes only <code>[description]</code>; the <code>summary</code> section
+writes only <code>[summary]</code>. You can also set <code>MFS_SUMMARY_ENABLED</code> in the server
+environment to turn directory summaries on; truthy values are <code>1</code>, <code>true</code>,
+<code>yes</code>, and <code>on</code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Image indexing is gated by <code>[description].enabled</code>: indexable image objects

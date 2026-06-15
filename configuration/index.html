@@ -1946,12 +1946,6 @@ token when the container is removed.</p>
 <td>Use hosted or local alternatives when you have the required extra dependencies and credentials.</td>
 </tr>
 <tr>
-<td><code>description</code></td>
-<td><code>[summary] enabled</code>, <code>include_image_description</code>, <code>provider</code>, <code>model</code>; <code>[description] provider</code>, <code>model</code></td>
-<td>Off by default. Image objects can be listed without generating image descriptions.</td>
-<td>Enable when you need image descriptions in the searchable index and accept the provider cost.</td>
-</tr>
-<tr>
 <td><code>milvus</code></td>
 <td><code>[milvus] uri</code>, <code>token</code></td>
 <td>Milvus Lite under <code>$MFS_HOME/milvus.db</code>.</td>
@@ -1974,6 +1968,18 @@ token when the container is removed.</p>
 <td>top-level <code>auth_token</code></td>
 <td>Auto mode omits <code>auth_token</code> in TOML and creates or reuses <code>server.token</code>.</td>
 <td>Provide a known token, or set <code>-</code> only for an intentionally open trusted network.</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td><code>[description] enabled</code>, <code>provider</code>, <code>model</code></td>
+<td>Off by default. Images are listed without running a vision LLM to describe them.</td>
+<td>Enable when you want images described and made searchable, and accept the per-image provider cost. The operation is on images only.</td>
+</tr>
+<tr>
+<td><code>summary</code></td>
+<td><code>[summary] enabled</code>, <code>provider</code>, <code>model</code>, <code>dir</code>, <code>file</code>, <code>include_image_description</code></td>
+<td>Off by default. No directory or file summaries are produced.</td>
+<td>Enable to get LLM summaries of directories. <code>dir</code> covers directories (recommended); set <code>file = true</code> to also summarize each file (~2x cost). <code>include_image_description</code> folds image-description text into a directory's summary, and only has an effect when <code>description</code> is enabled.</td>
 </tr>
 </tbody>
 </table>
