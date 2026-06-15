@@ -53,10 +53,14 @@ npx skills add zilliztech/mfs --all -g
 <details>
 <summary>Install to a specific agent</summary>
 
+Pass one or more `-a <agent>`:
+
 ```bash
-npx skills add zilliztech/mfs -a claude-code -g
-npx skills add zilliztech/mfs -a codex -g
+npx skills add zilliztech/mfs -a claude-code -a codex -g
 ```
+
+`<agent>` can be `claude-code`, `codex`, `cursor`, `windsurf`, `github-copilot`,
+`gemini-cli`, `opencode`, `zed`, `cline`, `continue` — 70+ agents in all.
 
 </details>
 
@@ -96,19 +100,18 @@ project, and show me the exact lines
 
 ## 💡 Use cases
 
-In each example the `mfs …` line is the CLI; the trailing `# /mfs-…` comment is
-the same request phrased to an agent (the `mfs-ingest` / `mfs-find` skills).
-Outputs are illustrative — expand each.
-
 ### 🧠 Your agent's memory and skills
 
 Past-session memory (chat transcripts as JSONL, notes as Markdown) and reusable
 skills become one searchable namespace — the prompt you tuned last week or a
 decision logged three sessions ago, one query away.
 
+> Each `mfs …` line is the CLI; the trailing `# /mfs-…` is the same request to an
+> agent.
+
 ```bash
-mfs add path/to/transcript.jsonl   # /mfs-ingest index my session memory
-mfs add path/to/SKILL.md           # /mfs-ingest index my skills
+mfs add path/to/memory     # /mfs-ingest index my session memory
+mfs add path/to/skills     # /mfs-ingest index my skills
 mfs search "the prompt I tuned for refund disputes" --all   # /mfs-find the refund-dispute prompt
 ```
 
@@ -179,8 +182,8 @@ PDFs, Word docs, Markdown, screenshots — MFS converts each to text **locally**
 images too. One search spans every format.
 
 ```bash
-mfs add path/to/design-doc.pdf   # /mfs-ingest index my design docs
-mfs add path/to/screenshot.png   # /mfs-ingest index my screenshots
+mfs add path/to/docs           # /mfs-ingest index my design docs
+mfs add path/to/screenshots    # /mfs-ingest index my screenshots
 mfs search "audit-log retention and the dashboards that show it" --all   # /mfs-find audit-log retention + dashboards
 ```
 
