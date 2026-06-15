@@ -151,6 +151,8 @@ file://local/.agents/skills/support-triage/SKILL.md  score=0.74
   ## Refund disputes — confirm the order ID first, then check the gateway log ...
 ```
 
+Open the hit: `mfs cat file://local/.agents/memory/2026-05-31.jsonl`
+
 </details>
 
 ### 💻 Your codebases
@@ -174,6 +176,8 @@ file://local/repos/payments/webhooks/deliver.go  score=0.84
 file://local/repos/payments/webhooks/deliver_test.go  score=0.69
   TestRetryDelivery_DeadLettersAfterMaxAttempts ...
 ```
+
+Open the matching lines: `mfs cat file://local/repos/payments/webhooks/deliver.go --range 80:110`
 
 </details>
 
@@ -203,6 +207,8 @@ file://local/screenshots/grafana-2026-06-02.png  score=0.71
   well above the 200 ms band on the other panels ...
 ```
 
+Open the hit: `mfs cat file://local/design-docs/data-governance.pdf`
+
 </details>
 
 ### ☁️ Cloud drives and buckets
@@ -226,6 +232,8 @@ gdrive://my-drive/Board/2026-Q3-review.pdf  score=0.87
 s3://acme-exports/finance/2026-q3-summary.csv  score=0.70
   quarter,net_revenue,nrr,churn  2026Q3,4.2M,1.18,1.4% ...
 ```
+
+Open the hit: `mfs cat gdrive://my-drive/Board/2026-Q3-review.pdf`
 
 </details>
 
@@ -253,6 +261,8 @@ github://your-org/your-repo/issues.jsonl  score=0.75
   #312  "Automate signing-key rotation"  state=open  labels=[security]
 ```
 
+Open the hit: `mfs cat web://docs.your-product.com/security/key-rotation`
+
 </details>
 
 ### 💬 Team chat and tickets
@@ -277,6 +287,8 @@ slack://acme/channels/platform/messages.jsonl  score=0.90
 jira://acme/teams/PLAT/issues.jsonl  score=0.81
   PLAT-491  "rate-limit guard misfires under burst"  state=Reopened
 ```
+
+Read the ticket: `mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'`
 
 </details>
 
@@ -303,6 +315,8 @@ hubspot://acme/companies/globex/notes.jsonl  score=0.74
   call note: Globex renewal at risk; onboarding friction flagged by the CSM ...
 ```
 
+Read the ticket: `mfs cat zendesk://acme/tickets.jsonl --locator '{"id":5821}'`
+
 </details>
 
 ### 🗄️ Production data
@@ -325,9 +339,11 @@ postgres://prod/orders  score=0.79
    "amount":129.00,"gateway":"stripe","note":"customer disputed, awaiting ..."}
 ```
 
+Read the full row: `mfs cat postgres://prod/orders --locator '{"id":"ord_8842"}'`
+
 </details>
 
-### 🌐 …or one query across all of them at once
+### 🌐 One query across all of them at once
 
 Register a few sources, then `--all` fans a single query across every one of
 them — local files, databases, ticket trackers, chat — and returns one stable
