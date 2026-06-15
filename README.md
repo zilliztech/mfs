@@ -18,17 +18,23 @@
   <img src="https://github.com/user-attachments/assets/42c4e26c-c26a-463f-bd97-c5bb2d38eabe" alt="MFS multi-source analysis demo" width="880" />
 </p>
 
-Modern AI agents need a place to keep their **context** — and today it's
-scattered across:
+Storing an agent's **context** is easy — most tools do that. The hard part is
+that context is **sprawling and scattered**: dozens of sources and silos, every
+format, and no single way to find anything across them. It piles up in:
 
-- **Local folders** — skills, session memory, your repos and notes
-- **Team SaaS** — Slack, Gmail, Notion, Drive, Feishu
-- **Production stores** — Postgres, Mongo, BigQuery, S3
+- **Code & repos** — every repo the agent reads or writes
+- **Memory & skills** — past-session transcripts, notes, reusable `SKILL.md` skills
+- **Docs & knowledge** — PDFs, design specs, Notion, crawled web pages
+- **Chat & mail** — Slack, Discord, Gmail, Feishu
+- **Issues & CRM** — Jira, Linear, HubSpot, Zendesk
+- **Databases & object stores** — Postgres, Mongo, BigQuery, Snowflake, S3, Drive
 
 MFS gathers it under one shell: every source becomes a **file-like tree under a
-stable URI**, driven with the verbs you already know — `ls`, `cat`, `tree`,
-`grep`, `head`, `tail`. On top, **search** finds things fast across huge volumes,
-and **browse** drills in step by step to the exact bytes.
+stable URI**, worked with two kinds of commands:
+
+- **Search** — `search` and `grep` find things fast across huge volumes.
+- **Browse** — `ls`, `cat`, `tree`, `head`, `tail` give progressive, precise
+  navigation down to the exact bytes.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/1430d872-4184-4fb3-9168-a0b715dc621a" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
