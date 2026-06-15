@@ -638,19 +638,15 @@ uv run mfs-server setup --section embedding  # re-run just one section
   with one stable result shape.
 - **🔍 Hybrid search you can trust** — semantic + keyword retrieval, and every
   hit reopens to the exact bytes or rows via its locator. Never trust a hit blind.
-- **🏠 Local-first, no cloud needed** — default ONNX embeddings + Milvus Lite +
-  SQLite run fully offline; no API key, no GPU. Swap in OpenAI / Zilliz Cloud /
-  Postgres when you want.
-- **🔌 A growing connector catalog** — files, object stores, databases, code,
-  issues, CRM, chat, mail, docs — all behind the same verbs.
-- **📄 Local conversion, any format** — PDF / docx → Markdown locally; an
-  optional vision model makes images searchable too.
-- **🧱 Thin client, stateful server** — a few-MB Rust CLI plus SDKs / skills /
-  HTTP `/v1`; run both on a laptop or split for production.
-- **🛡️ Robust by design** — the index is derived state: crash-safe and
-  rebuildable, content-addressable caching, idempotent `DELETE + INSERT` writes,
-  three-tier rename detection (rename ≠ re-embed), and a three-layer ignore.
-  Recovery is just *rerun `mfs add`*.
+- **📚 Any source, any format** — a growing connector catalog (files, object
+  stores, databases, code, chat, CRM, docs) plus local PDF / docx → Markdown
+  conversion and optional image descriptions, all behind the same verbs.
+- **📈 Laptop to production, one tool** — fully local and offline by default
+  (ONNX + Milvus Lite + SQLite; no API key, no GPU), or a split client / server
+  with hosted backends (OpenAI, Zilliz Cloud, Postgres) when you scale up.
+- **🛡️ Robust by design** — a derived, crash-safe, rebuildable index:
+  content-addressable caching, idempotent writes, rename ≠ re-embed, and a
+  layered ignore. Recovery is just *rerun `mfs add`*.
 
 Three principles run underneath all of it:
 
