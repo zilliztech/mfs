@@ -70,7 +70,7 @@ For project-level installs, re-run the `npx skills add` command to update.
 ingest something:
 
 ```text
-Use the mfs-ingest skill to spin up a tiny hello-world project in ~/hello-mfs
+Use the mfs-ingest skill to spin up a tiny hello-world project in /tmp/hello-mfs
 and ingest it
 ```
 
@@ -116,8 +116,8 @@ git clone https://github.com/zilliztech/mfs.git
 cd mfs/server/python && uv sync && uv run mfs-server run
 
 # CLI — `cargo install mfs-cli`, or the installer on the releases page
-mfs add ~/hello-mfs
-mfs search "where the greeting is printed" ~/hello-mfs
+mfs add /tmp/hello-mfs
+mfs search "where the greeting is printed" /tmp/hello-mfs
 ```
 
 > macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if prompted about
@@ -151,7 +151,13 @@ file://local/.agents/skills/support-triage/SKILL.md  score=0.74
   ## Refund disputes — confirm the order ID first, then check the gateway log ...
 ```
 
-Open the hit: `mfs cat file://local/.agents/memory/2026-05-31.jsonl`
+Open the hit — `mfs cat file://local/.agents/memory/2026-05-31.jsonl`:
+
+```text
+{"role":"note","text":"refund-dispute prompt: lead with the order ID, then ask
+for the gateway transaction id; never promise a timeline before the dispute
+window is confirmed."}
+```
 
 </details>
 
@@ -177,11 +183,24 @@ file://local/repos/payments/webhooks/deliver_test.go  score=0.69
   TestRetryDelivery_DeadLettersAfterMaxAttempts ...
 ```
 
-Open the matching lines: `mfs cat file://local/repos/payments/webhooks/deliver.go --range 80:110`
+Open the matching lines — `mfs cat file://local/repos/payments/webhooks/deliver.go --range 80:110`:
+
+```text
+// retryDelivery re-sends a webhook with capped exponential backoff.
+func (d *Dispatcher) retryDelivery(ev Event) error {
+    for attempt := 1; attempt <= maxAttempts; attempt++ {
+        if err := d.post(ev); err == nil {
+            return nil
+        }
+        time.Sleep(backoff(attempt))
+    }
+    return d.deadLetter(ev)   // give up after maxAttempts
+}
+```
 
 </details>
 
-### 📄 Documents, any format
+### 📄 Documents, images, any format
 
 Drop a folder of PDFs, Word docs, Markdown, and screenshots. MFS converts each
 file to text **locally** — PDF / docx → Markdown, no API key — and, with a
@@ -207,7 +226,14 @@ file://local/screenshots/grafana-2026-06-02.png  score=0.71
   well above the 200 ms band on the other panels ...
 ```
 
-Open the hit: `mfs cat file://local/design-docs/data-governance.pdf`
+Open the hit — `mfs cat file://local/design-docs/data-governance.pdf`:
+
+```text
+# Data Governance — Audit Logs
+
+Audit logs are retained for **400 days**, then moved to cold storage. Access
+beyond 90 days requires a break-glass approval recorded in the change log.
+```
 
 </details>
 
@@ -233,7 +259,15 @@ s3://acme-exports/finance/2026-q3-summary.csv  score=0.70
   quarter,net_revenue,nrr,churn  2026Q3,4.2M,1.18,1.4% ...
 ```
 
-Open the hit: `mfs cat gdrive://my-drive/Board/2026-Q3-review.pdf`
+Open the hit — `mfs cat gdrive://my-drive/Board/2026-Q3-review.pdf`:
+
+```text
+# 2026 Q3 Board Review
+
+- Net revenue retention: 118%
+- New enterprise logos: Globex, Initech
+- Gross margin: 79% (+2 pts QoQ)
+```
 
 </details>
 
@@ -261,7 +295,15 @@ github://your-org/your-repo/issues.jsonl  score=0.75
   #312  "Automate signing-key rotation"  state=open  labels=[security]
 ```
 
-Open the hit: `mfs cat web://docs.your-product.com/security/key-rotation`
+Open the hit — `mfs cat web://docs.your-product.com/security/key-rotation`:
+
+```text
+# Rotating signing keys
+
+Signing keys rotate automatically every 90 days. To rotate early, open
+Admin → Security → Keys and click "Rotate now"; the previous key stays valid
+for a 24-hour overlap so in-flight tokens keep verifying.
+```
 
 </details>
 
@@ -288,7 +330,14 @@ jira://acme/teams/PLAT/issues.jsonl  score=0.81
   PLAT-491  "rate-limit guard misfires under burst"  state=Reopened
 ```
 
-Read the ticket: `mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'`
+Read the ticket — `mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'`:
+
+```text
+PLAT-491  rate-limit guard misfires under burst   state=Reopened
+assignee: dave   priority: high
+The burst guard dropped healthy traffic during the Tuesday spike; reverted in
+PR #604. Re-tuning the window before re-enabling.
+```
 
 </details>
 
@@ -315,7 +364,14 @@ hubspot://acme/companies/globex/notes.jsonl  score=0.74
   call note: Globex renewal at risk; onboarding friction flagged by the CSM ...
 ```
 
-Read the ticket: `mfs cat zendesk://acme/tickets.jsonl --locator '{"id":5821}'`
+Read the ticket — `mfs cat zendesk://acme/tickets.jsonl --locator '{"id":5821}'`:
+
+```text
+#5821  Onboarding blocked on SSO setup   status=open  priority=high
+requester: ops@globex.com
+"Third week without working SSO — the SAML metadata upload keeps failing with a
+500. This is blocking our rollout."
+```
 
 </details>
 
@@ -339,7 +395,16 @@ postgres://prod/orders  score=0.79
    "amount":129.00,"gateway":"stripe","note":"customer disputed, awaiting ..."}
 ```
 
-Read the full row: `mfs cat postgres://prod/orders --locator '{"id":"ord_8842"}'`
+Read the full row — `mfs cat postgres://prod/orders --locator '{"id":"ord_8842"}'`:
+
+```text
+id                   ord_8842
+status               pending
+refund_requested_at  2026-05-30
+amount               129.00
+gateway              stripe
+note                 customer disputed, awaiting gateway confirmation
+```
 
 </details>
 
