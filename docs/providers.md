@@ -99,33 +99,36 @@ Text summary and image-description clients use the LLM provider registry.
 | `anthropic` | `claude-sonnet-4-5-20250929` | `uv sync --extra anthropic` or `all-providers` | `ANTHROPIC_API_KEY` |
 | `gemini` | `gemini-2.0-flash` | `uv sync --extra gemini` or `all-providers` | `GOOGLE_API_KEY`; the Gemini provider module also documents Vertex AI auth |
 
-Directory and schema summaries are off by default. VLM provider defaults are
-configured separately:
+Image descriptions and directory/file summaries are both off by default. They
+are two independent subsystems — each has its own enable switch and its own
+wizard section:
 
 ```toml
-[summary]
+[description]            # vision LLM — one call per image
 enabled = false
-include_image_description = false
 provider = "openai"
 model = "gpt-4o-mini"
 
-[description]
+[summary]                # text LLM — one call per directory (and optionally per file)
 enabled = false
 provider = "openai"
 model = "gpt-4o-mini"
+dir = true               # summarize directories (recursive, bottom-up)
+file = false             # also summarize each individual file (~2x cost)
+include_image_description = false  # fold image-description text into directory summaries
 ```
 
-Run the description setup section when you want the wizard to write summary
-settings and image-description provider/model settings:
+Configure them with their own wizard sections:
 
 ```bash
-uv run mfs-server setup --section description
+uv run mfs-server setup --section description   # images
+uv run mfs-server setup --section summary       # directories / files
 ```
 
-When enabled through the wizard, this section sets `summary.enabled`,
-`summary.include_image_description`, the summary provider/model, and the
-image-description provider/model. You can also set `MFS_SUMMARY_ENABLED` in the
-server environment; truthy values are `1`, `true`, `yes`, and `on`.
+The `description` section writes only `[description]`; the `summary` section
+writes only `[summary]`. You can also set `MFS_SUMMARY_ENABLED` in the server
+environment to turn directory summaries on; truthy values are `1`, `true`,
+`yes`, and `on`.
 
 !!! note
     Image indexing is gated by `[description].enabled`: indexable image objects
