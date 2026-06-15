@@ -67,7 +67,7 @@ For project-level installs, re-run the `npx skills add` command to update.
 
 </details>
 
-Then open your agent (Claude Code, Codex, …) and ask in plain language. First,
+📥 Then open your agent (Claude Code, Codex, …) and ask in plain language. First,
 ingest something:
 
 ```text
@@ -75,15 +75,14 @@ Use the mfs-ingest skill to spin up a tiny hello-world project in ~/hello-mfs
 and ingest it
 ```
 
-Then search and read across it:
+🔍 Then search and read across it:
 
 ```text
 Use the mfs-find skill to find where the greeting is printed in the hello-mfs
 project, and show me the exact lines
 ```
 
-🎉 That's it — you're up and running. Next, point MFS at your real sources — see
-the [use cases](#-use-cases) and the [connector catalog](#-connectors).
+🎉 That's it — you're up and running. From here, point MFS at your real sources.
 
 > 🛠️ **The first run is a one-time setup, and the agent walks you through it:**
 > it installs the `mfs` CLI, helps you start a local server, and downloads a
@@ -322,8 +321,8 @@ mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
 
 ## 🧰 Commands
 
-Every source — a local folder or a remote [connector](#-connectors) — answers
-the same small set of commands. They fall into four groups:
+Every source — a local folder or a remote connector — answers the same small set
+of commands. They fall into four groups:
 
 **Ingest & manage sources**
 
@@ -388,7 +387,7 @@ local directory. Same verbs, same result shape, everywhere.
 | | Web | `web://` | crawled pages, converted to Markdown |
 
 Every connector reads the same way once registered — register + index, browse,
-then search, all with the [same commands](#-commands):
+then search, all with the verbs you already know:
 
 ```bash
 mfs add    github://your-org/your-repo --config ./github.toml   # register + index
