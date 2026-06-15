@@ -64,7 +64,6 @@ SQLITE_DDL = [
         object_uri      TEXT,
         artifact_kind   TEXT,
         storage_path    TEXT,
-        fingerprint     TEXT,
         source_key      TEXT,
         size_bytes      INTEGER,
         built_at        TEXT,
@@ -147,8 +146,10 @@ SQLITE_DDL = [
     "CREATE INDEX IF NOT EXISTS ix_file_state_staged ON file_state (namespace_id, connector_id, status) WHERE status = 'staged'",
 ]
 
-# Bump on any incompatible metadata DDL change.
-CURRENT_SCHEMA_VERSION = 3
+# Bump on any incompatible metadata DDL change. Pre-release there is only one schema, so a
+# DDL change keeps this at 1 and simply forces dev DBs to be rebuilt (init_schema fails fast
+# on a version mismatch).
+CURRENT_SCHEMA_VERSION = 1
 
 
 # --- dialect helpers (used by Postgres subclass) ----------------------------

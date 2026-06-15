@@ -1795,24 +1795,20 @@ class Engine:
         self, ns: str, object_uri: str, kind: str, data: bytes, currency: str = ""
     ) -> str:
         """Store artifact bytes and record/refresh its artifact_cache row, then run a throttled
-        LRU sweep so the cache stays under budget. `fingerprint` is sha1 of the stored bytes
-        (the output). `source_key` is the caller's currency token (source content hash + the
-        producer's self-described identity) — `_read_artifact_fresh` compares against it so a
-        reuse only hits when source AND producer identity still match; kinds that pass no token
-        leave it empty."""
-        import hashlib
-
+        LRU sweep so the cache stays under budget. `source_key` is the caller's currency token
+        (source content hash + the producer's self-described identity) — `_read_artifact_fresh`
+        compares against it so a reuse only hits when source AND producer identity still match;
+        kinds that pass no token leave it empty."""
         path = await asyncio.to_thread(self.artifact_cache.put_artifact, ns, object_uri, kind, data)
         now = _now()
-        fp = hashlib.sha1(data).hexdigest()
         await self.meta.execute(
             "INSERT INTO artifact_cache (namespace_id, object_uri, artifact_kind, storage_path, "
-            " fingerprint, source_key, size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?,?,?) "
+            " source_key, size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?,?) "
             "ON CONFLICT(namespace_id, object_uri, artifact_kind) DO UPDATE SET "
-            " storage_path=excluded.storage_path, fingerprint=excluded.fingerprint, "
-            " source_key=excluded.source_key, size_bytes=excluded.size_bytes, "
-            " built_at=excluded.built_at, last_accessed=excluded.last_accessed",
-            (ns, object_uri, kind, str(path), fp, currency, len(data), now, now),
+            " storage_path=excluded.storage_path, source_key=excluded.source_key, "
+            " size_bytes=excluded.size_bytes, built_at=excluded.built_at, "
+            " last_accessed=excluded.last_accessed",
+            (ns, object_uri, kind, str(path), currency, len(data), now, now),
         )
         self._artifact_writes += 1
         if self._artifact_writes % 16 == 0:
