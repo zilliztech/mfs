@@ -22,7 +22,7 @@ evict removes the DirTree, so a second tick does not re-finalize or re-evict.
 Cancellation is detected via the existing `status='cancelled'` rather than a new
 `cancel_requested` column: the metadata schema uses a fail-fast version guard (no auto-migration),
 so adding a column/table would risk existing-DB compatibility. cancel_job already sets the status
-synchronously; the watcher consolidates the missing reduce-evict + pending-task cleanup.
+synchronously; the watcher consolidates the missing job-lane-evict + pending-task cleanup.
 """
 
 from __future__ import annotations

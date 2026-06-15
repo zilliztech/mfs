@@ -227,7 +227,7 @@ class JobLaneCoordinator:
             return True
         st = self._completion.get(job_id)
         if st is None:
-            return True  # job not tracked by the reduce subsystem -> nothing to wait on
+            return True  # job not tracked by the Job Lane -> nothing to wait on
         return st["event"].is_set()
 
     def active_jobs(self) -> list[str]:

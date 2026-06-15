@@ -207,7 +207,7 @@ class Engine:
         self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
         # Job Lane (dir_summary lane); built in _build_pipeline, inert when summary off.
         self._job_lane = None
-        # ConnectorJobWatcher: out-of-band job completion / cancel / reduce-evict (§5.7).
+        # ConnectorJobWatcher: out-of-band job completion / cancel / job-lane-evict (§5.7).
         self._job_watcher = None
         self._job_watcher_task: asyncio.Task | None = None
 
@@ -384,7 +384,7 @@ class Engine:
                 self._job_lane.recover_job(job_id, connector_uri, plugin, objects, [])
             except Exception as e:  # noqa: BLE001
                 print(
-                    f"mfs-server: WARNING reduce recovery for job {job_id} failed: {e}", flush=True
+                    f"mfs-server: WARNING Job Lane recovery for job {job_id} failed: {e}", flush=True
                 )
 
     async def _on_pipeline_object_indexed(
