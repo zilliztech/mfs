@@ -18,18 +18,16 @@
   <img src="https://github.com/user-attachments/assets/42c4e26c-c26a-463f-bd97-c5bb2d38eabe" alt="MFS multi-source analysis demo" width="880" />
 </p>
 
-Modern AI agents need a place to keep their **context** — code, memory, skills,
-knowledge, work messages, documents, databases. Today it's scattered across:
+Modern AI agents need a place to keep their **context** — and today it's
+scattered across:
 
 - **Local folders** — skill packs, session memory, your repos and notes
 - **Team SaaS** — Slack, Gmail, Notion, Drive, Feishu
 - **Production stores** — Postgres, Mongo, BigQuery, S3
 
-MFS gathers it under one shell. Every source — local folders, a
-Postgres table, a Slack workspace, a Google Drive, a Notion graph — is
-mounted as a **file-like tree under a stable URI**. The shell verbs you
-already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
-`tail`. Plus `search` for hybrid semantic + keyword retrieval.
+MFS gathers it under one shell: every source is mounted as a **file-like tree
+under a stable URI**, and the shell verbs you already know — `ls`, `cat`, `tree`,
+`grep`, `head`, `tail` — work everywhere.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/1430d872-4184-4fb3-9168-a0b715dc621a" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
@@ -412,10 +410,6 @@ config and registers it for you.
 
 ## 🧰 Commands
 
-Every source — a local folder or a remote connector — answers the same small
-command set. The core loop is **`mfs add`** → **`mfs search`** → **`mfs cat`**;
-the rest browse and operate.
-
 | Group | Command | What it does |
 |---|---|---|
 | **Ingest & manage** | **`mfs add <path\|uri> [--config x.toml]`** | register a source and index it; re-run to re-sync |
@@ -431,8 +425,19 @@ the rest browse and operate.
 | | `mfs config show` | resolved endpoint / profile / token |
 | | `mfs serve start` · `stop` | manage a local server process |
 
-Through an agent it's the same set in natural language — the **mfs-find** skill
-wraps search + browse, **mfs-ingest** wraps register + manage.
+**Browse and search are complementary — no fixed order:**
+
+- **Browse** (`ls` · `cat` · `tree`) — no index, fast and exact; best for walking
+  a small or local tree.
+- **Search** (`search` · `grep`) — needs an upfront index, then finds things fast
+  across huge volumes with fuzzy matching; best for rough filtering.
+
+Through an agent it's the same set in natural language, split across two skills:
+
+- **`mfs-find`** — search + browse: `search` · `grep` · `ls` · `cat` · `tree` ·
+  `head` · `tail`.
+- **`mfs-ingest`** — register + manage: `add` · `connector probe / list / inspect
+  / remove`.
 
 ## 🔌 Connectors
 
@@ -462,20 +467,6 @@ local directory. Same verbs, same result shape, everywhere.
 | | Feishu / Lark | `feishu://` | docs and messages |
 | 🌐 Docs & web | Notion | `notion://` | pages and databases |
 | | Web | `web://` | crawled pages, converted to Markdown |
-
-Once registered, a connector answers the same commands — **browse and search are
-complementary, with no fixed order:**
-
-- **Browse** (`ls` · `cat` · `tree`) — no index, fast and exact; best for walking
-  a small or local tree.
-- **Search** (`search` · `grep`) — needs an upfront index, then finds things fast
-  across huge volumes with fuzzy matching; best for rough filtering.
-
-```bash
-mfs add    github://your-org/your-repo --config ./github.toml   # register + index
-mfs ls     github://your-org/your-repo                          # browse the tree
-mfs search "flaky retry logic" github://your-org/your-repo      # scoped search
-```
 
 New connectors slot in behind the same interface, so the catalog keeps growing.
 Each needs a small TOML (credentials + what to expose) — three ways to get it
