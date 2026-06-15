@@ -8,7 +8,15 @@ OpenAI / Zilliz Cloud / Postgres / S3 is purely opt-in — provide credentials
 when prompted and the section flips to the hosted backend.
 
 Sections (default order):
-  embedding -> description -> milvus -> database -> cache -> auth
+  embedding -> milvus -> database -> cache -> auth -> description -> summary
+
+The two AI-enrichment sections (description, summary) come last because both
+are optional and OFF by default. They are independent subsystems with their
+own enable switches:
+  - [description] — a vision LLM that describes each *image* so it is
+    searchable.
+  - [summary]     — a text LLM that summarises each *directory* (and,
+    optionally, each *file*).
 
 `database` configures the single relational backend used for both
 metadata (connectors / objects / queue) and the transformation-cache
@@ -57,7 +65,7 @@ from ..config import (
 )
 from . import wizard_ui as ui
 
-SECTIONS = ("embedding", "description", "milvus", "database", "cache", "auth")
+SECTIONS = ("embedding", "milvus", "database", "cache", "auth", "description", "summary")
 
 
 # ─── per-section wizards ────────────────────────────────────────────────────
@@ -157,41 +165,92 @@ def _wizard_embedding(current: EmbeddingConfig, step: int, total: int) -> dict[s
     return {"provider": provider, "model": model, "dim": dim}
 
 
-def _wizard_vlm(
-    current_summary: SummaryConfig, current_vlm: DescriptionConfig, step: int, total: int
-) -> dict[str, Any]:
+def _wizard_description(current: DescriptionConfig, step: int, total: int) -> dict[str, Any]:
+    """Image description (VLM) — configures only [description], the per-image
+    vision operation. Independent of [summary]; never touches it."""
     from ..common.llm import DEFAULT_VISION_MODELS as VISION_DEFAULTS
 
     ui.section(
-        "Image summary / VLM",
-        "When ON, the server generates a text description for each image (uses an\n"
-        "LLM, needs an API key, costs $$). OFF by default — image objects are\n"
-        "listed but not embedded.",
+        "Image description (VLM)",
+        "When ON, a vision LLM describes each image so it becomes searchable\n"
+        "(needs an API key, costs $$). OFF by default — image objects are\n"
+        "listed but not described.",
         step=step,
         total=total,
     )
-    enabled = ui.confirm("Enable image summary?", default=current_summary.enabled)
+    enabled = ui.confirm("Enable image description?", default=current.enabled)
     if not enabled:
-        return {"summary_enabled": False}
+        return {"enabled": False}
     provider = ui.select(
-        "VLM provider",
+        "Provider",
         _llm_choices(),
-        default=current_vlm.provider if current_vlm.provider else "openai",
+        default=current.provider if current.provider else "openai",
     )
     model_default = (
-        current_vlm.model
-        if current_vlm.provider == provider and current_vlm.model
+        current.model
+        if current.provider == provider and current.model
         else VISION_DEFAULTS.get(provider, "")
     )
-    model = ui.text("VLM model", default=model_default, required=True)
+    model = ui.text("Vision model", default=model_default, required=True)
     if provider != "openai":
         ui.info(f"Provider {provider!r} needs: uv sync --extra {provider}")
-    return {
-        "summary_enabled": True,
-        "summary_include_image_desc": True,
-        "vlm_provider": provider,
-        "vlm_model": model,
+    return {"enabled": True, "provider": provider, "model": model}
+
+
+def _wizard_summary(
+    current: SummaryConfig, *, description_enabled: bool, step: int, total: int
+) -> dict[str, Any]:
+    """Directory summaries — configures only [summary], the per-directory (and
+    optional per-file) text-LLM operation. Independent of [description]."""
+    from ..common.llm import DEFAULT_TEXT_MODELS as TEXT_DEFAULTS
+
+    ui.section(
+        "Directory summaries",
+        "When ON, a text LLM summarises each directory bottom-up — one LLM call\n"
+        "per directory, costs $$. OFF by default.",
+        step=step,
+        total=total,
+    )
+    enabled = ui.confirm("Enable directory summaries?", default=current.enabled)
+    if not enabled:
+        return {"enabled": False}
+    provider = ui.select(
+        "Provider",
+        _llm_choices(),
+        default=current.provider if current.provider else "openai",
+    )
+    model_default = (
+        current.model
+        if current.provider == provider and current.model
+        else TEXT_DEFAULTS.get(provider, "")
+    )
+    model = ui.text("Summary model", default=model_default, required=True)
+    if provider != "openai":
+        ui.info(f"Provider {provider!r} needs: uv sync --extra {provider}")
+    scope = ui.select(
+        "Scope",
+        [
+            ("dir", "directories only (recommended)"),
+            ("dir+file", "directories + a summary per file (~2x cost)"),
+        ],
+        default="dir+file" if current.file else "dir",
+    )
+    answers: dict[str, Any] = {
+        "enabled": True,
+        "provider": provider,
+        "model": model,
+        "dir": True,
+        "file": scope == "dir+file",
     }
+    # Folding image-description text into directory summaries only makes sense
+    # when image description is also enabled — otherwise there is nothing to
+    # fold, so the prompt would be meaningless.
+    if description_enabled:
+        answers["include_image_description"] = ui.confirm(
+            "Fold image descriptions into directory summaries?",
+            default=current.include_image_description,
+        )
+    return answers
 
 
 def _is_lite_path(uri: str) -> bool:
@@ -341,18 +400,27 @@ def _build_runners(
     *,
     step_of: dict[str, int],
     total: int,
+    state: dict[str, bool],
 ) -> dict[str, Callable[[ServerConfig], dict[str, Any]]]:
+    # `state` carries cross-section context decided during this run. The summary
+    # section reads state["description_enabled"] (set after the description
+    # section runs) to decide whether the "fold image descriptions" prompt is
+    # meaningful; it is read at call time, after the loop has updated it.
     return {
         "embedding": lambda c: _wizard_embedding(c.embedding, step_of["embedding"], total),
-        "description": lambda c: _wizard_vlm(
-            c.summary, c.description, step_of["description"], total
-        ),
         "milvus": lambda c: _wizard_milvus(
             c.milvus, env_resolved=milvus_from_env, step=step_of["milvus"], total=total
         ),
         "database": lambda c: _wizard_database(c.database, step_of["database"], total),
         "cache": lambda c: _wizard_cache(c.artifact_cache, step_of["cache"], total),
         "auth": lambda c: _wizard_auth(c.auth_token, step_of["auth"], total),
+        "description": lambda c: _wizard_description(c.description, step_of["description"], total),
+        "summary": lambda c: _wizard_summary(
+            c.summary,
+            description_enabled=state["description_enabled"],
+            step=step_of["summary"],
+            total=total,
+        ),
     }
 
 
@@ -365,28 +433,34 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
             "dim": answers["dim"],
         }
     elif section == "description":
-        # `vlm` toggles summary.enabled (master switch + LLM for text summary)
-        # and the vlm.enabled + vlm.* block (LLM for image descriptions). They
-        # share the same provider/model by default — multimodal LLMs handle
-        # both. Users who want different LLMs can hand-edit summary.* / vlm.*
-        # separately. The two enable flags are independent kill switches so
-        # the operator can disable image-vision without also losing directory
-        # summaries (or vice versa) by hand-editing the toml.
-        summ = current.setdefault("summary", {})
-        summ["enabled"] = answers["summary_enabled"]
-        if answers["summary_enabled"]:
-            summ["include_image_description"] = answers.get("summary_include_image_desc", True)
-            summ["provider"] = answers["vlm_provider"]
-            summ["model"] = answers["vlm_model"]
+        # Image VLM description ([description]) — its own independent kill
+        # switch. Never touches [summary].
+        if answers["enabled"]:
             current["description"] = {
                 "enabled": True,
-                "provider": answers["vlm_provider"],
-                "model": answers["vlm_model"],
+                "provider": answers["provider"],
+                "model": answers["model"],
             }
         else:
-            # explicit off: drop any prior vlm.enabled=true from a re-run so a
-            # second pass through the wizard actually turns image VLM off.
+            # Explicit off: drop any prior description.enabled=true so a second
+            # pass through the wizard actually turns image description off.
             current.pop("description", None)
+    elif section == "summary":
+        # Directory / per-file summaries ([summary]) — independent of
+        # [description].
+        if answers["enabled"]:
+            block: dict[str, Any] = {
+                "enabled": True,
+                "provider": answers["provider"],
+                "model": answers["model"],
+                "dir": answers["dir"],
+                "file": answers["file"],
+            }
+            if "include_image_description" in answers:
+                block["include_image_description"] = answers["include_image_description"]
+            current["summary"] = block
+        else:
+            current.pop("summary", None)
     elif section == "milvus":
         block = {k: v for k, v in answers.items() if v != ""}
         if block:
@@ -478,12 +552,6 @@ def _summary_pairs(out: dict[str, Any]) -> list[tuple[str, str]]:
     e = out.get("embedding", {})
     if e:
         pairs.append(("Embedding", f"{e.get('provider')} / {e.get('model')} (dim={e.get('dim')})"))
-    s = out.get("summary", {})
-    if s.get("enabled"):
-        v = out.get("description", {})
-        pairs.append(("VLM", f"{v.get('provider', '?')} / {v.get('model', '?')}"))
-    else:
-        pairs.append(("VLM", "off"))
     m = out.get("milvus", {})
     if m.get("uri", "").startswith("http"):
         pairs.append(("Milvus", f"remote {m.get('uri')}"))
@@ -497,6 +565,17 @@ def _summary_pairs(out: dict[str, Any]) -> list[tuple[str, str]]:
         pairs.append(("Auth", "disabled" if out["auth_token"] == "-" else "custom token"))
     else:
         pairs.append(("Auth", "auto-generated token"))
+    d = out.get("description", {})
+    if d.get("enabled"):
+        pairs.append(("Image description", f"{d.get('provider')} / {d.get('model')}"))
+    else:
+        pairs.append(("Image description", "off"))
+    s = out.get("summary", {})
+    if s.get("enabled"):
+        scope = "dir + file" if s.get("file") else "dir"
+        pairs.append(("Directory summaries", f"{s.get('provider')} / {s.get('model')} ({scope})"))
+    else:
+        pairs.append(("Directory summaries", "off"))
     return pairs
 
 
@@ -530,7 +609,10 @@ def run_wizard(sections: list[str] | None = None, config_path: str | None = None
 
     total = len(target_sections)
     step_of = {sect: i + 1 for i, sect in enumerate(target_sections)}
-    runners = _build_runners(milvus_from_env, step_of=step_of, total=total)
+    # Cross-section context: seed with the saved value so a standalone
+    # `--section summary` run still sees whether image description is on.
+    state = {"description_enabled": bool(current_resolved.description.enabled)}
+    runners = _build_runners(milvus_from_env, step_of=step_of, total=total, state=state)
 
     ui.clear()
     ui.banner(
@@ -545,6 +627,8 @@ def run_wizard(sections: list[str] | None = None, config_path: str | None = None
     try:
         for sect in target_sections:
             answers = runners[sect](current_resolved)
+            if sect == "description":
+                state["description_enabled"] = bool(answers.get("enabled"))
             existing = _apply(sect, existing, answers)
     except KeyboardInterrupt:
         ui.warn("aborted; nothing written.")

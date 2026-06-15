@@ -100,11 +100,12 @@ The wizard walks these sections in order:
 | Section | TOML fields | Default behavior | When to change it |
 |---|---|---|---|
 | `embedding` | `[embedding] provider`, `model`, `dim` | Local ONNX provider, `gpahal/bge-m3-onnx-int8`, 1024 dimensions. | Use hosted or local alternatives when you have the required extra dependencies and credentials. |
-| `description` | `[summary] enabled`, `include_image_description`, `provider`, `model`; `[description] provider`, `model` | Off by default. Image objects can be listed without generating image descriptions. | Enable when you need image descriptions in the searchable index and accept the provider cost. |
 | `milvus` | `[milvus] uri`, `token` | Milvus Lite under `$MFS_HOME/milvus.db`. | Set an HTTP(S) URI for Milvus or Zilliz Cloud. |
 | `database` | `[database] backend`, `dsn` | SQLite. The same backend feeds metadata and the transformation-cache lookup table. | Use Postgres when multiple server processes need shared relational state. |
 | `cache` | `[artifact_cache] root`, `max_size_gb`, `eviction` | Local filesystem under `$MFS_HOME/cache`. | Mount a volume at `root` to persist the cache in container deployments. |
 | `auth` | top-level `auth_token` | Auto mode omits `auth_token` in TOML and creates or reuses `server.token`. | Provide a known token, or set `-` only for an intentionally open trusted network. |
+| `description` | `[description] enabled`, `provider`, `model` | Off by default. Images are listed without running a vision LLM to describe them. | Enable when you want images described and made searchable, and accept the per-image provider cost. The operation is on images only. |
+| `summary` | `[summary] enabled`, `provider`, `model`, `dir`, `file`, `include_image_description` | Off by default. No directory or file summaries are produced. | Enable to get LLM summaries of directories. `dir` covers directories (recommended); set `file = true` to also summarize each file (~2x cost). `include_image_description` folds image-description text into a directory's summary, and only has an effect when `description` is enabled. |
 
 ??? note "Advanced and legacy TOML blocks"
     `metadata.backend` / `metadata.dsn` and `transformation_cache.backend` /
