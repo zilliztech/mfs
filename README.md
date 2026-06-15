@@ -36,7 +36,7 @@ already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
   <img src="https://github.com/user-attachments/assets/1430d872-4184-4fb3-9168-a0b715dc621a" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
 </p>
 
-## Install the agent skills
+## 📥 Install the agent skills
 
 Install the MFS skill packs before asking an agent to search, browse,
 or ingest through MFS:
@@ -72,21 +72,24 @@ update.
 
 </details>
 
-## Quick start
+## ⚡ Quick start
 
 With the skills installed (above) and the server running ([Run it](#run-it)),
 point an agent at a folder and ask. **No API key, no GPU, no cloud account** —
 the first search downloads a ~600 MB local embedding model into `~/.mfs/`, and
 after that the whole stack runs offline.
 
-In your agent (Claude Code, Codex, …) — plain language, or the explicit skill
-commands:
+In your agent (Claude Code, Codex, …), point it at a folder and ask in plain
+language — or call the skills directly:
 
 ```text
-You    /mfs-ingest  index ~/notes        ← registers + indexes the folder
-You    /mfs-find     what did I decide about the pricing model?
-Agent  → searches, opens the top hit, quotes the exact lines, cites the file
+/mfs-ingest index ~/notes
+/mfs-find what did I decide about the pricing model?
 ```
+
+The agent indexes the folder, runs the search, opens the top hit, and quotes
+the exact lines back — with the file path, so you can trust the answer instead
+of a paraphrase.
 
 The same loop straight at the shell, no agent required:
 
@@ -115,12 +118,12 @@ export OPENAI_API_KEY=sk-...
 
 </details>
 
-## Use cases
+## 💡 Use cases
 
-Different sources, same `ingest → search → read` loop. (Outputs are
-illustrative — expand to see the shape.)
+Every source rides the same **ingest → search → read** loop. The outputs below
+are illustrative — expand each to see the result shape.
 
-### One query across every source
+### 🌐 One query across everything
 
 `--all` fans a single query across every registered connector at once — local
 files, databases, ticket trackers, chat. One stable result shape, so any hit
@@ -154,17 +157,16 @@ mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
 
 </details>
 
-### Your agent's own memory, skills, and code
+### 🧠 Your agent's memory and skills
 
-Point MFS at the streams an agent project juggles — past-session memory
-(Markdown / JSONL), reusable skill packs, the repos it reads — and they become
-one searchable namespace. The prompt you tuned last week, a decision logged
-three sessions ago, the helper you wrote yesterday: one query finds it.
+Point MFS at the local streams an agent project juggles — past-session memory
+(Markdown / JSONL) and reusable skill packs — and they collapse into one
+searchable namespace. The prompt you tuned last week, a decision logged three
+sessions ago: one query finds it.
 
 ```bash
 mfs add ~/.agents/memory          # past-session JSONL / Markdown
 mfs add ~/.agents/skills          # reusable SKILL.md packs
-mfs add ~/repos                   # the codebases the agent reads
 mfs search "the prompt I tuned for refund disputes" --all
 ```
 
@@ -181,15 +183,41 @@ file://local/.agents/skills/support-triage/SKILL.md  score=0.74
 
 </details>
 
-### Docs, PDFs, and web pages
+### 💻 Your codebases
 
-Drop a folder of PDFs and design docs, or crawl a documentation site — MFS
-converts each page to Markdown **locally** (no API key) and indexes the text,
-so search reads across all of it.
+Add every repo the agent reads or writes and grep them by meaning — find the
+helper by what it *does*, not the name you can't remember.
 
 ```bash
-mfs add ./design-docs                 # .pdf, .docx, .md — converted locally
-mfs search "retention policy for audit logs" ./design-docs
+mfs add ~/repos
+mfs search "where do we retry failed webhook deliveries?" --all
+```
+
+<details>
+<summary>Output</summary>
+
+```text
+file://local/repos/payments/webhooks/deliver.go  score=0.84
+  87  // cap exponential backoff at 6 attempts, then dead-letter
+  88  func (d *Dispatcher) retryDelivery(ev Event) error {
+
+file://local/repos/payments/webhooks/deliver_test.go  score=0.69
+  TestRetryDelivery_DeadLettersAfterMaxAttempts ...
+```
+
+</details>
+
+### 📄 Documents, any format
+
+Drop a folder of PDFs, Word docs, Markdown, and screenshots. MFS converts each
+file to text **locally** — PDF / docx → Markdown, no API key — and, with a
+vision model turned on, describes images too, so one search reads across every
+format and modality at once.
+
+```bash
+mfs add ./design-docs            # .pdf, .docx, .md — converted locally
+mfs add ./screenshots            # .png, .jpg — needs a vision model (see note)
+mfs search "audit-log retention and the dashboards that show it"
 ```
 
 <details>
@@ -199,41 +227,92 @@ mfs search "retention policy for audit logs" ./design-docs
 file://local/design-docs/data-governance.pdf  score=0.86
   ... Audit logs are retained for 400 days, then moved to cold storage; access
   beyond 90 days requires a break-glass approval ...
-```
 
-</details>
-
-### Images, too
-
-With image descriptions turned on, a folder of screenshots or diagrams becomes
-searchable by what's *in* them. This one needs a vision model — set
-`[description].enabled = true` with a provider in `~/.mfs/server.toml` and
-export its key:
-
-```toml
-[description]
-enabled  = true
-provider = "openai"      # gpt-4o-mini by default — needs OPENAI_API_KEY
-```
-
-```bash
-mfs add ./screenshots
-mfs search "the dashboard where p99 latency spikes" ./screenshots
-```
-
-<details>
-<summary>Output</summary>
-
-```text
-file://local/screenshots/grafana-2026-06-02.png  score=0.79
+file://local/screenshots/grafana-2026-06-02.png  score=0.71
   A Grafana dashboard; the p99 latency panel climbs to ~800 ms around 14:10,
   well above the 200 ms band on the other panels ...
 ```
 
 </details>
 
+> 🖼️ Image search needs image descriptions on: set `[description].enabled = true`
+> with a provider in `~/.mfs/server.toml` and export its key.
 
-## Run it
+### 🌍 Online sources
+
+Crawl a documentation site or mount a GitHub repo with its issues — remote
+content lands in the same namespace as your local files, with no manual
+download step.
+
+```bash
+mfs add web://docs.your-product.com
+mfs add github://your-org/your-repo --config ./github.toml
+mfs search "how do we rotate signing keys?" --all
+```
+
+<details>
+<summary>Output</summary>
+
+```text
+web://docs.your-product.com/security/key-rotation  score=0.88
+  ... Signing keys rotate every 90 days. Trigger an early rotation from the
+  admin console; the previous key stays valid for a 24-hour overlap ...
+
+github://your-org/your-repo/issues.jsonl  score=0.75
+  #312  "Automate signing-key rotation"  state=open  labels=[security]
+```
+
+</details>
+
+### 💬 Team chat and tickets
+
+Mount Slack, Gmail, Jira, Linear — the conversational trail behind a decision —
+and pull the thread, the ticket, and the email into a single answer.
+
+```bash
+mfs add slack://acme --config ./slack.toml
+mfs add jira://acme  --config ./jira.toml
+mfs search "why did we revert the burst guard?" --all
+```
+
+<details>
+<summary>Output</summary>
+
+```text
+slack://acme/channels/platform/messages.jsonl  score=0.90
+  [Tue 09:40] @carol: reverting the burst guard — it dropped healthy traffic
+  [Tue 09:42] @dave:  agreed, reopening PLAT-491 to re-tune the window
+
+jira://acme/teams/PLAT/issues.jsonl  score=0.81
+  PLAT-491  "rate-limit guard misfires under burst"  state=Reopened
+```
+
+</details>
+
+### 🗄️ Production data
+
+Point MFS at Postgres, Mongo, or BigQuery and search rows as text. Each row is
+a file-like object, so `mfs cat` pulls back the full record for the exact
+values.
+
+```bash
+mfs add postgres://prod/orders --config ./pg.toml
+mfs search "refunds stuck in pending over 7 days" postgres://prod/orders
+```
+
+<details>
+<summary>Output</summary>
+
+```text
+postgres://prod/orders  score=0.79
+  {"id":"ord_8842","status":"pending","refund_requested_at":"2026-05-30",
+   "amount":129.00,"gateway":"stripe","note":"customer disputed, awaiting ..."}
+```
+
+</details>
+
+
+## 🚀 Run it
 
 The CLI is a thin Rust client; the server holds all the heavy state,
 secrets, and workers. Same defaults work two ways — keep both on the
@@ -311,7 +390,7 @@ Docker images, a Compose file, and a Helm chart for split
 api / worker deployments live under
 [`deployments/`](deployments/).
 
-## How the C / S split works
+## 🔀 How the C / S split works
 
 | On the client | On the server |
 |---|---|
@@ -328,7 +407,7 @@ is nearly stateless, so re-creating it on a new laptop, in a Docker
 image, or inside an agent runtime is free. The server is where the
 state, the secrets, and the expensive work live.
 
-## Configure the server: wizard or TOML
+## ⚙️ Configure the server: wizard or TOML
 
 The interactive `mfs-server setup` wizard walks seven sections. The defaults
 are self-contained, so you can press Enter through to a working local server
@@ -349,7 +428,7 @@ namespace, custom worker count) — edit `~/.mfs/server.toml`
 directly. See [docs/configuration.md](docs/configuration.md) for the
 full field reference.
 
-## Connectors
+## 🔌 Connectors
 
 Beyond local files, MFS ships a growing catalog of connectors. Each
 exposes its source as a URI tree you can `ls` / `cat` / `search` like
@@ -442,7 +521,7 @@ Three principles run through the architecture:
 
 Full design notes: [docs/design-philosophy.md](docs/design-philosophy.md).
 
-## Docs
+## 📚 Docs
 
 The full guide lives in **[docs/](docs/)** (also served via MkDocs):
 
@@ -455,21 +534,21 @@ The full guide lives in **[docs/](docs/)** (also served via MkDocs):
 - [Deployment](docs/deployment.md) — Docker, Compose, remote server.
 - [Troubleshooting](docs/troubleshooting.md) — when things break.
 
-## Roadmap
+## 🗺️ Roadmap
 
 - Publish `mfs-server` to PyPI for one-command installs.
 - OAuth `client_credentials` for Salesforce and OAuth-only orgs.
 - More connectors (Confluence, Asana, Drive shared drives).
 - Lock `/v1` HTTP API for the `v0.4.0` final.
 
-## Status
+## 🚦 Status
 
 `v0.4.0-beta.2`. The CLI surface and connector catalog are stable;
 the HTTP API may still shift before `v0.4.0` final, so pin versions
 in scripts. Found a bug? Open an issue:
 <https://github.com/zilliztech/mfs/issues>.
 
-## Acknowledgements
+## 🙏 Acknowledgements
 
 MFS is shaped by several related projects:
 
@@ -481,6 +560,6 @@ MFS is shaped by several related projects:
   of a Unix-like interface for agent access to vector-backed
   knowledge.
 
-## License
+## ⚖️ License
 
 Apache-2.0. See [LICENSE](LICENSE).
