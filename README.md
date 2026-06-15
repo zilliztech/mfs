@@ -36,88 +36,64 @@ already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
   <img src="https://github.com/user-attachments/assets/1430d872-4184-4fb3-9168-a0b715dc621a" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
 </p>
 
-## 📥 Install the agent skills
+## 🚀 Quick start
 
-Install the MFS skill packs before asking an agent to search, browse,
-or ingest through MFS:
+The skill packs carry the setup, so there's nothing to install by hand here —
+grab them once:
 
 ```bash
-# Global: available in all projects, all supported agents
+# every project + every supported agent (drop -g for the current project only)
 npx skills add zilliztech/mfs --all -g
-
-# Project-level: current project only, all supported agents
-npx skills add zilliztech/mfs --all
 ```
 
-<details>
-<summary>Install to a specific agent</summary>
-
-```bash
-npx skills add zilliztech/mfs -a claude-code -g
-npx skills add zilliztech/mfs -a codex -g
-```
-
-</details>
-
-<details>
-<summary>Check for updates</summary>
-
-```bash
-npx skills check
-npx skills update
-```
-
-For project-level installs, re-run the `npx skills add` command to
-update.
-
-</details>
-
-## ⚡ Quick start
-
-**No API key, no GPU, no cloud account** — defaults are local ONNX embeddings +
-Milvus Lite + SQLite under `~/.mfs/`.
-
-Start a local server (from source until it's published):
-
-```bash
-git clone https://github.com/zilliztech/mfs.git
-cd mfs/server/python && uv sync && uv run mfs-server run
-```
-
-Then install the skills (above) and just ask your agent — on first run the
-`mfs-ingest` skill pre-flights and installs the `mfs` CLI for you, so there's
-little left to set up by hand:
+Then open your agent (Claude Code, Codex, …) and ask in plain language:
 
 ```text
-/mfs-ingest index ~/notes
-/mfs-find what did I decide about the pricing model?
+Create a ~/mfs-demo folder with a couple of short notes, index it with mfs,
+then tell me what I decided about pricing
 ```
 
-The agent indexes the folder, runs the search, opens the top hit, and quotes the
-exact lines back with the file path — so you can trust the answer instead of a
-paraphrase. (The first search pulls a ~600 MB local model into `~/.mfs/`, then
-the stack runs offline.)
+That's the whole loop — **ingest → search → read**. Keep the first run **small**
+(a handful of notes, or a single web page) rather than a 50k-file monorepo — the
+very first index can take a while.
+
+> 🛠️ **The first run is a one-time setup, and the agent walks you through it:**
+> it installs the `mfs` CLI, helps you start a local server, and downloads a
+> ~600 MB local embedding model into `~/.mfs/`. Give it a minute. After that the
+> whole stack runs locally and offline — **no API key, no GPU, no cloud account.**
+
+<details>
+<summary>Install to one agent · check for updates</summary>
+
+```bash
+npx skills add zilliztech/mfs -a claude-code -g    # or: -a codex
+npx skills check && npx skills update              # re-run `npx skills add` for project installs
+```
+
+</details>
 
 <details>
 <summary>Prefer the shell, no agent?</summary>
 
-Install the CLI (a small Rust binary), then run the same loop directly:
+Run a local server, install the CLI, and drive the same loop directly:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.2/mfs-cli-installer.sh | sh
+# server — from source until it's published
+git clone https://github.com/zilliztech/mfs.git
+cd mfs/server/python && uv sync && uv run mfs-server run
 
-mfs add ~/notes
-mfs search "the pricing model decision" ~/notes --top-k 5
+# CLI — `cargo install mfs-cli`, or the installer on the releases page
+mfs add ~/mfs-demo
+mfs search "the pricing decision" ~/mfs-demo
 ```
 
-> macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if it prompts
-> about an unidentified developer.
+> macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if prompted about
+> an unidentified developer.
 
 </details>
 
 <details>
-<summary>Rather use OpenAI than download the local model?</summary>
+<summary>Use OpenAI instead of the local model?</summary>
 
 Set the embedding provider to OpenAI in `~/.mfs/server.toml` (or run
 `uv run mfs-server setup`) and export your key — no model download:
