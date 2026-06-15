@@ -45,27 +45,6 @@ Install the skill packs once:
 npx skills add zilliztech/mfs --all -g
 ```
 
-Then open your agent (Claude Code, Codex, …) and ask in plain language. First,
-ingest something:
-
-```text
-Spin up a tiny hello-world project in ~/hello-mfs, then ingest it with mfs
-```
-
-Then search and read across it:
-
-```text
-Search the hello-mfs project for where the greeting is printed, and show me the
-exact lines
-```
-
-That's the whole loop — **ingest → search → read**.
-
-> 🛠️ **The first run is a one-time setup, and the agent walks you through it:**
-> it installs the `mfs` CLI, helps you start a local server, and downloads a
-> ~600 MB local embedding model into `~/.mfs/`. Give it a minute. After that the
-> whole stack runs locally and offline — **no API key, no GPU, no cloud account.**
-
 <details>
 <summary>Install to one agent · check for updates</summary>
 
@@ -75,6 +54,28 @@ npx skills check && npx skills update              # re-run `npx skills add` for
 ```
 
 </details>
+
+Then open your agent (Claude Code, Codex, …) and ask in plain language. First,
+ingest something:
+
+```text
+Use the mfs-ingest skill to spin up a tiny hello-world project in ~/hello-mfs
+and ingest it
+```
+
+Then search and read across it:
+
+```text
+Use the mfs-find skill to find where the greeting is printed in the hello-mfs
+project, and show me the exact lines
+```
+
+🎉 That's it — you're up and running. Point MFS at your real sources next.
+
+> 🛠️ **The first run is a one-time setup, and the agent walks you through it:**
+> it installs the `mfs` CLI, helps you start a local server, and downloads a
+> ~600 MB local embedding model into `~/.mfs/`. Give it a minute. After that the
+> whole stack runs locally and offline — **no API key, no GPU, no cloud account.**
 
 <details>
 <summary>Prefer the shell, no agent?</summary>
@@ -126,8 +127,8 @@ searchable namespace. The prompt you tuned last week, a decision logged three
 sessions ago: one query finds it.
 
 ```bash
-mfs add ~/.agents/memory          # /mfs-ingest index my session memory
-mfs add ~/.agents/skills          # /mfs-ingest index my skill packs
+mfs add PATH_TO_MEMORY            # /mfs-ingest index my session memory
+mfs add PATH_TO_SKILLS            # /mfs-ingest index my skill packs
 mfs search "the prompt I tuned for refund disputes" --all   # /mfs-find the refund-dispute prompt
 ```
 
@@ -150,7 +151,7 @@ Add every repo the agent reads or writes and grep them by meaning — find the
 helper by what it *does*, not the name you can't remember.
 
 ```bash
-mfs add ~/repos                   # /mfs-ingest index my repos
+mfs add PATH_TO_REPOS             # /mfs-ingest index my repos
 mfs search "where do we retry failed webhook deliveries?" --all   # /mfs-find our webhook retry logic
 ```
 
@@ -176,8 +177,8 @@ vision model turned on, describes images too, so one search reads across every
 format and modality at once.
 
 ```bash
-mfs add ./design-docs            # /mfs-ingest index my design docs
-mfs add ./screenshots            # /mfs-ingest index my screenshots
+mfs add PATH_TO_DOCS             # /mfs-ingest index my design docs
+mfs add PATH_TO_IMAGES           # /mfs-ingest index my screenshots
 mfs search "audit-log retention and the dashboards that show it" --all   # /mfs-find audit-log retention + dashboards
 ```
 
@@ -305,6 +306,44 @@ mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
 ```
 
 </details>
+
+## 🧰 Commands
+
+Every source — local folder or remote connector — answers the same small set of
+commands. They fall into four groups:
+
+**Ingest & manage sources**
+
+- `mfs add <path|uri> [--config x.toml]` — register a source and index it; re-run
+  any time to re-sync.
+- `mfs connector probe <uri> --config x.toml` — dry-run a connection before you
+  register it.
+- `mfs connector list` · `inspect <uri>` · `remove <uri>` — see and manage what's
+  registered.
+
+**Search**
+
+- `mfs search "<query>" [<path|uri>] [--all]` — hybrid semantic + keyword
+  retrieval; scope to a path/URI, or fan out across everything with `--all`.
+- `mfs grep <pattern> <path>` — exact keyword / full-text, pushed down to the
+  source where the connector supports it.
+
+**Browse & read** — the file-like verbs
+
+- `mfs ls <uri>` · `mfs tree <uri>` — list one level, or a whole subtree.
+- `mfs cat <uri> [--range a:b] [--locator '{...}']` — read the exact bytes, or a
+  single structured record straight from a search hit's locator.
+- `mfs head <uri>` · `mfs tail <uri>` — sample the first / last entries.
+
+**Operate**
+
+- `mfs status` — server, connectors, and jobs at a glance.
+- `mfs job list` · `show <id>` · `cancel <id>` — track indexing jobs.
+- `mfs config show` — the resolved endpoint / profile / token.
+- `mfs serve start` · `stop` — manage a local server process.
+
+Through an agent it's the same set in natural language: the **mfs-find** skill
+wraps search + browse, and **mfs-ingest** wraps register + manage.
 
 ## 🔌 Connectors
 
