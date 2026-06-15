@@ -38,19 +38,25 @@ already use work everywhere: `ls`, `cat`, `tree`, `grep`, `head`,
 
 ## 🚀 Quick start
 
-The skill packs carry the setup, so there's nothing to install by hand here —
-grab them once:
+Install the skill packs once:
 
 ```bash
 # every project + every supported agent (drop -g for the current project only)
 npx skills add zilliztech/mfs --all -g
 ```
 
-Then open your agent (Claude Code, Codex, …) and ask in plain language:
+Then open your agent (Claude Code, Codex, …) and ask in plain language. First,
+ingest something:
 
 ```text
-Create a ~/mfs-demo folder with a couple of short notes, index it with mfs,
-then tell me what I decided about pricing
+Spin up a tiny hello-world project in ~/hello-mfs, then ingest it with mfs
+```
+
+Then search and read across it:
+
+```text
+Search the hello-mfs project for where the greeting is printed, and show me the
+exact lines
 ```
 
 That's the whole loop — **ingest → search → read**.
@@ -81,8 +87,8 @@ git clone https://github.com/zilliztech/mfs.git
 cd mfs/server/python && uv sync && uv run mfs-server run
 
 # CLI — `cargo install mfs-cli`, or the installer on the releases page
-mfs add ~/mfs-demo
-mfs search "the pricing decision" ~/mfs-demo
+mfs add ~/hello-mfs
+mfs search "where the greeting is printed" ~/hello-mfs
 ```
 
 > macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if prompted about
