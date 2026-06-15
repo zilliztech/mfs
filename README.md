@@ -377,6 +377,11 @@ mfs cat jira://acme/teams/PLAT/issues.jsonl --locator '{"id":"PLAT-491"}'
 
 </details>
 
+First time adding a source and unsure what its TOML needs? Don't write it by hand
+— just tell your agent which source you want to index, and the **mfs-ingest**
+skill walks you through which credentials to grab (and where), then writes the
+config and registers it for you.
+
 ## 🧰 Commands
 
 Every source — a local folder or a remote connector — answers the same small
@@ -450,8 +455,15 @@ mfs connector probe linear://workspace --config ./linear.toml
 ```
 
 New connectors slot in behind the same interface, so the catalog keeps growing
-without changing how you use it. Each connector has its own credential setup and
-TOML shape.
+without changing how you use it.
+
+Each connector needs a small TOML — its credentials plus what to expose — and
+there are a few ways to get it right. The quickest is to **describe the source to
+your agent** in plain language: the **mfs-ingest** skill works out which
+credentials you need, tells you where to get them, and writes the TOML for you.
+Doing it by hand instead? `mfs connector probe` (above) dry-runs a config before
+you commit, and each connector's reference documents its exact fields and auth
+options.
 
 ## 🏗️ Architecture
 
