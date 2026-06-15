@@ -533,6 +533,9 @@ options.
 
 ## 🏗️ Architecture
 
+Everything above runs the simplest way — client and server on one machine. The
+same MFS also scales to production; here's how it's put together.
+
 MFS is a **thin client over a stateful server**, talking over one HTTP `/v1` API:
 
 - **Client** — the `mfs` CLI, the SDKs, and the agent skill packs (`mfs-find` /
@@ -558,10 +561,9 @@ MFS is a **thin client over a stateful server**, talking over one HTTP `/v1` API
                                    └────────────────────────────────────────┘
 ```
 
-The only real deployment choice is **where the server runs**. Everything above
-uses the simplest mode — client and server on the **same machine**. To scale,
-**split them**: move the server to a VM, a Docker Compose stack, or a Kubernetes
-cluster while the CLI and skills stay with you. Where each piece sits by mode:
+The only real deployment choice is **where the server runs**. To scale, **split
+them**: move the server to a VM, a Docker Compose stack, or a Kubernetes cluster
+while the CLI and skills stay with you. Where each piece sits by mode:
 
 | Piece | Local (one machine) | Split (server on a VM) | Containerized (Compose / k8s) |
 |---|---|---|---|
@@ -578,6 +580,16 @@ cluster while the CLI and skills stay with you. Where each piece sits by mode:
 
 (That last row is automatic: on a shared filesystem the server reads local paths
 directly; otherwise the CLI bundles and uploads them — no flags needed.)
+
+Through an agent you don't think about any of this — the skills already encode
+it. The agent detects whether client and server share a machine and adjusts
+(local read vs upload) on its own, so there's nothing about deployment mode to
+spell out in a prompt. Just use MFS normally.
+
+And this isn't demo-ware: the split design is built for **production-scale**
+data. Pair the vector backend with [Zilliz Cloud](https://zilliz.com)'s Vector
+Lakebase and MFS indexes and searches massive corpora — with the reliability and
+[design choices below](#-features--how-it-works).
 
 For a split deployment, point the CLI at the server and you're set:
 
