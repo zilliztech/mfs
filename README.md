@@ -537,18 +537,20 @@ Where each piece sits by mode:
 | Metadata DB | SQLite (local file) | Postgres | Postgres |
 | `file://` ingest | server reads the path in place | CLI bundles + uploads the tree | CLI bundles + uploads the tree |
 
-(That last row is automatic: on a shared filesystem the server reads local paths
-directly; otherwise the CLI bundles and uploads them — no flags needed.)
+> That last row is automatic: on a shared filesystem the server reads local paths
+> directly; otherwise the CLI bundles and uploads them — no flags needed.
 
 Through an agent you don't think about any of this — the skills already encode
 it. The agent detects whether client and server share a machine and adjusts
 (local read vs upload) on its own, so there's nothing about deployment mode to
 spell out in a prompt. Just use MFS normally.
 
-And this isn't demo-ware: the split design is built for **production-scale**
-data. Pair the vector backend with [Zilliz Cloud](https://zilliz.com)'s Vector
-Lakebase and MFS indexes and searches massive corpora — with the reliability and
-[design choices below](#-features--how-it-works).
+### 🏭 Built for production
+
+MFS was built for production from day one — not a weekend demo. The split design
+scales to **production-scale** data: pair the vector backend with
+[Zilliz Cloud](https://zilliz.com)'s Vector Lakebase and MFS indexes and searches
+massive corpora, with the reliability and [design choices below](#-features--how-it-works).
 
 For a split deployment, point the CLI at the server and you're set:
 
