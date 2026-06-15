@@ -18,9 +18,10 @@
   <img src="https://github.com/user-attachments/assets/42c4e26c-c26a-463f-bd97-c5bb2d38eabe" alt="MFS multi-source analysis demo" width="880" />
 </p>
 
-Storing an agent's **context** is easy — most tools do that. The hard part is
-that context is **sprawling and scattered**: dozens of sources and silos, every
-format, and no single way to find anything across them. It piles up in:
+Modern AI agents run on a huge amount of **context** — and it's sprawling,
+scattered, and siloed across dozens of sources and formats. That makes it hard
+to manage and harder to locate: for any given task, which slice of all that
+context is the part that actually matters? It piles up in:
 
 - **Code & repos** — every repo the agent reads or writes
 - **Memory & skills** — past-session transcripts, notes, reusable `SKILL.md` skills
