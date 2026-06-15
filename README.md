@@ -18,12 +18,12 @@
   <img src="https://github.com/user-attachments/assets/42c4e26c-c26a-463f-bd97-c5bb2d38eabe" alt="MFS multi-source analysis demo" width="880" />
 </p>
 
-Modern AI agents need a place to keep their **context**: codebases,
-memory, skills, knowledge, work messages, documents, databases. Most
-of that ends up spread across local folders (skill packs, session
-memory, your repos, your notes), team SaaS (Slack, Gmail, Notion,
-Drive, Feishu), and production stores (Postgres, Mongo, BigQuery,
-S3).
+Modern AI agents need a place to keep their **context** — code, memory, skills,
+knowledge, work messages, documents, databases. Today it's scattered across:
+
+- **Local folders** — skill packs, session memory, your repos and notes
+- **Team SaaS** — Slack, Gmail, Notion, Drive, Feishu
+- **Production stores** — Postgres, Mongo, BigQuery, S3
 
 MFS gathers it under one shell. Every source — local folders, a
 Postgres table, a Slack workspace, a Google Drive, a Notion graph — is
@@ -533,39 +533,35 @@ options.
 
 ## 🏗️ Architecture
 
-The `mfs` CLI is a thin Rust client; the **server** holds all the heavy state,
-secrets, and workers. The same build runs two ways — both on **one machine**
-(the quick-start path above) or **split** for production: the server in your
-data center / VPC / k8s cluster, the CLI and SDKs wherever your developers and
-agents are.
+MFS is a **thin client over a stateful server**, talking over one HTTP `/v1` API:
+
+- **Client** — the `mfs` CLI, the SDKs, and the agent skill packs (`mfs-find` /
+  `mfs-ingest`). Stateless, so re-creating it on a laptop, a CI runner, or an
+  agent runtime is free.
+- **Server** — the setup wizard, all config / credentials / env vars, the queue
+  + workers, and the data backends. Everything that matters lives here, so
+  `env:` / `file:` secret references always resolve on the server, never the
+  client.
 
 ```text
- Local quick-start                       Production
- ─────────────────                       ──────────
-
-  ┌──────────────────┐                    ┌────────────┐     ┌─────────────────────┐
-  │  one machine     │                    │   CLI      │     │      mfs-server     │
-  │                  │                    │   SDK      │HTTPS│ (VM / container /   │
-  │ CLI  ↔  server   │                    │   agent    │─────│  k8s pod, anywhere) │
-  │ (shared fs)      │                    │   skills   │     │                     │
-  │                  │                    └────────────┘     │  queue · workers    │
-  │  ~/.mfs/         │                                       │  Milvus · Postgres  │
-  │  Milvus Lite     │                                       │  caches · creds     │
-  └──────────────────┘                                       └─────────────────────┘
+┌────────────────┐                 ┌────────────────────────────────────────┐
+│ CLIENT         │                 │ SERVER · mfs-server                    │
+│ ────────────── │                 │ ────────────────────────────────────── │
+│ mfs CLI        │                 │ setup wizard                           │
+│ SDKs           │                 │ queue + workers                        │
+│ skill packs    │                 │ config · env vars · credentials        │
+│   · mfs-find   │ ── HTTP /v1 ──▶ │                                        │
+│   · mfs-ingest │                 │ backends (scale up as needed):         │
+└────────────────┘                 │   vector    Milvus Lite → Zilliz Cloud │
+                                   │   metadata  SQLite → Postgres          │
+                                   │   caches    local filesystem           │
+                                   └────────────────────────────────────────┘
 ```
 
-The client (CLI, SDKs, skill packs) carries no persistent state and reaches the
-server over one HTTP `/v1` API, so re-creating it on a new laptop, a CI runner,
-or inside an agent runtime is free — everything that matters lives wherever the
-server runs. Everything above uses the simplest mode: **client and server on the
-same machine.**
-
-For anything more involved you **split the two** — the server moves to a VM, a
-Docker Compose stack, or a Kubernetes cluster while the CLI and skills stay with
-you. The rule of thumb: the agent's **CLI and skill packs live on the client**;
-the **server owns all config, credentials, env vars, and data stores**, so
-`env:` / `file:` secret references always resolve on the server, never the
-client. Where each piece sits by mode:
+The only real deployment choice is **where the server runs**. Everything above
+uses the simplest mode — client and server on the **same machine**. To scale,
+**split them**: move the server to a VM, a Docker Compose stack, or a Kubernetes
+cluster while the CLI and skills stay with you. Where each piece sits by mode:
 
 | Piece | Local (one machine) | Split (server on a VM) | Containerized (Compose / k8s) |
 |---|---|---|---|
@@ -578,6 +574,10 @@ client. Where each piece sits by mode:
 | Env vars (for `env:` refs) | the server's process env | the VM's env | pod env |
 | Vector DB | Milvus Lite (local file) | self-hosted Milvus or Zilliz Cloud | Zilliz Cloud |
 | Metadata DB | SQLite (local file) | Postgres | Postgres |
+| `file://` ingest | server reads the path in place | CLI bundles + uploads the tree | CLI bundles + uploads the tree |
+
+(That last row is automatic: on a shared filesystem the server reads local paths
+directly; otherwise the CLI bundles and uploads them — no flags needed.)
 
 For a split deployment, point the CLI at the server and you're set:
 
