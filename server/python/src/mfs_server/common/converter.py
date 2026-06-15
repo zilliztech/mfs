@@ -26,17 +26,22 @@ class ConverterClient:
         self.default = cfg.conversion.default  # "markitdown"
         self.provider = "markitdown"
         self.version = "1"
-        # Identity tag for the artifact-layer cache key: bumping the converter or its
-        # version invalidates cached conversions (the artifact carries this tag).
-        self.version_tag = f"{self.provider}.{self.default}.{self.version}"
         self._md = None
 
+    def identity(self) -> str:
+        """The converter's self-described identity — provider + library + version. Fold any
+        converter parameters in here (as the model clients fold provider/model/version/prompt
+        into their transformation-cache key) so changing them invalidates cached conversions.
+        markitdown currently exposes no tunable params, so this is just the version tuple."""
+        return f"{self.provider}.{self.default}.{self.version}"
+
     def currency(self, data: bytes) -> str:
-        """Artifact-cache freshness token for converting `data`: content hash + converter
-        version. Object Lane and Job Lane both compute it the same way, so the Job Lane
-        reuses the Object Lane's `converted_md` only when the source content AND the converter
-        version match — a changed source or an upgraded converter misses and re-converts."""
-        return f"{hashlib.sha1(data).hexdigest()}:{self.version_tag}"
+        """Artifact-cache freshness token for converting `data`: source content hash + the
+        converter identity. The Object Lane and Job Lane compute it identically, so the Job
+        Lane reuses the Object Lane's `converted_md` only when BOTH the source content and the
+        converter identity match — a changed source or an upgraded converter misses and
+        re-converts."""
+        return f"{hashlib.sha1(data).hexdigest()}:{self.identity()}"
 
     async def convert(self, data: bytes, ext: str) -> str:
         return await asyncio.to_thread(self._convert_sync, data, ext)

@@ -1794,24 +1794,25 @@ class Engine:
     async def _put_artifact(
         self, ns: str, object_uri: str, kind: str, data: bytes, currency: str = ""
     ) -> str:
-        """Store artifact bytes and record/refresh its artifact_cache row (size +
-        currency token + timestamps), then run a throttled LRU sweep so the cache stays
-        under budget. The `fingerprint` column carries the caller's currency token (source
-        content hash + producer version) when given — `_read_artifact_fresh` compares against
-        it so a reuse only hits when source AND producer version still match; it falls back to
-        sha1(bytes) for kinds that do not pass one."""
+        """Store artifact bytes and record/refresh its artifact_cache row, then run a throttled
+        LRU sweep so the cache stays under budget. `fingerprint` is sha1 of the stored bytes
+        (the output). `source_key` is the caller's currency token (source content hash + the
+        producer's self-described identity) — `_read_artifact_fresh` compares against it so a
+        reuse only hits when source AND producer identity still match; kinds that pass no token
+        leave it empty."""
         import hashlib
 
         path = await asyncio.to_thread(self.artifact_cache.put_artifact, ns, object_uri, kind, data)
         now = _now()
-        fp = currency or hashlib.sha1(data).hexdigest()
+        fp = hashlib.sha1(data).hexdigest()
         await self.meta.execute(
             "INSERT INTO artifact_cache (namespace_id, object_uri, artifact_kind, storage_path, "
-            " fingerprint, size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?,?) "
+            " fingerprint, source_key, size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?,?,?) "
             "ON CONFLICT(namespace_id, object_uri, artifact_kind) DO UPDATE SET "
             " storage_path=excluded.storage_path, fingerprint=excluded.fingerprint, "
-            " size_bytes=excluded.size_bytes, built_at=excluded.built_at, last_accessed=excluded.last_accessed",
-            (ns, object_uri, kind, str(path), fp, len(data), now, now),
+            " source_key=excluded.source_key, size_bytes=excluded.size_bytes, "
+            " built_at=excluded.built_at, last_accessed=excluded.last_accessed",
+            (ns, object_uri, kind, str(path), fp, currency, len(data), now, now),
         )
         self._artifact_writes += 1
         if self._artifact_writes % 16 == 0:
@@ -1861,16 +1862,16 @@ class Engine:
     async def _read_artifact_fresh(
         self, ns: str, object_uri: str, kind: str, currency: str
     ) -> bytes | None:
-        """Return the artifact bytes only if its stored currency token matches `currency`
-        (same source content + producer version). A mismatch (stale content / upgraded
-        producer) returns None so the caller recomputes — this is what lets the Job Lane
-        safely reuse the Object Lane's converted_md under parallelism."""
+        """Return the artifact bytes only if its stored source_key matches `currency` (same
+        source content + producer identity). A mismatch (stale content / upgraded producer)
+        returns None so the caller recomputes — this is what lets the Job Lane safely reuse the
+        Object Lane's converted_md under parallelism."""
         row = await self.meta.fetchone(
-            "SELECT fingerprint FROM artifact_cache "
+            "SELECT source_key FROM artifact_cache "
             "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
             (ns, object_uri, kind),
         )
-        if not row or row["fingerprint"] != currency:
+        if not row or row["source_key"] != currency:
             return None
         return await self._read_artifact(ns, object_uri, kind)
 

@@ -140,15 +140,16 @@ class FakeSummary:
 
 
 class FakeConverter:
-    version_tag = "markitdown.markitdown.1"
-
     def __init__(self) -> None:
         self.calls = 0
+
+    def identity(self) -> str:
+        return "markitdown.markitdown.1"
 
     def currency(self, data: bytes) -> str:
         import hashlib
 
-        return f"{hashlib.sha1(data).hexdigest()}:{self.version_tag}"
+        return f"{hashlib.sha1(data).hexdigest()}:{self.identity()}"
 
     async def convert(self, data: bytes, ext: str) -> str:
         self.calls += 1

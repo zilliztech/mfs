@@ -65,6 +65,7 @@ SQLITE_DDL = [
         artifact_kind   TEXT,
         storage_path    TEXT,
         fingerprint     TEXT,
+        source_key      TEXT,
         size_bytes      INTEGER,
         built_at        TEXT,
         last_accessed   TEXT,
@@ -147,7 +148,7 @@ SQLITE_DDL = [
 ]
 
 # Bump on any incompatible metadata DDL change.
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 
 
 # --- dialect helpers (used by Postgres subclass) ----------------------------
