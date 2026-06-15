@@ -330,32 +330,13 @@ state, the secrets, and the expensive work live.
 
 ## Configure the server: wizard or TOML
 
-The interactive wizard walks six sections — defaults are
-self-contained, press Enter through to keep them:
+The interactive `mfs-server setup` wizard walks seven sections. The defaults
+are self-contained, so you can press Enter through to a working local server
+and opt into hosted backends only where you need them.
 
-```text
-MFS server setup
-  writing to ~/.mfs/server.toml
-  6 section(s): embedding · image-summary · milvus · database · cache · auth
-
-╭─ Step 1/6 · Embedding ───────────────────────────────────────────────╮
-│  Default is local ONNX (no API key, BGE-M3 int8, ~600 MB download). │
-│  Pick another provider to opt out.                                  │
-╰─────────────────────────────────────────────────────────────────────╯
-? Provider (↑↓ to move · Enter to confirm)
- » onnx       local, no API key (default)
-   openai     needs OPENAI_API_KEY env
-   gemini     needs `uv sync --extra gemini`
-   voyage     needs `uv sync --extra voyage`
-   ollama     needs `uv sync --extra ollama` + running ollama server
-   local      needs `uv sync --extra local` (pulls torch ~2 GB)
-
-╭─ Step 3/6 · Milvus (vector DB) ─────────────────────────────────────╮
-│  Default = Milvus Lite (a file under $MFS_HOME). Switch to remote   │
-│  Milvus / Zilliz Cloud by supplying the URI.                        │
-╰─────────────────────────────────────────────────────────────────────╯
-? Backend  lite  ·  remote-milvus  ·  zilliz-cloud
-```
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/2adc8090-76e2-4073-aae8-776ca4ba541e" alt="mfs-server setup wizard demo" width="820" />
+</p>
 
 Run a single section any time:
 
