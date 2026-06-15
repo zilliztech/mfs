@@ -21,13 +21,14 @@
 Modern AI agents need a place to keep their **context** — and today it's
 scattered across:
 
-- **Local folders** — skill packs, session memory, your repos and notes
+- **Local folders** — skills, session memory, your repos and notes
 - **Team SaaS** — Slack, Gmail, Notion, Drive, Feishu
 - **Production stores** — Postgres, Mongo, BigQuery, S3
 
-MFS gathers it under one shell: every source is mounted as a **file-like tree
-under a stable URI**, and the shell verbs you already know — `ls`, `cat`, `tree`,
-`grep`, `head`, `tail` — work everywhere.
+MFS gathers it under one shell: every source becomes a **file-like tree under a
+stable URI**, driven with the verbs you already know — `ls`, `cat`, `tree`,
+`grep`, `head`, `tail`. On top, **search** finds things fast across huge volumes,
+and **browse** drills in step by step to the exact bytes.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/1430d872-4184-4fb3-9168-a0b715dc621a" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
@@ -35,7 +36,7 @@ under a stable URI**, and the shell verbs you already know — `ls`, `cat`, `tre
 
 ## 🚀 Quick start
 
-Install the skill packs once:
+Install the skills once:
 
 ```bash
 # every project + every supported agent (drop -g for the current project only)
@@ -95,12 +96,12 @@ Outputs are illustrative — expand each.
 ### 🧠 Your agent's memory and skills
 
 Past-session memory (chat transcripts as JSONL, notes as Markdown) and reusable
-skill packs become one searchable namespace — the prompt you tuned last week or a
+skills become one searchable namespace — the prompt you tuned last week or a
 decision logged three sessions ago, one query away.
 
 ```bash
 mfs add path/to/transcript.jsonl   # /mfs-ingest index my session memory
-mfs add path/to/SKILL.md           # /mfs-ingest index my skill packs
+mfs add path/to/SKILL.md           # /mfs-ingest index my skills
 mfs search "the prompt I tuned for refund disputes" --all   # /mfs-find the refund-dispute prompt
 ```
 
@@ -485,7 +486,7 @@ same MFS also scales to production; here's how it's put together.
 
 MFS is a **thin client over a stateful server**, talking over one HTTP `/v1` API:
 
-- **Client** — the `mfs` CLI, the SDKs, and the agent skill packs (`mfs-find` /
+- **Client** — the `mfs` CLI, the SDKs, and the agent skills (`mfs-find` /
   `mfs-ingest`). Stateless, so re-creating it on a laptop, a CI runner, or an
   agent runtime is free.
 - **Server** — the setup wizard, all config / credentials / env vars, the queue
@@ -499,7 +500,7 @@ MFS is a **thin client over a stateful server**, talking over one HTTP `/v1` API
 │ ────────────── │                 │ ────────────────────────────────────── │
 │ mfs CLI        │                 │ setup wizard                           │
 │ SDKs           │                 │ queue + workers                        │
-│ skill packs    │                 │ config · env vars · credentials        │
+│ skills         │                 │ config · env vars · credentials        │
 │   · mfs-find   │ ── HTTP /v1 ──▶ │                                        │
 │   · mfs-ingest │                 │ backends (scale up as needed):         │
 └────────────────┘                 │   vector    Milvus Lite → Zilliz Cloud │
@@ -515,7 +516,7 @@ while the CLI and skills stay with you. Where each piece sits by mode:
 | Piece | Local (one machine) | Split (server on a VM) | Containerized (Compose / k8s) |
 |---|---|---|---|
 | `mfs` CLI | your machine | your laptop / CI | your laptop / CI |
-| Agent skill packs | client side | client side | client side |
+| Agent skills | client side | client side | client side |
 | `mfs-server` + workers | your machine | the VM | api + worker pods |
 | `mfs-server setup` wizard | your machine | on the VM | run against the server, or pre-bake the config |
 | `server.toml` | `~/.mfs/server.toml` | on the VM | ConfigMap or mounted file |
@@ -661,7 +662,7 @@ writing a connector per source.
 
 Three ways to wire MFS into your agent:
 
-- **🧩 Skill packs.** Drop [`skills/mfs-find`](skills/mfs-find/SKILL.md) and
+- **🧩 Skills.** Drop [`skills/mfs-find`](skills/mfs-find/SKILL.md) and
   [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) into your coding agent
   runtime, and the agent inherits the whole search-and-browse loop with no
   custom integration code.
