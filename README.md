@@ -519,19 +519,20 @@ MFS is a **thin client over a stateful server**, talking over one HTTP `/v1` API
                                    └────────────────────────────────────────┘
 ```
 
-The only real deployment choice is **where the server runs**. To scale, **split
-them**: move the server to a VM, a Docker Compose stack, or a Kubernetes cluster
-while the CLI and skills stay with you. Where each piece sits by mode:
+The only real deployment choice is **where the server runs**. Move it onto its
+own host (a VM or a single container), or scale it out across a Docker Compose
+stack or a Kubernetes cluster — the CLI and skills stay with you either way.
+Where each piece sits by mode:
 
-| Piece | Local (one machine) | Split (server on a VM) | Containerized (Compose / k8s) |
+| Piece | Local (one machine) | Single host (its own VM or container) | Distributed (Compose / Kubernetes) |
 |---|---|---|---|
 | `mfs` CLI | your machine | your laptop / CI | your laptop / CI |
 | Agent skills | client side | client side | client side |
-| `mfs-server` + workers | your machine | the VM | api + worker pods |
-| `mfs-server setup` wizard | your machine | on the VM | run against the server, or pre-bake the config |
-| `server.toml` | `~/.mfs/server.toml` | on the VM | ConfigMap or mounted file |
-| Connector credentials, secret files | local disk | on the VM | Docker / k8s secrets, mounted |
-| Env vars (for `env:` refs) | the server's process env | the VM's env | pod env |
+| `mfs-server` + workers | your machine | the server host | api + worker pods |
+| `mfs-server setup` wizard | your machine | on the server host | run against the server, or pre-bake the config |
+| `server.toml` | `~/.mfs/server.toml` | on the server host | ConfigMap or mounted file |
+| Connector credentials, secret files | local disk | on the server host | Docker / k8s secrets, mounted |
+| Env vars (for `env:` refs) | the server's process env | the host's env | pod env |
 | Vector DB | Milvus Lite (local file) | self-hosted Milvus or Zilliz Cloud | Zilliz Cloud |
 | Metadata DB | SQLite (local file) | Postgres | Postgres |
 | `file://` ingest | server reads the path in place | CLI bundles + uploads the tree | CLI bundles + uploads the tree |
