@@ -25,7 +25,7 @@
     
     
       
-        <title>Home - MFS</title>
+        <title>Overview - MFS</title>
       
     
     
@@ -111,7 +111,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Home
+              Overview
             
           </span>
         </div>
@@ -198,7 +198,7 @@
           
   
   
-  Overview
+  Getting started
 
         </a>
       </li>
@@ -214,11 +214,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="getting-started/" class="md-tabs__link">
+        <a href="architecture/" class="md-tabs__link">
           
   
   
-  Get Started
+  Concepts
 
         </a>
       </li>
@@ -234,11 +234,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="search-and-browse/" class="md-tabs__link">
+        <a href="connectors/" class="md-tabs__link">
           
   
   
-  User Guide
+  Connectors
 
         </a>
       </li>
@@ -254,11 +254,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="content-model/" class="md-tabs__link">
+        <a href="configuration/" class="md-tabs__link">
           
   
   
-  Developer Guide
+  Operations
 
         </a>
       </li>
@@ -274,11 +274,31 @@
     
     
       <li class="md-tabs__item">
-        <a href="errors/" class="md-tabs__link">
+        <a href="cli/" class="md-tabs__link">
           
   
   
-  Help
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="evaluation/" class="md-tabs__link">
+          
+  
+  
+  Project
 
         </a>
       </li>
@@ -371,7 +391,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    Getting started
   
 
     
@@ -387,7 +407,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Overview
+    Getting started
   
 
           </label>
@@ -416,7 +436,7 @@
   <span class="md-ellipsis">
     
   
-    Home
+    Overview
   
 
     
@@ -434,7 +454,7 @@
   <span class="md-ellipsis">
     
   
-    Home
+    Overview
   
 
     
@@ -460,10 +480,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#choose-your-entry-point" class="md-nav__link">
+  <a href="#search-and-browse-two-legs-of-one-loop" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Choose your entry point
+        Search and browse, two legs of one loop
       
     </span>
   </a>
@@ -471,10 +491,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#current-v04-shape" class="md-nav__link">
+  <a href="#how-you-drive-it" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Current v0.4 shape
+        How you drive it
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#under-the-hood" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Under the hood
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start here
       
     </span>
   </a>
@@ -517,121 +559,6 @@
   
 
               
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="architecture/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="roadmap/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Status and Limits
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
-        
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Get Started
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Get Started
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
             
               
                 
@@ -689,6 +616,883 @@
 
               
             
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How it works
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="search-and-browse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search and browse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="content-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Jobs and indexing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ingest-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ingest pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Connectors
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    file
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    web
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/github/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    github
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/postgres/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    postgres
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/mysql/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mysql
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/mongo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mongo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/slack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/discord/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    discord
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/gmail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    gmail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/notion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/jira/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    jira
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/linear/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    linear
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/zendesk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    zendesk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/hubspot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    hubspot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/bigquery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    bigquery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/snowflake/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    snowflake
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/s3/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    s3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/gdrive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    gdrive
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="connectors/feishu/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    feishu
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
               
                 
   
@@ -731,7 +1535,7 @@
   <span class="md-ellipsis">
     
   
-    Auth and Secrets
+    Auth and secrets
   
 
     
@@ -759,7 +1563,7 @@
   <span class="md-ellipsis">
     
   
-    Providers and Processing
+    Providers and processing
   
 
     
@@ -815,7 +1619,7 @@
   <span class="md-ellipsis">
     
   
-    Storage and Backup
+    Storage and backup
   
 
     
@@ -884,17 +1688,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    User Guide
+    Reference
   
 
     
@@ -905,72 +1709,16 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
-    User Guide
+    Reference
   
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="search-and-browse/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Search and Browse
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="jobs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Jobs and Indexing Progress
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
             
               
                 
@@ -986,290 +1734,7 @@
   <span class="md-ellipsis">
     
   
-    CLI Reference
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="connectors/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Connectors
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="connector-config-recipes/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Connector Configuration Recipes
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="connector-reference/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Connector Reference
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="skills/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Skills
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Developer Guide
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Developer Guide
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="content-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Content Model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="development/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Development
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="ingest-pipeline/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Ingest Pipeline
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="server/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Server
+    CLI
   
 
     
@@ -1346,14 +1811,14 @@
   
   
     <li class="md-nav__item">
-      <a href="evaluation/" class="md-nav__link">
+      <a href="skills/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Evaluation
+    Agent skills
   
 
     
@@ -1366,65 +1831,6 @@
   
 
               
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Help
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Help
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
             
               
                 
@@ -1440,7 +1846,7 @@
   <span class="md-ellipsis">
     
   
-    Error Codes
+    Error codes
   
 
     
@@ -1482,6 +1888,149 @@
 
               
             
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Project
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Server internals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
               
                 
   
@@ -1497,6 +2046,34 @@
     
   
     FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Status and limits
   
 
     
@@ -1544,10 +2121,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#choose-your-entry-point" class="md-nav__link">
+  <a href="#search-and-browse-two-legs-of-one-loop" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Choose your entry point
+        Search and browse, two legs of one loop
       
     </span>
   </a>
@@ -1555,10 +2132,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#current-v04-shape" class="md-nav__link">
+  <a href="#how-you-drive-it" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Current v0.4 shape
+        How you drive it
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#under-the-hood" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Under the hood
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start here
       
     </span>
   </a>
@@ -1586,95 +2185,64 @@
 
 
 <h1 id="mfs">MFS<a class="headerlink" href="#mfs" title="Permanent link">&para;</a></h1>
-<p>MFS is a multi-source, file-like search layer for agents and developers.
-It exposes codebases, local folders, object stores, databases, SaaS tools,
-and knowledge bases through a familiar command surface: search, grep, ls,
-tree, cat, and status.</p>
-<p>The v0.4 line is a client/server system:</p>
+<p>A modern AI agent runs on an enormous amount of <strong>context</strong> — and that context
+is scattered. It lives in code repos, past-session memory, design docs, PDFs,
+Notion pages, Slack threads, Jira tickets, Postgres tables, S3 buckets. For any
+given task, the hard part is rarely reading one file you already know about. The
+hard part is finding <em>which slice of all that context actually matters</em>, across
+sources that each speak a different protocol.</p>
+<p>MFS gives an agent one way to reach all of it. Every source becomes a file-like
+tree under a stable URI, and the agent works across them with the same handful
+of commands it already understands:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://reports<span class="w">          </span><span class="c1"># register and index a source, once</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;churn assumptions&quot;</span><span class="w"> </span>--all<span class="w"> </span><span class="c1"># find candidates across everything</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>&lt;hit&gt;<span class="w"> </span>--range<span class="w"> </span><span class="m">40</span>:80<span class="w">          </span><span class="c1"># reopen the exact lines that matter</span>
+</code></pre></div>
+<p>No per-source SDK, no bespoke retrieval glue. Register a source once; from then
+on it is searchable and browsable like a local folder.</p>
+<h2 id="search-and-browse-two-legs-of-one-loop">Search and browse, two legs of one loop<a class="headerlink" href="#search-and-browse-two-legs-of-one-loop" title="Permanent link">&para;</a></h2>
+<p>MFS is built around a single loop, and both halves earn their place:</p>
 <ul>
-<li>a Rust CLI named <code>mfs</code></li>
-<li>a Python FastAPI server named <code>mfs-server</code></li>
-<li>an OpenAPI protocol under <code>/v1</code></li>
-<li>generated Python and TypeScript SDKs</li>
-<li>optional Rust acceleration for server hot paths</li>
+<li><strong>Search</strong> finds candidates fast across huge, mixed volumes — hybrid semantic
+  <em>and</em> keyword recall in one query. It tells you <em>where to look</em>.</li>
+<li><strong>Browse</strong> narrows from a hit down to the exact bytes — <code>ls</code>, <code>tree</code>, <code>cat</code>,
+  <code>head</code>, <code>tail</code>. It gives you something you can actually trust.</li>
 </ul>
-<p>The current beta path is to install the published CLI and run the Python server
-from source or from a locally built Docker/Compose server. The server owns
-connectors, indexing, retrieval, metadata, cache, and Milvus/Zilliz integration;
-clients call the <code>/v1</code> control plane.</p>
-<h2 id="choose-your-entry-point">Choose your entry point<a class="headerlink" href="#choose-your-entry-point" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Role or task</th>
-<th>Start here</th>
-<th>Use it for</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>New user</td>
-<td><a href="getting-started/">Quickstart</a></td>
-<td>Install <code>mfs</code>, run <code>mfs-server</code>, index a small folder, and verify search plus browse.</td>
-</tr>
-<tr>
-<td>Daily search or browse user</td>
-<td><a href="search-and-browse/">Search and Browse</a></td>
-<td>Follow the <code>search -&gt; locate -&gt; browse/read</code> loop with <code>search</code>, <code>grep</code>, <code>ls</code>, <code>tree</code>, <code>cat</code>, <code>head</code>, <code>tail</code>, and <code>export</code>.</td>
-</tr>
-<tr>
-<td>Source or connector owner</td>
-<td><a href="connectors/">Connectors</a></td>
-<td>Choose a connector scheme, prepare TOML, probe, add, update, inspect, or remove a source.</td>
-</tr>
-<tr>
-<td>Integration developer</td>
-<td><a href="api/">HTTP API</a> and <a href="sdks/">SDKs</a></td>
-<td>Call <code>/v1</code> directly or use generated Python and TypeScript clients from <code>protocol/openapi.yaml</code>.</td>
-</tr>
-<tr>
-<td>Deployment or operations owner</td>
-<td><a href="deployment/">Deployment</a>, <a href="configuration/">Configuration</a>, and <a href="troubleshooting/">Troubleshooting</a></td>
-<td>Pick a source, Docker, Compose, or rendered Helm shape; persist state; debug endpoint, auth, jobs, and indexing.</td>
-</tr>
-<tr>
-<td>Architecture reader</td>
-<td><a href="architecture/">Architecture</a>, <a href="cli/">CLI Reference</a>, and <a href="server/">Server</a></td>
-<td>Understand how the Rust CLI, generated clients, FastAPI server, connector engine, stores, cache, workers, and OpenAPI protocol fit together.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="current-v04-shape">Current v0.4 shape<a class="headerlink" href="#current-v04-shape" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Area</th>
-<th>Current documentation baseline</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>CLI</td>
-<td><code>mfs</code> is the Rust binary and thin HTTP client over <code>/v1</code>.</td>
-</tr>
-<tr>
-<td>Server</td>
-<td><code>mfs-server</code> is the Python FastAPI server. For the beta, run it from repository source or a locally built container.</td>
-</tr>
-<tr>
-<td>Local defaults</td>
-<td>Same-host runs use <code>127.0.0.1:13619</code>, <code>$MFS_HOME</code> defaults to <code>~/.mfs</code>, and local first-run backends are ONNX embeddings, Milvus Lite, SQLite, local artifact cache, and an auto-generated bearer token.</td>
-</tr>
-<tr>
-<td>API and SDKs</td>
-<td><code>protocol/openapi.yaml</code> is the API source of truth; SDKs are generated under <code>sdks/python/</code> and <code>sdks/typescript/</code>.</td>
-</tr>
-<tr>
-<td>Deployment</td>
-<td>Source, Docker, and Compose all-in-one servers are the runnable v0.4 shapes. The Helm api/worker chart is rendered as the post-v0.4 scalable direction.</td>
-</tr>
-</tbody>
-</table>
+<p>Search results are starting points, not evidence. The discipline that makes MFS
+reliable is simple: search to locate, then reopen the exact source before you
+quote it, edit it, or act on it. That loop lifts precise recall <em>and</em> cuts the
+tokens an agent burns getting there.</p>
+<h2 id="how-you-drive-it">How you drive it<a class="headerlink" href="#how-you-drive-it" title="Permanent link">&para;</a></h2>
+<p>MFS ships as two agent <strong>skills</strong> — bundles of commands an agent loads and calls
+on its own:</p>
+<ul>
+<li><strong>mfs-ingest</strong> brings sources in: <code>mfs add</code> registers and indexes any
+  connector (re-run to re-sync), and <code>mfs connector</code> lists, inspects, and removes
+  them.</li>
+<li><strong>mfs-find</strong> finds across what's ingested: <code>search</code> and <code>grep</code> to locate fast,
+  then <code>ls</code>, <code>tree</code>, <code>cat</code>, <code>head</code>, <code>tail</code> to read down to the exact byte.</li>
+</ul>
+<p>You can also drive the same commands by hand from a shell, or call the server
+directly over HTTP and the generated SDKs when you're building something on top.</p>
+<h2 id="under-the-hood">Under the hood<a class="headerlink" href="#under-the-hood" title="Permanent link">&para;</a></h2>
+<p>A thin Rust CLI (<code>mfs</code>) talks to a stateful Python server (<code>mfs-server</code>) over an
+HTTP <code>/v1</code> control plane. The server owns connectors, indexing, retrieval,
+metadata, and caching, and indexes content into Milvus for hybrid search.</p>
+<p>It runs the same either way: fully local and offline on a laptop — ONNX
+embeddings, Milvus Lite, and SQLite, no cloud account required — or at
+production scale with a managed Milvus/Zilliz cluster, Postgres, and a pool of
+workers. Neither is an afterthought; the same components simply swap underneath.</p>
+<h2 id="start-here">Start here<a class="headerlink" href="#start-here" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong><a href="getting-started/">Quickstart</a></strong> — install the CLI, run the server, index
+  a folder, and verify search and browse in a few minutes.</li>
+<li><strong><a href="why/">Why MFS</a></strong> — when MFS earns its keep, and when a plain shell is the
+  better tool.</li>
+<li><strong><a href="architecture/">How it works</a></strong> — the client/server design and where each
+  piece lives.</li>
+<li><strong><a href="connectors/">Connectors</a></strong> — every source you can bring in, and how to
+  configure each one.</li>
+</ul>
 
 
 
