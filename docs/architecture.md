@@ -38,28 +38,24 @@ server.
 A handful of words turn up all over these docs and the diagrams. Here they are in
 plain terms, with one running example: you've just run `mfs add ./repo`.
 
-**What MFS works with:**
-
 | Term | What it is | In the example |
 |---|---|---|
-| **Connector** | A registered source. | `./repo`, a local folder. (Others: `postgres://prod`, `slack://eng`.) |
-| **Object** | One virtual "file" a connector exposes — a path plus a type. | each file in the repo, like `src/main.py`. (For a database, an object is a table's `rows.jsonl`.) |
-| **Job** | One run of `mfs add` — a sync you can watch by its status. | the indexing run you just started. |
-| **Object task** | The work for one object inside a job: convert it, split it, embed it. | "process `src/main.py`" is one task; a big repo is thousands of them. |
-| **Chunk** | One searchable row in the index — the smallest thing `search` and `grep` return. | a span of lines from `src/main.py`. (For a table, one row; for Slack, one thread.) |
+| **Connector** | A registered source. One connector holds **many** objects. | `./repo`, a local folder. (Others: `postgres://prod`, `slack://eng`.) |
+| **Object** | One virtual "file" under a connector — really just one URI path. | each file in the repo, like `src/main.py`. (For a database, an object is a table's `rows.jsonl`.) |
+| **ConnectorJob** | One sync of a *whole* connector — connector-level — with a status you can watch. | the single indexing run you just started for `./repo`. |
+| **Object task** | The work for *one* object inside a job — object-level: convert it, split it, embed it. | "process `src/main.py`" is one task; the job spawns thousands, one per file. |
+| **Metadata DB** | The bookkeeping — which connectors, objects, and ConnectorJobs exist and their state. It also doubles as the **queue** workers pull object tasks from. | tracks the run and lines up the per-file tasks. |
+| **Cache** | Derived bytes kept so MFS never redoes heavy work for the same input. Two kinds: the **artifact cache** holds conversions (a PDF turned into Markdown), the **transformation cache** holds model inputs and outputs (an embedding already computed). | a converted PDF reused on the next sync; an embedding not paid for twice. |
+| **Index** | The searchable rows, in Milvus — what `search` and `grep` actually hit. | the repo, now findable by meaning. |
 
-**Where MFS keeps it:**
+The level is the thing to keep straight: a **connector** holds **many objects**
+(one per URI path); a **ConnectorJob** runs at the connector level — one sync of
+the whole source — and fans out into one **object task** per object. So
+`mfs add ./repo` is a single ConnectorJob that spawns thousands of object tasks,
+one per file.
 
-| Store | What it holds |
-|---|---|
-| **Metadata DB** | The bookkeeping — which connectors, objects, and jobs exist, and their state. It doubles as the **queue** that workers pull tasks from. |
-| **Cache** | Derived bytes kept so reads and re-syncs stay cheap — say, a PDF already converted to text — so MFS never redoes a conversion or re-calls a paid model for the same input. |
-| **Index** | The searchable chunks, in Milvus. This is what `search` and `grep` hit. |
-
-The first set is what you name in commands; the second is how the server makes
-that fast and crash-safe. The original source is always the source of truth —
-everything in the Cache and the Index is derived from it, and can be thrown away
-and rebuilt.
+And the source is always the truth — everything in the Cache and the Index is
+derived from it, and can be thrown away and rebuilt.
 
 ## Everything is a connector — except where the data lives
 
