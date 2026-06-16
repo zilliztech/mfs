@@ -38,6 +38,18 @@ database file or leak state into one another. The classic embedded-database
 failure — one process locks the vector file and another can't even open it — has
 nowhere to occur, because only the server ever touches it.
 
+```text
+ other tools — each process opens the store itself:
+   CLI ─┐
+   watcher ─┼─► milvus.db      ✗ a second opener hits a lock
+   search ─┘
+
+ MFS — only the server opens the store:
+   CLI ──┐
+   SDK ──┼── HTTP /v1 ──► mfs-server ──► Milvus
+   skill ┘                 (sole owner)
+```
+
 ## A ConnectorJob has a real lifecycle
 
 A sync runs as a **ConnectorJob** in a database-backed queue, not as
@@ -48,6 +60,16 @@ it. There's no hidden background scheduler racing itself or re-scanning behind
 your back. Cancelling a job — or removing the connector — also cancels its queued
 ObjectTasks, so a stopped job actually stops instead of draining a queue you no
 longer want.
+
+```text
+ mfs add ──► ConnectorJob (running)      ← at most 1 running + 1 queued per connector
+                 │ enumerate
+                 ▼
+   ObjectTask queue:  [t1][t2][t3] … [tN]
+                 │ workers pull one at a time
+                 ▼
+   cancel / remove ──► remaining tasks → cancelled     (the queue actually empties)
+```
 
 ## Crash-safe and resumable
 
@@ -64,6 +86,14 @@ a re-run overwrites instead of duplicating, and two sources can never collide on
 the same key. That's why there's no `job retry` command, no resume-cursor state
 machine, no "how far did I get" bookkeeping — crashed means re-run, same result.
 
+```text
+ committed as they finish              crash / quota runs out
+ [t1✓][t2✓] … [t8000✓]            ╳   [t8001][t8002] … [tN]
+                                       └── next `mfs add` resumes here
+
+ re-running any task overwrites by content-addressed id — it never duplicates
+```
+
 ## Incremental, and careful about deletions
 
 Re-syncing is incremental: per-object fingerprints (and connector cursors) mean
@@ -72,6 +102,14 @@ is served from cache. Deletion is deliberately conservative — an incremental r
 **never infers deletions**. Only a full-set scan, which has truly enumerated the
 whole source, diffs it and removes what's genuinely gone. A partial or batched
 ingest therefore can't accidentally delete the records it didn't list this time.
+
+```text
+ incremental sync   source yields only what changed ─► update those
+                    (nothing yielded = "unchanged", NOT "deleted")
+
+ full-set scan      enumerate everything ─► diff vs index ─► drop the missing
+                    └─ the only path that ever removes anything
+```
 
 ## Progressive availability, important things first
 
@@ -84,6 +122,15 @@ The order isn't arbitrary. The file connector ranks objects so the highest-signa
 ones go first — entrypoints like `README.md` and `CLAUDE.md`, then core source
 under `src/` / `lib/`, ahead of tests and generated output. The useful answers
 tend to be searchable early, long before the last file is done.
+
+```text
+ priority:  README ▸ src/ ▸ lib/ ▸ tests/ ▸ dist/     (high-signal first)
+ queue:     [█████████ high ──────────────────► low ]
+                 │ workers embed
+                 ▼
+            Index ──grows──►  search hits whatever has landed already
+            (ls --json shows each object: indexed / partial / not_indexed)
+```
 
 ## Reuse instead of recompute
 
@@ -105,6 +152,15 @@ re-embedded. **Renaming a directory** moves every path beneath it, but the
 content is identical — MFS re-keys the affected chunks and reuses their vectors
 rather than re-embedding the whole subtree the way a path-keyed index would.
 
+```text
+ rename dir/old → dir/new    paths change, bytes identical
+     chunks re-keyed to new path  +  vectors REUSED        → 0 re-embed
+
+ git switch branch           most files identical
+     content-hash hit in the transformation cache          → 0 re-embed
+     (only the genuinely changed files cost anything)
+```
+
 ## Failures stay contained
 
 A worker pool drains jobs with timeouts and a circuit breaker. A single malformed
@@ -113,11 +169,24 @@ aborts a job only when failures pile up, surfaced as a clear code instead of a
 silent hang. A job that gets stuck times out and resets instead of wedging the
 queue forever.
 
+```text
+ [t1✓][t2 ✗ failed + skipped][t3✓][t4✓] …    ← one bad object, the rest finish
+        many ✗ in a row ─► circuit breaker ─► job aborts with a clear code
+        stuck task ─► heartbeat timeout ─► reset
+```
+
 ## Isolation between sources
 
 Per-connector configuration is stored as data in the database, not as mutable
 state shared inside a long-lived process. Two projects or sources can't leak
 settings — ignore rules, file extensions, credentials — into each other.
+
+```text
+ connector A ─ its config rows ─┐
+ connector B ─ its config rows ─┼─► Metadata DB    (each keeps its own rows)
+                                no shared in-process state
+   → A's ignore rules / keys never bleed into B
+```
 
 ---
 
