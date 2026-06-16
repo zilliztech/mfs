@@ -653,10 +653,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-four-core-abstractions" class="md-nav__link">
+  <a href="#core-concepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The four core abstractions
+        Core concepts
       
     </span>
   </a>
@@ -2123,10 +2123,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-four-core-abstractions" class="md-nav__link">
+  <a href="#core-concepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The four core abstractions
+        Core concepts
       
     </span>
   </a>
@@ -2217,38 +2217,73 @@ deliberate, and it decides where everything lives.</p>
 an upload when one is needed, call <code>/v1</code>, and render the result. Everything
 stateful — what's registered, what's indexed, what's cached — belongs to the
 server.</p>
-<h2 id="the-four-core-abstractions">The four core abstractions<a class="headerlink" href="#the-four-core-abstractions" title="Permanent link">&para;</a></h2>
-<p>For all that machinery, the system exposes just four concepts:</p>
+<h2 id="core-concepts">Core concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h2>
+<p>A handful of words turn up all over these docs and the diagrams. Here they are in
+plain terms, with one running example: you've just run <code>mfs add ./repo</code>.</p>
+<p><strong>What MFS works with:</strong></p>
 <table>
 <thead>
 <tr>
-<th>Abstraction</th>
+<th>Term</th>
 <th>What it is</th>
+<th>In the example</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>Connector</strong></td>
-<td>One registered source — <code>postgres://prod</code>, <code>./repo</code>, <code>slack://eng</code>. It decides which objects live under its root.</td>
+<td>A registered source.</td>
+<td><code>./repo</code>, a local folder. (Others: <code>postgres://prod</code>, <code>slack://eng</code>.)</td>
 </tr>
 <tr>
 <td><strong>Object</strong></td>
-<td>One virtual file a connector exposes — a path plus a media type.</td>
+<td>One virtual "file" a connector exposes — a path plus a type.</td>
+<td>each file in the repo, like <code>src/main.py</code>. (For a database, an object is a table's <code>rows.jsonl</code>.)</td>
 </tr>
 <tr>
-<td><strong>Artifact cache</strong></td>
-<td>A derived copy of an object (a PDF converted to Markdown, an image's VLM description) so <code>cat</code> / <code>head</code> / <code>tail</code> don't have to hit the source again.</td>
+<td><strong>Job</strong></td>
+<td>One run of <code>mfs add</code> — a sync you can watch by its status.</td>
+<td>the indexing run you just started.</td>
+</tr>
+<tr>
+<td><strong>Object task</strong></td>
+<td>The work for one object inside a job: convert it, split it, embed it.</td>
+<td>"process <code>src/main.py</code>" is one task; a big repo is thousands of them.</td>
 </tr>
 <tr>
 <td><strong>Chunk</strong></td>
-<td>One row in Milvus — the smallest unit <code>search</code> and <code>grep</code> can recall.</td>
+<td>One searchable row in the index — the smallest thing <code>search</code> and <code>grep</code> return.</td>
+<td>a span of lines from <code>src/main.py</code>. (For a table, one row; for Slack, one thread.)</td>
 </tr>
 </tbody>
 </table>
-<p>Each connector decides what objects sit under its root; each object produces its
-artifact cache and chunks on demand. A fifth piece, the <strong>transformation cache</strong>,
-is a purely internal compute cache that memoizes model outputs — you never
-address it directly.</p>
+<p><strong>Where MFS keeps it:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Store</th>
+<th>What it holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Metadata DB</strong></td>
+<td>The bookkeeping — which connectors, objects, and jobs exist, and their state. It doubles as the <strong>queue</strong> that workers pull tasks from.</td>
+</tr>
+<tr>
+<td><strong>Cache</strong></td>
+<td>Derived bytes kept so reads and re-syncs stay cheap — say, a PDF already converted to text — so MFS never redoes a conversion or re-calls a paid model for the same input.</td>
+</tr>
+<tr>
+<td><strong>Index</strong></td>
+<td>The searchable chunks, in Milvus. This is what <code>search</code> and <code>grep</code> hit.</td>
+</tr>
+</tbody>
+</table>
+<p>The first set is what you name in commands; the second is how the server makes
+that fast and crash-safe. The original source is always the source of truth —
+everything in the Cache and the Index is derived from it, and can be thrown away
+and rebuilt.</p>
 <h2 id="everything-is-a-connector-except-where-the-data-lives">Everything is a connector — except where the data lives<a class="headerlink" href="#everything-is-a-connector-except-where-the-data-lives" title="Permanent link">&para;</a></h2>
 <p><code>postgres</code>, <code>slack</code>, <code>github</code>, and <code>file</code> are all the same kind of thing: each
 implements the same <code>list / stat / read / fingerprint / sync</code> contract, flows
