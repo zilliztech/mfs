@@ -11,6 +11,7 @@
   <a href="https://github.com/zilliztech/mfs/actions/workflows/lint.yml"><img src="https://img.shields.io/github/actions/workflow/status/zilliztech/mfs/lint.yml?branch=main&style=flat-square&label=lint" alt="Lint"></a>
   <a href="https://milvus.io/"><img src="https://img.shields.io/badge/powered%20by-Milvus-00A1EA?style=flat-square" alt="Milvus"></a>
   <a href="https://deepwiki.com/zilliztech/mfs"><img src="https://img.shields.io/badge/DeepWiki-AI_docs-purple?style=flat-square&logo=gitbook&logoColor=white" alt="DeepWiki"></a>
+  <a href="https://discord.com/invite/FG6hMJStWu"><img src="https://img.shields.io/badge/Discord-chat-7289da?style=flat-square&logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://x.com/zilliz_universe"><img src="https://img.shields.io/badge/follow-%40zilliz__universe-000000?style=flat-square&logo=x&logoColor=white" alt="X"></a>
   <a href="https://github.com/zilliztech/mfs/stargazers"><img src="https://img.shields.io/github/stars/zilliztech/mfs?style=flat-square" alt="Stars"></a>
 </p>
@@ -576,7 +577,7 @@ spell out in a prompt. Just use MFS normally.
 
 MFS was built for production from day one — not a weekend demo. The split design
 scales to **production-scale** data: pair the vector backend with
-[Zilliz Cloud](https://zilliz.com)'s Vector Lakebase and MFS indexes and searches
+[Zilliz Cloud](https://cloud.zilliz.com/signup?utm_source=github&utm_medium=referral&utm_campaign=mfs-readme)'s Vector Lakebase and MFS indexes and searches
 massive corpora, with the reliability and [design choices below](#-features--how-it-works).
 
 For a split deployment, point the CLI at the server and you're set:
@@ -624,7 +625,7 @@ What each section of `server.toml` configures:
 | Section | Configures | Default | Swap in |
 |---|---|---|---|
 | `[embedding]` | embedding provider · model · dim | local ONNX (BGE-M3 int8, no key) | `openai` · `gemini` · `voyage` · `ollama` · `local` — needs that provider's key/extra |
-| `[milvus]` | vector store | Milvus Lite (file under `~/.mfs/`) | self-hosted Milvus or Zilliz Cloud — set `uri` + `token` |
+| `[milvus]` | vector store | Milvus Lite (file under `~/.mfs/`) | self-hosted Milvus or [Zilliz Cloud](https://cloud.zilliz.com/signup?utm_source=github&utm_medium=referral&utm_campaign=mfs-readme) — set `uri` + `token` |
 | `[database]` | metadata + transformation-cache DB | SQLite (file) | Postgres — set `dsn` |
 | `[artifact_cache]` | converted-blob cache | local fs under `~/.mfs/cache` | size / eviction knobs |
 | `[description]` | image descriptions (vision LLM) | off | `openai` · `anthropic` · `gemini` — needs key |
@@ -633,6 +634,19 @@ What each section of `server.toml` configures:
 
 Secrets never sit in the TOML as plaintext — use `env:VAR` or `file:/path` refs
 and the server resolves them at runtime.
+
+<details>
+<summary>⭐ Get a free Zilliz Cloud cluster (URI + token)</summary>
+
+For a fully managed vector backend,
+[sign up](https://cloud.zilliz.com/signup?utm_source=github&utm_medium=referral&utm_campaign=mfs-readme)
+for a free Zilliz Cloud cluster — the console gives you the **public endpoint
+(URI)** and an **API key (token)**. Put them in `[milvus]` as `uri` + `token`,
+keeping the key out of the TOML with an `env:` ref.
+
+![Sign up and get the URI and API key](https://raw.githubusercontent.com/zilliztech/claude-context/master/assets/signup_and_get_apikey.png)
+
+</details>
 
 <details>
 <summary>Use OpenAI instead of the local model?</summary>
