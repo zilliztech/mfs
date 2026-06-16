@@ -37,6 +37,35 @@ an upload when one is needed, call `/v1`, and render the result as text or JSON.
 Everything stateful — what's registered, what's indexed, what's cached — belongs
 to the server.
 
+## The four core abstractions
+
+For all that machinery, the system exposes just four concepts:
+
+| Abstraction | What it is |
+|---|---|
+| **Connector** | One registered source — `postgres://prod`, `./repo`, `slack://eng`. It decides which objects live under its root. |
+| **Object** | One virtual file a connector exposes — a path plus a media type. |
+| **Artifact cache** | A derived copy of an object (a PDF converted to Markdown, an image's VLM description) so `cat` / `head` / `tail` don't have to hit the source again. |
+| **Chunk** | One row in Milvus — the smallest unit `search` and `grep` can recall. |
+
+Each connector decides what objects sit under its root; each object produces its
+artifact cache and chunks on demand. A fifth piece, the **transformation cache**,
+is a purely internal compute cache that memoizes model outputs — you never
+address it directly (it's in the component table below).
+
+## Everything is a connector — except where the data lives
+
+`postgres`, `slack`, `github`, and `file` are all the same kind of thing: each
+implements the same `list / stat / read / fingerprint / sync` contract, flows
+through the same chunk pipeline, and gets the same search. The one real exception
+is `file`, and the reason is *where the bytes are*. The server can reach most
+sources itself — it connects to Postgres, it calls the Slack API — and pulls the
+data directly. Local files are different: in a client/server setup the bytes live
+on the client machine, where the server can't see them, so the file connector
+adds an upload step (manifest diff → upload → commit). That special case stays
+isolated — the file connector's sync logic is identical whether it runs local or
+remote; only how the bytes reach the server changes.
+
 ## A request, end to end
 
 When you run `mfs search "retry budget" repo/`, the CLI resolves your server URL
