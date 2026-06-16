@@ -1,41 +1,37 @@
 # Architecture
 
-MFS is a client/server system. A thin Rust CLI and the generated SDKs are client
-surfaces; all the real work happens in a stateful Python server. The split is
-deliberate: the client stays small and portable, while connectors, indexing,
-retrieval, and state live in one place that you run once and point everything at.
+MFS is a **thin client over a stateful server**, talking over one HTTP `/v1` API.
+Everything runs the simplest way — client and server on one machine — and the
+same design scales to production by moving where the server runs. The split is
+deliberate, and it decides where everything lives.
 
-```mermaid
-flowchart TB
-  subgraph clients["Clients"]
-    cli["Rust CLI<br/>mfs"]
-    sdk["Generated SDKs<br/>Python / TypeScript"]
-    http["Direct HTTP clients"]
-  end
+- **Client** — the `mfs` CLI, the SDKs, and the agent skills (`mfs-find` /
+  `mfs-ingest`). Stateless, so re-creating it on a laptop, a CI runner, or an
+  agent runtime is free.
+- **Server** (`mfs-server`) — the setup wizard, all config / credentials / env
+  vars, the queue and workers, the engine and connectors, and the data backends.
+  Everything that matters lives here, so `env:` / `file:` secret references always
+  resolve on the server, never on the client.
 
-  cli -->|HTTP /v1 + bearer token| api["Python server<br/>mfs-server"]
-  sdk -->|HTTP /v1 + bearer token| api
-  http -->|HTTP /v1 + bearer token| api
-  api -.->|liveness, no token| health["GET /healthz"]
-
-  api --> engine["Engine<br/>registry · ingest · search · browse"]
-  engine --> jobs["Jobs<br/>inline or queued, worker-drained"]
-  jobs --> connectors["Connector plugins<br/>file + optional built-ins"]
-  connectors --> sources["Source systems<br/>folders · object stores · databases · SaaS · docs"]
-
-  jobs --> transform["Convert · embed<br/>optional VLM + summaries"]
-  transform --> txcache["Transformation cache"]
-  transform --> artifacts["Artifact cache"]
-  transform --> milvus["Milvus / Zilliz / Milvus Lite<br/>indexed chunks"]
-
-  engine --> metadata["Metadata DB<br/>connectors · objects · jobs"]
-  engine --> milvus
+```text
+┌────────────────┐                 ┌────────────────────────────────────────┐
+│ CLIENT         │                 │ SERVER · mfs-server                    │
+│ ────────────── │                 │ ────────────────────────────────────── │
+│ mfs CLI        │                 │ setup wizard                           │
+│ SDKs           │                 │ queue + workers                        │
+│ skills         │                 │ config · env vars · credentials        │
+│   · mfs-find   │ ── HTTP /v1 ──▶ │ engine · connectors · processors       │
+│   · mfs-ingest │                 │ backends (scale up as needed):         │
+└────────────────┘                 │   vector    Milvus Lite → Zilliz Cloud │
+                                   │   metadata  SQLite → Postgres          │
+                                   │   caches    local filesystem → S3      │
+                                   └────────────────────────────────────────┘
 ```
 
 The CLI's only job is to parse a command, resolve the endpoint and token, package
-an upload when one is needed, call `/v1`, and render the result as text or JSON.
-Everything stateful — what's registered, what's indexed, what's cached — belongs
-to the server.
+an upload when one is needed, call `/v1`, and render the result. Everything
+stateful — what's registered, what's indexed, what's cached — belongs to the
+server.
 
 ## The four core abstractions
 
@@ -51,7 +47,7 @@ For all that machinery, the system exposes just four concepts:
 Each connector decides what objects sit under its root; each object produces its
 artifact cache and chunks on demand. A fifth piece, the **transformation cache**,
 is a purely internal compute cache that memoizes model outputs — you never
-address it directly (it's in the component table below).
+address it directly.
 
 ## Everything is a connector — except where the data lives
 
@@ -66,86 +62,63 @@ adds an upload step (manifest diff → upload → commit). That special case sta
 isolated — the file connector's sync logic is identical whether it runs local or
 remote; only how the bytes reach the server changes.
 
-## A request, end to end
+## Where each piece runs
 
-When you run `mfs search "retry budget" repo/`, the CLI resolves your server URL
-and bearer token, issues `GET /v1/search`, and prints the ranked hits. On the
-server, the engine turns the query into a hybrid (semantic + keyword) recall
-against Milvus, scoped to the paths under that connector, and returns each hit
-with the `source` URI and `locator` you need to reopen it.
+The only real deployment choice is **where the server runs**. Run it on your own
+machine, move it onto its own host (a VM or a single container), or scale it out
+across Compose or Kubernetes — the CLI and skills stay with you either way. This
+is the recommended layout per mode; for how to set each piece, see
+[Configuration](configuration.md), and for the topologies see
+[Deployment](deployment.md).
 
-Reads work the opposite way. `search` and `grep` *find*; `ls`, `tree`, `cat`,
-`head`, `tail`, and `export` *fetch*. A browse read goes straight to the
-connector for live bytes rather than to the index — `tree` is just repeated `ls`
-calls, and `cat --locator` hands a structured locator back to the connector to
-resolve. That's why the reliable pattern is always search to locate, then reopen
-the exact source before trusting it.
+| Piece | Local (one machine) | Single host (its own VM or container) | Distributed (Compose / Kubernetes) |
+|---|---|---|---|
+| `mfs` CLI | your machine | your machine | your machine |
+| Agent skills | your machine | your machine | your machine |
+| `mfs-server` + workers | your machine | the server host | the server cluster (api + worker pods) |
+| `mfs-server setup` wizard | your machine | the server host | the server cluster |
+| `server.toml` | your machine | the server host | the server cluster (ConfigMap / mounted file) |
+| Connector credentials + secret files | your machine | the server host | the server cluster (Docker / k8s secrets) |
+| `env:` / `file:` ref values | your machine | the server host | the server cluster (pod env / mounted files) |
+| Vector DB | Milvus Lite (local file) | self-hosted Milvus or Zilliz Cloud | Zilliz Cloud |
+| Metadata DB | SQLite (local file) | Postgres | Postgres |
+| `file://` ingest | server reads the path in place | CLI bundles + uploads the tree | CLI bundles + uploads the tree |
 
-## What the server owns
+A few rows are worth spelling out:
 
-| Component | Where it lives | Responsibility |
-|---|---|---|
-| FastAPI app | `api/` | Wires `/v1`, bearer-token middleware, `/healthz`, error envelopes, request/response models. |
-| Engine | `engine/` | Orchestrates add/sync jobs, connector registration, upload staging, object processing, search, grep, and browse. |
-| Connectors | `connectors/` | Expose local and external sources as URI trees. `file` is always available; other built-ins load lazily when their optional dependencies are installed. |
-| Processors | `processors/` | Convert documents to text, embed chunks, and run optional VLM image descriptions and summaries. |
-| Metadata DB | `storage/metadata/` | Connector registry, object state, and jobs. SQLite by default; Postgres when configured. |
-| Transformation cache | `storage/transformation_cache/` | Caches model outputs (embeddings, summaries, VLM text) so re-syncs don't recompute. |
-| Artifact cache | `storage/artifact_cache.py` | Stores derived blobs such as converted document text on the filesystem. |
-| Vector store | `storage/milvus.py` | Holds indexed chunks in Milvus Lite by default, or a configured Milvus/Zilliz endpoint. |
-| Workers | `worker/`, `engine/job_lane/` | Drain queued jobs. A SQLite all-in-one run can drain in-process; a scaled deployment runs standalone workers. |
-| Rust acceleration | `server-rs/` | Optional PyO3 extension for hot paths (directory walks, hashing, grep, tail); the server falls back to Python when it's absent. |
+- **The client never holds state worth backing up.** The CLI and skills are
+  always "your machine"; the only client file is `client.toml` (which server to
+  talk to). Everything stateful is server-side, so a laptop, CI runner, or fresh
+  container reconnects with zero setup.
+- **Backends scale by configuration, not by code.** Locally everything sits in
+  `$MFS_HOME` (default `~/.mfs`): `server.toml`, the generated token, SQLite,
+  the artifact cache, the ONNX model cache, and Milvus Lite. Point the vector
+  backend at Zilliz Cloud and metadata at Postgres and the same server runs at
+  scale — the engine and connectors don't change.
+- **`file://` ingest is automatic.** On a shared filesystem the server reads the
+  path directly; otherwise the CLI bundles and uploads it — no flag needed. An
+  agent never has to think about this.
 
-## The `/v1` surface
+For a split deployment, point the CLI at the server and you're set:
 
-Every `/v1` request carries `Authorization: Bearer <token>` when the server has
-auth configured. `GET /healthz` sits intentionally outside `/v1` and is never
-token-gated, so liveness probes work without credentials.
+```bash
+export MFS_API_URL=https://mfs.your-corp.internal
+export MFS_API_TOKEN=...
+mfs status
+```
 
-| Group | Endpoints | Drives |
-|---|---|---|
-| Server | `GET /v1/server/info`, `GET /v1/status`, `GET /healthz` | `mfs status`, `mfs config show`, liveness checks |
-| Ingest & jobs | `POST /v1/add`, `POST /v1/upload`, `POST /v1/files/manifest`, `PUT /v1/files/upload`, `GET /v1/jobs`, `GET /v1/jobs/{id}`, `POST /v1/jobs/{id}/cancel` | `mfs add`, upload mode, `mfs job ...` |
-| Connectors | `POST /v1/connectors/probe`, `POST /v1/connectors/estimate`, `GET /v1/connectors/inspect`, `DELETE /v1/connectors` | `mfs connector ...`, `mfs remove` |
-| Retrieval | `GET /v1/search`, `GET /v1/grep` | `mfs search`, `mfs grep` |
-| Browse & read | `GET /v1/ls`, `GET /v1/cat`, `GET /v1/head`, `GET /v1/tail`, `GET /v1/export` | `mfs ls`, `mfs tree`, `mfs cat`, `mfs head`, `mfs tail`, `mfs export` |
+## Where credentials live
 
-The OpenAPI spec at `protocol/openapi.yaml` is the source of truth for these
-paths and their schemas, and both SDKs are generated from it. See
-[HTTP API](api.md) for the full contract.
+A connector's TOML never holds a raw secret — it carries a **reference**, and the
+server resolves it when it builds the connector:
 
-## Two lanes of ingest
+- `env:VAR_NAME` — read from the **server process** environment.
+- `file:/abs/path` — the contents of a file the **server** can read (a mounted
+  Docker / k8s secret, a PEM key).
 
-Indexing a source runs as a job, and a job has two parallel lanes:
-
-- The **object lane** turns each object into searchable chunks: convert it to
-  text if needed, split it, embed the chunks, and write them to Milvus. Document
-  text, code, table rows, message threads, and image descriptions all flow
-  through here.
-- The **job lane** builds the connective tissue — directory summaries and schema
-  summaries that make a large tree navigable and searchable at the folder level,
-  not just the leaf.
-
-Both lanes lean hard on the caches. Re-syncing a source only re-embeds what
-actually changed, because the transformation cache already holds the model output
-for everything that didn't. For the full walkthrough, see
-[Ingest pipeline](ingest-pipeline.md).
-
-## Where state lives
-
-Run modes differ mainly in *where the state sits*, not in how the system behaves.
-
-A local all-in-one run keeps everything under `$MFS_HOME` (default `~/.mfs`):
-config, the generated server token, SQLite, the artifact cache, the ONNX model
-cache, and Milvus Lite. The CLI on the same host reads `$MFS_HOME/server.token`
-automatically, so a first local run needs no manual auth.
-
-A scaled deployment externalizes each of those — Postgres for metadata,
-object storage for artifacts, a managed Milvus/Zilliz endpoint for vectors — and
-runs the API and workers as separate processes. The engine, connectors, and
-retrieval logic are identical; only the backends behind them change. See
-[Configuration](configuration.md) for the precedence rules and
-[Deployment](deployment.md) for the topologies.
-
-For *why* it's put together this way — the failure modes this shape rules out —
-see [Design philosophy](production.md).
+Because resolution happens on the server, the CLI and your agent never touch raw
+credentials, and the database keeps only the `env:` / `file:` reference, never the
+value. Set the variables where `mfs-server` runs — your machine in local mode, the
+server host or pod otherwise. See [Auth and secrets](auth-and-secrets.md) for the
+full boundary and [Design philosophy](production.md) for *why* it's built this
+way.

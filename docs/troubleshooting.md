@@ -152,7 +152,7 @@ known token instead of relying on the auto-generated `/data/server.token`.
 
 `mfs add` queues work and returns a job id immediately. Use `mfs job show` or
 `mfs job list` to follow progress until it succeeds, fails, or is cancelled.
-For the focused lifecycle guide, see [Jobs and Indexing Progress](jobs.md).
+For the status meanings, see [Jobs](cli.md#jobs).
 
 ```bash
 mfs add --upload PATH

@@ -34,7 +34,7 @@ hard failed request.
 |---|---|---|
 | Authentication or request shape | `mfs status`, `mfs config show`, or inspect the HTTP request body | [Troubleshooting](troubleshooting.md#endpoint-and-auth), [Auth and Secrets](auth-and-secrets.md), [HTTP API](api.md#errors) |
 | A path, object, locator, or read operation | `mfs ls PATH --json`, `mfs head PATH -n 20`, or `mfs cat PATH --range A:B` | [Search and Browse](search-and-browse.md#error-recovery), [Troubleshooting](troubleshooting.md#read-and-browse-errors) |
-| A queued or running ingest job | `mfs job list`, then `mfs job show JOB_ID` | [Jobs and Indexing Progress](jobs.md), [Troubleshooting](troubleshooting.md#jobs-and-indexing) |
+| A queued or running ingest job | `mfs job list`, then `mfs job show JOB_ID` | [Troubleshooting](troubleshooting.md#jobs-and-indexing) |
 | A connector source or credentials | `mfs connector inspect TARGET`, then `mfs connector probe TARGET --config FILE` | [Connectors](connectors.md) |
 | Search availability is partial, building, or unavailable | `mfs ls PATH --json`, `mfs job list`, and bounded browse commands | [Search and Browse](search-and-browse.md#browse-when-search-is-weak), [Troubleshooting](troubleshooting.md#empty-search-results) |
 
@@ -49,7 +49,7 @@ middleware, and the canonical protocol table.
 | `validation_error` | 422 | FastAPI or Pydantic rejected the request shape. | Fix the JSON body, query parameter, or field type. | [HTTP API: Errors](api.md#errors) |
 | `bad_request` | 400 | A non-canonical 400 detail reached the runtime wrapper, such as malformed locator JSON or an empty upload body. | Re-check the command flags or HTTP request parameters. | [HTTP API](api.md) |
 | `not_found` | 404 | Path, object, connector, or job id does not match current server state. | Use `mfs connector list`, `mfs ls PATH --json`, or `mfs job list` to find the current identifier. | [Troubleshooting](troubleshooting.md#first-commands) |
-| `conflict` | 409 | A non-canonical conflict reached the runtime wrapper. | Inspect the in-flight job or retry after the conflicting operation finishes. | [Jobs and Indexing Progress](jobs.md) |
+| `conflict` | 409 | A non-canonical conflict reached the runtime wrapper. | Inspect the in-flight job or retry after the conflicting operation finishes. | [Jobs](cli.md#jobs) |
 | `internal_error` | 500 | An uncaught server exception reached the fallback handler. | Capture the request, server logs, and current job or connector state before retrying. | [Server](server.md), [Troubleshooting](troubleshooting.md) |
 
 ## Read and Browse Codes
@@ -68,7 +68,7 @@ middleware, and the canonical protocol table.
 | Code | HTTP | Usually means | First action | Deeper guide |
 |---|---:|---|---|---|
 | `since_unsupported` | 400 | `--since` was used with a connector that does not support a time cursor. | Drop `--since` or use a connector-specific cursor only where documented. | [Connectors](connectors.md) |
-| `sync_already_running` | 409 | A sync job is already in flight for that connector. | Run `mfs job list`, then wait or run `mfs job cancel JOB_ID` if the job should stop. | [Jobs and Indexing Progress](jobs.md) |
+| `sync_already_running` | 409 | A sync job is already in flight for that connector. | Run `mfs job list`, then wait or run `mfs job cancel JOB_ID` if the job should stop. | [Jobs](cli.md#jobs) |
 | `connector_removing` | 409 | The connector is being removed and cannot start new work. | Wait for removal to finish, then retry. | [Connectors](connectors.md) |
 | `connector_unhealthy` | 502 | The source is unreachable or credentials/connectivity failed. | Check server-side credentials and network reachability, then probe the connector. | [Connectors](connectors.md), [Troubleshooting: Connector Failures](troubleshooting.md#connector-failures) |
 | `field_missing` | 400 | A configured structured-source text field is absent. | Fix the connector `[[objects]]` config, then re-run add or update. | [Connectors](connectors.md) |
@@ -82,7 +82,7 @@ depending on when the failure is detected.
 
 | Code | HTTP | Usually means | First action | Deeper guide |
 |---|---:|---|---|---|
-| `embedding_quota_exceeded` | 502 | The embedding provider is out of quota. | Fix quota or billing, then re-run `mfs add ...`. | [Providers and Processing](providers.md), [Jobs and Indexing Progress](jobs.md) |
+| `embedding_quota_exceeded` | 502 | The embedding provider is out of quota. | Fix quota or billing, then re-run `mfs add ...`. | [Providers and processing](providers.md), [Jobs](cli.md#jobs) |
 | `embedding_auth_failed` | 502 | The embedding provider key is missing or invalid. | Fix the provider key in the server environment or config, then re-run `mfs add ...`. | [Providers and Processing](providers.md) |
 | `circuit_breaker_tripped` | 502 | Too many consecutive fatal or exhausted object failures caused the job to abort. | Fix the root cause shown by `mfs job show JOB_ID`, then re-run add. | [Troubleshooting: Jobs and Indexing](troubleshooting.md#jobs-and-indexing) |
 

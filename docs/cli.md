@@ -144,8 +144,8 @@ With `--json`, the queued output is:
 {"job_id":"JOB_ID"}
 ```
 
-For job status meanings, worker behavior, and recovery steps, see
-[Jobs and Indexing Progress](jobs.md).
+For job status meanings see the [Jobs](#jobs) section; for recovery see
+[Troubleshooting](troubleshooting.md#jobs-and-indexing).
 
 ## Search
 
@@ -240,7 +240,21 @@ mfs job cancel JOB_ID
 | `mfs job cancel JOB_ID` | `cancelled: true` or `cancelled: false`. |
 
 Use job ids returned by `mfs add`, `mfs connector add`, or `mfs connector
-update`.
+update`. A job moves through these states:
+
+| Status | Means |
+|---|---|
+| `preparing` | The server is enumerating objects and building task rows; no worker claims it yet. |
+| `queued` | Enumeration is done; a worker can claim it. |
+| `running` | A worker (or an inline `process=true` API request) is processing object tasks. |
+| `succeeded` | Terminal success — check `succeeded_objects` and `failed_objects`. |
+| `failed` | Terminal failure — read `error`, fix the cause, re-run `mfs add`. |
+| `cancelled` | Cancelled directly, or as part of connector removal. |
+
+`mfs add` from the CLI queues work and returns a job id; a worker drains it (the
+local all-in-one server runs one in-process). Status is an open string — display
+unknown values if you build a direct client. When a job fails or stalls, see
+[Troubleshooting](troubleshooting.md#jobs-and-indexing).
 
 ## Connectors
 

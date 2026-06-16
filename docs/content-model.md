@@ -5,8 +5,7 @@ chunks, result envelopes, and safe readback commands.
 
 For daily commands, use [Search and Browse](search-and-browse.md). For source
 setup, use [Connectors](connectors.md). For endpoint schemas, use
-[HTTP API](api.md). For indexing progress, use
-[Jobs and Indexing Progress](jobs.md). For provider and converter behavior, use
+[HTTP API](api.md). For provider and converter behavior, use
 [Providers and Processing](providers.md). For runtime ownership, use
 [Server](server.md) or [Architecture](architecture.md). For recovery, use
 [Troubleshooting](troubleshooting.md).
