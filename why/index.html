@@ -532,17 +532,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#agents-and-humans-drive-it-the-same-way" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Agents and humans drive it the same way
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#how-mfs-compares" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2173,17 +2162,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#agents-and-humans-drive-it-the-same-way" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Agents and humans drive it the same way
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#how-mfs-compares" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2282,23 +2260,12 @@ find, file-like browse to verify.</p>
 <p>If a result looks weak or incomplete, that's usually a clue about <em>indexing</em>, not
 relevance. <code>mfs ls</code>, <code>mfs grep</code>, and the browse commands let you tell a ranking
 problem apart from a "not indexed yet" problem instead of guessing.</p>
-<h2 id="agents-and-humans-drive-it-the-same-way">Agents and humans drive it the same way<a class="headerlink" href="#agents-and-humans-drive-it-the-same-way" title="Permanent link">&para;</a></h2>
-<p>The loop is identical whether a person or an agent is at the keyboard; only the
-ergonomics differ.</p>
-<p>An <strong>agent</strong> should scope its search to a path when it can, keep the <code>source</code> and
-<code>locator</code> from the JSON result, and reopen exact evidence before editing or
-answering — never act on a ranked snippet alone or guess at a locator shape.</p>
-<p>A <strong>person</strong> leans on the human-readable output: <code>mfs tree</code> to get oriented,
-<code>mfs search</code> to find a starting point, and <code>mfs cat --range</code> to read just enough
-context. Save <code>--all</code> for when you genuinely don't know which source holds the
-answer; a scoped path is faster and easier to trust.</p>
 <h2 id="how-mfs-compares">How MFS compares<a class="headerlink" href="#how-mfs-compares" title="Permanent link">&para;</a></h2>
-<p>Plenty of tools do one of these things well; MFS's bet is having them together.
-Two rows below are our own earlier projects — <strong>Claude Context</strong> (a code-search
-MCP) and <strong>memsearch</strong> (an agent memory layer); the others are the closest tools
-in the space — <strong>OpenViking</strong> (agent context database), <strong>Mirage</strong> (a virtual
-filesystem for agents), <strong>CocoIndex</strong> (incremental data ETL), and <strong>LlamaCloud</strong>
-(managed parse + index + retrieval).</p>
+<p>Plenty of tools do one of these things well — code search, agent memory, managed
+RAG, virtual filesystems. MFS's bet is having them all at once: broad sources,
+hybrid search <em>and</em> file-like browse, an agent-native interface, self-hosted, and
+engineered for production. The table sets it against the closest tools in the
+space.</p>
 <table>
 <thead>
 <tr>
@@ -2362,8 +2329,7 @@ filesystem for agents), <strong>CocoIndex</strong> (incremental data ETL), and <
 </tbody>
 </table>
 <p><em>Yes · Partial · — (not a focus of that tool).</em> Only MFS fills every column — and
-it's the only one that pairs hybrid search <em>with</em> file-like browse. LlamaCloud is
-also a managed service, where MFS is self-hosted and open source. See the
+it's the only one that pairs hybrid search <em>with</em> file-like browse. See the
 <a href="../production/">Design philosophy</a> for the engineering behind the last column.</p>
 
 
