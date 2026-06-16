@@ -653,6 +653,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#the-four-core-abstractions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The four core abstractions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#everything-is-a-connector-except-where-the-data-lives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Everything is a connector — except where the data lives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#a-request-end-to-end" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2162,6 +2184,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#the-four-core-abstractions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The four core abstractions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#everything-is-a-connector-except-where-the-data-lives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Everything is a connector — except where the data lives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#a-request-end-to-end" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2269,6 +2313,49 @@ retrieval, and state live in one place that you run once and point everything at
 an upload when one is needed, call <code>/v1</code>, and render the result as text or JSON.
 Everything stateful — what's registered, what's indexed, what's cached — belongs
 to the server.</p>
+<h2 id="the-four-core-abstractions">The four core abstractions<a class="headerlink" href="#the-four-core-abstractions" title="Permanent link">&para;</a></h2>
+<p>For all that machinery, the system exposes just four concepts:</p>
+<table>
+<thead>
+<tr>
+<th>Abstraction</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Connector</strong></td>
+<td>One registered source — <code>postgres://prod</code>, <code>./repo</code>, <code>slack://eng</code>. It decides which objects live under its root.</td>
+</tr>
+<tr>
+<td><strong>Object</strong></td>
+<td>One virtual file a connector exposes — a path plus a media type.</td>
+</tr>
+<tr>
+<td><strong>Artifact cache</strong></td>
+<td>A derived copy of an object (a PDF converted to Markdown, an image's VLM description) so <code>cat</code> / <code>head</code> / <code>tail</code> don't have to hit the source again.</td>
+</tr>
+<tr>
+<td><strong>Chunk</strong></td>
+<td>One row in Milvus — the smallest unit <code>search</code> and <code>grep</code> can recall.</td>
+</tr>
+</tbody>
+</table>
+<p>Each connector decides what objects sit under its root; each object produces its
+artifact cache and chunks on demand. A fifth piece, the <strong>transformation cache</strong>,
+is a purely internal compute cache that memoizes model outputs — you never
+address it directly (it's in the component table below).</p>
+<h2 id="everything-is-a-connector-except-where-the-data-lives">Everything is a connector — except where the data lives<a class="headerlink" href="#everything-is-a-connector-except-where-the-data-lives" title="Permanent link">&para;</a></h2>
+<p><code>postgres</code>, <code>slack</code>, <code>github</code>, and <code>file</code> are all the same kind of thing: each
+implements the same <code>list / stat / read / fingerprint / sync</code> contract, flows
+through the same chunk pipeline, and gets the same search. The one real exception
+is <code>file</code>, and the reason is <em>where the bytes are</em>. The server can reach most
+sources itself — it connects to Postgres, it calls the Slack API — and pulls the
+data directly. Local files are different: in a client/server setup the bytes live
+on the client machine, where the server can't see them, so the file connector
+adds an upload step (manifest diff → upload → commit). That special case stays
+isolated — the file connector's sync logic is identical whether it runs local or
+remote; only how the bytes reach the server changes.</p>
 <h2 id="a-request-end-to-end">A request, end to end<a class="headerlink" href="#a-request-end-to-end" title="Permanent link">&para;</a></h2>
 <p>When you run <code>mfs search "retry budget" repo/</code>, the CLI resolves your server URL
 and bearer token, issues <code>GET /v1/search</code>, and prints the ranked hits. On the
