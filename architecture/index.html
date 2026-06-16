@@ -27,7 +27,7 @@
     
     
       
-        <title>How it works - MFS</title>
+        <title>Architecture - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#how-it-works" class="md-skip">
+        <a href="#architecture" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              How it works
+              Architecture
             
           </span>
         </div>
@@ -609,7 +609,7 @@
   <span class="md-ellipsis">
     
   
-    How it works
+    Architecture
   
 
     
@@ -627,7 +627,7 @@
   <span class="md-ellipsis">
     
   
-    How it works
+    Architecture
   
 
     
@@ -730,7 +730,7 @@
   <span class="md-ellipsis">
     
   
-    Built for production
+    Design philosophy
   
 
     
@@ -2236,7 +2236,7 @@
   
 
 
-<h1 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h1>
+<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
 <p>MFS is a client/server system. A thin Rust CLI and the generated SDKs are client
 surfaces; all the real work happens in a stateful Python server. The split is
 deliberate: the client stays small and portable, while connectors, indexing,
@@ -2413,6 +2413,8 @@ runs the API and workers as separate processes. The engine, connectors, and
 retrieval logic are identical; only the backends behind them change. See
 <a href="../configuration/">Configuration</a> for the precedence rules and
 <a href="../deployment/">Deployment</a> for the topologies.</p>
+<p>For <em>why</em> it's put together this way — the failure modes this shape rules out —
+see <a href="../production/">Design philosophy</a>.</p>
 
 
 

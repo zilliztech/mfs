@@ -595,7 +595,7 @@
   <span class="md-ellipsis">
     
   
-    How it works
+    Architecture
   
 
     
@@ -623,7 +623,7 @@
   <span class="md-ellipsis">
     
   
-    Built for production
+    Design philosophy
   
 
     
@@ -1853,17 +1853,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#related-guides" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related Guides
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -2205,17 +2194,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#related-guides" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related Guides
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -2255,37 +2233,37 @@ agent needs a quick routing reminder before running <code>mfs</code> commands.</
 <tbody>
 <tr>
 <td>Search, grep, list, browse, read, reopen a search hit, or inspect exact evidence from a source that is already in MFS</td>
-<td><a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-find/"><code>mfs-find</code></a></td>
+<td>[<code>mfs-find</code>][mfs-find-skill]</td>
 <td>Read-only retrieval and browse work</td>
 <td><code>mfs search QUERY PATH</code>, <code>mfs search QUERY --all</code>, <code>mfs grep PATTERN PATH</code>, <code>mfs ls PATH --json</code>, <code>mfs cat PATH --range A:B</code>, <code>mfs cat PATH --locator JSON</code></td>
 </tr>
 <tr>
 <td>Add a new local path or connector URI</td>
-<td><a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-ingest/"><code>mfs-ingest</code></a></td>
+<td>[<code>mfs-ingest</code>][mfs-ingest-skill]</td>
 <td>Mutating MFS metadata, artifacts, jobs, and indexes</td>
 <td><code>mfs add TARGET --config FILE</code>, <code>mfs add TARGET</code>, <code>mfs add TARGET --upload</code></td>
 </tr>
 <tr>
 <td>Change an existing connector's TOML, credentials, object rules, or scope</td>
-<td><a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-ingest/"><code>mfs-ingest</code></a></td>
+<td>[<code>mfs-ingest</code>][mfs-ingest-skill]</td>
 <td>Mutating connector config and usually queueing a sync job</td>
 <td><code>mfs connector update TARGET --config FILE</code>, then <code>mfs job show JOB_ID</code></td>
 </tr>
 <tr>
 <td>Re-sync or force a full re-index</td>
-<td><a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-ingest/"><code>mfs-ingest</code></a></td>
+<td>[<code>mfs-ingest</code>][mfs-ingest-skill]</td>
 <td>Mutating index state and potentially re-billing embeddings</td>
 <td><code>mfs add TARGET</code>, <code>mfs add TARGET --since VALUE</code>, <code>mfs add TARGET --force-index</code>, or <code>mfs add TARGET --full</code></td>
 </tr>
 <tr>
 <td>Search returns weak or empty results</td>
-<td>Start with <a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-find/"><code>mfs-find</code></a></td>
+<td>Start with [<code>mfs-find</code>][mfs-find-skill]</td>
 <td>Diagnose query, scope, browse state, and job state before changing ingest</td>
 <td><code>mfs connector inspect TARGET</code>, <code>mfs ls PATH --json</code>, <code>mfs job list</code>, <code>mfs job show JOB_ID</code></td>
 </tr>
 <tr>
 <td>The diagnosis points to bad connector config, missing credentials, zero indexed objects, or a required re-sync</td>
-<td>Switch to <a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-ingest/"><code>mfs-ingest</code></a></td>
+<td>Switch to [<code>mfs-ingest</code>][mfs-ingest-skill]</td>
 <td>Mutating follow-up after a read-only diagnosis</td>
 <td><code>mfs connector probe TARGET --config FILE</code>, <code>mfs connector update TARGET --config FILE</code>, <code>mfs add TARGET</code></td>
 </tr>
@@ -2387,18 +2365,6 @@ so.</p>
 </tr>
 </tbody>
 </table>
-<h2 id="related-guides">Related Guides<a class="headerlink" href="#related-guides" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="../search-and-browse/">Search and Browse</a> for the search-to-read loop,
-  locator reopening, JSON output, and weak-result recovery.</li>
-<li><a href="../connectors/">Connectors</a> for connector selection, lifecycle commands, TOML
-  conventions, credential references, and the connector API map.</li>
-<li><a href="../cli/">CLI Reference</a> for exact command shapes, global <code>--json</code>, jobs,
-  connector management, profiles, config, and local server commands.</li>
-<li><a href="../troubleshooting/">Troubleshooting</a> for endpoint/auth issues, upload mode,
-  job inspection, empty search results, connector failures, and canonical error
-  recovery.</li>
-</ul>
 
 
 

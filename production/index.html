@@ -27,7 +27,7 @@
     
     
       
-        <title>Built for production - MFS</title>
+        <title>Design philosophy - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#built-for-production" class="md-skip">
+        <a href="#design-philosophy" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Built for production
+              Design philosophy
             
           </span>
         </div>
@@ -600,7 +600,7 @@
   <span class="md-ellipsis">
     
   
-    How it works
+    Architecture
   
 
     
@@ -637,7 +637,7 @@
   <span class="md-ellipsis">
     
   
-    Built for production
+    Design philosophy
   
 
     
@@ -655,7 +655,7 @@
   <span class="md-ellipsis">
     
   
-    Built for production
+    Design philosophy
   
 
     
@@ -2280,7 +2280,10 @@
   
 
 
-<h1 id="built-for-production">Built for production<a class="headerlink" href="#built-for-production" title="Permanent link">&para;</a></h1>
+<h1 id="design-philosophy">Design philosophy<a class="headerlink" href="#design-philosophy" title="Permanent link">&para;</a></h1>
+<p>This page is the <em>why</em> behind the <a href="../architecture/">Architecture</a>: the design
+decisions that make MFS hold up in daily use, and the failure modes each one
+rules out.</p>
 <p>Good retrieval quality is the easy part. The hard part of a context layer is
 <em>running it every day</em>: a sync killed halfway, two processes touching the same
 store, an index cleared down to a stub, one malformed file taking out a whole
@@ -2380,7 +2383,7 @@ settings — ignore rules, file extensions, credentials — into each other.</p>
 production by configuration alone: point the vector backend at a managed
 Milvus/Zilliz cluster and metadata at Postgres, and the same crash-safe,
 concurrency-safe, idempotent design handles large corpora and real traffic. See
-<a href="../architecture/">How it works</a> for the components and <a href="../deployment/">Deployment</a>
+<a href="../architecture/">Architecture</a> for the components and <a href="../deployment/">Deployment</a>
 for the topologies.</p>
 
 

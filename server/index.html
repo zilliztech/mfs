@@ -595,7 +595,7 @@
   <span class="md-ellipsis">
     
   
-    How it works
+    Architecture
   
 
     
@@ -623,7 +623,7 @@
   <span class="md-ellipsis">
     
   
-    Built for production
+    Design philosophy
   
 
     
@@ -2096,17 +2096,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#what-to-open-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What To Open Next
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -2287,17 +2276,6 @@
     <span class="md-ellipsis">
       
         Storage and Cache Boundary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-to-open-next" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What To Open Next
       
     </span>
   </a>
@@ -2669,73 +2647,6 @@ connector state only after a job succeeds.</p>
 <p>The Engine constructs all four stores during initialization. During startup it
 loads built-in connectors, connects and initializes metadata, connects the
 transformation cache, connects Milvus, and ensures the namespace collection.</p>
-<h2 id="what-to-open-next">What To Open Next<a class="headerlink" href="#what-to-open-next" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Need</th>
-<th>Page</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Identifiers, locators, chunk kinds, artifacts, and object search status</td>
-<td><a href="../content-model/">Content Model</a></td>
-</tr>
-<tr>
-<td>Exact <code>/v1</code> endpoint paths, request fields, response models, and error envelope</td>
-<td><a href="../api/">HTTP API</a></td>
-</tr>
-<tr>
-<td>Config lookup, <code>MFS_HOME</code>, auth modes, backend defaults, and environment overrides</td>
-<td><a href="../configuration/">Configuration</a></td>
-</tr>
-<tr>
-<td>State components, backup targets, restore order, and reset boundaries</td>
-<td><a href="../storage-and-backup/">Storage and Backup</a></td>
-</tr>
-<tr>
-<td>Process token boundaries, connector credential references, and first auth recovery commands</td>
-<td><a href="../auth-and-secrets/">Auth and Secrets</a></td>
-</tr>
-<tr>
-<td>Embedding, summary, VLM, converter setup, and provider runtime requirements</td>
-<td><a href="../providers/">Providers and Processing</a></td>
-</tr>
-<tr>
-<td>Source, Docker, Compose, and rendered Helm runtime shapes</td>
-<td><a href="../deployment/">Deployment</a></td>
-</tr>
-<tr>
-<td>CLI commands, endpoint resolution, token precedence, and upload behavior</td>
-<td><a href="../cli/">CLI Reference</a></td>
-</tr>
-<tr>
-<td>Connector schemes, TOML config, credentials, and lifecycle commands</td>
-<td><a href="../connectors/">Connectors</a></td>
-</tr>
-<tr>
-<td>Search, browse, and exact-content verification workflow</td>
-<td><a href="../search-and-browse/">Search and Browse</a></td>
-</tr>
-<tr>
-<td>Endpoint, auth, job, indexing, search, and browse failures</td>
-<td><a href="../troubleshooting/">Troubleshooting</a></td>
-</tr>
-<tr>
-<td>Generated Python and TypeScript clients</td>
-<td><a href="../sdks/">SDKs</a></td>
-</tr>
-<tr>
-<td>Local package setup, checks, and OpenAPI-to-SDK regeneration</td>
-<td><a href="../development/">Development</a></td>
-</tr>
-<tr>
-<td>System-wide component map</td>
-<td><a href="../architecture/">Architecture</a></td>
-</tr>
-</tbody>
-</table>
 
 
 

@@ -600,7 +600,7 @@
   <span class="md-ellipsis">
     
   
-    How it works
+    Architecture
   
 
     
@@ -628,7 +628,7 @@
   <span class="md-ellipsis">
     
   
-    Built for production
+    Design philosophy
   
 
     
@@ -830,17 +830,6 @@
     <span class="md-ellipsis">
       
         Job Lane: directory summaries
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-docs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related docs
       
     </span>
   </a>
@@ -2205,17 +2194,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#related-docs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related docs
-      
-    </span>
-  </a>
-  
-</li>
-      
     </ul>
   
 </nav>
@@ -2327,48 +2305,7 @@ them with the same icons:</p>
 </tbody>
 </table>
 <h2 id="high-level-overview">High-level overview<a class="headerlink" href="#high-level-overview" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   ╔═════════════════════════════╗    ╔══════════════════════════════════╗
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   ║  📋  ObjectTask queue       ║    ║  📋  Connector Job context       ║
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   ║      (per-object, durable)  ║    ║      + directory tree            ║
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   ║                             ║    ║      (built during sync)         ║
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   ║   the entry of Object Lane  ║    ║   the entry of the Job Lane      ║
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   ╚══════════════╤══════════════╝    ╚═══════════════╤══════════════════╝
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                  │                                   │
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                  ▼                                   ▼
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   ┌─────────────────────────────┐    ┌──────────────────────────────────┐
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   │   OBJECT LANE  (always on)  │    │   JOB LANE   (optional,          │
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   │                             │    │             [summary].enabled)   │
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>   │   workers claim one         │    │                                  │
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>   │   ObjectTask at a time      │    │   DirTreeBuilder                 │
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>   │                             │    │       ↓                          │
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>   │   Producer pool             │    │   SummaryQueue                   │
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>   │   (one impl per okind)      │    │       ↓                          │
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>   │                             │    │   SummaryWorker pool             │
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>   │   object → stream&lt;Chunk&gt;    │    │   dir → 1 Chunk(directory_summary)│
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>   └──────────────┬──────────────┘    └─────────────────┬────────────────┘
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>                  │                                     │
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>                  │      ┌──────────────────────────┐   │
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>                  ├─────►│  💾  Caches (shared)     │◄──┤
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>                  │      │                          │   │
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>                  │      │  • Transformation Cache  │   │
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>                  │      │  • Artifact Cache        │   │
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>                  │      └──────────────────────────┘   │
-<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>                  │                                     │
-<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>                  ▼                                     ▼
-<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>        ┌──────────────────────────────────────────────────────┐
-<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>        │  🟦  chunks_q  (in-memory, bounded, backpressure)    │
-<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>        │      the single shared tail                          │
-<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>        └──────────────────────────┬───────────────────────────┘
-<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>                                   ▼
-<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>        ┌──────────────────────────────────────────────────────┐
-<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>        │  EmbedConsumer  (process singleton)                  │
-<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>        │  batch → one embed call → one upsert                 │
-<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>        └──────────────────────────┬───────────────────────────┘
-<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>                                   ▼
-<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>        ┌──────────────────────────────────────────────────────┐
-<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>        │  🟩  Index  (Milvus)                                 │
-<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>        └──────────────────────────────────────────────────────┘
-</code></pre></div>
+<p><img alt="Ingest pipeline overview — two upstream lanes share one cache pair, one chunk queue, one embed consumer, and one index" src="https://github.com/user-attachments/assets/68d840c1-b510-49c3-82b5-fd610b2871ed" /></p>
 <p>The two lanes feed into one tail.</p>
 <ul>
 <li><strong>The Object Lane works at object granularity</strong> — it claims one <code>ObjectTask</code>
@@ -2394,40 +2331,7 @@ them with the same icons:</p>
 </ul>
 <p>The next two sections open each lane.</p>
 <h2 id="object-lane-object-chunks-vectors">Object Lane: object → chunks → vectors<a class="headerlink" href="#object-lane-object-chunks-vectors" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>   ╔══════════════════════════════════════════════════════════════════╗
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>   ║   📋  METADATA   (SQLite / Postgres)                             ║
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>   ║                                                                  ║
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>   ║      ObjectTask table   pending objects, durable, crash-safe     ║
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>   ║      Objects table      &quot;object indexed&quot; facts, written by the   ║
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>   ║                          success hook                            ║
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>   ╚════════════╤═════════════════════════════════════════════▲═══════╝
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>                │ claim                                       │ writeback
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>                ▼                                             │
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>   ┌──────────────────────────────────────────────┐           │
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>   │   🟦  Queue ①   ObjectTask queue  (durable)  │           │
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>   └─────────────────────┬────────────────────────┘           │
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>                         ▼                                    │
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>   ┌──────────────────────────────────────────────┐           │   ┌────────────────────────────────┐
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>   │   Producer pool                              │           │   │   💾  Caches                   │
-<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>   │   one ChunksProducer per okind               │ ◄─ r/w ─► │   │                                │
-<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>   │   one object → a stream of Chunks            │           │   │   • Transformation Cache       │
-<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>   └─────────────────────┬────────────────────────┘           │   │     content-addressed          │
-<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>                         ▼                                    │   │     memoization of model       │
-<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>   ┌──────────────────────────────────────────────┐           │   │     outputs (single-flight):   │
-<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>   │   🟦  Queue ②   chunks_q                     │           │   │     vlm / summary / embedding  │
-<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>   │   in-memory, bounded, backpressure           │           │   │                                │
-<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>   └─────────────────────┬────────────────────────┘           │   │   • Artifact Cache             │
-<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>                         ▼                                    │   │     per-object derived blobs   │
-<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>   ┌──────────────────────────────────────────────┐           │   │     (converted_md, …), serves  │
-<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>   │   EmbedConsumer  (process singleton)         │ ◄─ r/w ─► │   │     cat / head / tail          │
-<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>   │   batch → one embed → one upsert             │           │   └────────────────────────────────┘
-<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>   │   per-object atomic: delete-then-write       │── hook ───┘
-<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>   └─────────────────────┬────────────────────────┘
-<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>                         ▼
-<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>   ┌──────────────────────────────────────────────┐
-<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a>   │   🟩  Index   vector store (Milvus)          │
-<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>   └──────────────────────────────────────────────┘
-</code></pre></div>
+<p><img alt="Object Lane — per-object tasks flow into chunks, embeddings, and the shared index" src="https://github.com/user-attachments/assets/9c527db1-b0b1-478c-8a04-e4de9287ade8" /></p>
 <p>Notes:</p>
 <ul>
 <li><strong>Queue ① is durable.</strong> <code>ObjectTask</code> rows sit in the metadata database, so a
@@ -2460,77 +2364,7 @@ them with the same icons:</p>
   with an error string, so the task can be marked failed.</li>
 </ul>
 <h2 id="job-lane-directory-summaries">Job Lane: directory summaries<a class="headerlink" href="#job-lane-directory-summaries" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>                       ╔══════════════════════════════════════╗
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                       ║  Connector sync: every yielded object ║
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>                       ║  is added to the in-memory dir tree   ║
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>                       ╚══════════════════╤═══════════════════╝
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>                                          ▼
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>   ┌──────────────────────────────────────────────────────────────────────┐
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>   │   📂  DirTreeBuilder   (per job, in-memory)                          │
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>   │                                                                      │
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>   │       a directory tree; every node records:                          │
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>   │         ▸ child files / child sub-directories                        │
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>   │         ▸ pending: number of sub-directories not yet summarized       │
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>   │           (files do NOT gate a directory)                            │
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>   │         ▸ summary: the directory&#39;s own summary (written back here    │
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>   │           after folding)                                             │
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>   │                                                                      │
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>   │       built during sync; at sync end finalize() pushes every leaf    │
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>   │       directory (pending == 0). A parent is pushed bottom-up once    │
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>   │       its sub-directory summaries land and its pending reaches zero. │
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>   └─────────────────────────────────┬────────────────────────────────────┘
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>                                     ▼
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>   ┌──────────────────────────────────────────────────────────────────────┐
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>   │   🟦  Queue   SummaryQueue   (in-memory)                             │
-<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>   │                                                                      │
-<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>   │       ▸ per-job heap: deepest directory first (a parent depends      │
-<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>   │         on its children, so summaries must travel bottom-up)         │
-<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>   │       ▸ a cross-job round-robin dispatcher fans into ready_q so      │
-<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>   │         a large job cannot starve a small one                        │
-<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>   └─────────────────────────────────┬────────────────────────────────────┘
-<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a>                                     ▼
-<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a>   ┌──────────────────────────────────────────────────────────────────────┐
-<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a>   │   SummaryWorker pool                                                 │
-<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a>   │                                                                      │
-<a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a>   │   each worker pulls a (job, dir):                                    │
-<a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a>   │                                                                      │
-<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a>   │     ① fold child SOURCE content (not embeddings)                      │
-<a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a>   │         ▸ child file:  text / code / converted markdown ─┐           │
-<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a>   │         ▸ child file:  image → VLM description           │ ─── reuse │
-<a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a>   │         ▸ child dir:   its already-written summary       │   Artifact│
-<a id="__codelineno-2-39" name="__codelineno-2-39" href="#__codelineno-2-39"></a>   │                                                          ─┘   + Transf.
-<a id="__codelineno-2-40" name="__codelineno-2-40" href="#__codelineno-2-40"></a>   │                                                              Cache    │
-<a id="__codelineno-2-41" name="__codelineno-2-41" href="#__codelineno-2-41"></a>   │                                                              (shared  │
-<a id="__codelineno-2-42" name="__codelineno-2-42" href="#__codelineno-2-42"></a>   │                                                              with the │
-<a id="__codelineno-2-43" name="__codelineno-2-43" href="#__codelineno-2-43"></a>   │                                                              Object   │
-<a id="__codelineno-2-44" name="__codelineno-2-44" href="#__codelineno-2-44"></a>   │                                                              Lane)    │
-<a id="__codelineno-2-45" name="__codelineno-2-45" href="#__codelineno-2-45"></a>   │                                                                      │
-<a id="__codelineno-2-46" name="__codelineno-2-46" href="#__codelineno-2-46"></a>   │     ② concatenate → call the summary LLM                              │
-<a id="__codelineno-2-47" name="__codelineno-2-47" href="#__codelineno-2-47"></a>   │         (the result also lands in Transformation Cache,              │
-<a id="__codelineno-2-48" name="__codelineno-2-48" href="#__codelineno-2-48"></a>   │          kind = summary)                                              │
-<a id="__codelineno-2-49" name="__codelineno-2-49" href="#__codelineno-2-49"></a>   │                                                                      │
-<a id="__codelineno-2-50" name="__codelineno-2-50" href="#__codelineno-2-50"></a>   │     ③ write back dir.summary, parent.pending --                       │
-<a id="__codelineno-2-51" name="__codelineno-2-51" href="#__codelineno-2-51"></a>   │         parent reaches zero → push parent into SummaryQueue          │
-<a id="__codelineno-2-52" name="__codelineno-2-52" href="#__codelineno-2-52"></a>   │                                                                      │
-<a id="__codelineno-2-53" name="__codelineno-2-53" href="#__codelineno-2-53"></a>   │     ④ emit Chunk( kind = directory_summary )                          │
-<a id="__codelineno-2-54" name="__codelineno-2-54" href="#__codelineno-2-54"></a>   └─────────────────────────────────┬────────────────────────────────────┘
-<a id="__codelineno-2-55" name="__codelineno-2-55" href="#__codelineno-2-55"></a>                                     │
-<a id="__codelineno-2-56" name="__codelineno-2-56" href="#__codelineno-2-56"></a>                                     ▼
-<a id="__codelineno-2-57" name="__codelineno-2-57" href="#__codelineno-2-57"></a>              ┌─────────────────────────────────────────────┐
-<a id="__codelineno-2-58" name="__codelineno-2-58" href="#__codelineno-2-58"></a>              │   🟦  Queue ②   chunks_q                    │
-<a id="__codelineno-2-59" name="__codelineno-2-59" href="#__codelineno-2-59"></a>              │   ◄── the same chunks_q the Object Lane uses│
-<a id="__codelineno-2-60" name="__codelineno-2-60" href="#__codelineno-2-60"></a>              │                                             │
-<a id="__codelineno-2-61" name="__codelineno-2-61" href="#__codelineno-2-61"></a>              │   directory_summary travels the exact same  │
-<a id="__codelineno-2-62" name="__codelineno-2-62" href="#__codelineno-2-62"></a>              │   downstream:                               │
-<a id="__codelineno-2-63" name="__codelineno-2-63" href="#__codelineno-2-63"></a>              │      → EmbedConsumer                        │
-<a id="__codelineno-2-64" name="__codelineno-2-64" href="#__codelineno-2-64"></a>              │      → embed (Transformation Cache,         │
-<a id="__codelineno-2-65" name="__codelineno-2-65" href="#__codelineno-2-65"></a>              │              kind = embedding)              │
-<a id="__codelineno-2-66" name="__codelineno-2-66" href="#__codelineno-2-66"></a>              │      → upsert into 🟩 Index                 │
-<a id="__codelineno-2-67" name="__codelineno-2-67" href="#__codelineno-2-67"></a>              │                                             │
-<a id="__codelineno-2-68" name="__codelineno-2-68" href="#__codelineno-2-68"></a>              │   it is just one more chunk_kind, alongside │
-<a id="__codelineno-2-69" name="__codelineno-2-69" href="#__codelineno-2-69"></a>              │   file / code / image / ...                 │
-<a id="__codelineno-2-70" name="__codelineno-2-70" href="#__codelineno-2-70"></a>              └─────────────────────────────────────────────┘
-</code></pre></div>
+<p><img alt="Job Lane — bottom-up directory summaries enter the same embedding and index tail" src="https://github.com/user-attachments/assets/19389954-5167-44bd-9406-44e662045e82" /></p>
 <p>Notes:</p>
 <ul>
 <li><strong><code>DirTreeBuilder</code> is in-memory state.</strong> Unlike the durable <code>ObjectTask</code>
@@ -2563,37 +2397,6 @@ them with the same icons:</p>
   budget as the Object Lane image producer, so enabling summaries does not
   double the pressure on the provider.</li>
 </ul>
-<h2 id="related-docs">Related docs<a class="headerlink" href="#related-docs" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>For</th>
-<th>Read</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>System-level boundaries (client / server, API surface)</td>
-<td><a href="../architecture/">Architecture</a></td>
-</tr>
-<tr>
-<td>Server module map and process entrypoints</td>
-<td><a href="../server/">Server</a></td>
-</tr>
-<tr>
-<td>The chunk and content model the producers emit</td>
-<td><a href="../content-model/">Content Model</a></td>
-</tr>
-<tr>
-<td>User-visible job status and progress</td>
-<td><a href="../jobs/">Jobs and Indexing Progress</a></td>
-</tr>
-<tr>
-<td>Cache, embedding, summary, and VLM config knobs</td>
-<td><a href="../configuration/">Configuration</a></td>
-</tr>
-</tbody>
-</table>
 
 
 
