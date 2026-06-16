@@ -135,7 +135,7 @@ project, and show me the exact lines
 
 ### 🧠 Your agent's memory and skills
 
-Past-session memory (chat transcripts as JSONL, notes as Markdown) and reusable
+Past-session memory files (`.md`, `.jsonl`) and reusable
 skills become one searchable namespace — the prompt you tuned last week or a
 decision logged three sessions ago, one query away.
 
