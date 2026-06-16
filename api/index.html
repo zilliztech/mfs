@@ -700,34 +700,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../jobs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Jobs and indexing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../ingest-pipeline/" class="md-nav__link">
         
   
@@ -2738,8 +2710,9 @@ indexing inline before returning.</p>
 </code></pre></div>
 <p>The API models <code>status</code> as a string. Clients should display unknown status
 values instead of hard-coding a closed enum.</p>
-<p>For queued versus inline processing, worker modes, and status recovery, see
-<a href="../jobs/">Jobs and Indexing Progress</a>.</p>
+<p>Send <code>process=false</code> to queue the work (a worker drains it) or <code>process=true</code>
+to index inline before the response returns. For job status meanings see
+<a href="../cli/#jobs">Jobs</a>.</p>
 <h3 id="search">Search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h3>
 <p><code>q</code> is required. <code>path</code>, <code>mode</code>, <code>top_k</code>, and <code>collapse</code> are optional in
 OpenAPI. The server also accepts <code>kind</code> as a comma-separated chunk-kind filter.</p>

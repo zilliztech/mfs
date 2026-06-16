@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://zilliztech.github.io/mfs/ingest-pipeline/">
       
       
-        <link rel="prev" href="../jobs/">
+        <link rel="prev" href="../content-model/">
       
       
         <link rel="next" href="../connectors/">
@@ -685,34 +685,6 @@
     
   
     Content model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../jobs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Jobs and indexing
   
 
     
@@ -2242,7 +2214,7 @@ them with the same icons:</p>
 <ul>
 <li>📋 <strong>Metadata</strong> — durable state describing what work exists and what work is
   done (<code>ObjectTask</code> table, <code>Objects</code> table).</li>
-<li>🟦 <strong>Queues</strong> — the durable <code>ObjectTask</code> queue plus the in-memory <code>chunks_q</code>
+<li>🟦 <strong>Queues</strong> — the durable <code>ObjectTask</code> queue plus the in-memory <code>ChunkQueue</code>
   and <code>SummaryQueue</code>.</li>
 <li>💾 <strong>Caches</strong> — Transformation Cache (content-addressed memoization of model
   outputs) and Artifact Cache (per-object derived blobs, local filesystem).</li>
@@ -2276,7 +2248,7 @@ them with the same icons:</p>
 <tbody>
 <tr>
 <td><strong>Memory ceiling</strong></td>
-<td>A bounded shared queue (<code>chunks_q</code>) makes producers block when the consumer falls behind. The in-flight chunk set is hard-bounded regardless of how chunky the source is.</td>
+<td>A bounded shared queue (<code>ChunkQueue</code>) makes producers block when the consumer falls behind. The in-flight chunk set is hard-bounded regardless of how chunky the source is.</td>
 </tr>
 <tr>
 <td><strong>Batch density</strong></td>
@@ -2292,7 +2264,7 @@ them with the same icons:</p>
 </tr>
 <tr>
 <td><strong>Extensible to new aggregate kinds</strong></td>
-<td>The Job Lane emits its output back into <code>chunks_q</code> as a new <code>chunk_kind</code>. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path.</td>
+<td>The Job Lane emits its output back into <code>ChunkQueue</code> as a new <code>chunk_kind</code>. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path.</td>
 </tr>
 <tr>
 <td><strong>Crash recovery</strong></td>
@@ -2316,7 +2288,7 @@ them with the same icons:</p>
   to fold once enumeration is complete (for a leaf) and its sub-directories are
   summarized; it does <strong>not</strong> wait for its own files to be embedded. Each ready
   directory becomes one chunk.</li>
-<li><strong>From <code>chunks_q</code> onward, everything is shared.</strong> One <code>chunks_q</code>, one
+<li><strong>From <code>ChunkQueue</code> onward, everything is shared.</strong> One <code>ChunkQueue</code>, one
   <code>EmbedConsumer</code>, one cache pair, one index. The Job Lane has no separate embed
   path, no separate upsert path, no separate collection — its output is just
   one more <code>chunk_kind</code> (<code>directory_summary</code>) alongside <code>file</code>, <code>code</code>,
@@ -2342,7 +2314,7 @@ them with the same icons:</p>
   table_rows, table_schema). The pool itself does not know what it will get;
   <code>select_producer(okind, ctx)</code> picks the implementation. Adding a new kind is
   one new producer file plus one new dispatch branch.</li>
-<li><strong>Queue ② is in-memory and bounded.</strong> <code>chunks_q</code> is an <code>asyncio.Queue</code> whose
+<li><strong>Queue ② is in-memory and bounded.</strong> <code>ChunkQueue</code> is an <code>asyncio.Queue</code> whose
   <code>maxsize</code> is derived from <code>embedding.batch_size</code>. When the consumer falls
   behind, producers block on <code>put()</code>. This is the single most important
   property of the redesign: the upstream cannot outrun the downstream, so the
@@ -2387,7 +2359,7 @@ them with the same icons:</p>
   in the Transformation Cache under a single-flight lock. The two lanes never
   re-run the same work for the same input, even if they reach it concurrently.</li>
 <li><strong>The Job Lane shares the tail.</strong> Every <code>directory_summary</code> chunk is written
-  into the same <code>chunks_q</code>. There is no separate embed path, no separate upsert
+  into the same <code>ChunkQueue</code>. There is no separate embed path, no separate upsert
   path, no separate index. From the <code>EmbedConsumer</code>'s perspective,
   <code>directory_summary</code> is just one more <code>chunk_kind</code>, sitting next to <code>file</code>,
   <code>code</code>, <code>image</code>, and the rest in the same Milvus collection.</li>

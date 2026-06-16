@@ -700,34 +700,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../jobs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Jobs and indexing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../ingest-pipeline/" class="md-nav__link">
         
   
@@ -2353,7 +2325,7 @@ restore action is not backed by the current repository behavior, this page tells
 you to stop at inspection or use a connector-level rebuild.</p>
 <p>For configuration precedence, see <a href="../configuration/">Configuration</a>. For source,
 Docker, Compose, and rendered Helm shapes, see <a href="../deployment/">Deployment</a>. For
-worker and job state, see <a href="../jobs/">Jobs and Indexing Progress</a>. For endpoint
+worker and job state, see <a href="../deployment/">Deployment</a>. For endpoint
 and indexing triage, see <a href="../troubleshooting/">Troubleshooting</a>. For the runtime
 module map behind these statements, see <a href="../server/">Server</a>.</p>
 <h2 id="mental-model">Mental Model<a class="headerlink" href="#mental-model" title="Permanent link">&para;</a></h2>
@@ -2675,7 +2647,7 @@ Milvus configuration.</p>
 <ol>
 <li>Identify the deployment shape and active backend settings.</li>
 <li>Stop or quiesce API and worker processes. For queued work, inspect
-   <a href="../jobs/">Jobs and Indexing Progress</a> first.</li>
+   running jobs with <code>mfs job list</code> first.</li>
 <li>Confirm there are no jobs you need to preserve in a running state.</li>
 <li>Snapshot metadata and Milvus together for local SQLite/Milvus Lite.</li>
 <li>Include config and token files.</li>

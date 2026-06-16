@@ -700,34 +700,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../jobs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Jobs and indexing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../ingest-pipeline/" class="md-nav__link">
         
   
@@ -2665,8 +2637,8 @@ Docker and Compose examples.</p>
 <p>With <code>--json</code>, the queued output is:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span><span class="nt">&quot;job_id&quot;</span><span class="p">:</span><span class="s2">&quot;JOB_ID&quot;</span><span class="p">}</span>
 </code></pre></div>
-<p>For job status meanings, worker behavior, and recovery steps, see
-<a href="../jobs/">Jobs and Indexing Progress</a>.</p>
+<p>For job status meanings see the <a href="#jobs">Jobs</a> section; for recovery see
+<a href="../troubleshooting/#jobs-and-indexing">Troubleshooting</a>.</p>
 <h2 id="search">Search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h2>
 <p><code>mfs search</code> requires either a scoped <code>PATH</code> or <code>--all</code>.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;rate limit handler&quot;</span><span class="w"> </span>./repo<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>
@@ -2810,7 +2782,45 @@ patterns.</p>
 </tbody>
 </table>
 <p>Use job ids returned by <code>mfs add</code>, <code>mfs connector add</code>, or <code>mfs connector
-update</code>.</p>
+update</code>. A job moves through these states:</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>preparing</code></td>
+<td>The server is enumerating objects and building task rows; no worker claims it yet.</td>
+</tr>
+<tr>
+<td><code>queued</code></td>
+<td>Enumeration is done; a worker can claim it.</td>
+</tr>
+<tr>
+<td><code>running</code></td>
+<td>A worker (or an inline <code>process=true</code> API request) is processing object tasks.</td>
+</tr>
+<tr>
+<td><code>succeeded</code></td>
+<td>Terminal success — check <code>succeeded_objects</code> and <code>failed_objects</code>.</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>Terminal failure — read <code>error</code>, fix the cause, re-run <code>mfs add</code>.</td>
+</tr>
+<tr>
+<td><code>cancelled</code></td>
+<td>Cancelled directly, or as part of connector removal.</td>
+</tr>
+</tbody>
+</table>
+<p><code>mfs add</code> from the CLI queues work and returns a job id; a worker drains it (the
+local all-in-one server runs one in-process). Status is an open string — display
+unknown values if you build a direct client. When a job fails or stalls, see
+<a href="../troubleshooting/#jobs-and-indexing">Troubleshooting</a>.</p>
 <h2 id="connectors">Connectors<a class="headerlink" href="#connectors" title="Permanent link">&para;</a></h2>
 <p>Connector commands are the CLI entry point for source lifecycle tasks. For the
 catalog and connector-specific TOML guidance, see <a href="../connectors/">Connectors</a>.</p>

@@ -675,10 +675,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-request-end-to-end" class="md-nav__link">
+  <a href="#where-each-piece-runs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        A request, end to end
+        Where each piece runs
       
     </span>
   </a>
@@ -686,43 +686,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-the-server-owns" class="md-nav__link">
+  <a href="#where-credentials-live" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What the server owns
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-v1-surface" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The /v1 surface
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#two-lanes-of-ingest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two lanes of ingest
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-state-lives" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where state lives
+        Where credentials live
       
     </span>
   </a>
@@ -809,34 +776,6 @@
     
   
     Content model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../jobs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Jobs and indexing
   
 
     
@@ -2206,10 +2145,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-request-end-to-end" class="md-nav__link">
+  <a href="#where-each-piece-runs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        A request, end to end
+        Where each piece runs
       
     </span>
   </a>
@@ -2217,43 +2156,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-the-server-owns" class="md-nav__link">
+  <a href="#where-credentials-live" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What the server owns
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-v1-surface" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The /v1 surface
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#two-lanes-of-ingest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two lanes of ingest
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-state-lives" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where state lives
+        Where credentials live
       
     </span>
   </a>
@@ -2281,38 +2187,36 @@
 
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>MFS is a client/server system. A thin Rust CLI and the generated SDKs are client
-surfaces; all the real work happens in a stateful Python server. The split is
-deliberate: the client stays small and portable, while connectors, indexing,
-retrieval, and state live in one place that you run once and point everything at.</p>
-<pre class="mermaid"><code>flowchart TB
-  subgraph clients["Clients"]
-    cli["Rust CLI&lt;br/&gt;mfs"]
-    sdk["Generated SDKs&lt;br/&gt;Python / TypeScript"]
-    http["Direct HTTP clients"]
-  end
-
-  cli --&gt;|HTTP /v1 + bearer token| api["Python server&lt;br/&gt;mfs-server"]
-  sdk --&gt;|HTTP /v1 + bearer token| api
-  http --&gt;|HTTP /v1 + bearer token| api
-  api -.-&gt;|liveness, no token| health["GET /healthz"]
-
-  api --&gt; engine["Engine&lt;br/&gt;registry · ingest · search · browse"]
-  engine --&gt; jobs["Jobs&lt;br/&gt;inline or queued, worker-drained"]
-  jobs --&gt; connectors["Connector plugins&lt;br/&gt;file + optional built-ins"]
-  connectors --&gt; sources["Source systems&lt;br/&gt;folders · object stores · databases · SaaS · docs"]
-
-  jobs --&gt; transform["Convert · embed&lt;br/&gt;optional VLM + summaries"]
-  transform --&gt; txcache["Transformation cache"]
-  transform --&gt; artifacts["Artifact cache"]
-  transform --&gt; milvus["Milvus / Zilliz / Milvus Lite&lt;br/&gt;indexed chunks"]
-
-  engine --&gt; metadata["Metadata DB&lt;br/&gt;connectors · objects · jobs"]
-  engine --&gt; milvus</code></pre>
+<p>MFS is a <strong>thin client over a stateful server</strong>, talking over one HTTP <code>/v1</code> API.
+Everything runs the simplest way — client and server on one machine — and the
+same design scales to production by moving where the server runs. The split is
+deliberate, and it decides where everything lives.</p>
+<ul>
+<li><strong>Client</strong> — the <code>mfs</code> CLI, the SDKs, and the agent skills (<code>mfs-find</code> /
+  <code>mfs-ingest</code>). Stateless, so re-creating it on a laptop, a CI runner, or an
+  agent runtime is free.</li>
+<li><strong>Server</strong> (<code>mfs-server</code>) — the setup wizard, all config / credentials / env
+  vars, the queue and workers, the engine and connectors, and the data backends.
+  Everything that matters lives here, so <code>env:</code> / <code>file:</code> secret references always
+  resolve on the server, never on the client.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌────────────────┐                 ┌────────────────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│ CLIENT         │                 │ SERVER · mfs-server                    │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│ ────────────── │                 │ ────────────────────────────────────── │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│ mfs CLI        │                 │ setup wizard                           │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│ SDKs           │                 │ queue + workers                        │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│ skills         │                 │ config · env vars · credentials        │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   · mfs-find   │ ── HTTP /v1 ──▶ │ engine · connectors · processors       │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   · mfs-ingest │                 │ backends (scale up as needed):         │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>└────────────────┘                 │   vector    Milvus Lite → Zilliz Cloud │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>                                   │   metadata  SQLite → Postgres          │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>                                   │   caches    local filesystem → S3      │
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                                   └────────────────────────────────────────┘
+</code></pre></div>
 <p>The CLI's only job is to parse a command, resolve the endpoint and token, package
-an upload when one is needed, call <code>/v1</code>, and render the result as text or JSON.
-Everything stateful — what's registered, what's indexed, what's cached — belongs
-to the server.</p>
+an upload when one is needed, call <code>/v1</code>, and render the result. Everything
+stateful — what's registered, what's indexed, what's cached — belongs to the
+server.</p>
 <h2 id="the-four-core-abstractions">The four core abstractions<a class="headerlink" href="#the-four-core-abstractions" title="Permanent link">&para;</a></h2>
 <p>For all that machinery, the system exposes just four concepts:</p>
 <table>
@@ -2344,7 +2248,7 @@ to the server.</p>
 <p>Each connector decides what objects sit under its root; each object produces its
 artifact cache and chunks on demand. A fifth piece, the <strong>transformation cache</strong>,
 is a purely internal compute cache that memoizes model outputs — you never
-address it directly (it's in the component table below).</p>
+address it directly.</p>
 <h2 id="everything-is-a-connector-except-where-the-data-lives">Everything is a connector — except where the data lives<a class="headerlink" href="#everything-is-a-connector-except-where-the-data-lives" title="Permanent link">&para;</a></h2>
 <p><code>postgres</code>, <code>slack</code>, <code>github</code>, and <code>file</code> are all the same kind of thing: each
 implements the same <code>list / stat / read / fingerprint / sync</code> contract, flows
@@ -2356,152 +2260,119 @@ on the client machine, where the server can't see them, so the file connector
 adds an upload step (manifest diff → upload → commit). That special case stays
 isolated — the file connector's sync logic is identical whether it runs local or
 remote; only how the bytes reach the server changes.</p>
-<h2 id="a-request-end-to-end">A request, end to end<a class="headerlink" href="#a-request-end-to-end" title="Permanent link">&para;</a></h2>
-<p>When you run <code>mfs search "retry budget" repo/</code>, the CLI resolves your server URL
-and bearer token, issues <code>GET /v1/search</code>, and prints the ranked hits. On the
-server, the engine turns the query into a hybrid (semantic + keyword) recall
-against Milvus, scoped to the paths under that connector, and returns each hit
-with the <code>source</code> URI and <code>locator</code> you need to reopen it.</p>
-<p>Reads work the opposite way. <code>search</code> and <code>grep</code> <em>find</em>; <code>ls</code>, <code>tree</code>, <code>cat</code>,
-<code>head</code>, <code>tail</code>, and <code>export</code> <em>fetch</em>. A browse read goes straight to the
-connector for live bytes rather than to the index — <code>tree</code> is just repeated <code>ls</code>
-calls, and <code>cat --locator</code> hands a structured locator back to the connector to
-resolve. That's why the reliable pattern is always search to locate, then reopen
-the exact source before trusting it.</p>
-<h2 id="what-the-server-owns">What the server owns<a class="headerlink" href="#what-the-server-owns" title="Permanent link">&para;</a></h2>
+<h2 id="where-each-piece-runs">Where each piece runs<a class="headerlink" href="#where-each-piece-runs" title="Permanent link">&para;</a></h2>
+<p>The only real deployment choice is <strong>where the server runs</strong>. Run it on your own
+machine, move it onto its own host (a VM or a single container), or scale it out
+across Compose or Kubernetes — the CLI and skills stay with you either way. This
+is the recommended layout per mode; for how to set each piece, see
+<a href="../configuration/">Configuration</a>, and for the topologies see
+<a href="../deployment/">Deployment</a>.</p>
 <table>
 <thead>
 <tr>
-<th>Component</th>
-<th>Where it lives</th>
-<th>Responsibility</th>
+<th>Piece</th>
+<th>Local (one machine)</th>
+<th>Single host (its own VM or container)</th>
+<th>Distributed (Compose / Kubernetes)</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>FastAPI app</td>
-<td><code>api/</code></td>
-<td>Wires <code>/v1</code>, bearer-token middleware, <code>/healthz</code>, error envelopes, request/response models.</td>
+<td><code>mfs</code> CLI</td>
+<td>your machine</td>
+<td>your machine</td>
+<td>your machine</td>
 </tr>
 <tr>
-<td>Engine</td>
-<td><code>engine/</code></td>
-<td>Orchestrates add/sync jobs, connector registration, upload staging, object processing, search, grep, and browse.</td>
+<td>Agent skills</td>
+<td>your machine</td>
+<td>your machine</td>
+<td>your machine</td>
 </tr>
 <tr>
-<td>Connectors</td>
-<td><code>connectors/</code></td>
-<td>Expose local and external sources as URI trees. <code>file</code> is always available; other built-ins load lazily when their optional dependencies are installed.</td>
+<td><code>mfs-server</code> + workers</td>
+<td>your machine</td>
+<td>the server host</td>
+<td>the server cluster (api + worker pods)</td>
 </tr>
 <tr>
-<td>Processors</td>
-<td><code>processors/</code></td>
-<td>Convert documents to text, embed chunks, and run optional VLM image descriptions and summaries.</td>
+<td><code>mfs-server setup</code> wizard</td>
+<td>your machine</td>
+<td>the server host</td>
+<td>the server cluster</td>
+</tr>
+<tr>
+<td><code>server.toml</code></td>
+<td>your machine</td>
+<td>the server host</td>
+<td>the server cluster (ConfigMap / mounted file)</td>
+</tr>
+<tr>
+<td>Connector credentials + secret files</td>
+<td>your machine</td>
+<td>the server host</td>
+<td>the server cluster (Docker / k8s secrets)</td>
+</tr>
+<tr>
+<td><code>env:</code> / <code>file:</code> ref values</td>
+<td>your machine</td>
+<td>the server host</td>
+<td>the server cluster (pod env / mounted files)</td>
+</tr>
+<tr>
+<td>Vector DB</td>
+<td>Milvus Lite (local file)</td>
+<td>self-hosted Milvus or Zilliz Cloud</td>
+<td>Zilliz Cloud</td>
 </tr>
 <tr>
 <td>Metadata DB</td>
-<td><code>storage/metadata/</code></td>
-<td>Connector registry, object state, and jobs. SQLite by default; Postgres when configured.</td>
+<td>SQLite (local file)</td>
+<td>Postgres</td>
+<td>Postgres</td>
 </tr>
 <tr>
-<td>Transformation cache</td>
-<td><code>storage/transformation_cache/</code></td>
-<td>Caches model outputs (embeddings, summaries, VLM text) so re-syncs don't recompute.</td>
-</tr>
-<tr>
-<td>Artifact cache</td>
-<td><code>storage/artifact_cache.py</code></td>
-<td>Stores derived blobs such as converted document text on the filesystem.</td>
-</tr>
-<tr>
-<td>Vector store</td>
-<td><code>storage/milvus.py</code></td>
-<td>Holds indexed chunks in Milvus Lite by default, or a configured Milvus/Zilliz endpoint.</td>
-</tr>
-<tr>
-<td>Workers</td>
-<td><code>worker/</code>, <code>engine/job_lane/</code></td>
-<td>Drain queued jobs. A SQLite all-in-one run can drain in-process; a scaled deployment runs standalone workers.</td>
-</tr>
-<tr>
-<td>Rust acceleration</td>
-<td><code>server-rs/</code></td>
-<td>Optional PyO3 extension for hot paths (directory walks, hashing, grep, tail); the server falls back to Python when it's absent.</td>
+<td><code>file://</code> ingest</td>
+<td>server reads the path in place</td>
+<td>CLI bundles + uploads the tree</td>
+<td>CLI bundles + uploads the tree</td>
 </tr>
 </tbody>
 </table>
-<h2 id="the-v1-surface">The <code>/v1</code> surface<a class="headerlink" href="#the-v1-surface" title="Permanent link">&para;</a></h2>
-<p>Every <code>/v1</code> request carries <code>Authorization: Bearer &lt;token&gt;</code> when the server has
-auth configured. <code>GET /healthz</code> sits intentionally outside <code>/v1</code> and is never
-token-gated, so liveness probes work without credentials.</p>
-<table>
-<thead>
-<tr>
-<th>Group</th>
-<th>Endpoints</th>
-<th>Drives</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Server</td>
-<td><code>GET /v1/server/info</code>, <code>GET /v1/status</code>, <code>GET /healthz</code></td>
-<td><code>mfs status</code>, <code>mfs config show</code>, liveness checks</td>
-</tr>
-<tr>
-<td>Ingest &amp; jobs</td>
-<td><code>POST /v1/add</code>, <code>POST /v1/upload</code>, <code>POST /v1/files/manifest</code>, <code>PUT /v1/files/upload</code>, <code>GET /v1/jobs</code>, <code>GET /v1/jobs/{id}</code>, <code>POST /v1/jobs/{id}/cancel</code></td>
-<td><code>mfs add</code>, upload mode, <code>mfs job ...</code></td>
-</tr>
-<tr>
-<td>Connectors</td>
-<td><code>POST /v1/connectors/probe</code>, <code>POST /v1/connectors/estimate</code>, <code>GET /v1/connectors/inspect</code>, <code>DELETE /v1/connectors</code></td>
-<td><code>mfs connector ...</code>, <code>mfs remove</code></td>
-</tr>
-<tr>
-<td>Retrieval</td>
-<td><code>GET /v1/search</code>, <code>GET /v1/grep</code></td>
-<td><code>mfs search</code>, <code>mfs grep</code></td>
-</tr>
-<tr>
-<td>Browse &amp; read</td>
-<td><code>GET /v1/ls</code>, <code>GET /v1/cat</code>, <code>GET /v1/head</code>, <code>GET /v1/tail</code>, <code>GET /v1/export</code></td>
-<td><code>mfs ls</code>, <code>mfs tree</code>, <code>mfs cat</code>, <code>mfs head</code>, <code>mfs tail</code>, <code>mfs export</code></td>
-</tr>
-</tbody>
-</table>
-<p>The OpenAPI spec at <code>protocol/openapi.yaml</code> is the source of truth for these
-paths and their schemas, and both SDKs are generated from it. See
-<a href="../api/">HTTP API</a> for the full contract.</p>
-<h2 id="two-lanes-of-ingest">Two lanes of ingest<a class="headerlink" href="#two-lanes-of-ingest" title="Permanent link">&para;</a></h2>
-<p>Indexing a source runs as a job, and a job has two parallel lanes:</p>
+<p>A few rows are worth spelling out:</p>
 <ul>
-<li>The <strong>object lane</strong> turns each object into searchable chunks: convert it to
-  text if needed, split it, embed the chunks, and write them to Milvus. Document
-  text, code, table rows, message threads, and image descriptions all flow
-  through here.</li>
-<li>The <strong>job lane</strong> builds the connective tissue — directory summaries and schema
-  summaries that make a large tree navigable and searchable at the folder level,
-  not just the leaf.</li>
+<li><strong>The client never holds state worth backing up.</strong> The CLI and skills are
+  always "your machine"; the only client file is <code>client.toml</code> (which server to
+  talk to). Everything stateful is server-side, so a laptop, CI runner, or fresh
+  container reconnects with zero setup.</li>
+<li><strong>Backends scale by configuration, not by code.</strong> Locally everything sits in
+  <code>$MFS_HOME</code> (default <code>~/.mfs</code>): <code>server.toml</code>, the generated token, SQLite,
+  the artifact cache, the ONNX model cache, and Milvus Lite. Point the vector
+  backend at Zilliz Cloud and metadata at Postgres and the same server runs at
+  scale — the engine and connectors don't change.</li>
+<li><strong><code>file://</code> ingest is automatic.</strong> On a shared filesystem the server reads the
+  path directly; otherwise the CLI bundles and uploads it — no flag needed. An
+  agent never has to think about this.</li>
 </ul>
-<p>Both lanes lean hard on the caches. Re-syncing a source only re-embeds what
-actually changed, because the transformation cache already holds the model output
-for everything that didn't. For the full walkthrough, see
-<a href="../ingest-pipeline/">Ingest pipeline</a>.</p>
-<h2 id="where-state-lives">Where state lives<a class="headerlink" href="#where-state-lives" title="Permanent link">&para;</a></h2>
-<p>Run modes differ mainly in <em>where the state sits</em>, not in how the system behaves.</p>
-<p>A local all-in-one run keeps everything under <code>$MFS_HOME</code> (default <code>~/.mfs</code>):
-config, the generated server token, SQLite, the artifact cache, the ONNX model
-cache, and Milvus Lite. The CLI on the same host reads <code>$MFS_HOME/server.token</code>
-automatically, so a first local run needs no manual auth.</p>
-<p>A scaled deployment externalizes each of those — Postgres for metadata,
-object storage for artifacts, a managed Milvus/Zilliz endpoint for vectors — and
-runs the API and workers as separate processes. The engine, connectors, and
-retrieval logic are identical; only the backends behind them change. See
-<a href="../configuration/">Configuration</a> for the precedence rules and
-<a href="../deployment/">Deployment</a> for the topologies.</p>
-<p>For <em>why</em> it's put together this way — the failure modes this shape rules out —
-see <a href="../production/">Design philosophy</a>.</p>
+<p>For a split deployment, point the CLI at the server and you're set:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_URL</span><span class="o">=</span>https://mfs.your-corp.internal
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_TOKEN</span><span class="o">=</span>...
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>mfs<span class="w"> </span>status
+</code></pre></div>
+<h2 id="where-credentials-live">Where credentials live<a class="headerlink" href="#where-credentials-live" title="Permanent link">&para;</a></h2>
+<p>A connector's TOML never holds a raw secret — it carries a <strong>reference</strong>, and the
+server resolves it when it builds the connector:</p>
+<ul>
+<li><code>env:VAR_NAME</code> — read from the <strong>server process</strong> environment.</li>
+<li><code>file:/abs/path</code> — the contents of a file the <strong>server</strong> can read (a mounted
+  Docker / k8s secret, a PEM key).</li>
+</ul>
+<p>Because resolution happens on the server, the CLI and your agent never touch raw
+credentials, and the database keeps only the <code>env:</code> / <code>file:</code> reference, never the
+value. Set the variables where <code>mfs-server</code> runs — your machine in local mode, the
+server host or pod otherwise. See <a href="../auth-and-secrets/">Auth and secrets</a> for the
+full boundary and <a href="../production/">Design philosophy</a> for <em>why</em> it's built this
+way.</p>
 
 
 

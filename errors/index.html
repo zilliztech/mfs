@@ -700,34 +700,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../jobs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Jobs and indexing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../ingest-pipeline/" class="md-nav__link">
         
   
@@ -2304,7 +2276,7 @@ hard failed request.</p>
 <tr>
 <td>A queued or running ingest job</td>
 <td><code>mfs job list</code>, then <code>mfs job show JOB_ID</code></td>
-<td><a href="../jobs/">Jobs and Indexing Progress</a>, <a href="../troubleshooting/#jobs-and-indexing">Troubleshooting</a></td>
+<td><a href="../troubleshooting/#jobs-and-indexing">Troubleshooting</a></td>
 </tr>
 <tr>
 <td>A connector source or credentials</td>
@@ -2365,7 +2337,7 @@ middleware, and the canonical protocol table.</p>
 <td style="text-align: right;">409</td>
 <td>A non-canonical conflict reached the runtime wrapper.</td>
 <td>Inspect the in-flight job or retry after the conflicting operation finishes.</td>
-<td><a href="../jobs/">Jobs and Indexing Progress</a></td>
+<td><a href="../cli/#jobs">Jobs</a></td>
 </tr>
 <tr>
 <td><code>internal_error</code></td>
@@ -2456,7 +2428,7 @@ middleware, and the canonical protocol table.</p>
 <td style="text-align: right;">409</td>
 <td>A sync job is already in flight for that connector.</td>
 <td>Run <code>mfs job list</code>, then wait or run <code>mfs job cancel JOB_ID</code> if the job should stop.</td>
-<td><a href="../jobs/">Jobs and Indexing Progress</a></td>
+<td><a href="../cli/#jobs">Jobs</a></td>
 </tr>
 <tr>
 <td><code>connector_removing</code></td>
@@ -2514,7 +2486,7 @@ depending on when the failure is detected.</p>
 <td style="text-align: right;">502</td>
 <td>The embedding provider is out of quota.</td>
 <td>Fix quota or billing, then re-run <code>mfs add ...</code>.</td>
-<td><a href="../providers/">Providers and Processing</a>, <a href="../jobs/">Jobs and Indexing Progress</a></td>
+<td><a href="../providers/">Providers and processing</a>, <a href="../cli/#jobs">Jobs</a></td>
 </tr>
 <tr>
 <td><code>embedding_auth_failed</code></td>
