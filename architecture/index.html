@@ -664,17 +664,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#everything-is-a-connector-except-where-the-data-lives" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Everything is a connector — except where the data lives
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#where-each-piece-runs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -690,6 +679,17 @@
     <span class="md-ellipsis">
       
         Where credentials live
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-is-the-special-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File is the special case
       
     </span>
   </a>
@@ -2134,17 +2134,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#everything-is-a-connector-except-where-the-data-lives" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Everything is a connector — except where the data lives
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#where-each-piece-runs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2160,6 +2149,17 @@
     <span class="md-ellipsis">
       
         Where credentials live
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-is-the-special-case" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File is the special case
       
     </span>
   </a>
@@ -2245,14 +2245,19 @@ plain terms, with one running example: you've just run <code>mfs add ./repo</cod
 <td>the single indexing run you just started for <code>./repo</code>.</td>
 </tr>
 <tr>
-<td><strong>Object task</strong></td>
+<td><strong>ObjectTask</strong></td>
 <td>The work for <em>one</em> object inside a job — object-level: convert it, split it, embed it.</td>
 <td>"process <code>src/main.py</code>" is one task; the job spawns thousands, one per file.</td>
 </tr>
 <tr>
+<td><strong>Queue</strong></td>
+<td>Where ObjectTasks wait for a worker. There are two: a durable, DB-backed queue for the per-object work, and a fast in-memory queue (the ChunkQueue) further down the pipeline — see <a href="../ingest-pipeline/">Ingest pipeline</a>.</td>
+<td>the per-file tasks line up here until a worker claims one.</td>
+</tr>
+<tr>
 <td><strong>Metadata DB</strong></td>
-<td>The bookkeeping — which connectors, objects, and ConnectorJobs exist and their state. It also doubles as the <strong>queue</strong> workers pull object tasks from.</td>
-<td>tracks the run and lines up the per-file tasks.</td>
+<td>The bookkeeping — which connectors, objects, and ConnectorJobs exist and their state. The durable queue lives here too.</td>
+<td>tracks the run and its per-file tasks.</td>
 </tr>
 <tr>
 <td><strong>Cache</strong></td>
@@ -2268,22 +2273,11 @@ plain terms, with one running example: you've just run <code>mfs add ./repo</cod
 </table>
 <p>The level is the thing to keep straight: a <strong>connector</strong> holds <strong>many objects</strong>
 (one per URI path); a <strong>ConnectorJob</strong> runs at the connector level — one sync of
-the whole source — and fans out into one <strong>object task</strong> per object. So
-<code>mfs add ./repo</code> is a single ConnectorJob that spawns thousands of object tasks,
+the whole source — and fans out into one <strong>ObjectTask</strong> per object. So
+<code>mfs add ./repo</code> is a single ConnectorJob that spawns thousands of ObjectTasks,
 one per file.</p>
 <p>And the source is always the truth — everything in the Cache and the Index is
 derived from it, and can be thrown away and rebuilt.</p>
-<h2 id="everything-is-a-connector-except-where-the-data-lives">Everything is a connector — except where the data lives<a class="headerlink" href="#everything-is-a-connector-except-where-the-data-lives" title="Permanent link">&para;</a></h2>
-<p><code>postgres</code>, <code>slack</code>, <code>github</code>, and <code>file</code> are all the same kind of thing: each
-implements the same <code>list / stat / read / fingerprint / sync</code> contract, flows
-through the same chunk pipeline, and gets the same search. The one real exception
-is <code>file</code>, and the reason is <em>where the bytes are</em>. The server can reach most
-sources itself — it connects to Postgres, it calls the Slack API — and pulls the
-data directly. Local files are different: in a client/server setup the bytes live
-on the client machine, where the server can't see them, so the file connector
-adds an upload step (manifest diff → upload → commit). That special case stays
-isolated — the file connector's sync logic is identical whether it runs local or
-remote; only how the bytes reach the server changes.</p>
 <h2 id="where-each-piece-runs">Where each piece runs<a class="headerlink" href="#where-each-piece-runs" title="Permanent link">&para;</a></h2>
 <p>The only real deployment choice is <strong>where the server runs</strong>. Run it on your own
 machine, move it onto its own host (a VM or a single container), or scale it out
@@ -2397,6 +2391,18 @@ value. Set the variables where <code>mfs-server</code> runs — your machine in 
 server host or pod otherwise. See <a href="../auth-and-secrets/">Auth and secrets</a> for the
 full boundary and <a href="../production/">Design philosophy</a> for <em>why</em> it's built this
 way.</p>
+<h2 id="file-is-the-special-case">File is the special case<a class="headerlink" href="#file-is-the-special-case" title="Permanent link">&para;</a></h2>
+<p>Every source is a connector, and they're all the same kind of thing: <code>postgres</code>,
+<code>slack</code>, <code>github</code>, and <code>file</code> each implement the same <code>list / stat / read /
+fingerprint / sync</code> contract, flow through the same pipeline, and get the same
+search. The one real exception is <code>file</code> — and the reason is <em>where the bytes
+are</em>. The server reaches most sources itself: it connects to Postgres, it calls
+the Slack API, and pulls the data directly. Local files are different — in a
+client/server setup the bytes sit on the client machine, where the server can't
+see them, so the file connector adds an upload step (manifest diff → upload →
+commit). That special case stays isolated: the file connector's sync logic is the
+same whether it runs local or remote; only how the bytes reach the server
+changes.</p>
 
 
 
