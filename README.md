@@ -37,11 +37,12 @@ context is the part that actually matters? It piles up in:
 MFS gathers it under one shell: every source becomes a **file-like tree under a
 stable URI**, driven by two skills your agent loads:
 
-- **🗂️ mfs-ingest** — bring sources in and keep them fresh. `mfs add` registers
-  any connector and indexes it; re-run to re-sync, and `mfs connector` lists,
-  inspects, and removes what's registered.
-- **🔎 mfs-find** — find what matters across everything already ingested, with
-  two kinds of commands:
+- **🗂️ mfs-ingest** — the skill that bundles the commands for bringing sources
+  in and keeping them fresh: `mfs add` registers any connector and indexes it
+  (re-run to re-sync), while `mfs connector` lists, inspects, and removes what's
+  registered.
+- **🔎 mfs-find** — the skill that bundles the commands for finding what matters
+  across everything already ingested, in two families:
   - **Search** — `search` and `grep` find things fast across huge volumes.
   - **Browse** — `ls`, `cat`, `tree`, `head`, `tail` give progressive, precise
     navigation down to the exact bytes.
@@ -140,7 +141,8 @@ skills become one searchable namespace — the prompt you tuned last week or a
 decision logged three sessions ago, one query away.
 
 > The `mfs` line is the CLI; the trailing `#` comment is the same request to an
-> agent (`/mfs-ingest` or `/mfs-find`).
+> agent (`/mfs-ingest` or `/mfs-find` — Codex uses `$mfs-ingest` / `$mfs-find`
+> instead of `/`).
 
 ```bash
 mfs add path/to/memory     # /mfs-ingest index my session memory
