@@ -197,7 +197,7 @@ mfs job list
 mfs job show JOB_ID
 ```
 
-See [Jobs and indexing](jobs.md) for the job states.
+See the [job states](cli.md#jobs) for what each status means.
 
 ### 5. Search, browse, and read
 

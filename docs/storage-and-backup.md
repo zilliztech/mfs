@@ -7,7 +7,7 @@ you to stop at inspection or use a connector-level rebuild.
 
 For configuration precedence, see [Configuration](configuration.md). For source,
 Docker, Compose, and rendered Helm shapes, see [Deployment](deployment.md). For
-worker and job state, see [Jobs and Indexing Progress](jobs.md). For endpoint
+worker and job state, see [Deployment](deployment.md). For endpoint
 and indexing triage, see [Troubleshooting](troubleshooting.md). For the runtime
 module map behind these statements, see [Server](server.md).
 
@@ -147,7 +147,7 @@ Use this checklist before file-level backups or service snapshots.
 
 1. Identify the deployment shape and active backend settings.
 2. Stop or quiesce API and worker processes. For queued work, inspect
-   [Jobs and Indexing Progress](jobs.md) first.
+   running jobs with `mfs job list` first.
 3. Confirm there are no jobs you need to preserve in a running state.
 4. Snapshot metadata and Milvus together for local SQLite/Milvus Lite.
 5. Include config and token files.

@@ -29,7 +29,7 @@ them with the same icons:
 
 - 📋 **Metadata** — durable state describing what work exists and what work is
   done (`ObjectTask` table, `Objects` table).
-- 🟦 **Queues** — the durable `ObjectTask` queue plus the in-memory `chunks_q`
+- 🟦 **Queues** — the durable `ObjectTask` queue plus the in-memory `ChunkQueue`
   and `SummaryQueue`.
 - 💾 **Caches** — Transformation Cache (content-addressed memoization of model
   outputs) and Artifact Cache (per-object derived blobs, local filesystem).
@@ -57,11 +57,11 @@ The shape that falls out:
 
 | Concern | Mechanism |
 |---|---|
-| **Memory ceiling** | A bounded shared queue (`chunks_q`) makes producers block when the consumer falls behind. The in-flight chunk set is hard-bounded regardless of how chunky the source is. |
+| **Memory ceiling** | A bounded shared queue (`ChunkQueue`) makes producers block when the consumer falls behind. The in-flight chunk set is hard-bounded regardless of how chunky the source is. |
 | **Batch density** | One process-wide `EmbedConsumer` accumulates chunks across every task and every object kind, then flushes one embed call + one upsert per batch. Small tasks piggyback on large tasks' batches. |
 | **Per-object correctness** | The consumer issues `delete_by_object` on a task's first chunk, before any new upsert lands. Re-running a task is idempotent; the index never holds an overlap between old and new versions of the same object. |
 | **Extensible to new object kinds** | A typed `ChunksProducer` interface per okind. Adding a new kind (audio, video, …) is one new producer file plus one dispatch entry — no change to the consumer, the cache, or the index path. |
-| **Extensible to new aggregate kinds** | The Job Lane emits its output back into `chunks_q` as a new `chunk_kind`. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path. |
+| **Extensible to new aggregate kinds** | The Job Lane emits its output back into `ChunkQueue` as a new `chunk_kind`. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path. |
 | **Crash recovery** | `ObjectTask` is durable. The Job Lane's `DirTreeBuilder` is in-memory but rebuilt from durable object state on restart. |
 | **Provider cost** | Model outputs (VLM, summary) are memoized in the content-addressed, single-flight Transformation Cache, and file conversions in the per-object Artifact Cache keyed by a content+version token — so the two lanes never re-run the same conversion or double-call the same provider for the same input, even when they miss concurrently. |
 
@@ -79,7 +79,7 @@ The two lanes feed into one tail.
   to fold once enumeration is complete (for a leaf) and its sub-directories are
   summarized; it does **not** wait for its own files to be embedded. Each ready
   directory becomes one chunk.
-- **From `chunks_q` onward, everything is shared.** One `chunks_q`, one
+- **From `ChunkQueue` onward, everything is shared.** One `ChunkQueue`, one
   `EmbedConsumer`, one cache pair, one index. The Job Lane has no separate embed
   path, no separate upsert path, no separate collection — its output is just
   one more `chunk_kind` (`directory_summary`) alongside `file`, `code`,
@@ -108,7 +108,7 @@ Notes:
   table_rows, table_schema). The pool itself does not know what it will get;
   `select_producer(okind, ctx)` picks the implementation. Adding a new kind is
   one new producer file plus one new dispatch branch.
-- **Queue ② is in-memory and bounded.** `chunks_q` is an `asyncio.Queue` whose
+- **Queue ② is in-memory and bounded.** `ChunkQueue` is an `asyncio.Queue` whose
   `maxsize` is derived from `embedding.batch_size`. When the consumer falls
   behind, producers block on `put()`. This is the single most important
   property of the redesign: the upstream cannot outrun the downstream, so the
@@ -155,7 +155,7 @@ Notes:
   in the Transformation Cache under a single-flight lock. The two lanes never
   re-run the same work for the same input, even if they reach it concurrently.
 - **The Job Lane shares the tail.** Every `directory_summary` chunk is written
-  into the same `chunks_q`. There is no separate embed path, no separate upsert
+  into the same `ChunkQueue`. There is no separate embed path, no separate upsert
   path, no separate index. From the `EmbedConsumer`'s perspective,
   `directory_summary` is just one more `chunk_kind`, sitting next to `file`,
   `code`, `image`, and the rest in the same Milvus collection.

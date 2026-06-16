@@ -138,8 +138,9 @@ curl -sS -H "Authorization: Bearer $MFS_TOKEN" \
 The API models `status` as a string. Clients should display unknown status
 values instead of hard-coding a closed enum.
 
-For queued versus inline processing, worker modes, and status recovery, see
-[Jobs and Indexing Progress](jobs.md).
+Send `process=false` to queue the work (a worker drains it) or `process=true`
+to index inline before the response returns. For job status meanings see
+[Jobs](cli.md#jobs).
 
 ### Search
 
