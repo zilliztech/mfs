@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/skills/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/production/">
       
       
-        <link rel="prev" href="../sdks/">
+        <link rel="prev" href="../architecture/">
       
       
-        <link rel="next" href="../errors/">
+        <link rel="next" href="../search-and-browse/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Agent skills - MFS</title>
+        <title>Built for production - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#agent-skills" class="md-skip">
+        <a href="#built-for-production" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Agent skills
+              Built for production
             
           </span>
         </div>
@@ -210,10 +210,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../architecture/" class="md-tabs__link">
           
   
@@ -270,12 +272,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../cli/" class="md-tabs__link">
           
   
@@ -533,26 +533,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -570,7 +575,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -613,10 +618,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../production/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built for production
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -632,6 +664,103 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#one-source-of-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One source of truth
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-stateful-server-arbitrates-everything" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A stateful server arbitrates everything
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#jobs-with-a-real-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs with a real lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#crash-safe-and-resumable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Crash-safe and resumable
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#incremental-and-careful-about-deletions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incremental, and careful about deletions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failures-stay-contained" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failures stay contained
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#isolation-between-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Isolation between sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1606,31 +1735,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   
@@ -1648,7 +1772,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1747,37 +1871,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Agent skills
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../skills/" class="md-nav__link">
         
   
   
@@ -1793,81 +1890,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#decision-table" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision Table
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#routing-workflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Routing Workflow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#current-cli-contract" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Current CLI Contract
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#handoff-points" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Handoff Points
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-guides" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related Guides
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2162,10 +2184,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#decision-table" class="md-nav__link">
+  <a href="#one-source-of-truth" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision Table
+        One source of truth
       
     </span>
   </a>
@@ -2173,10 +2195,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#routing-workflow" class="md-nav__link">
+  <a href="#a-stateful-server-arbitrates-everything" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Routing Workflow
+        A stateful server arbitrates everything
       
     </span>
   </a>
@@ -2184,10 +2206,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#current-cli-contract" class="md-nav__link">
+  <a href="#jobs-with-a-real-lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Current CLI Contract
+        Jobs with a real lifecycle
       
     </span>
   </a>
@@ -2195,10 +2217,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#handoff-points" class="md-nav__link">
+  <a href="#crash-safe-and-resumable" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Handoff Points
+        Crash-safe and resumable
       
     </span>
   </a>
@@ -2206,10 +2228,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#related-guides" class="md-nav__link">
+  <a href="#incremental-and-careful-about-deletions" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Related Guides
+        Incremental, and careful about deletions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failures-stay-contained" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failures stay contained
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#isolation-between-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Isolation between sources
       
     </span>
   </a>
@@ -2236,169 +2280,104 @@
   
 
 
-<h1 id="agent-skills">Agent Skills<a class="headerlink" href="#agent-skills" title="Permanent link">&para;</a></h1>
-<p>MFS ships two agent-facing skill directories. They are meant to keep search/read
-work separate from source registration and re-indexing work, because those tasks
-have different side effects.</p>
-<p>Use this page when you are deciding which skill to expose to an agent, or when an
-agent needs a quick routing reminder before running <code>mfs</code> commands.</p>
-<h2 id="decision-table">Decision Table<a class="headerlink" href="#decision-table" title="Permanent link">&para;</a></h2>
+<h1 id="built-for-production">Built for production<a class="headerlink" href="#built-for-production" title="Permanent link">&para;</a></h1>
+<p>Good retrieval quality is the easy part. The hard part of a context layer is
+<em>running it every day</em>: a sync killed halfway, two processes touching the same
+store, an index cleared down to a stub, one malformed file taking out a whole
+run. Those are state, lifecycle, and concurrency problems — orthogonal to how
+good your search is — and they're where most "thin search engine" tools quietly
+break under real traffic.</p>
+<p>MFS is engineered so these are <strong>structural non-issues</strong> rather than bugs you hit
+and patch one by one. The same design that lets it run on a laptop is what lets
+it run in production.</p>
 <table>
 <thead>
 <tr>
-<th>User intent</th>
-<th>Use</th>
-<th>Boundary</th>
-<th>Current command shapes to expect</th>
+<th>The hard part of running this daily</th>
+<th>How MFS handles it</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Search, grep, list, browse, read, reopen a search hit, or inspect exact evidence from a source that is already in MFS</td>
-<td><a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-find/"><code>mfs-find</code></a></td>
-<td>Read-only retrieval and browse work</td>
-<td><code>mfs search QUERY PATH</code>, <code>mfs search QUERY --all</code>, <code>mfs grep PATTERN PATH</code>, <code>mfs ls PATH --json</code>, <code>mfs cat PATH --range A:B</code>, <code>mfs cat PATH --locator JSON</code></td>
+<td>A sync killed halfway</td>
+<td>Per-object atomic writes; the next <code>mfs add</code> just resumes</td>
 </tr>
 <tr>
-<td>Add a new local path or connector URI</td>
-<td><a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-ingest/"><code>mfs-ingest</code></a></td>
-<td>Mutating MFS metadata, artifacts, jobs, and indexes</td>
-<td><code>mfs add TARGET --config FILE</code>, <code>mfs add TARGET</code>, <code>mfs add TARGET --upload</code></td>
+<td>Two processes touching the same store</td>
+<td>One server owns all state and the index connection; clients talk HTTP</td>
 </tr>
 <tr>
-<td>Change an existing connector's TOML, credentials, object rules, or scope</td>
-<td><a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-ingest/"><code>mfs-ingest</code></a></td>
-<td>Mutating connector config and usually queueing a sync job</td>
-<td><code>mfs connector update TARGET --config FILE</code>, then <code>mfs job show JOB_ID</code></td>
+<td>A re-run duplicating results</td>
+<td>Idempotent, namespace + connector-keyed records — re-runs overwrite</td>
 </tr>
 <tr>
-<td>Re-sync or force a full re-index</td>
-<td><a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-ingest/"><code>mfs-ingest</code></a></td>
-<td>Mutating index state and potentially re-billing embeddings</td>
-<td><code>mfs add TARGET</code>, <code>mfs add TARGET --since VALUE</code>, <code>mfs add TARGET --force-index</code>, or <code>mfs add TARGET --full</code></td>
+<td>A partial ingest deleting the wrong things</td>
+<td>Deletions happen only on a full-set scan; incremental never infers them</td>
 </tr>
 <tr>
-<td>Search returns weak or empty results</td>
-<td>Start with <a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-find/"><code>mfs-find</code></a></td>
-<td>Diagnose query, scope, browse state, and job state before changing ingest</td>
-<td><code>mfs connector inspect TARGET</code>, <code>mfs ls PATH --json</code>, <code>mfs job list</code>, <code>mfs job show JOB_ID</code></td>
+<td>One bad file breaking the whole run</td>
+<td>Per-object failure isolation plus a circuit breaker</td>
 </tr>
 <tr>
-<td>The diagnosis points to bad connector config, missing credentials, zero indexed objects, or a required re-sync</td>
-<td>Switch to <a href="https://github.com/zilliztech/mfs/blob/main/skills/mfs-ingest/"><code>mfs-ingest</code></a></td>
-<td>Mutating follow-up after a read-only diagnosis</td>
-<td><code>mfs connector probe TARGET --config FILE</code>, <code>mfs connector update TARGET --config FILE</code>, <code>mfs add TARGET</code></td>
-</tr>
-<tr>
-<td>The user only asks what is registered</td>
-<td>Either skill, depending on purpose</td>
-<td>Inventory for query scope is read-only; inventory before add/update is ingest planning</td>
-<td><code>mfs status</code>, <code>mfs connector list</code>, <code>mfs connector inspect TARGET</code></td>
+<td>Config from one source leaking into another</td>
+<td>Per-connector config is data in the DB, not shared process state</td>
 </tr>
 </tbody>
 </table>
-<h2 id="routing-workflow">Routing Workflow<a class="headerlink" href="#routing-workflow" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>User request
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  |
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  +-- Need existing content, exact evidence, or path browsing?
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  |     -&gt; use mfs-find
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  |        -&gt; search / grep / ls / cat / head / tail / export
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  |
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  +-- Need to register, update, remove, re-sync, or force-index a source?
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  |     -&gt; use mfs-ingest
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  |        -&gt; probe / add / connector update / job inspection
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  |
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  +-- Search failed or looks incomplete?
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        -&gt; start in mfs-find with read-only diagnostics
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        -&gt; switch to mfs-ingest only after the cause is connector config,
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>           credentials, missing ingest, or re-indexing
-</code></pre></div>
-<p>The practical rule: <code>mfs-find</code> may inspect state, but it should not run commands
-that create, update, remove, or re-index sources. <code>mfs-ingest</code> may run mutating
-commands, but it should confirm destructive or high-cost operations before doing
-so.</p>
-<h2 id="current-cli-contract">Current CLI Contract<a class="headerlink" href="#current-cli-contract" title="Permanent link">&para;</a></h2>
-<p>Agents should use the command forms below.</p>
-<table>
-<thead>
-<tr>
-<th>Do not use</th>
-<th>Use now</th>
-<th>Why</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>mfs server-info</code></td>
-<td><code>mfs status</code> for the status envelope; <code>mfs config show</code> for endpoint, profile, client id, and server info debugging</td>
-<td>The Rust CLI has no <code>server-info</code> subcommand.</td>
-</tr>
-<tr>
-<td><code>mfs status TARGET</code> or <code>mfs status &lt;uri&gt;</code></td>
-<td><code>mfs connector inspect TARGET</code> for one connector; <code>mfs ls PATH --json</code> for per-entry search state</td>
-<td><code>mfs status</code> has no path or URI argument.</td>
-</tr>
-<tr>
-<td><code>mfs connector ls</code></td>
-<td><code>mfs connector list</code></td>
-<td><code>list</code> is the current connector subcommand.</td>
-</tr>
-<tr>
-<td><code>mfs job ls</code>, <code>mfs job get JOB_ID</code>, <code>mfs job logs JOB_ID</code>, <code>mfs job ls --tail JOB_ID</code></td>
-<td><code>mfs job list</code>, <code>mfs job show JOB_ID</code>, <code>mfs job cancel JOB_ID</code>; poll <code>job show</code> when you need progress</td>
-<td>The current CLI has no job logs or tail subcommand.</td>
-</tr>
-<tr>
-<td><code>mfs add TARGET --estimate</code></td>
-<td><code>mfs add TARGET --config FILE</code> without <code>--yes</code> for external connectors, or call <code>POST /v1/connectors/estimate</code> directly from an API client</td>
-<td>There is no standalone estimate flag. External <code>mfs add</code> runs the zero-billing estimate and confirmation automatically unless <code>--yes</code> is set.</td>
-</tr>
-<tr>
-<td><code>mfs add TARGET --update</code></td>
-<td><code>mfs connector update TARGET --config FILE</code></td>
-<td>Config updates use the connector update CLI path, which sends <code>update: true</code> to <code>/v1/add</code>.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="handoff-points">Handoff Points<a class="headerlink" href="#handoff-points" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>From</th>
-<th>To</th>
-<th>Handoff signal</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>mfs-find</code></td>
-<td><code>mfs-ingest</code></td>
-<td>The source is not registered, <code>mfs connector inspect TARGET</code> shows no useful object/chunk state, <code>mfs ls PATH --json</code> shows entries that should be indexed but are not, or the user needs a config change.</td>
-</tr>
-<tr>
-<td><code>mfs-ingest</code></td>
-<td><code>mfs-find</code></td>
-<td>A job succeeds and the user now wants to search, compare, summarize, or reopen evidence.</td>
-</tr>
-<tr>
-<td>Either skill</td>
-<td>User</td>
-<td>The workflow requires source credentials, destructive removal, broad full re-indexing, or an unsupported command such as job log tailing.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="related-guides">Related Guides<a class="headerlink" href="#related-guides" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="../search-and-browse/">Search and Browse</a> for the search-to-read loop,
-  locator reopening, JSON output, and weak-result recovery.</li>
-<li><a href="../connectors/">Connectors</a> for connector selection, lifecycle commands, TOML
-  conventions, credential references, and the connector API map.</li>
-<li><a href="../cli/">CLI Reference</a> for exact command shapes, global <code>--json</code>, jobs,
-  connector management, profiles, config, and local server commands.</li>
-<li><a href="../troubleshooting/">Troubleshooting</a> for endpoint/auth issues, upload mode,
-  job inspection, empty search results, connector failures, and canonical error
-  recovery.</li>
-</ul>
+<h2 id="one-source-of-truth">One source of truth<a class="headerlink" href="#one-source-of-truth" title="Permanent link">&para;</a></h2>
+<p>Your upstream sources are the truth. MFS's metadata database is only its
+<em>knowledge</em> of them; the Milvus index and the caches are <strong>derived</strong>. Delete the
+index and rebuild it from the original sources and you lose nothing.</p>
+<p>Clients hold almost no state — even the file manifest for an upload lives in the
+server's <code>file_state</code> table, not in a client-side snapshot. There's no local
+snapshot file that can drift out of sync with what's actually indexed, which is a
+whole class of "the snapshot says 0 files, reindex forever" bugs that simply
+can't be expressed here.</p>
+<h2 id="a-stateful-server-arbitrates-everything">A stateful server arbitrates everything<a class="headerlink" href="#a-stateful-server-arbitrates-everything" title="Permanent link">&para;</a></h2>
+<p>MFS is a thin client over one stateful server. The <strong>server alone</strong> holds the
+connection to Milvus and owns all state; every client — CLI, SDK, agent skill —
+talks to it over HTTP. So multiple CLIs or agent sessions never contend over a
+database file or leak state into one another. The classic embedded-database
+failure — one process locks the vector file and another can't even open it — has
+nowhere to occur, because only the server ever touches it.</p>
+<h2 id="jobs-with-a-real-lifecycle">Jobs with a real lifecycle<a class="headerlink" href="#jobs-with-a-real-lifecycle" title="Permanent link">&para;</a></h2>
+<p>Ingest runs as a job in a database-backed queue, not as fire-and-forget work. A
+uniqueness rule keeps at most one running and one queued sync per connector, so
+hitting <code>mfs add</code> twice doesn't double-scan or collide — the second is told the
+sync is already running. Sync is <strong>explicit</strong>: you trigger it. There's no hidden
+background scheduler racing itself or re-scanning behind your back.</p>
+<h2 id="crash-safe-and-resumable">Crash-safe and resumable<a class="headerlink" href="#crash-safe-and-resumable" title="Permanent link">&para;</a></h2>
+<p>Work is per-object and atomic, and a run's state is committed at the end. If the
+process is killed mid-sync, nothing is left half-committed — the next <code>mfs add</code>
+picks up where it left off. Recovery collapses to "just run it again", because
+every write is <strong>idempotent</strong>: index records are keyed by namespace and
+connector, so a re-run overwrites instead of duplicating, and two different
+sources can never collide on the same key.</p>
+<h2 id="incremental-and-careful-about-deletions">Incremental, and careful about deletions<a class="headerlink" href="#incremental-and-careful-about-deletions" title="Permanent link">&para;</a></h2>
+<p>Re-syncing is incremental: per-object fingerprints (and connector cursors) mean
+only what actually changed is re-converted and re-embedded; everything unchanged
+is served from cache. Deletion is deliberately conservative — an incremental run
+<strong>never infers deletions</strong>. Only a full-set scan, which has truly enumerated the
+whole source, diffs it and removes what's genuinely gone. A partial or batched
+ingest therefore can't accidentally delete the records that weren't in this
+batch.</p>
+<h2 id="failures-stay-contained">Failures stay contained<a class="headerlink" href="#failures-stay-contained" title="Permanent link">&para;</a></h2>
+<p>A worker pool drains jobs with timeouts and a circuit breaker. A single
+malformed object is marked failed and skipped rather than crashing the run; the
+breaker aborts a job only when failures pile up, surfaced as a clear code instead
+of a silent hang. A job that gets stuck times out and resets instead of wedging
+the queue forever.</p>
+<h2 id="isolation-between-sources">Isolation between sources<a class="headerlink" href="#isolation-between-sources" title="Permanent link">&para;</a></h2>
+<p>Per-connector configuration is stored as data in the database, not as mutable
+state shared inside a long-lived process. Two projects or sources can't leak
+settings — ignore rules, file extensions, credentials — into each other.</p>
+<hr />
+<p>These properties are exactly what lets the same MFS move from a laptop to
+production by configuration alone: point the vector backend at a managed
+Milvus/Zilliz cluster and metadata at Postgres, and the same crash-safe,
+concurrency-safe, idempotent design handles large corpora and real traffic. See
+<a href="../architecture/">How it works</a> for the components and <a href="../deployment/">Deployment</a>
+for the topologies.</p>
 
 
 

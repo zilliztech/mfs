@@ -543,6 +543,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-mfs-compares" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How MFS compares
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#where-to-next" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -692,6 +703,34 @@
     
   
     How it works
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../production/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built for production
   
 
     
@@ -2156,6 +2195,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-mfs-compares" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How MFS compares
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#where-to-next" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2225,6 +2275,20 @@ source starts to pay off.</p>
 <p>The one idea that makes MFS reliable is that <strong>search gives candidates, not
 answers</strong>. A ranked snippet tells you where to look; it is not yet something you
 should quote, summarize, edit, or decide on.</p>
+<p>This is just how people already search. On Google you don't scroll the whole web
+— you type a query and a pre-built index returns a ranked page of candidates
+almost instantly. Flat, global search is fast <em>precisely because</em> the index was
+built ahead of time. Then you skim the result snippets to judge which one is
+worth opening, click into the page, and read and navigate it directly. MFS gives
+an agent the same two moves over your own sources: fast global semantic search to
+locate, then progressive browse to read.</p>
+<p>Both halves are essential and they cover for each other. Progressive,
+agent-driven browsing is powerful for working through a tree you can navigate —
+but once a knowledge base or memory store gets large, you can't browse your way
+to the answer; you need a semantic index to jump straight to the candidates. And
+an index alone isn't enough either: a ranked snippet isn't proof. So MFS packages
+both and you never have to choose — hybrid semantic search (built on Milvus) to
+find, file-like browse to verify.</p>
 <p>So the loop always has two beats:</p>
 <ol>
 <li><strong>Locate.</strong> <code>mfs search</code> (meaning + keywords) or <code>mfs grep</code> (exact literal)
@@ -2253,6 +2317,68 @@ answering — never act on a ranked snippet alone or guess at a locator shape.</
 <code>mfs search</code> to find a starting point, and <code>mfs cat --range</code> to read just enough
 context. Save <code>--all</code> for when you genuinely don't know which source holds the
 answer; a scoped path is faster and easier to trust.</p>
+<h2 id="how-mfs-compares">How MFS compares<a class="headerlink" href="#how-mfs-compares" title="Permanent link">&para;</a></h2>
+<p>Plenty of tools do one of these things well. MFS's bet is the <em>combination</em> —
+broad sources, both search and browse, an agent-native interface, self-hosted,
+and engineered to run in production. Compared to the usual alternatives:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th style="text-align: center;">MFS</th>
+<th style="text-align: center;">Code-search tools</th>
+<th style="text-align: center;">Memory layers</th>
+<th style="text-align: center;">Managed RAG services</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Many source types — files, DBs, SaaS, chat</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">➖</td>
+</tr>
+<tr>
+<td>Hybrid semantic + keyword search</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">✅</td>
+</tr>
+<tr>
+<td>File-like progressive browse (<code>ls</code> / <code>cat</code> / <code>--range</code>)</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>Agent-native CLI + skills</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>Self-hosted and open source</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">➖</td>
+<td style="text-align: center;">❌</td>
+</tr>
+<tr>
+<td>Stateful server — concurrency-safe, resumable, idempotent</td>
+<td style="text-align: center;">✅</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">❌</td>
+<td style="text-align: center;">—</td>
+</tr>
+</tbody>
+</table>
+<p>✅ built in · ➖ partial or varies · ❌ not the focus. The point isn't any single
+row — it's having every row at once. See <a href="../production/">Built for production</a>
+for the engineering behind the last one.</p>
 <h2 id="where-to-next">Where to next<a class="headerlink" href="#where-to-next" title="Permanent link">&para;</a></h2>
 <p>If this sounds like your problem, the <a href="../getting-started/">Quickstart</a> gets you
 running in a few minutes. To understand the pieces first, read
