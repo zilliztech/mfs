@@ -34,8 +34,8 @@ Five things, and the point is having all of them at once:
   production scale — neither is an afterthought. Every component is swappable and
   independently scalable, so the same MFS moves between the two by configuration
   alone. The index is derived and crash-safe: upstream stays the source of truth,
-  so you can delete it and rebuild from the originals, losing nothing. See the
-  [Design philosophy](production.md) for the engineering behind this.
+  so you can delete it and rebuild from the originals, losing nothing. See
+  [Robustness](robustness.md) for the engineering behind this.
 - **🤖 Agent-native.** Built for how agents actually work — especially context and
   memory management — so it slots into any agent setup. And when you're building
   an agent of your own, you can build it on top of MFS too.
@@ -94,5 +94,5 @@ space.
 | LlamaCloud | Yes | Yes | — | Yes |
 
 *Yes · Partial · — (not a focus of that tool).* Only MFS fills every column — and
-it's the only one that pairs hybrid search *with* file-like browse. See the
-[Design philosophy](production.md) for the engineering behind the last column.
+it's the only one that pairs hybrid search *with* file-like browse. See
+[Robustness](robustness.md) for the engineering behind the last column.
