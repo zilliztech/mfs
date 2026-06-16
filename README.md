@@ -38,11 +38,10 @@ MFS gathers it under one shell: every source becomes a **file-like tree under a
 stable URI**, driven by two skills your agent loads:
 
 - **🗂️ mfs-ingest** — the skill that bundles the commands for bringing sources
-  in and keeping them fresh: `mfs add` registers any connector and indexes it
-  (re-run to re-sync), while `mfs connector` lists, inspects, and removes what's
-  registered.
-- **🔎 mfs-find** — the skill that bundles the commands for finding what matters
-  across everything already ingested, in two families:
+  in: `mfs add` registers and indexes any connector (re-run to re-sync), and
+  `mfs connector` lists, inspects, and removes them.
+- **🔎 mfs-find** — the skill that bundles the commands for finding across
+  what's ingested, in two families:
   - **Search** — `search` and `grep` find things fast across huge volumes.
   - **Browse** — `ls`, `cat`, `tree`, `head`, `tail` give progressive, precise
     navigation down to the exact bytes.
@@ -587,8 +586,6 @@ it. The agent detects whether client and server share a machine and adjusts
 (local read vs upload) on its own, so there's nothing about deployment mode to
 spell out in a prompt. Just use MFS normally.
 
-### 🏭 Built for production
-
 For a split deployment, point the CLI at the server and you're set:
 
 ```bash
@@ -600,7 +597,7 @@ mfs status
 Docker images, a Compose file, and a Helm chart for split api / worker
 deployments live under [`deployments/`](deployments/).
 
-MFS was built for production from day one — not a weekend demo. The split design
+**🏭 Built for production.** MFS was built for production from day one — not a weekend demo. The split design
 scales to **production-scale** data: pair the vector backend with
 [Zilliz Cloud](https://cloud.zilliz.com/signup?utm_source=github&utm_medium=referral&utm_campaign=mfs-readme)'s Vector Lakebase and MFS indexes and searches
 massive corpora, with the reliability and [design choices below](#-features--how-it-works).
@@ -687,31 +684,21 @@ export OPENAI_API_KEY=sk-...
 
 ## ✨ Features & how it works
 
-- **🗂️ One file-like interface over everything** — `ls` · `cat` · `tree` ·
-  `grep` · `head` · `tail` · `search`, across local files and every connector,
-  with one stable result shape.
-- **🔍 Hybrid search you can trust** — semantic + keyword retrieval, and every
-  hit reopens to the exact bytes or rows via its locator.
-- **📚 Any source, any format** — a growing connector catalog (files, object
-  stores, databases, code, chat, CRM, docs) plus local PDF / docx → Markdown
-  conversion and optional image descriptions, all behind the same verbs.
-- **📈 Laptop to production, one tool** — fully local and offline by default
-  (ONNX + Milvus Lite + SQLite; no API key, no GPU), or a split client / server
-  with hosted backends (OpenAI, Zilliz Cloud, Postgres) when you scale up.
-- **🛡️ Robust by design** — a derived, crash-safe, rebuildable index:
-  content-addressable caching, idempotent writes, rename ≠ re-embed, and a
-  layered ignore. Recovery is just *rerun `mfs add`*.
+- **🗂️ One file-like interface, any source.** Whatever the source or format, it
+  becomes a single file-like tree under a stable URI. Agents already speak shell,
+  so there's no new query language and no per-source SDK — the same handful of
+  verbs reach everything, and what you learn once carries across every connector.
+- **🔍 Search and browse, two legs of one loop.** Hybrid semantic + keyword
+  search locates fast across huge volumes; progressive browse then narrows to the
+  exact bytes or rows. Together they lift precise recall *and* cut token spend —
+  you pull in only what matters, and never trust a hit until you've reopened it.
+- **🛡️ Local-first, scales to production, rebuildable.** Fully local and offline
+  by default, yet every component is swappable and independently scalable, so the
+  same MFS grows to production scale by configuration alone. The index is derived
+  and crash-safe — upstream stays the source of truth, so you can delete it and
+  rebuild from the original sources, losing nothing.
 
-Three principles run underneath all of it:
-
-- **Upstream is the source of truth** — MFS keeps a derived index; delete
-  `~/.mfs/` and you lose no data, `mfs add` rebuilds from the original sources.
-- **Search × browse, two legs of one loop** — like a library: point at the
-  shelf, flip pages, read the right one. Never trust a hit until you've reopened it.
-- **File-like URIs because agents already speak shell** — no new query language,
-  no per-source SDK; the same handful of verbs cover every connector.
-
-## 🤖 Build agents on top of MFS
+## 🤖 Build agent applications on top of MFS
 
 Beyond using MFS through an agent in your daily work, you can build **on** it —
 treat MFS as the retrieval/context **base layer** your own agent application sits
@@ -723,6 +710,7 @@ at MFS and focus on the app on top.
 ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
 │ agents           │   │ your app code    │   │ skills / MCP /   │
 │ → skills + CLI   │   │ → SDK (Py / TS)  │   │ plugins → CLI    │
+│ (use directly)   │   │ (build on it)    │   │ (build on it)    │
 └────────┬─────────┘   └────────┬─────────┘   └────────┬─────────┘
          │                      │                      │
          └──────────────────────┼──────────────────────┘
@@ -746,12 +734,19 @@ at MFS and focus on the app on top.
 
 ## 🗺️ Roadmap
 
-- Publish `mfs-server` to PyPI for one-command installs.
-- OAuth `client_credentials` for Salesforce and OAuth-only orgs.
-- Per-user credential management and access control for hosted / multi-tenant
+- **Config profiles** — named processing profiles (per-source embedding model
+  and analyzer), each its own collection, so code, multilingual docs, and more
+  index under the right model and search per-profile or across all.
+- **Per-connector priority** — glob-based indexing priority in the connector
+  TOML, to push the important paths first and skip the noise.
+- **Streaming chunker** for very large files, to cap memory on multi-GB inputs.
+- **Rate-limit-aware backoff** — `429` / `Retry-After` handling and per-provider
+  token-bucket throttling across embedding, vision, and summary calls.
+- **Per-user credential management and access control** for hosted / multi-tenant
   MFS — upload secrets through the service instead of server-side files.
-- More connectors (Confluence, Asana, Drive shared drives).
-- Lock `/v1` HTTP API for the `v0.4.0` final.
+- More connectors (Confluence, Asana, Drive shared drives) and OAuth
+  `client_credentials` for OAuth-only orgs.
+- Lock the `/v1` HTTP API for the `v0.4.0` final.
 
 ## 🚦 Status
 
