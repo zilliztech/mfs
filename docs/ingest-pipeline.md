@@ -67,49 +67,7 @@ The shape that falls out:
 
 ## High-level overview
 
-```
-   ╔═════════════════════════════╗    ╔══════════════════════════════════╗
-   ║  📋  ObjectTask queue       ║    ║  📋  Connector Job context       ║
-   ║      (per-object, durable)  ║    ║      + directory tree            ║
-   ║                             ║    ║      (built during sync)         ║
-   ║   the entry of Object Lane  ║    ║   the entry of the Job Lane      ║
-   ╚══════════════╤══════════════╝    ╚═══════════════╤══════════════════╝
-                  │                                   │
-                  ▼                                   ▼
-   ┌─────────────────────────────┐    ┌──────────────────────────────────┐
-   │   OBJECT LANE  (always on)  │    │   JOB LANE   (optional,          │
-   │                             │    │             [summary].enabled)   │
-   │   workers claim one         │    │                                  │
-   │   ObjectTask at a time      │    │   DirTreeBuilder                 │
-   │                             │    │       ↓                          │
-   │   Producer pool             │    │   SummaryQueue                   │
-   │   (one impl per okind)      │    │       ↓                          │
-   │                             │    │   SummaryWorker pool             │
-   │   object → stream<Chunk>    │    │   dir → 1 Chunk(directory_summary)│
-   └──────────────┬──────────────┘    └─────────────────┬────────────────┘
-                  │                                     │
-                  │      ┌──────────────────────────┐   │
-                  ├─────►│  💾  Caches (shared)     │◄──┤
-                  │      │                          │   │
-                  │      │  • Transformation Cache  │   │
-                  │      │  • Artifact Cache        │   │
-                  │      └──────────────────────────┘   │
-                  │                                     │
-                  ▼                                     ▼
-        ┌──────────────────────────────────────────────────────┐
-        │  🟦  chunks_q  (in-memory, bounded, backpressure)    │
-        │      the single shared tail                          │
-        └──────────────────────────┬───────────────────────────┘
-                                   ▼
-        ┌──────────────────────────────────────────────────────┐
-        │  EmbedConsumer  (process singleton)                  │
-        │  batch → one embed call → one upsert                 │
-        └──────────────────────────┬───────────────────────────┘
-                                   ▼
-        ┌──────────────────────────────────────────────────────┐
-        │  🟩  Index  (Milvus)                                 │
-        └──────────────────────────────────────────────────────┘
-```
+![Ingest pipeline overview — two upstream lanes share one cache pair, one chunk queue, one embed consumer, and one index](https://github.com/user-attachments/assets/68d840c1-b510-49c3-82b5-fd610b2871ed)
 
 The two lanes feed into one tail.
 
@@ -138,41 +96,7 @@ The next two sections open each lane.
 
 ## Object Lane: object → chunks → vectors
 
-```
-   ╔══════════════════════════════════════════════════════════════════╗
-   ║   📋  METADATA   (SQLite / Postgres)                             ║
-   ║                                                                  ║
-   ║      ObjectTask table   pending objects, durable, crash-safe     ║
-   ║      Objects table      "object indexed" facts, written by the   ║
-   ║                          success hook                            ║
-   ╚════════════╤═════════════════════════════════════════════▲═══════╝
-                │ claim                                       │ writeback
-                ▼                                             │
-   ┌──────────────────────────────────────────────┐           │
-   │   🟦  Queue ①   ObjectTask queue  (durable)  │           │
-   └─────────────────────┬────────────────────────┘           │
-                         ▼                                    │
-   ┌──────────────────────────────────────────────┐           │   ┌────────────────────────────────┐
-   │   Producer pool                              │           │   │   💾  Caches                   │
-   │   one ChunksProducer per okind               │ ◄─ r/w ─► │   │                                │
-   │   one object → a stream of Chunks            │           │   │   • Transformation Cache       │
-   └─────────────────────┬────────────────────────┘           │   │     content-addressed          │
-                         ▼                                    │   │     memoization of model       │
-   ┌──────────────────────────────────────────────┐           │   │     outputs (single-flight):   │
-   │   🟦  Queue ②   chunks_q                     │           │   │     vlm / summary / embedding  │
-   │   in-memory, bounded, backpressure           │           │   │                                │
-   └─────────────────────┬────────────────────────┘           │   │   • Artifact Cache             │
-                         ▼                                    │   │     per-object derived blobs   │
-   ┌──────────────────────────────────────────────┐           │   │     (converted_md, …), serves  │
-   │   EmbedConsumer  (process singleton)         │ ◄─ r/w ─► │   │     cat / head / tail          │
-   │   batch → one embed → one upsert             │           │   └────────────────────────────────┘
-   │   per-object atomic: delete-then-write       │── hook ───┘
-   └─────────────────────┬────────────────────────┘
-                         ▼
-   ┌──────────────────────────────────────────────┐
-   │   🟩  Index   vector store (Milvus)          │
-   └──────────────────────────────────────────────┘
-```
+![Object Lane — per-object tasks flow into chunks, embeddings, and the shared index](https://github.com/user-attachments/assets/9c527db1-b0b1-478c-8a04-e4de9287ade8)
 
 Notes:
 
@@ -207,78 +131,7 @@ Notes:
 
 ## Job Lane: directory summaries
 
-```
-                       ╔══════════════════════════════════════╗
-                       ║  Connector sync: every yielded object ║
-                       ║  is added to the in-memory dir tree   ║
-                       ╚══════════════════╤═══════════════════╝
-                                          ▼
-   ┌──────────────────────────────────────────────────────────────────────┐
-   │   📂  DirTreeBuilder   (per job, in-memory)                          │
-   │                                                                      │
-   │       a directory tree; every node records:                          │
-   │         ▸ child files / child sub-directories                        │
-   │         ▸ pending: number of sub-directories not yet summarized       │
-   │           (files do NOT gate a directory)                            │
-   │         ▸ summary: the directory's own summary (written back here    │
-   │           after folding)                                             │
-   │                                                                      │
-   │       built during sync; at sync end finalize() pushes every leaf    │
-   │       directory (pending == 0). A parent is pushed bottom-up once    │
-   │       its sub-directory summaries land and its pending reaches zero. │
-   └─────────────────────────────────┬────────────────────────────────────┘
-                                     ▼
-   ┌──────────────────────────────────────────────────────────────────────┐
-   │   🟦  Queue   SummaryQueue   (in-memory)                             │
-   │                                                                      │
-   │       ▸ per-job heap: deepest directory first (a parent depends      │
-   │         on its children, so summaries must travel bottom-up)         │
-   │       ▸ a cross-job round-robin dispatcher fans into ready_q so      │
-   │         a large job cannot starve a small one                        │
-   └─────────────────────────────────┬────────────────────────────────────┘
-                                     ▼
-   ┌──────────────────────────────────────────────────────────────────────┐
-   │   SummaryWorker pool                                                 │
-   │                                                                      │
-   │   each worker pulls a (job, dir):                                    │
-   │                                                                      │
-   │     ① fold child SOURCE content (not embeddings)                      │
-   │         ▸ child file:  text / code / converted markdown ─┐           │
-   │         ▸ child file:  image → VLM description           │ ─── reuse │
-   │         ▸ child dir:   its already-written summary       │   Artifact│
-   │                                                          ─┘   + Transf.
-   │                                                              Cache    │
-   │                                                              (shared  │
-   │                                                              with the │
-   │                                                              Object   │
-   │                                                              Lane)    │
-   │                                                                      │
-   │     ② concatenate → call the summary LLM                              │
-   │         (the result also lands in Transformation Cache,              │
-   │          kind = summary)                                              │
-   │                                                                      │
-   │     ③ write back dir.summary, parent.pending --                       │
-   │         parent reaches zero → push parent into SummaryQueue          │
-   │                                                                      │
-   │     ④ emit Chunk( kind = directory_summary )                          │
-   └─────────────────────────────────┬────────────────────────────────────┘
-                                     │
-                                     ▼
-              ┌─────────────────────────────────────────────┐
-              │   🟦  Queue ②   chunks_q                    │
-              │   ◄── the same chunks_q the Object Lane uses│
-              │                                             │
-              │   directory_summary travels the exact same  │
-              │   downstream:                               │
-              │      → EmbedConsumer                        │
-              │      → embed (Transformation Cache,         │
-              │              kind = embedding)              │
-              │      → upsert into 🟩 Index                 │
-              │                                             │
-              │   it is just one more chunk_kind, alongside │
-              │   file / code / image / ...                 │
-              └─────────────────────────────────────────────┘
-```
+![Job Lane — bottom-up directory summaries enter the same embedding and index tail](https://github.com/user-attachments/assets/19389954-5167-44bd-9406-44e662045e82)
 
 Notes:
 
@@ -311,13 +164,3 @@ Notes:
   lanes share. The Job Lane folding an image draws from the same in-flight VLM
   budget as the Object Lane image producer, so enabling summaries does not
   double the pressure on the provider.
-
-## Related docs
-
-| For | Read |
-|---|---|
-| System-level boundaries (client / server, API surface) | [Architecture](architecture.md) |
-| Server module map and process entrypoints | [Server](server.md) |
-| The chunk and content model the producers emit | [Content Model](content-model.md) |
-| User-visible job status and progress | [Jobs and Indexing Progress](jobs.md) |
-| Cache, embedding, summary, and VLM config knobs | [Configuration](configuration.md) |

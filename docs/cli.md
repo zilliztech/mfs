@@ -341,17 +341,3 @@ error: 400 Bad Request [object_too_large_for_cat]: ...
 Clients should switch on `code`, not `detail`. See
 [Troubleshooting](troubleshooting.md) and [HTTP API](api.md) for the canonical
 error envelope and common recovery paths.
-
-## Related Guides
-
-| Guide | Use it for |
-|---|---|
-| [Quickstart](getting-started.md) | First local run and success checkpoints. |
-| [Configuration](configuration.md) | Endpoint, token, profile, and server config precedence. |
-| [Auth and Secrets](auth-and-secrets.md) | Server auth modes, CLI token precedence, connector credentials, and first auth recovery commands. |
-| [Jobs and Indexing Progress](jobs.md) | Job ids, status counts, workers, and recovery. |
-| [Search and Browse](search-and-browse.md) | Search, locate, and reopen exact evidence. |
-| [Connectors](connectors.md) | Connector catalog, TOML config, credentials, and lifecycle. |
-| [Deployment](deployment.md) | Source, Docker, Compose, and client/server upload mode. |
-| [HTTP API](api.md) | Direct `/v1` requests and schema fields. |
-| [Troubleshooting](troubleshooting.md) | Endpoint, auth, upload, indexing, and browse failures. |

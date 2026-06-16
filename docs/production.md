@@ -1,4 +1,8 @@
-# Built for production
+# Design philosophy
+
+This page is the *why* behind the [Architecture](architecture.md): the design
+decisions that make MFS hold up in daily use, and the failure modes each one
+rules out.
 
 Good retrieval quality is the easy part. The hard part of a context layer is
 *running it every day*: a sync killed halfway, two processes touching the same
@@ -89,5 +93,5 @@ These properties are exactly what lets the same MFS move from a laptop to
 production by configuration alone: point the vector backend at a managed
 Milvus/Zilliz cluster and metadata at Postgres, and the same crash-safe,
 concurrency-safe, idempotent design handles large corpora and real traffic. See
-[How it works](architecture.md) for the components and [Deployment](deployment.md)
+[Architecture](architecture.md) for the components and [Deployment](deployment.md)
 for the topologies.

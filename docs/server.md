@@ -186,22 +186,3 @@ connector state only after a job succeeds.
 The Engine constructs all four stores during initialization. During startup it
 loads built-in connectors, connects and initializes metadata, connects the
 transformation cache, connects Milvus, and ensures the namespace collection.
-
-## What To Open Next
-
-| Need | Page |
-|---|---|
-| Identifiers, locators, chunk kinds, artifacts, and object search status | [Content Model](content-model.md) |
-| Exact `/v1` endpoint paths, request fields, response models, and error envelope | [HTTP API](api.md) |
-| Config lookup, `MFS_HOME`, auth modes, backend defaults, and environment overrides | [Configuration](configuration.md) |
-| State components, backup targets, restore order, and reset boundaries | [Storage and Backup](storage-and-backup.md) |
-| Process token boundaries, connector credential references, and first auth recovery commands | [Auth and Secrets](auth-and-secrets.md) |
-| Embedding, summary, VLM, converter setup, and provider runtime requirements | [Providers and Processing](providers.md) |
-| Source, Docker, Compose, and rendered Helm runtime shapes | [Deployment](deployment.md) |
-| CLI commands, endpoint resolution, token precedence, and upload behavior | [CLI Reference](cli.md) |
-| Connector schemes, TOML config, credentials, and lifecycle commands | [Connectors](connectors.md) |
-| Search, browse, and exact-content verification workflow | [Search and Browse](search-and-browse.md) |
-| Endpoint, auth, job, indexing, search, and browse failures | [Troubleshooting](troubleshooting.md) |
-| Generated Python and TypeScript clients | [SDKs](sdks.md) |
-| Local package setup, checks, and OpenAPI-to-SDK regeneration | [Development](development.md) |
-| System-wide component map | [Architecture](architecture.md) |

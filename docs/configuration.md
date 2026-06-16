@@ -312,18 +312,3 @@ token = "env:MFS_API_TOKEN"
     export MFS_METADATA_DSN="postgresql://user:pass@host:5432/mfs"
     uv run mfs-server run
     ```
-
-
-## Related Guides
-
-| Guide | Use it for |
-|---|---|
-| [Quickstart](getting-started.md) | First local source run and search/read checkpoint. |
-| [Auth and Secrets](auth-and-secrets.md) | Process boundaries, token precedence, connector credentials, and first auth recovery commands. |
-| [Providers and Processing](providers.md) | Embedding, summary, VLM, converter setup, provider extras, and provider error surfaces. |
-| [Deployment](deployment.md) | Source, Docker, Compose, and Helm topology notes. |
-| [Storage and Backup](storage-and-backup.md) | State components, backup targets, restore order, and reset boundaries. |
-| [Connectors](connectors.md) | Connector catalog, config files, credentials, and lifecycle commands. |
-| [CLI Reference](cli.md) | Command flags, profiles, upload mode, jobs, and browse commands. |
-| [HTTP API](api.md) | Direct `/v1` requests, bearer auth, response envelopes, and schema fields. |
-| [Troubleshooting](troubleshooting.md) | Endpoint, auth, upload, indexing, and search failure recovery. |

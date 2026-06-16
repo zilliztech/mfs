@@ -74,7 +74,7 @@ workers. Neither is an afterthought; the same components simply swap underneath.
   a folder, and verify search and browse in a few minutes.
 - **[Why MFS](why.md)** — when MFS earns its keep, and when a plain shell is the
   better tool.
-- **[How it works](architecture.md)** — the client/server design and where each
+- **[Architecture](architecture.md)** — the client/server design and where each
   piece lives.
 - **[Connectors](connectors.md)** — every source you can bring in, and how to
   configure each one.

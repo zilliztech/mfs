@@ -340,17 +340,3 @@ check the generated API classes before documenting a client method name.
 Treat generated README install, authorization, and default-host snippets as
 scaffolding unless your release process verifies them. For the docs-site SDK
 entry point, see [SDKs](sdks.md).
-
-## Related Pages
-
-| Need | Page |
-|---|---|
-| Search, grep, ls, and cat workflow | [Search and Browse](search-and-browse.md) |
-| Result envelopes, locators, chunk kinds, and search status vocabulary | [Content Model](content-model.md) |
-| Job lifecycle and indexing progress | [Jobs and Indexing Progress](jobs.md) |
-| Connector targets and config shapes | [Connectors](connectors.md) |
-| CLI command surface | [CLI Reference](cli.md) |
-| Auth token sources and health-check boundary | [Auth and Secrets](auth-and-secrets.md) |
-| Generated clients | [SDKs](sdks.md) |
-| Protocol-change checks and SDK regeneration | [Development](development.md#openapi-to-sdks) |
-| Runtime and integration issues | [Troubleshooting](troubleshooting.md) |

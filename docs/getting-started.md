@@ -242,13 +242,3 @@ want a full re-index.
 
 For deployment topologies, see [Deployment](deployment.md). If upload or auth
 does not behave as expected, see [Troubleshooting](troubleshooting.md).
-
-## Where to go next
-
-| Next page | Use it for |
-|---|---|
-| [Configuration](configuration.md) | Change embedding, Milvus, database, cache, auth, and environment settings. |
-| [Search and Browse](search-and-browse.md) | Learn the search -> browse -> read verification loop. |
-| [CLI Reference](cli.md) | Check command names and common options. |
-| [Deployment](deployment.md) | Move from same-host development to Docker or hosted server shapes. |
-| [Troubleshooting](troubleshooting.md) | Fix connection, upload, first-indexing, or docs-build issues. |

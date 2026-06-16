@@ -231,15 +231,3 @@ mfs connector inspect TARGET
     deleting artifact bytes while keeping artifact-cache metadata rows, or
     deleting upload staging while keeping upload-mode connector rows. Prefer
     connector removal, a forced re-index, or a full local reset.
-
-## Related Pages
-
-| Page | Use it for |
-|---|---|
-| [Configuration](configuration.md) | Config lookup, `MFS_HOME`, backend defaults, auth, and env overrides. |
-| [Deployment](deployment.md) | Source, Docker, Compose, Helm rendering, and upload-mode placement. |
-| [Server](server.md) | Runtime module map and storage/cache constructors. |
-| [Jobs and Indexing Progress](jobs.md) | Job states, workers, cancellation, and queued versus inline processing. |
-| [Troubleshooting](troubleshooting.md) | Endpoint, auth, upload, search, browse, and indexing recovery. |
-| [CLI Reference](cli.md) | `mfs add`, `mfs job`, `mfs connector`, and `mfs remove` command details. |
-| [HTTP API](api.md) | `/v1/status`, `/v1/jobs`, upload endpoints, and connector removal endpoints. |
