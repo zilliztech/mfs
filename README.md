@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/python-%3E%3D3.10-blue?style=flat-square&logo=python&logoColor=white" alt="Python">
   <a href="https://github.com/zilliztech/mfs/actions/workflows/lint.yml"><img src="https://img.shields.io/github/actions/workflow/status/zilliztech/mfs/lint.yml?branch=main&style=flat-square&label=lint" alt="Lint"></a>
   <a href="https://milvus.io/"><img src="https://img.shields.io/badge/powered%20by-Milvus-00A1EA?style=flat-square" alt="Milvus"></a>
-  <a href="https://deepwiki.com/zilliztech/mfs"><img src="https://img.shields.io/badge/DeepWiki-AI_docs-purple?style=flat-square&logo=gitbook&logoColor=white" alt="DeepWiki"></a>
+  <a href="https://zilliztech.github.io/mfs/"><img src="https://img.shields.io/badge/docs-mfs-blue?style=flat-square&logo=readthedocs&logoColor=white" alt="Docs"></a>
   <a href="https://discord.com/invite/FG6hMJStWu"><img src="https://img.shields.io/badge/Discord-chat-7289da?style=flat-square&logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://x.com/zilliz_universe"><img src="https://img.shields.io/badge/follow-%40zilliz__universe-000000?style=flat-square&logo=x&logoColor=white" alt="X"></a>
   <a href="https://github.com/zilliztech/mfs/stargazers"><img src="https://img.shields.io/github/stars/zilliztech/mfs?style=flat-square" alt="Stars"></a>
@@ -35,11 +35,16 @@ context is the part that actually matters? It piles up in:
 - **Databases & object stores** — Postgres, Mongo, BigQuery, Snowflake, S3, Drive
 
 MFS gathers it under one shell: every source becomes a **file-like tree under a
-stable URI**, worked with two kinds of commands:
+stable URI**, driven by two skills your agent loads:
 
-- **Search** — `search` and `grep` find things fast across huge volumes.
-- **Browse** — `ls`, `cat`, `tree`, `head`, `tail` give progressive, precise
-  navigation down to the exact bytes.
+- **🗂️ mfs-ingest** — bring sources in and keep them fresh. `mfs add` registers
+  any connector and indexes it; re-run to re-sync, and `mfs connector` lists,
+  inspects, and removes what's registered.
+- **🔎 mfs-find** — find what matters across everything already ingested, with
+  two kinds of commands:
+  - **Search** — `search` and `grep` find things fast across huge volumes.
+  - **Browse** — `ls`, `cat`, `tree`, `head`, `tail` give progressive, precise
+    navigation down to the exact bytes.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/1430d872-4184-4fb3-9168-a0b715dc621a" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
