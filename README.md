@@ -600,7 +600,7 @@ deployments live under [`deployments/`](deployments/).
 **🏭 Built for production.** MFS was built for production from day one — not a weekend demo. The split design
 scales to **production-scale** data: pair the vector backend with
 [Zilliz Cloud](https://cloud.zilliz.com/signup?utm_source=github&utm_medium=referral&utm_campaign=mfs-readme)'s Vector Lakebase and MFS indexes and searches
-massive corpora, with the reliability and [design choices below](#-features--how-it-works).
+massive corpora, with the reliability and [design choices below](#-features).
 
 ## 🔧 Configure the server
 
@@ -682,7 +682,7 @@ export OPENAI_API_KEY=sk-...
 
 </details>
 
-## ✨ Features & how it works
+## ✨ Features
 
 - **🗂️ One file-like interface, any source.** Whatever the source or format, it
   becomes a single file-like tree under a stable URI. Agents already speak shell,
@@ -692,11 +692,15 @@ export OPENAI_API_KEY=sk-...
   search locates fast across huge volumes; progressive browse then narrows to the
   exact bytes or rows. Together they lift precise recall *and* cut token spend —
   you pull in only what matters, and never trust a hit until you've reopened it.
-- **🛡️ Local-first, scales to production, rebuildable.** Fully local and offline
-  by default, yet every component is swappable and independently scalable, so the
-  same MFS grows to production scale by configuration alone. The index is derived
-  and crash-safe — upstream stays the source of truth, so you can delete it and
-  rebuild from the original sources, losing nothing.
+- **🛡️ Local and production, equally at home.** Run fully local and offline, or
+  at production scale — neither is an afterthought. Every component is swappable
+  and independently scalable, so the same MFS moves between the two by
+  configuration alone. The index is derived and crash-safe: upstream stays the
+  source of truth, so you can delete it and rebuild from the original sources,
+  losing nothing.
+- **🤖 Agent-native.** Built for how agents actually work — especially context
+  and memory management — so it slots into any agent setup. And when you're
+  building an agent of your own, you can build it on top of MFS too.
 
 ## 🤖 Build agent applications on top of MFS
 
@@ -708,9 +712,9 @@ at MFS and focus on the app on top.
 
 ```text
 ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
-│ agents           │   │ your app code    │   │ skills / MCP /   │
+│ agents           │   │ your app code    │   │ your skills/MCP/ │
 │ → skills + CLI   │   │ → SDK (Py / TS)  │   │ plugins → CLI    │
-│ (use directly)   │   │ (build on it)    │   │ (build on it)    │
+│ (use directly)   │   │ (BUILD ON IT)    │   │ (BUILD ON IT)    │
 └────────┬─────────┘   └────────┬─────────┘   └────────┬─────────┘
          │                      │                      │
          └──────────────────────┼──────────────────────┘
@@ -729,31 +733,19 @@ at MFS and focus on the app on top.
 - **SDK** — call the generated Python / TypeScript clients under
   [`sdks/`](sdks/) straight from your application code (long-running daemons,
   services, language runtimes without a shell).
-- **CLI** — shell out to `mfs` to build your own **skills**, **MCP servers**, or
-  **plugins** on top of the same surface.
+- **CLI** — call the `mfs` command to build your own **skills**, **MCP servers**,
+  or **plugins** on top of the same surface.
 
 ## 🗺️ Roadmap
 
-- **Config profiles** — named processing profiles (per-source embedding model
-  and analyzer), each its own collection, so code, multilingual docs, and more
-  index under the right model and search per-profile or across all.
-- **Per-connector priority** — glob-based indexing priority in the connector
-  TOML, to push the important paths first and skip the noise.
-- **Streaming chunker** for very large files, to cap memory on multi-GB inputs.
-- **Rate-limit-aware backoff** — `429` / `Retry-After` handling and per-provider
-  token-bucket throttling across embedding, vision, and summary calls.
-- **Per-user credential management and access control** for hosted / multi-tenant
-  MFS — upload secrets through the service instead of server-side files.
-- More connectors (Confluence, Asana, Drive shared drives) and OAuth
-  `client_credentials` for OAuth-only orgs.
-- Lock the `/v1` HTTP API for the `v0.4.0` final.
-
-## 🚦 Status
-
-`v0.4.0-beta.2`. The CLI surface and connector catalog are stable;
-the HTTP API may still shift before `v0.4.0` final, so pin versions
-in scripts. Found a bug? Open an issue:
-<https://github.com/zilliztech/mfs/issues>.
+- **Multiple processing profiles** — run different sources through different
+  pipelines from one server: a code-tuned embedding model for your repos, a
+  multilingual one for your docs. Because models differ in dimension and vector
+  space, each profile maps to its own collection (a single one can't mix them),
+  and you search within a profile or across all.
+- **Multi-user credentials and access control** — per-user secrets and
+  permissions, so a shared or hosted MFS can serve many users safely.
+- **A wider connector catalog** — the set of sources keeps growing.
 
 ## 🙏 Acknowledgements
 
