@@ -2220,7 +2220,6 @@ server.</p>
 <h2 id="core-concepts">Core concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h2>
 <p>A handful of words turn up all over these docs and the diagrams. Here they are in
 plain terms, with one running example: you've just run <code>mfs add ./repo</code>.</p>
-<p><strong>What MFS works with:</strong></p>
 <table>
 <thead>
 <tr>
@@ -2232,58 +2231,48 @@ plain terms, with one running example: you've just run <code>mfs add ./repo</cod
 <tbody>
 <tr>
 <td><strong>Connector</strong></td>
-<td>A registered source.</td>
+<td>A registered source. One connector holds <strong>many</strong> objects.</td>
 <td><code>./repo</code>, a local folder. (Others: <code>postgres://prod</code>, <code>slack://eng</code>.)</td>
 </tr>
 <tr>
 <td><strong>Object</strong></td>
-<td>One virtual "file" a connector exposes — a path plus a type.</td>
+<td>One virtual "file" under a connector — really just one URI path.</td>
 <td>each file in the repo, like <code>src/main.py</code>. (For a database, an object is a table's <code>rows.jsonl</code>.)</td>
 </tr>
 <tr>
-<td><strong>Job</strong></td>
-<td>One run of <code>mfs add</code> — a sync you can watch by its status.</td>
-<td>the indexing run you just started.</td>
+<td><strong>ConnectorJob</strong></td>
+<td>One sync of a <em>whole</em> connector — connector-level — with a status you can watch.</td>
+<td>the single indexing run you just started for <code>./repo</code>.</td>
 </tr>
 <tr>
 <td><strong>Object task</strong></td>
-<td>The work for one object inside a job: convert it, split it, embed it.</td>
-<td>"process <code>src/main.py</code>" is one task; a big repo is thousands of them.</td>
+<td>The work for <em>one</em> object inside a job — object-level: convert it, split it, embed it.</td>
+<td>"process <code>src/main.py</code>" is one task; the job spawns thousands, one per file.</td>
 </tr>
-<tr>
-<td><strong>Chunk</strong></td>
-<td>One searchable row in the index — the smallest thing <code>search</code> and <code>grep</code> return.</td>
-<td>a span of lines from <code>src/main.py</code>. (For a table, one row; for Slack, one thread.)</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Where MFS keeps it:</strong></p>
-<table>
-<thead>
-<tr>
-<th>Store</th>
-<th>What it holds</th>
-</tr>
-</thead>
-<tbody>
 <tr>
 <td><strong>Metadata DB</strong></td>
-<td>The bookkeeping — which connectors, objects, and jobs exist, and their state. It doubles as the <strong>queue</strong> that workers pull tasks from.</td>
+<td>The bookkeeping — which connectors, objects, and ConnectorJobs exist and their state. It also doubles as the <strong>queue</strong> workers pull object tasks from.</td>
+<td>tracks the run and lines up the per-file tasks.</td>
 </tr>
 <tr>
 <td><strong>Cache</strong></td>
-<td>Derived bytes kept so reads and re-syncs stay cheap — say, a PDF already converted to text — so MFS never redoes a conversion or re-calls a paid model for the same input.</td>
+<td>Derived bytes kept so MFS never redoes heavy work for the same input. Two kinds: the <strong>artifact cache</strong> holds conversions (a PDF turned into Markdown), the <strong>transformation cache</strong> holds model inputs and outputs (an embedding already computed).</td>
+<td>a converted PDF reused on the next sync; an embedding not paid for twice.</td>
 </tr>
 <tr>
 <td><strong>Index</strong></td>
-<td>The searchable chunks, in Milvus. This is what <code>search</code> and <code>grep</code> hit.</td>
+<td>The searchable rows, in Milvus — what <code>search</code> and <code>grep</code> actually hit.</td>
+<td>the repo, now findable by meaning.</td>
 </tr>
 </tbody>
 </table>
-<p>The first set is what you name in commands; the second is how the server makes
-that fast and crash-safe. The original source is always the source of truth —
-everything in the Cache and the Index is derived from it, and can be thrown away
-and rebuilt.</p>
+<p>The level is the thing to keep straight: a <strong>connector</strong> holds <strong>many objects</strong>
+(one per URI path); a <strong>ConnectorJob</strong> runs at the connector level — one sync of
+the whole source — and fans out into one <strong>object task</strong> per object. So
+<code>mfs add ./repo</code> is a single ConnectorJob that spawns thousands of object tasks,
+one per file.</p>
+<p>And the source is always the truth — everything in the Cache and the Index is
+derived from it, and can be thrown away and rebuilt.</p>
 <h2 id="everything-is-a-connector-except-where-the-data-lives">Everything is a connector — except where the data lives<a class="headerlink" href="#everything-is-a-connector-except-where-the-data-lives" title="Permanent link">&para;</a></h2>
 <p><code>postgres</code>, <code>slack</code>, <code>github</code>, and <code>file</code> are all the same kind of thing: each
 implements the same <code>list / stat / read / fingerprint / sync</code> contract, flows
