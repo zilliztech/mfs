@@ -692,34 +692,37 @@ Three principles run underneath all of it:
 
 ## 🤖 Build agents on top of MFS
 
-If you're building an agent project (not just calling MFS from a shell), MFS
-becomes the harness — the retrieval and context layer your agent sits on top of,
-not a passive index it queries occasionally.
+Beyond using MFS through an agent in your daily work, you can build **on** it —
+treat MFS as the retrieval/context **base layer** your own agent application sits
+on. The robust index pipeline and the broad connector catalog are already handled:
+you never touch embeddings, the vector store, or per-source plumbing — you point
+at MFS and focus on the app on top.
 
-A modern agent project juggles several streams of state at once:
+```text
+┌────────────────────────────────────────────────────────────────┐
+│ BUILD ON TOP — three ways in:                                  │
+│   • agents (Claude Code, Codex)  → mfs-find / mfs-ingest + CLI │
+│   • your app code                → SDK (Python / TypeScript)   │
+│   • your skills / MCP / plugins  → CLI                         │
+└────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌────────────────────────────────────────────────────────────────┐
+│ MFS  —  one file-like API:  CLI · SDK · HTTP /v1               │
+└────────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌────────────────────────────────────────────────────────────────┐
+│ index pipeline · chunking · embedding · vector DB · caches     │
+│ a catalog of source connectors  (MFS owns all of this)         │
+└────────────────────────────────────────────────────────────────┘
+```
 
-- **Memory** — past sessions, recaps, decision logs, scratch notes
-- **Skills** — reusable `SKILL.md` packs, prompts, runbooks
-- **Code** — every repo the agent reads or writes
-- **Knowledge** — docs, PDFs, design specs, meeting transcripts
-- **Work signals** — Slack threads, emails, tickets, CRM records, database
-  state, dashboards
-
-Without a harness this spreads across local folders, SaaS apps, and private
-databases. With MFS the agent gets one CLI surface over all of it — and you skip
-writing a connector per source.
-
-Three ways to wire MFS into your agent:
-
-- **🧩 Skills.** Drop [`skills/mfs-find`](skills/mfs-find/SKILL.md) and
-  [`skills/mfs-ingest`](skills/mfs-ingest/SKILL.md) into your coding agent
-  runtime, and the agent inherits the whole search-and-browse loop with no
-  custom integration code.
-- **📦 SDKs.** Generated Python and TypeScript clients under `sdks/` cover the
-  cases where shelling out to `mfs` is awkward (long-running daemons, language
-  runtimes without a shell).
-- **🔗 HTTP `/v1`.** Skills and SDKs are thin wrappers around the same OpenAPI
-  surface — go direct when you need to.
+- **SDK** — call the generated Python / TypeScript clients under
+  [`sdks/`](sdks/) straight from your application code (long-running daemons,
+  services, language runtimes without a shell).
+- **CLI** — shell out to `mfs` to build your own **skills**, **MCP servers**, or
+  **plugins** on top of the same surface.
 
 ## 🗺️ Roadmap
 
