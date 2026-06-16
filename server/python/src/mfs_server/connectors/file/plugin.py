@@ -102,7 +102,19 @@ CODE_EXT = {
     ".lua",
     ".r",
 }
-DOC_EXT = {".md", ".markdown", ".rst", ".txt", ".pdf", ".docx", ".doc", ".pptx", ".html", ".htm"}
+DOC_EXT = {
+    ".md",
+    ".markdown",
+    ".rst",
+    ".txt",
+    ".pdf",
+    ".docx",
+    ".doc",
+    ".pptx",
+    ".xlsx",
+    ".html",
+    ".htm",
+}
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".tiff"}
 TEXTBLOB_EXT = {
     ".json",
@@ -189,8 +201,13 @@ class FilePlugin(ConnectorPlugin):
         # means the root must actually be a readable directory. Without this, `probe`
         # reports ok:true for a missing/non-directory root and lets a doomed `add`
         # proceed (it would then 4xx as connector_unhealthy — keep probe consistent).
+        if not self.root.exists():
+            return HealthStatus(ok=False, detail=f"path does not exist: {self.root}")
         if not self.root.is_dir():
-            return HealthStatus(ok=False, detail="connector_unhealthy")
+            return HealthStatus(
+                ok=False,
+                detail=f"the file connector indexes a directory, not a single file: {self.root}",
+            )
         return HealthStatus(ok=True)
 
     def _real(self, path: str) -> Path:
@@ -422,14 +439,18 @@ class FilePlugin(ConnectorPlugin):
         pathspec) fallback. Raises on IO/permission error (enumerate completely or raise)."""
         from ...common import accel
 
-        # A missing / non-directory root (never created, or deleted out from under a
-        # synchronous add/estimate enumerate) is a source-health problem, not an internal
-        # error. Surface it as a clean `connector_unhealthy` envelope instead of letting the
-        # raw OSError bubble up to the generic 500 handler. The upfront check is
+        # A missing / non-directory root (never created, deleted out from under a
+        # synchronous add/estimate, or a single file passed where a folder is expected) is a
+        # user/source problem, not an internal error — surface a clear message instead of
+        # letting the raw OSError bubble to the generic 500 handler. The upfront check is
         # backend-agnostic (covers both the native and pure-Python walkers); the except guards
         # the narrow TOCTOU race where the root vanishes between the check and the walk.
+        if not self.root.exists():
+            raise ValueError(f"path does not exist: {self.root}")
         if not self.root.is_dir():
-            raise ValueError("connector_unhealthy")
+            raise ValueError(
+                f"the file connector indexes a directory, not a single file: {self.root}"
+            )
         try:
             return {
                 rel: (size, mtime_ns, inode)

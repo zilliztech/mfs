@@ -72,7 +72,7 @@ async def test_failed_initial_add_rolls_back_connector_registration(tmp_path):
     try:
         missing = tmp_path / "missing"
 
-        with pytest.raises(ValueError, match="connector_unhealthy"):
+        with pytest.raises(ValueError, match="does not exist"):
             await eng.add(str(missing), process=False)
 
         for table in ("connectors", "connector_jobs", "object_tasks", "file_state"):

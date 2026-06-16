@@ -160,8 +160,14 @@ to the user, then write toml + run `mfs add`.
    done
    ```
 
-7. **Confirm result**:
-   - `succeeded` + `succeeded_objects > 0` → tell user it's ready, give
+7. **Confirm result** — report what's *searchable*, not just what was registered:
+   - `succeeded` + `succeeded_objects > 0` → run `mfs connector inspect <uri>`
+     and report both numbers: `object_count` (files registered) and
+     `objects.indexed` / `chunk_count` (files actually embedded and
+     semantically searchable). They often differ — only documents, code, and
+     (with a vision model on) images get embedded; data / config files
+     (`.json` `.csv` `.yaml` `.log` …) are listed and greppable but not
+     vector-searchable. Don't claim "all N indexed" when only some are. Then give
      one example: "Try: `mfs search '<sample query>' <uri>`".
    - `succeeded` + `succeeded_objects == 0` → check `mfs ls <uri>` —
      either source genuinely empty, or wrong `text_fields`/scope.

@@ -2174,6 +2174,12 @@ class Engine:
         plugin, _ = self._build_plugin(ctype, cfg_dict, tmp_cid)
         await plugin.connect()
         try:
+            # Gate on the connector's own try-connect so a bad root (e.g. a single
+            # file instead of a directory) surfaces the plugin's descriptive detail
+            # rather than a cryptic walk failure mapped to connector_unhealthy.
+            hs = await plugin.healthcheck()
+            if not hs.ok:
+                raise ValueError(hs.detail or "connector_unhealthy")
             obj_uris: list[str] = []
             # dry_run: enumerate object URIs without hashing bytes or writing any state
             # estimate must be side-effect-free and cheap.
