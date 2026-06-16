@@ -1,7 +1,7 @@
 <h1 align="center"><img src="https://github.com/user-attachments/assets/1a14c3e3-32c3-4474-a081-ce737bfc439a" alt="MFS logo" width="48" align="absmiddle" /> MFS — Multi-source File-like Search</h1>
 
 <p align="center">
-  <strong>A context harness for AI agents — and for building them: one shell over your code, memory, skills, docs, messages, and every data source.</strong>
+  <strong>A context harness for AI agents — and for building them: one unified workspace over your code, memory, skills, docs, messages, and every data source.</strong>
 </p>
 
 <p align="center">
@@ -688,6 +688,10 @@ export OPENAI_API_KEY=sk-...
   becomes a single file-like tree under a stable URI. Agents already speak shell,
   so there's no new query language and no per-source SDK — the same handful of
   verbs reach everything, and what you learn once carries across every connector.
+- **🌐 Your whole workspace, one interface.** Stop wiring a separate context
+  harness for every scenario. Memory, code, docs, chat, tickets, databases — MFS
+  unifies your entire working context, with its history and state, into one
+  search-and-browse interface.
 - **🔍 Search and browse, two legs of one loop.** Hybrid semantic + keyword
   search locates fast across huge volumes; progressive browse then narrows to the
   exact bytes or rows. Together they lift precise recall *and* cut token spend —

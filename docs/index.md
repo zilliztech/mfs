@@ -20,6 +20,15 @@ mfs cat <hit> --range 40:80          # reopen the exact lines that matter
 No per-source SDK, no bespoke retrieval glue. Register a source once; from then
 on it is searchable and browsable like a local folder.
 
+## One workspace, not one harness per scenario
+
+An agent's context normally lives in a separate tool for each slice — memory in
+one place, code in another, tickets somewhere else — and wiring retrieval for
+each is its own little project. MFS collapses that into a single workspace.
+Register your sources once and your whole working context — every source, its
+history, and its current state — is searchable and browsable through one
+interface. You build *on* MFS instead of building a harness per scenario.
+
 ## Search and browse, two legs of one loop
 
 MFS is built around a single loop, and both halves earn their place:

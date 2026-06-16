@@ -23,6 +23,10 @@ Use MFS when:
 - You're building an agent workflow that needs structured, machine-readable
   results: every command can emit JSON carrying the `source`, `locator`, and
   metadata an agent needs to reopen a hit precisely.
+- You'd otherwise stand up a separate retrieval setup for each kind of source.
+  MFS is one workspace over all of them, so a single setup covers your whole
+  working context — its history and state included — instead of a harness per
+  scenario.
 
 Reach for something else when:
 
