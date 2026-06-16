@@ -33,21 +33,33 @@ an upload when one is needed, call `/v1`, and render the result. Everything
 stateful — what's registered, what's indexed, what's cached — belongs to the
 server.
 
-## The four core abstractions
+## Core concepts
 
-For all that machinery, the system exposes just four concepts:
+A handful of words turn up all over these docs and the diagrams. Here they are in
+plain terms, with one running example: you've just run `mfs add ./repo`.
 
-| Abstraction | What it is |
+**What MFS works with:**
+
+| Term | What it is | In the example |
+|---|---|---|
+| **Connector** | A registered source. | `./repo`, a local folder. (Others: `postgres://prod`, `slack://eng`.) |
+| **Object** | One virtual "file" a connector exposes — a path plus a type. | each file in the repo, like `src/main.py`. (For a database, an object is a table's `rows.jsonl`.) |
+| **Job** | One run of `mfs add` — a sync you can watch by its status. | the indexing run you just started. |
+| **Object task** | The work for one object inside a job: convert it, split it, embed it. | "process `src/main.py`" is one task; a big repo is thousands of them. |
+| **Chunk** | One searchable row in the index — the smallest thing `search` and `grep` return. | a span of lines from `src/main.py`. (For a table, one row; for Slack, one thread.) |
+
+**Where MFS keeps it:**
+
+| Store | What it holds |
 |---|---|
-| **Connector** | One registered source — `postgres://prod`, `./repo`, `slack://eng`. It decides which objects live under its root. |
-| **Object** | One virtual file a connector exposes — a path plus a media type. |
-| **Artifact cache** | A derived copy of an object (a PDF converted to Markdown, an image's VLM description) so `cat` / `head` / `tail` don't have to hit the source again. |
-| **Chunk** | One row in Milvus — the smallest unit `search` and `grep` can recall. |
+| **Metadata DB** | The bookkeeping — which connectors, objects, and jobs exist, and their state. It doubles as the **queue** that workers pull tasks from. |
+| **Cache** | Derived bytes kept so reads and re-syncs stay cheap — say, a PDF already converted to text — so MFS never redoes a conversion or re-calls a paid model for the same input. |
+| **Index** | The searchable chunks, in Milvus. This is what `search` and `grep` hit. |
 
-Each connector decides what objects sit under its root; each object produces its
-artifact cache and chunks on demand. A fifth piece, the **transformation cache**,
-is a purely internal compute cache that memoizes model outputs — you never
-address it directly.
+The first set is what you name in commands; the second is how the server makes
+that fast and crash-safe. The original source is always the source of truth —
+everything in the Cache and the Index is derived from it, and can be thrown away
+and rebuilt.
 
 ## Everything is a connector — except where the data lives
 
