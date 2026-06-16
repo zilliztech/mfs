@@ -681,10 +681,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#one-source-of-truth" class="md-nav__link">
+  <a href="#one-file-like-interface-over-everything" class="md-nav__link">
     <span class="md-ellipsis">
       
-        One source of truth
+        One file-like interface over everything
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search-and-browse-two-complementary-routes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search and browse, two complementary routes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thin-client-heavy-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thin client, heavy server
       
     </span>
   </a>
@@ -696,6 +718,17 @@
     <span class="md-ellipsis">
       
         Agent-first, one protocol
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-source-of-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One source of truth
       
     </span>
   </a>
@@ -765,34 +798,6 @@
     
   
     Search and browse
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../content-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Content model
   
 
     
@@ -2140,10 +2145,32 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#one-source-of-truth" class="md-nav__link">
+  <a href="#one-file-like-interface-over-everything" class="md-nav__link">
     <span class="md-ellipsis">
       
-        One source of truth
+        One file-like interface over everything
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search-and-browse-two-complementary-routes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search and browse, two complementary routes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thin-client-heavy-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thin client, heavy server
       
     </span>
   </a>
@@ -2155,6 +2182,17 @@
     <span class="md-ellipsis">
       
         Agent-first, one protocol
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-source-of-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One source of truth
       
     </span>
   </a>
@@ -2193,32 +2231,73 @@
 
 
 <h1 id="design-philosophy">Design philosophy<a class="headerlink" href="#design-philosophy" title="Permanent link">&para;</a></h1>
-<p>This page is the <em>why</em> behind the <a href="../architecture/">Architecture</a>: the design
-decisions behind MFS and what each one buys you. They're the choices everything
-else follows from — including the daily-use guarantees over in
-<a href="../robustness/">Robustness</a>.</p>
+<p>This page is the <em>why</em> behind the <a href="../architecture/">Architecture</a>: the choices
+that make MFS what it is. They're the ideas everything else follows from —
+including the daily-use guarantees catalogued in <a href="../robustness/">Robustness</a>.</p>
+<h2 id="one-file-like-interface-over-everything">One file-like interface over everything<a class="headerlink" href="#one-file-like-interface-over-everything" title="Permanent link">&para;</a></h2>
+<p>Every source — a repo, a Postgres table, a Slack channel, a PDF — becomes a
+file-like tree under a stable URI, driven by the POSIX verbs an agent already
+knows: <code>ls</code>, <code>cat</code>, <code>grep</code>, <code>tree</code>, <code>head</code>, <code>tail</code>. No new query language, no
+per-source SDK. You learn the handful of verbs once and they reach everything.</p>
+<p>That's possible because <strong>everything is a connector</strong>: <code>postgres</code>, <code>slack</code>,
+<code>github</code>, and <code>file</code> all implement the same contract and flow through the same
+pipeline, so they all get the same search and the same commands. The only real
+exception is <code>file</code> — its bytes live on the client rather than somewhere the
+server can reach — and even that is <a href="../architecture/#file-is-the-special-case">isolated to one upload step</a>.
+The payoff is one mental model instead of a dozen integrations.</p>
+<h2 id="search-and-browse-two-complementary-routes">Search and browse, two complementary routes<a class="headerlink" href="#search-and-browse-two-complementary-routes" title="Permanent link">&para;</a></h2>
+<p>Most tools pick one side: a RAG service only searches; a virtual filesystem only
+browses. MFS ships <strong>both</strong>, because finding something across a large, mixed body
+of context needs both:</p>
+<ul>
+<li><strong>Search</strong> — flat, global, hybrid (semantic <em>and</em> keyword) — locates fast
+  across huge volumes. It tells you <em>where to look</em>.</li>
+<li><strong>Browse</strong> — <code>ls</code>, <code>tree</code>, <code>cat</code>, <code>head</code>, <code>tail</code> — narrows from a hit down to
+  the exact bytes. It gives you something you can actually trust.</li>
+</ul>
+<p>It's the same shape you already use on a search engine: a pre-built index makes a
+flat query fast, the snippets help you judge which result is worth opening, then
+you open the page and read. Search gives <em>candidates, not answers</em> — so you
+reopen the source before quoting it. The two cover for each other: once a corpus
+is large you can't browse your way to the answer (you need the index), and an
+index alone is never proof (you need the browse). See
+<a href="../why/#the-mental-model-candidates-then-evidence">Why MFS</a> for the full loop.</p>
+<h2 id="thin-client-heavy-server">Thin client, heavy server<a class="headerlink" href="#thin-client-heavy-server" title="Permanent link">&para;</a></h2>
+<p>All the weight sits on the server — pulling data, converting, chunking,
+embedding, indexing, storing. The client only parses a command, transports it
+over <code>/v1</code>, and renders the result. The reasons are practical:</p>
+<ul>
+<li><strong>Agents call the CLI in a hot loop</strong>, so it has to cold-start in milliseconds
+  and carry no state — a small Rust binary, not a runtime with dependencies to
+  load each call.</li>
+<li><strong>State in one place is what makes consistency possible.</strong> Registration,
+  indexing, change detection, and recovery are all stateful; keeping them on one
+  server beats scattering them across every client.</li>
+</ul>
+<p>So the client is disposable: a laptop, a CI runner, or a fresh container
+reconnects with nothing to restore — the only client-side file is <code>client.toml</code>
+(which server to talk to).</p>
+<h2 id="agent-first-one-protocol">Agent-first, one protocol<a class="headerlink" href="#agent-first-one-protocol" title="Permanent link">&para;</a></h2>
+<p>MFS's first user is an agent, not a person. The primary interface is the
+shell-native CLI above, and it ships as a skill so an agent arrives with the
+right mental model instead of trial and error.</p>
+<p>The CLI, the SDKs, and the skills are all clients of the same HTTP <code>/v1</code> — none
+has a privileged path. That keeps the three entry points behaving identically and
+means adding an SDK never changes how anything else works; the SDKs are the
+fallback for programs that can't comfortably shell out, not a second API.</p>
 <h2 id="one-source-of-truth">One source of truth<a class="headerlink" href="#one-source-of-truth" title="Permanent link">&para;</a></h2>
 <p>Your upstream sources are the truth. MFS's metadata database is only its
 <em>knowledge</em> of them; the Milvus index and the caches are <strong>derived</strong>. Delete the
 index and rebuild it from the original sources and you lose nothing.</p>
 <p>Clients hold almost no state — even the file manifest for an upload lives in the
 server's <code>file_state</code> table, not in a client-side snapshot. There's no local
-snapshot file that can drift out of sync with what's actually indexed, which is a
-whole class of "the snapshot says 0 files, reindex forever" bugs that simply
-can't be expressed here.</p>
+snapshot that can drift out of sync with what's actually indexed, which is a whole
+class of "the snapshot says 0 files, reindex forever" bugs that simply can't be
+expressed here.</p>
 <p>This pairs with a second rule held everywhere: <strong>every operation is idempotent</strong>,
 so doing it twice is harmless. Those two ideas — derived-from-truth and
 idempotent — are what make recovery, deletion, and re-syncing as simple as they
 are; <a href="../robustness/">Robustness</a> is the catalogue of what they buy.</p>
-<h2 id="agent-first-one-protocol">Agent-first, one protocol<a class="headerlink" href="#agent-first-one-protocol" title="Permanent link">&para;</a></h2>
-<p>MFS's first user is an agent, not a person. The primary interface is a
-shell-native CLI built from verbs an agent already knows (<code>ls</code>, <code>cat</code>, <code>grep</code>,
-<code>tree</code>, …) rather than a new query language, and it ships as a skill so an agent
-arrives with the right mental model instead of trial and error.</p>
-<p>The CLI, the SDKs, and the skills are all clients of the same HTTP <code>/v1</code> — none
-has a privileged path. That keeps the three entry points behaving identically and
-means adding an SDK never changes how anything else works; the SDKs are the
-fallback for programs that can't comfortably shell out, not a second API.</p>
 <h2 id="built-for-community">Built for community<a class="headerlink" href="#built-for-community" title="Permanent link">&para;</a></h2>
 <p>The architecture's central tension is <em>unify the common parts, isolate the
 differences</em> — and the difference is kept deliberately thin. Everything hard is

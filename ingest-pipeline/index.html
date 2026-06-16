@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://zilliztech.github.io/mfs/ingest-pipeline/">
       
       
-        <link rel="prev" href="../content-model/">
+        <link rel="prev" href="../search-and-browse/">
       
       
         <link rel="next" href="../connectors/">
@@ -685,34 +685,6 @@
     
   
     Search and browse
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../content-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Content model
   
 
     
@@ -2218,8 +2190,7 @@
 <p>This page describes how the server-side engine turns a stream of pending objects
 into rows in the vector index. It is the deepest layer of the architecture — for
 the system-level map, see <a href="../architecture/">Architecture</a>; for the server's
-process and module layout, see <a href="../server/">Server</a>. The code lives under
-<code>server/python/src/mfs_server/engine/</code>.</p>
+process and module layout, see <a href="../server/">Server</a>.</p>
 <p>The pipeline has two lanes, distinguished by the granularity of the work they
 collect. They run <strong>in parallel</strong> and feed one shared tail:</p>
 <ul>
@@ -2369,8 +2340,7 @@ them with the same icons:</p>
 <ul>
 <li><strong><code>DirTreeBuilder</code> is in-memory state.</strong> Unlike the durable <code>ObjectTask</code>
   queue, the tree is built during connector sync and lost on crash. Crash
-  recovery reconstructs it from durable object state — see <code>_recover_job_lane</code>
-  in <code>engine/engine.py</code>.</li>
+  recovery reconstructs it from durable object state.</li>
 <li><strong>Files do not gate a directory.</strong> A summary folds its children's source
   content, not their embeddings, so a directory's <code>pending</code> counts only its
   un-summarized sub-directories. At sync end every leaf directory is ready

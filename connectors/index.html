@@ -700,34 +700,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../content-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Content model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../ingest-pipeline/" class="md-nav__link">
         
   
@@ -2515,8 +2487,8 @@ searchable text and which key reopens an exact record:</p>
 </code></pre></div>
 <p>The public SaaS connectors (GitHub issues, Jira, Slack, Linear, Zendesk tickets,
 Gmail, Discord, Feishu) ship presets, so <code>[[objects]]</code> is optional there — use it
-only to override the default fields. See <a href="../content-model/">Content model</a> for how
-these become <code>content</code>, <code>locator</code>, and <code>metadata.fields</code> in a result.</p>
+only to override the default fields. See <a href="../search-and-browse/#locate-exact-hits">Search and browse</a>
+for how these become <code>content</code>, <code>locator</code>, and <code>metadata.fields</code> in a result.</p>
 <h2 id="after-ingest">After ingest<a class="headerlink" href="#after-ingest" title="Permanent link">&para;</a></h2>
 <p>Every scheme answers the same commands:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing escalation&quot;</span><span class="w"> </span>zendesk://acme<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>

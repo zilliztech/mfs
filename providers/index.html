@@ -700,34 +700,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../content-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Content model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../ingest-pipeline/" class="md-nav__link">
         
   
@@ -2572,9 +2544,8 @@ not use this framework converter path.</p>
 <p>The transformation cache is content-addressed by input hash, kind, provider,
 model, and version. Losing it causes recomputation. The artifact cache stores
 derived per-object blobs such as converted markdown and image-description text.
-For how these chunks appear as <code>ResultEnvelope.source</code>, <code>locator</code>,
-<code>metadata.chunk_kind</code>, and <code>metadata.fields</code>, see
-<a href="../content-model/">Content Model</a>.</p>
+For how these chunks appear as <code>source</code>, <code>locator</code>, <code>metadata.chunk_kind</code>, and
+<code>metadata.fields</code>, see <a href="../search-and-browse/#locate-exact-hits">Search and browse</a>.</p>
 <h2 id="where-provider-errors-show-up">Where Provider Errors Show Up<a class="headerlink" href="#where-provider-errors-show-up" title="Permanent link">&para;</a></h2>
 <p>Hosted provider SDKs and credentials are loaded lazily. Local downloadable
 embedding providers (<code>onnx</code> and <code>local</code>) are preloaded by <code>mfs-server run</code> and
