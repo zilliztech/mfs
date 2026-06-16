@@ -43,32 +43,20 @@ plain terms, with one running example: you've just run `mfs add ./repo`.
 | **Connector** | A registered source. One connector holds **many** objects. | `./repo`, a local folder. (Others: `postgres://prod`, `slack://eng`.) |
 | **Object** | One virtual "file" under a connector — really just one URI path. | each file in the repo, like `src/main.py`. (For a database, an object is a table's `rows.jsonl`.) |
 | **ConnectorJob** | One sync of a *whole* connector — connector-level — with a status you can watch. | the single indexing run you just started for `./repo`. |
-| **Object task** | The work for *one* object inside a job — object-level: convert it, split it, embed it. | "process `src/main.py`" is one task; the job spawns thousands, one per file. |
-| **Metadata DB** | The bookkeeping — which connectors, objects, and ConnectorJobs exist and their state. It also doubles as the **queue** workers pull object tasks from. | tracks the run and lines up the per-file tasks. |
+| **ObjectTask** | The work for *one* object inside a job — object-level: convert it, split it, embed it. | "process `src/main.py`" is one task; the job spawns thousands, one per file. |
+| **Queue** | Where ObjectTasks wait for a worker. There are two: a durable, DB-backed queue for the per-object work, and a fast in-memory queue (the ChunkQueue) further down the pipeline — see [Ingest pipeline](ingest-pipeline.md). | the per-file tasks line up here until a worker claims one. |
+| **Metadata DB** | The bookkeeping — which connectors, objects, and ConnectorJobs exist and their state. The durable queue lives here too. | tracks the run and its per-file tasks. |
 | **Cache** | Derived bytes kept so MFS never redoes heavy work for the same input. Two kinds: the **artifact cache** holds conversions (a PDF turned into Markdown), the **transformation cache** holds model inputs and outputs (an embedding already computed). | a converted PDF reused on the next sync; an embedding not paid for twice. |
 | **Index** | The searchable rows, in Milvus — what `search` and `grep` actually hit. | the repo, now findable by meaning. |
 
 The level is the thing to keep straight: a **connector** holds **many objects**
 (one per URI path); a **ConnectorJob** runs at the connector level — one sync of
-the whole source — and fans out into one **object task** per object. So
-`mfs add ./repo` is a single ConnectorJob that spawns thousands of object tasks,
+the whole source — and fans out into one **ObjectTask** per object. So
+`mfs add ./repo` is a single ConnectorJob that spawns thousands of ObjectTasks,
 one per file.
 
 And the source is always the truth — everything in the Cache and the Index is
 derived from it, and can be thrown away and rebuilt.
-
-## Everything is a connector — except where the data lives
-
-`postgres`, `slack`, `github`, and `file` are all the same kind of thing: each
-implements the same `list / stat / read / fingerprint / sync` contract, flows
-through the same chunk pipeline, and gets the same search. The one real exception
-is `file`, and the reason is *where the bytes are*. The server can reach most
-sources itself — it connects to Postgres, it calls the Slack API — and pulls the
-data directly. Local files are different: in a client/server setup the bytes live
-on the client machine, where the server can't see them, so the file connector
-adds an upload step (manifest diff → upload → commit). That special case stays
-isolated — the file connector's sync logic is identical whether it runs local or
-remote; only how the bytes reach the server changes.
 
 ## Where each piece runs
 
@@ -130,3 +118,17 @@ value. Set the variables where `mfs-server` runs — your machine in local mode,
 server host or pod otherwise. See [Auth and secrets](auth-and-secrets.md) for the
 full boundary and [Design philosophy](production.md) for *why* it's built this
 way.
+
+## File is the special case
+
+Every source is a connector, and they're all the same kind of thing: `postgres`,
+`slack`, `github`, and `file` each implement the same `list / stat / read /
+fingerprint / sync` contract, flow through the same pipeline, and get the same
+search. The one real exception is `file` — and the reason is *where the bytes
+are*. The server reaches most sources itself: it connects to Postgres, it calls
+the Slack API, and pulls the data directly. Local files are different — in a
+client/server setup the bytes sit on the client machine, where the server can't
+see them, so the file connector adds an upload step (manifest diff → upload →
+commit). That special case stays isolated: the file connector's sync logic is the
+same whether it runs local or remote; only how the bytes reach the server
+changes.
