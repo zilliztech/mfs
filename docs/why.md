@@ -43,6 +43,22 @@ The one idea that makes MFS reliable is that **search gives candidates, not
 answers**. A ranked snippet tells you where to look; it is not yet something you
 should quote, summarize, edit, or decide on.
 
+This is just how people already search. On Google you don't scroll the whole web
+— you type a query and a pre-built index returns a ranked page of candidates
+almost instantly. Flat, global search is fast *precisely because* the index was
+built ahead of time. Then you skim the result snippets to judge which one is
+worth opening, click into the page, and read and navigate it directly. MFS gives
+an agent the same two moves over your own sources: fast global semantic search to
+locate, then progressive browse to read.
+
+Both halves are essential and they cover for each other. Progressive,
+agent-driven browsing is powerful for working through a tree you can navigate —
+but once a knowledge base or memory store gets large, you can't browse your way
+to the answer; you need a semantic index to jump straight to the candidates. And
+an index alone isn't enough either: a ranked snippet isn't proof. So MFS packages
+both and you never have to choose — hybrid semantic search (built on Milvus) to
+find, file-like browse to verify.
+
 So the loop always has two beats:
 
 1. **Locate.** `mfs search` (meaning + keywords) or `mfs grep` (exact literal)
@@ -74,6 +90,25 @@ A **person** leans on the human-readable output: `mfs tree` to get oriented,
 `mfs search` to find a starting point, and `mfs cat --range` to read just enough
 context. Save `--all` for when you genuinely don't know which source holds the
 answer; a scoped path is faster and easier to trust.
+
+## How MFS compares
+
+Plenty of tools do one of these things well. MFS's bet is the *combination* —
+broad sources, both search and browse, an agent-native interface, self-hosted,
+and engineered to run in production. Compared to the usual alternatives:
+
+| | MFS | Code-search tools | Memory layers | Managed RAG services |
+|---|:--:|:--:|:--:|:--:|
+| Many source types — files, DBs, SaaS, chat | ✅ | ❌ | ❌ | ➖ |
+| Hybrid semantic + keyword search | ✅ | ➖ | ➖ | ✅ |
+| File-like progressive browse (`ls` / `cat` / `--range`) | ✅ | ❌ | ❌ | ❌ |
+| Agent-native CLI + skills | ✅ | ➖ | ➖ | ❌ |
+| Self-hosted and open source | ✅ | ➖ | ➖ | ❌ |
+| Stateful server — concurrency-safe, resumable, idempotent | ✅ | ❌ | ❌ | — |
+
+✅ built in · ➖ partial or varies · ❌ not the focus. The point isn't any single
+row — it's having every row at once. See [Built for production](production.md)
+for the engineering behind the last one.
 
 ## Where to next
 
