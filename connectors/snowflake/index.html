@@ -2292,6 +2292,9 @@ account's MFA policy first.</p>
 <p><strong>PAT</strong> (<code>auth_mode = "pat"</code>): issue a Programmatic Access Token in the Snowflake
 UI, attach a network policy covering your egress IPs, and put the token in
 <code>credential_ref</code>. Rotation is just "issue a new PAT, replace the secret".</p>
+<p><img alt="Snowflake Users and roles page" src="https://github.com/user-attachments/assets/102fd1cf-3841-4606-918e-0cff54f356c2" /></p>
+<p><img alt="Snowflake programmatic access tokens section" src="https://github.com/user-attachments/assets/7fae2256-cf98-4750-8236-0fca285ab69f" /></p>
+<p><img alt="Snowflake new programmatic access token dialog" src="https://github.com/user-attachments/assets/9a2ba38a-8bed-4c9b-8c6b-1b6dcafd7909" /></p>
 <p>Use a read-only role with <code>USAGE</code> on the warehouse/database/schemas and <code>SELECT</code>
 on the in-scope tables.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>

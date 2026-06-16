@@ -2285,6 +2285,9 @@ keys are <strong>not</strong> supported.</p>
    <code>https://www.googleapis.com/auth/gmail.readonly</code>. This writes <code>token.json</code>.</li>
 <li>Copy <code>token.json</code> to the server and reference it from the TOML.</li>
 </ol>
+<p><img alt="Google Cloud Gmail API page" src="https://github.com/user-attachments/assets/8a2b96ab-8ea6-4442-9e25-f186c879dd14" /></p>
+<p><img alt="Google Cloud Create credentials menu" src="https://github.com/user-attachments/assets/fc27a2aa-8eaf-4338-ada4-067be970857d" /></p>
+<p><img alt="Google Cloud OAuth desktop client form" src="https://github.com/user-attachments/assets/2872163a-18d2-4592-ac43-b7ffc49693ed" /></p>
 <p>The connector only calls <code>messages.list</code> + <code>messages.get</code> — it never sends or
 modifies mail. If you also use <a href="../gdrive/"><code>gdrive</code></a>, request <code>drive.readonly</code> in
 the same consent step and one <code>token.json</code> drives both.</p>
