@@ -29,14 +29,11 @@ Generated source docs:
 | Python | [`sdks/python/README.md`](https://github.com/zilliztech/mfs/blob/main/sdks/python/README.md) | [`sdks/python/docs/README.md`](https://github.com/zilliztech/mfs/blob/main/sdks/python/docs/README.md) |
 | TypeScript | [`sdks/typescript/README.md`](https://github.com/zilliztech/mfs/blob/main/sdks/typescript/README.md) | [`sdks/typescript/docs/README.md`](https://github.com/zilliztech/mfs/blob/main/sdks/typescript/docs/README.md) |
 
-!!! note "Generated README caveats"
-    The generated README files and generated package internals may mention
-    `0.4.0`, while the checked-in package metadata currently says
-    `0.4.0-beta.3`. If older generated output says endpoints do not require
-    authorization, treat that as stale generator scaffolding; the OpenAPI
-    contract declares bearer auth and the running server is authoritative for auth.
-    The checked-in SDK README files and `sdks/*/docs/README.md` entries include
-    a small runtime overlay before the generated examples and model pages.
+!!! note "Set the base URL and token yourself"
+    The SDKs are generated from `protocol/openapi.yaml`. Always point the client
+    at your running server's base URL and send a bearer token when the server has
+    auth enabled — the running server is authoritative for auth behavior. The
+    checked-in READMEs add a short runtime overlay before the generated examples.
 
 ## Base URL and Auth
 

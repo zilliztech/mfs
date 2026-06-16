@@ -250,8 +250,7 @@ Expected search shape:
 }
 ```
 
-Next: [Connectors](connectors.md), [Connector Reference](connector-reference.md),
-and [Troubleshooting](troubleshooting.md).
+Next: [Connectors](connectors.md) and [Troubleshooting](troubleshooting.md).
 
 ## 4. Direct HTTP add, poll, search, and read
 

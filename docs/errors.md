@@ -35,7 +35,7 @@ hard failed request.
 | Authentication or request shape | `mfs status`, `mfs config show`, or inspect the HTTP request body | [Troubleshooting](troubleshooting.md#endpoint-and-auth), [Auth and Secrets](auth-and-secrets.md), [HTTP API](api.md#errors) |
 | A path, object, locator, or read operation | `mfs ls PATH --json`, `mfs head PATH -n 20`, or `mfs cat PATH --range A:B` | [Search and Browse](search-and-browse.md#error-recovery), [Troubleshooting](troubleshooting.md#read-and-browse-errors) |
 | A queued or running ingest job | `mfs job list`, then `mfs job show JOB_ID` | [Jobs and Indexing Progress](jobs.md), [Troubleshooting](troubleshooting.md#jobs-and-indexing) |
-| A connector source or credentials | `mfs connector inspect TARGET`, then `mfs connector probe TARGET --config FILE` | [Connectors](connectors.md), [Connector Reference](connector-reference.md) |
+| A connector source or credentials | `mfs connector inspect TARGET`, then `mfs connector probe TARGET --config FILE` | [Connectors](connectors.md) |
 | Search availability is partial, building, or unavailable | `mfs ls PATH --json`, `mfs job list`, and bounded browse commands | [Search and Browse](search-and-browse.md#browse-when-search-is-weak), [Troubleshooting](troubleshooting.md#empty-search-results) |
 
 ## Runtime and Request Codes
@@ -71,7 +71,7 @@ middleware, and the canonical protocol table.
 | `sync_already_running` | 409 | A sync job is already in flight for that connector. | Run `mfs job list`, then wait or run `mfs job cancel JOB_ID` if the job should stop. | [Jobs and Indexing Progress](jobs.md) |
 | `connector_removing` | 409 | The connector is being removed and cannot start new work. | Wait for removal to finish, then retry. | [Connectors](connectors.md) |
 | `connector_unhealthy` | 502 | The source is unreachable or credentials/connectivity failed. | Check server-side credentials and network reachability, then probe the connector. | [Connectors](connectors.md), [Troubleshooting: Connector Failures](troubleshooting.md#connector-failures) |
-| `field_missing` | 400 | A configured structured-source text field is absent. | Fix the connector `[[objects]]` config, then re-run add or update. | [Connector Reference](connector-reference.md) |
+| `field_missing` | 400 | A configured structured-source text field is absent. | Fix the connector `[[objects]]` config, then re-run add or update. | [Connectors](connectors.md) |
 | `upload_rejected` | 400 | Upload was required by topology, but upload was disabled. | Adjust the path mode or profile; for isolated servers use `mfs add --upload PATH`. | [Troubleshooting: Upload or Shared Filesystem](troubleshooting.md#upload-or-shared-filesystem) |
 | `upload_not_applicable` | 400 | Upload was forced where shared-filesystem mode applies. | Adjust upload flags or profile for the current topology. | [Troubleshooting: Upload or Shared Filesystem](troubleshooting.md#upload-or-shared-filesystem) |
 

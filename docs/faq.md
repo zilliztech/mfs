@@ -13,8 +13,7 @@
 
 ## What is the shortest first run?
 
-Install the published `mfs` CLI, then run the Python server from source during
-the v0.4 beta:
+Install the published `mfs` CLI, then run the server from source:
 
 ```bash
 cd mfs/server/python
@@ -38,8 +37,8 @@ Use [Quickstart](getting-started.md) for the full checkpoint-driven runbook.
 
 ## Is the server required?
 
-Yes for v0.4. The Rust CLI named `mfs` is a thin HTTP client over the Python
-FastAPI server named `mfs-server`. The API lives under `/v1`.
+Yes. The Rust CLI (`mfs`) is a thin HTTP client over the Python server
+(`mfs-server`). The API lives under `/v1`.
 
 The CLI default endpoint is `http://127.0.0.1:13619`. `mfs-server run` and
 `mfs-server api` bind to `127.0.0.1:13619` by default.
@@ -150,15 +149,14 @@ directly for operations missing from the generated clients.
 
 ## What deployment shape should I use?
 
-| Shape | v0.4 status |
+| Shape | When to use it |
 |---|---|
-| Source `mfs-server run` | Supported beta path for local evaluation and development. |
-| Docker all-in-one | Runnable v0.4 topology. |
-| Docker Compose all-in-one | Runnable v0.4 topology around the same server image. |
-| Helm api/worker | Rendered post-v0.4 direction, not the default runnable v0.4 deployment. |
+| Source `mfs-server run` | Local use, evaluation, and connector development. |
+| Docker / Compose all-in-one | An isolated, repeatable single-host server. |
+| Kubernetes api/worker | Horizontal scale against externalized state. |
 
-During the v0.4 beta, the published artifact is the CLI. The server runs from
-source or from a locally built Docker/Compose image.
+The CLI is published; the server runs from source or a container you build from
+it. See [Deployment](deployment.md) for each shape.
 
 ## How do I troubleshoot a confusing result?
 

@@ -1,115 +1,119 @@
-# Architecture
+# How it works
 
-MFS v0.4 is a client/server system. The Rust CLI and generated SDKs are client
-surfaces over the `/v1` HTTP control plane. The Python FastAPI server owns
-connector execution, ingest jobs, retrieval, browsing, metadata, cache, and
-Milvus/Zilliz integration.
-
-Use this page for the system map. For runnable steps, start with
-[Quickstart](getting-started.md). For exact commands, use
-[CLI Reference](cli.md). For direct integration, use [HTTP API](api.md) and
-[SDKs](sdks.md).
-
-## Runtime and data flow
+MFS is a client/server system. A thin Rust CLI and the generated SDKs are client
+surfaces; all the real work happens in a stateful Python server. The split is
+deliberate: the client stays small and portable, while connectors, indexing,
+retrieval, and state live in one place that you run once and point everything at.
 
 ```mermaid
 flowchart TB
-  subgraph Clients
+  subgraph clients["Clients"]
     cli["Rust CLI<br/>mfs"]
     sdk["Generated SDKs<br/>Python / TypeScript"]
     http["Direct HTTP clients"]
   end
 
-  cli -->|HTTP /v1 + bearer token| api["Python FastAPI server<br/>mfs-server"]
+  cli -->|HTTP /v1 + bearer token| api["Python server<br/>mfs-server"]
   sdk -->|HTTP /v1 + bearer token| api
   http -->|HTTP /v1 + bearer token| api
-  api -.-> health["GET /healthz<br/>no bearer token"]
+  api -.->|liveness, no token| health["GET /healthz"]
 
-  api --> engine["Engine<br/>registry, ingest, search, browse"]
-  engine --> jobs["Jobs<br/>inline, queued, worker-drained"]
+  api --> engine["Engine<br/>registry · ingest · search · browse"]
+  engine --> jobs["Jobs<br/>inline or queued, worker-drained"]
   jobs --> connectors["Connector plugins<br/>file + optional built-ins"]
-  connectors --> sources["Source systems<br/>folders, object stores, databases, SaaS, docs"]
+  connectors --> sources["Source systems<br/>folders · object stores · databases · SaaS · docs"]
 
-  jobs --> transform["Conversion, embedding,<br/>optional VLM and summaries"]
-  transform --> txcache["Transformation cache<br/>embedding / summary lookup"]
-  transform --> artifacts["Artifact cache<br/>converted blobs"]
+  jobs --> transform["Convert · embed<br/>optional VLM + summaries"]
+  transform --> txcache["Transformation cache"]
+  transform --> artifacts["Artifact cache"]
   transform --> milvus["Milvus / Zilliz / Milvus Lite<br/>indexed chunks"]
 
-  engine --> metadata["Metadata database<br/>connectors, objects, jobs"]
+  engine --> metadata["Metadata DB<br/>connectors · objects · jobs"]
   engine --> milvus
-  engine --> connectors
 ```
 
-`search` reads indexed chunks. `grep`, `ls`, `tree`, `cat`, `head`, `tail`, and
-`export` are browse/read operations: `tree` is implemented by repeated `ls`
-calls, and search hits should be reopened with `cat` or a bounded read before
-being used as evidence.
+The CLI's only job is to parse a command, resolve the endpoint and token, package
+an upload when one is needed, call `/v1`, and render the result as text or JSON.
+Everything stateful — what's registered, what's indexed, what's cached — belongs
+to the server.
 
-## Component responsibilities
+## A request, end to end
 
-| Component | Repository area | Responsibility | Go deeper |
-|---|---|
-| Rust CLI | `cli/` | Parses commands, resolves endpoint and token sources, packages uploads when needed, calls `/v1`, and renders JSON or text output. | [CLI Reference](cli.md) |
-| OpenAPI protocol | `protocol/openapi.yaml` | Source of truth for `/v1` endpoint paths, operation IDs, and typed schemas used by docs and SDK generation. | [HTTP API](api.md) |
-| Generated SDKs | `sdks/python/`, `sdks/typescript/` | Generated Python and TypeScript clients for programmatic callers. | [SDKs](sdks.md) |
-| FastAPI server | `server/python/src/mfs_server/api/` | Wires the `/v1` API, bearer-token middleware, `/healthz`, error envelopes, and request/response models. | [Server](server.md), [HTTP API](api.md) |
-| Engine | `server/python/src/mfs_server/engine/` | Orchestrates add/sync jobs, connector registration, upload staging, object processing, search, grep, browse, and connector removal. | [Server](server.md) |
-| Connectors | `server/python/src/mfs_server/connectors/` | Expose local and external sources as URI trees; `file` is always imported and other built-in schemes are loaded lazily when optional dependencies exist. | [Connectors](connectors.md) |
-| Metadata database | `server/python/src/mfs_server/storage/` | Stores connector registry rows, object state, jobs, and related metadata. SQLite is the local default; Postgres is configured through server settings. | [Configuration](configuration.md), [Deployment](deployment.md) |
-| Transformation cache | `server/python/src/mfs_server/storage/` | Stores model-output lookups such as embedding, VLM, and summary bytes. It defaults under `$MFS_HOME` and can share Postgres when configured. | [Configuration](configuration.md) |
-| Artifact cache | `server/python/src/mfs_server/storage/` | Stores derived blobs such as converted document text on the local filesystem. Mount a volume at the cache root to persist it. | [Configuration](configuration.md), [Deployment](deployment.md) |
-| Vector database | `server/python/src/mfs_server/storage/` | Stores indexed chunks in Milvus Lite by default, or a configured Milvus/Zilliz endpoint. | [Configuration](configuration.md), [Deployment](deployment.md) |
-| Workers | `server/python/src/mfs_server/engine/`, `mfs-server worker` | Drain queued jobs. SQLite all-in-one runs can use an in-process worker; api/worker deployments use a standalone worker process. | [Deployment](deployment.md), [Troubleshooting](troubleshooting.md) |
-| Optional Rust acceleration | `server-rs/` | Optional PyO3 extension for server hot paths such as directory walks, hashing, grep, and tail; the server falls back to Python when it is not installed. | [Server](server.md) |
+When you run `mfs search "retry budget" repo/`, the CLI resolves your server URL
+and bearer token, issues `GET /v1/search`, and prints the ranked hits. On the
+server, the engine turns the query into a hybrid (semantic + keyword) recall
+against Milvus, scoped to the paths under that connector, and returns each hit
+with the `source` URI and `locator` you need to reopen it.
 
-## API surface map
+Reads work the opposite way. `search` and `grep` *find*; `ls`, `tree`, `cat`,
+`head`, `tail`, and `export` *fetch*. A browse read goes straight to the
+connector for live bytes rather than to the index — `tree` is just repeated `ls`
+calls, and `cat --locator` hands a structured locator back to the connector to
+resolve. That's why the reliable pattern is always search to locate, then reopen
+the exact source before trusting it.
 
-| Group | Endpoints | Used by |
+## What the server owns
+
+| Component | Where it lives | Responsibility |
 |---|---|---|
-| Server | `GET /v1/server/info`, `GET /v1/status`, `GET /healthz` | `mfs status`, `mfs config show`, liveness checks, direct clients |
-| Ingest and jobs | `POST /v1/add`, `POST /v1/upload`, `POST /v1/files/manifest`, `PUT /v1/files/upload`, `GET /v1/jobs`, `GET /v1/jobs/{job_id}`, `POST /v1/jobs/{job_id}/cancel` | `mfs add`, upload mode, `mfs job ...`, SDK/API integrations |
-| Connectors | `POST /v1/connectors/probe`, `POST /v1/connectors/estimate`, `GET /v1/connectors/inspect`, `DELETE /v1/connectors` | `mfs connector ...`, `mfs remove`, pre-flight checks |
-| Retrieval | `GET /v1/search`, `GET /v1/grep` | `mfs search`, `mfs grep`, search integrations |
-| Browse/read | `GET /v1/ls`, `GET /v1/cat`, `GET /v1/head`, `GET /v1/tail`, `GET /v1/export` | `mfs ls`, `mfs tree`, `mfs cat`, `mfs head`, `mfs tail`, `mfs export` |
+| FastAPI app | `api/` | Wires `/v1`, bearer-token middleware, `/healthz`, error envelopes, request/response models. |
+| Engine | `engine/` | Orchestrates add/sync jobs, connector registration, upload staging, object processing, search, grep, and browse. |
+| Connectors | `connectors/` | Expose local and external sources as URI trees. `file` is always available; other built-ins load lazily when their optional dependencies are installed. |
+| Processors | `processors/` | Convert documents to text, embed chunks, and run optional VLM image descriptions and summaries. |
+| Metadata DB | `storage/metadata/` | Connector registry, object state, and jobs. SQLite by default; Postgres when configured. |
+| Transformation cache | `storage/transformation_cache/` | Caches model outputs (embeddings, summaries, VLM text) so re-syncs don't recompute. |
+| Artifact cache | `storage/artifact_cache.py` | Stores derived blobs such as converted document text on the filesystem. |
+| Vector store | `storage/milvus.py` | Holds indexed chunks in Milvus Lite by default, or a configured Milvus/Zilliz endpoint. |
+| Workers | `worker/`, `engine/job_lane/` | Drain queued jobs. A SQLite all-in-one run can drain in-process; a scaled deployment runs standalone workers. |
+| Rust acceleration | `server-rs/` | Optional PyO3 extension for hot paths (directory walks, hashing, grep, tail); the server falls back to Python when it's absent. |
 
-Every `/v1` request requires `Authorization: Bearer <token>` when the server has
-`auth_token` configured. `GET /healthz` is intentionally outside `/v1` and is
-not bearer-token gated.
+## The `/v1` surface
 
-## Runtime modes
+Every `/v1` request carries `Authorization: Bearer <token>` when the server has
+auth configured. `GET /healthz` sits intentionally outside `/v1` and is never
+token-gated, so liveness probes work without credentials.
 
-| Mode | What runs | Worker and state notes | Use this when |
-|---|---|---|---|
-| Source all-in-one | Host `mfs-server run` plus one or more `mfs` clients. | Defaults to `127.0.0.1:13619`; `$MFS_HOME` defaults to `~/.mfs`; local defaults are ONNX embeddings, Milvus Lite, SQLite, local artifact cache, and a generated server token. SQLite all-in-one runs can drain queued jobs in-process. | You are doing the first local run, evaluation, or connector development. Start with [Quickstart](getting-started.md). |
-| Docker or Compose all-in-one | One container runs `mfs-server run` with persistent `/data`. | The container uses `/data` for config, token, SQLite, caches, ONNX cache, and Milvus Lite. Use `mfs add --upload` from the host unless the target path is mounted into the container and passed as a server-visible path. | You want an isolated local server or repeatable container startup. See [Deployment](deployment.md). |
-| Direct client/server | CLI, SDK, or HTTP client talks to a server it cannot assume shares local paths with the client. | Set endpoint and token explicitly, and use upload mode for client-local folders. The CLI chooses upload for local paths when it detects a different server machine unless `--no-upload` is set. | You are integrating from another host, VM, container, or automation process. See [CLI Reference](cli.md), [HTTP API](api.md), and [SDKs](sdks.md). |
-| Helm-rendered api/worker | The chart renders an API Deployment, Worker Deployment, and API Service. | The repository documents this as the post-v0.4 scalable direction, not the runnable v0.4 operations path. The rendered shape expects externalized state such as Postgres, object storage, and remote Milvus/Zilliz. | You are validating the chart or planning the future split. See [Deployment](deployment.md). |
+| Group | Endpoints | Drives |
+|---|---|---|
+| Server | `GET /v1/server/info`, `GET /v1/status`, `GET /healthz` | `mfs status`, `mfs config show`, liveness checks |
+| Ingest & jobs | `POST /v1/add`, `POST /v1/upload`, `POST /v1/files/manifest`, `PUT /v1/files/upload`, `GET /v1/jobs`, `GET /v1/jobs/{id}`, `POST /v1/jobs/{id}/cancel` | `mfs add`, upload mode, `mfs job ...` |
+| Connectors | `POST /v1/connectors/probe`, `POST /v1/connectors/estimate`, `GET /v1/connectors/inspect`, `DELETE /v1/connectors` | `mfs connector ...`, `mfs remove` |
+| Retrieval | `GET /v1/search`, `GET /v1/grep` | `mfs search`, `mfs grep` |
+| Browse & read | `GET /v1/ls`, `GET /v1/cat`, `GET /v1/head`, `GET /v1/tail`, `GET /v1/export` | `mfs ls`, `mfs tree`, `mfs cat`, `mfs head`, `mfs tail`, `mfs export` |
 
-## Configuration boundaries
+The OpenAPI spec at `protocol/openapi.yaml` is the source of truth for these
+paths and their schemas, and both SDKs are generated from it. See
+[HTTP API](api.md) for the full contract.
 
-The CLI configures client concerns: endpoint selection, profile selection,
-client identity, upload decisions, and bearer-token source. The server configures
-runtime concerns: namespace, auth, database, metadata, transformation cache,
-artifact cache, Milvus, embeddings, summaries, VLM, conversion, workers,
-chunking, and search behavior.
+## Two lanes of ingest
 
-Key local defaults are shared through `$MFS_HOME`: the CLI can read
-`$MFS_HOME/server.token` for same-host local auth, while the server stores
-`server.toml`, SQLite files, local caches, Milvus Lite, and the ONNX model cache
-under the same root. For precedence rules and environment overrides, see
-[Configuration](configuration.md).
+Indexing a source runs as a job, and a job has two parallel lanes:
 
-## Related runbooks
+- The **object lane** turns each object into searchable chunks: convert it to
+  text if needed, split it, embed the chunks, and write them to Milvus. Document
+  text, code, table rows, message threads, and image descriptions all flow
+  through here.
+- The **job lane** builds the connective tissue — directory summaries and schema
+  summaries that make a large tree navigable and searchable at the folder level,
+  not just the leaf.
 
-| Need | Page |
-|---|---|
-| First local run | [Quickstart](getting-started.md) |
-| Search, browse, and evidence verification | [Search and Browse](search-and-browse.md) |
-| Connector selection and TOML setup | [Connectors](connectors.md) |
-| Exact CLI command surface | [CLI Reference](cli.md) |
-| Server package map | [Server](server.md) |
-| Direct `/v1` integration | [HTTP API](api.md) |
-| Generated clients | [SDKs](sdks.md) |
-| Source, Docker, Compose, and Helm shapes | [Deployment](deployment.md) |
-| Config files, env vars, and persisted state | [Configuration](configuration.md) |
-| Endpoint, auth, job, ingest, search, and browse failures | [Troubleshooting](troubleshooting.md) |
+Both lanes lean hard on the caches. Re-syncing a source only re-embeds what
+actually changed, because the transformation cache already holds the model output
+for everything that didn't. For the full walkthrough, see
+[Ingest pipeline](ingest-pipeline.md).
+
+## Where state lives
+
+Run modes differ mainly in *where the state sits*, not in how the system behaves.
+
+A local all-in-one run keeps everything under `$MFS_HOME` (default `~/.mfs`):
+config, the generated server token, SQLite, the artifact cache, the ONNX model
+cache, and Milvus Lite. The CLI on the same host reads `$MFS_HOME/server.token`
+automatically, so a first local run needs no manual auth.
+
+A scaled deployment externalizes each of those — Postgres for metadata,
+object storage for artifacts, a managed Milvus/Zilliz endpoint for vectors — and
+runs the API and workers as separate processes. The engine, connectors, and
+retrieval logic are identical; only the backends behind them change. See
+[Configuration](configuration.md) for the precedence rules and
+[Deployment](deployment.md) for the topologies.

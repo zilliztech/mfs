@@ -1,8 +1,8 @@
 # Glossary
 
-Compact lookup for MFS v0.4 terms and identifiers. Use this page to decode
-CLI, API, configuration, search, and connector examples, then follow the linked
-source page for the full workflow.
+Compact lookup for MFS terms and identifiers. Use this page to decode CLI, API,
+configuration, search, and connector examples, then follow the linked source page
+for the full workflow.
 
 ## Source Of Truth
 
@@ -11,7 +11,7 @@ source page for the full workflow.
 | First local run and success checkpoints | [Quickstart](getting-started.md) | [Troubleshooting](troubleshooting.md) |
 | Exact command shape and flags | [CLI Reference](cli.md) | `cli/src/main.rs` |
 | Search result fields and reopen patterns | [Search and Browse](search-and-browse.md) | [HTTP API](api.md), `server/python/src/mfs_server/api/models.py` |
-| Connector targets and TOML | [Connectors](connectors.md) | [Connector Reference](connector-reference.md), `server/python/src/mfs_server/connectors/registry.py` |
+| Connector targets and TOML | [Connectors](connectors.md) | per-connector pages, `server/python/src/mfs_server/connectors/registry.py` |
 | Server/CLI config, env vars, and local files | [Configuration](configuration.md) | [Architecture](architecture.md), `server/python/src/mfs_server/config.py` |
 | API endpoints, schemas, and errors | [HTTP API](api.md) | `protocol/openapi.yaml`, `protocol/errors.md` |
 

@@ -139,7 +139,7 @@ for connector data removal is `mfs connector remove TARGET` or
 | Source server | `$MFS_HOME`, default `~/.mfs` | Local defaults use SQLite metadata, SQLite transformation cache, local artifact cache, Milvus Lite, and ONNX cache unless configured otherwise. | Snapshot `$MFS_HOME` plus any external Postgres or remote Milvus service you configured. |
 | Docker all-in-one | `/data` | Dockerfile sets `MFS_HOME=/data`, declares `/data` as a volume, and runs `mfs-server` by default. | Persist and back up the mounted `/data` volume. |
 | Docker Compose all-in-one | `mfs-data` volume mounted at `/data` | Compose sets `MFS_HOME=/data` and persists `/data` through the `mfs-data` volume. | Back up the `mfs-data` volume while the service is stopped. |
-| Helm-rendered api/worker | Rendered values target Postgres metadata, a shared artifact-cache volume, and remote Milvus/Zilliz | The chart renders API and worker deployments, but current docs describe this as the post-v0.4 scalable direction and note runtime/env mismatches to resolve. | Back up external services according to their policies; do not assume local pod files are durable. |
+| Kubernetes api/worker | Postgres metadata, a shared artifact-cache volume, and remote Milvus/Zilliz | State lives in external services, not pod-local files. | Back up each external service per its own policy; don't assume pod files are durable. |
 
 ## Backup Checklist
 

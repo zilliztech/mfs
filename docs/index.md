@@ -1,40 +1,71 @@
 # MFS
 
-MFS is a multi-source, file-like search layer for agents and developers.
-It exposes codebases, local folders, object stores, databases, SaaS tools,
-and knowledge bases through a familiar command surface: search, grep, ls,
-tree, cat, and status.
+A modern AI agent runs on an enormous amount of **context** — and that context
+is scattered. It lives in code repos, past-session memory, design docs, PDFs,
+Notion pages, Slack threads, Jira tickets, Postgres tables, S3 buckets. For any
+given task, the hard part is rarely reading one file you already know about. The
+hard part is finding *which slice of all that context actually matters*, across
+sources that each speak a different protocol.
 
-The v0.4 line is a client/server system:
+MFS gives an agent one way to reach all of it. Every source becomes a file-like
+tree under a stable URI, and the agent works across them with the same handful
+of commands it already understands:
 
-- a Rust CLI named `mfs`
-- a Python FastAPI server named `mfs-server`
-- an OpenAPI protocol under `/v1`
-- generated Python and TypeScript SDKs
-- optional Rust acceleration for server hot paths
+```bash
+mfs add postgres://reports          # register and index a source, once
+mfs search "churn assumptions" --all # find candidates across everything
+mfs cat <hit> --range 40:80          # reopen the exact lines that matter
+```
 
-The current beta path is to install the published CLI and run the Python server
-from source or from a locally built Docker/Compose server. The server owns
-connectors, indexing, retrieval, metadata, cache, and Milvus/Zilliz integration;
-clients call the `/v1` control plane.
+No per-source SDK, no bespoke retrieval glue. Register a source once; from then
+on it is searchable and browsable like a local folder.
 
-## Choose your entry point
+## Search and browse, two legs of one loop
 
-| Role or task | Start here | Use it for |
-|---|---|---|
-| New user | [Quickstart](getting-started.md) | Install `mfs`, run `mfs-server`, index a small folder, and verify search plus browse. |
-| Daily search or browse user | [Search and Browse](search-and-browse.md) | Follow the `search -> locate -> browse/read` loop with `search`, `grep`, `ls`, `tree`, `cat`, `head`, `tail`, and `export`. |
-| Source or connector owner | [Connectors](connectors.md) | Choose a connector scheme, prepare TOML, probe, add, update, inspect, or remove a source. |
-| Integration developer | [HTTP API](api.md) and [SDKs](sdks.md) | Call `/v1` directly or use generated Python and TypeScript clients from `protocol/openapi.yaml`. |
-| Deployment or operations owner | [Deployment](deployment.md), [Configuration](configuration.md), and [Troubleshooting](troubleshooting.md) | Pick a source, Docker, Compose, or rendered Helm shape; persist state; debug endpoint, auth, jobs, and indexing. |
-| Architecture reader | [Architecture](architecture.md), [CLI Reference](cli.md), and [Server](server.md) | Understand how the Rust CLI, generated clients, FastAPI server, connector engine, stores, cache, workers, and OpenAPI protocol fit together. |
+MFS is built around a single loop, and both halves earn their place:
 
-## Current v0.4 shape
+- **Search** finds candidates fast across huge, mixed volumes — hybrid semantic
+  *and* keyword recall in one query. It tells you *where to look*.
+- **Browse** narrows from a hit down to the exact bytes — `ls`, `tree`, `cat`,
+  `head`, `tail`. It gives you something you can actually trust.
 
-| Area | Current documentation baseline |
-|---|---|
-| CLI | `mfs` is the Rust binary and thin HTTP client over `/v1`. |
-| Server | `mfs-server` is the Python FastAPI server. For the beta, run it from repository source or a locally built container. |
-| Local defaults | Same-host runs use `127.0.0.1:13619`, `$MFS_HOME` defaults to `~/.mfs`, and local first-run backends are ONNX embeddings, Milvus Lite, SQLite, local artifact cache, and an auto-generated bearer token. |
-| API and SDKs | `protocol/openapi.yaml` is the API source of truth; SDKs are generated under `sdks/python/` and `sdks/typescript/`. |
-| Deployment | Source, Docker, and Compose all-in-one servers are the runnable v0.4 shapes. The Helm api/worker chart is rendered as the post-v0.4 scalable direction. |
+Search results are starting points, not evidence. The discipline that makes MFS
+reliable is simple: search to locate, then reopen the exact source before you
+quote it, edit it, or act on it. That loop lifts precise recall *and* cuts the
+tokens an agent burns getting there.
+
+## How you drive it
+
+MFS ships as two agent **skills** — bundles of commands an agent loads and calls
+on its own:
+
+- **mfs-ingest** brings sources in: `mfs add` registers and indexes any
+  connector (re-run to re-sync), and `mfs connector` lists, inspects, and removes
+  them.
+- **mfs-find** finds across what's ingested: `search` and `grep` to locate fast,
+  then `ls`, `tree`, `cat`, `head`, `tail` to read down to the exact byte.
+
+You can also drive the same commands by hand from a shell, or call the server
+directly over HTTP and the generated SDKs when you're building something on top.
+
+## Under the hood
+
+A thin Rust CLI (`mfs`) talks to a stateful Python server (`mfs-server`) over an
+HTTP `/v1` control plane. The server owns connectors, indexing, retrieval,
+metadata, and caching, and indexes content into Milvus for hybrid search.
+
+It runs the same either way: fully local and offline on a laptop — ONNX
+embeddings, Milvus Lite, and SQLite, no cloud account required — or at
+production scale with a managed Milvus/Zilliz cluster, Postgres, and a pool of
+workers. Neither is an afterthought; the same components simply swap underneath.
+
+## Start here
+
+- **[Quickstart](getting-started.md)** — install the CLI, run the server, index
+  a folder, and verify search and browse in a few minutes.
+- **[Why MFS](why.md)** — when MFS earns its keep, and when a plain shell is the
+  better tool.
+- **[How it works](architecture.md)** — the client/server design and where each
+  piece lives.
+- **[Connectors](connectors.md)** — every source you can bring in, and how to
+  configure each one.

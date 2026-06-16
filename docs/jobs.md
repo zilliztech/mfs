@@ -67,9 +67,9 @@ inline behavior. Do not rely on generated defaults.
 
 | Deployment shape | What drains queued jobs | Notes |
 |---|---|---|
-| Source or Docker all-in-one with SQLite | The FastAPI app starts one in-process worker when `worker.in_process` is enabled. | This is the local v0.4 default path. |
+| Source or Docker all-in-one with SQLite | The app starts one in-process worker when `worker.in_process` is enabled. | This is the local default path. |
 | Client/server or Postgres-backed deployments | Run `mfs-server worker --concurrency auto` or a configured value. | Use a standalone worker for queued jobs. |
-| Helm-rendered api/worker topology | The chart renders a worker deployment. | Current docs describe this as a post-v0.4 scalable direction, not the primary runnable v0.4 operations path. |
+| Kubernetes api/worker | The chart renders a separate worker deployment. | The scale-out path; see [Deployment](deployment.md). |
 
 For topology setup, see [Deployment](deployment.md). For server entrypoints, see
 [Server](server.md).

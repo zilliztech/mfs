@@ -1,9 +1,10 @@
 # Quickstart
 
-This page is a first-run runbook for MFS v0.4. The CLI is a Rust binary named
-`mfs`; the server is a Python FastAPI app named `mfs-server`. The CLI sends HTTP
-requests to the server, and the server owns connectors, indexing, embeddings,
-search, and browsing.
+This is a first-run runbook: install the CLI, start the server, index a folder,
+and verify search and browse — a few minutes end to end. The CLI (`mfs`) is a
+small Rust binary; the server (`mfs-server`) is a Python app that owns
+connectors, indexing, embeddings, search, and browsing. The CLI just talks to it
+over HTTP.
 
 ```mermaid
 flowchart LR
@@ -17,7 +18,7 @@ flowchart LR
 
 | Checkpoint | Success signal |
 |---|---|
-| CLI installed | `mfs --version` prints a v0.4 CLI version. |
+| CLI installed | `mfs --version` prints a CLI version. |
 | Server running | `mfs status` returns a JSON object with `connectors` and `jobs`. |
 | Auth wired locally | No manual token is needed when CLI and server share `$MFS_HOME`. |
 | Folder queued | `mfs add <path>` returns a queued job id. |
@@ -52,7 +53,7 @@ mfs 0.4...
 
 ## 2. Run the Python server from source
 
-During the v0.4 beta, run the server from the repository source tree:
+For now, run the server from the repository source tree:
 
 ```bash
 git clone https://github.com/zilliztech/mfs.git
@@ -127,7 +128,7 @@ mkdir -p /tmp/mfs-quickstart/notes
 cat > /tmp/mfs-quickstart/README.md <<'EOF'
 # MFS quickstart notes
 
-MFS v0.4 uses a Rust CLI and a Python FastAPI server.
+MFS uses a Rust CLI and a Python server.
 The default server listens on 127.0.0.1:13619.
 EOF
 
@@ -182,7 +183,7 @@ source URI contains `file://local` plus the absolute file path:
 
 ```text
 file://local/tmp/mfs-quickstart/README.md  score=...
-   MFS v0.4 uses a Rust CLI and a Python FastAPI server.
+   MFS uses a Rust CLI and a Python server.
 ```
 
 Search the whole namespace only when you intentionally want every registered

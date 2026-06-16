@@ -45,8 +45,7 @@ so.
 
 ## Current CLI Contract
 
-Agents should use the current v0.4 command forms below. These replace stale
-v0.3/v0.4-beta examples that may still appear in old prompts or notes.
+Agents should use the command forms below.
 
 | Do not use | Use now | Why |
 |---|---|---|

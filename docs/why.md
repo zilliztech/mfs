@@ -1,77 +1,79 @@
 # Why MFS
 
-MFS is useful when the hard part is not reading one known file. It is useful
-when you need to find candidate evidence across a large or mixed source, then
-reopen the exact source before acting on it.
+MFS is not trying to replace your shell. If you already know the exact file and
+the exact string you're after, `grep`, `rg`, `find`, and `cat` are faster and
+need no server and no index. Reach for those first.
 
-## Decide quickly
+MFS earns its keep when the hard part is *finding* — when the right evidence is
+somewhere across a large or mixed body of context, the wording in your head
+doesn't match the wording on disk, and the source you need might be a code file,
+a database row, a Slack thread, or a year-old design doc. That's the moment a
+plain shell runs out of road and a single, file-like search surface over every
+source starts to pay off.
 
-| Situation | Use MFS? | Why | Next page |
-|---|---:|---|---|
-| You know the exact local file path or exact token. | Usually no | Shell tools such as `grep`, `rg`, `find`, `sed`, and `cat` are faster and need no server or index. | Use your shell. |
-| You have a conceptual question and the wording may not match the answer. | Yes | `mfs search` can find semantic and keyword candidates, then `cat`/`head`/`tail` reopens the source. | [Search and Browse](search-and-browse.md) |
-| You need to search several source types through one command surface. | Yes | Registered sources expose file-like URI trees for `search`, `grep`, `ls`, `tree`, `cat`, and related commands. | [Connectors](connectors.md) |
-| You are building an agent workflow that needs structured results. | Yes | The CLI can emit JSON with `source`, `locator`, metadata, and server error codes. | [CLI Reference](cli.md) and [HTTP API](api.md) |
-| You need a POSIX mount, file writes, lock semantics, or kernel-level filesystem behavior. | No | MFS is not a mounted filesystem. It adds search, browse, and read surfaces over sources. | Use a filesystem or storage layer. |
-| You need an application vector database backend. | No | MFS may use Milvus or Zilliz for its own index, but it is not a vector database replacement for your app. | Use your vector database directly. |
-| You want a runnable v0.4 beta deployment today. | Yes, with beta caveats | Source, Docker all-in-one, and Compose all-in-one are the runnable shapes. Helm api/worker is rendered post-v0.4 direction. | [Deployment](deployment.md) |
+## When it's the right tool
 
-## Mental model
+Use MFS when:
 
-Search is not the final answer. Search gives candidates; browse and read give
-evidence.
+- You have a conceptual question and the exact phrasing is uncertain. Hybrid
+  search matches on meaning *and* keywords, so you find the answer even when it's
+  worded differently than your query.
+- You need to look across several kinds of source through one command surface —
+  repos, object stores, databases, SaaS tools — without learning each one's API.
+- You're building an agent workflow that needs structured, machine-readable
+  results: every command can emit JSON carrying the `source`, `locator`, and
+  metadata an agent needs to reopen a hit precisely.
 
-| Need | Best first tool | What to do next |
-|---|---|---|
-| Exact local token in a known folder | Shell `rg`/`grep` | Open the file with normal shell tools. |
-| Exact token in a registered MFS source | `mfs grep PATTERN PATH` | Use the returned `source` and locator with `mfs cat`. |
-| Concept, paraphrase, or mixed semantic/keyword query | `mfs search QUERY PATH` or `mfs search QUERY --all` | Reopen likely hits with `mfs cat SOURCE --range A:B` or `mfs cat SOURCE --locator JSON`. |
-| Directory or source orientation | `mfs ls PATH` or `mfs tree PATH -L N` | Narrow the path, then search or read. |
-| Large object or uncertain hit | `mfs head`, `mfs tail`, `mfs cat --range`, or `mfs export` | Read only enough to verify, or export the full object outside the prompt. |
+Reach for something else when:
+
+- You want a real filesystem — POSIX mounts, writes, locks, kernel semantics.
+  MFS adds search, browse, and read surfaces *over* sources; it is not a mounted
+  filesystem.
+- You need a vector database for your own application. MFS uses Milvus for its
+  own index, but it isn't a drop-in vector store for your app — talk to Milvus or
+  Zilliz directly for that.
+
+## The mental model: candidates, then evidence
+
+The one idea that makes MFS reliable is that **search gives candidates, not
+answers**. A ranked snippet tells you where to look; it is not yet something you
+should quote, summarize, edit, or decide on.
+
+So the loop always has two beats:
+
+1. **Locate.** `mfs search` (meaning + keywords) or `mfs grep` (exact literal)
+   surfaces likely hits. With `--json` you get the `source` URI and `locator`
+   back, which is exactly what you feed to the next step.
+2. **Verify.** Reopen the real source with `mfs cat` — `--range A:B` for a span
+   of lines, `--locator JSON` for a structured record, `head`/`tail` for the ends
+   of something large, or `export` to pull a whole object out of the prompt.
+
+If a result looks weak or incomplete, that's usually a clue about *indexing*, not
+relevance. `mfs ls`, `mfs grep`, and the browse commands let you tell a ranking
+problem apart from a "not indexed yet" problem instead of guessing.
 
 !!! warning "Treat search results as candidates"
-    Do not rely on a snippet alone. Before quoting, summarizing, editing, or
-    making a decision, reopen exact evidence with `cat`, `head`, `tail`,
-    `export`, `cat --range`, or `cat --locator`.
+    Before you quote, summarize, edit, or make a decision, reopen the exact
+    evidence with `cat`, `head`, `tail`, `export`, `cat --range`, or
+    `cat --locator`. The snippet is where you start, not what you cite.
 
-## What MFS is in v0.4
+## Agents and humans drive it the same way
 
-| Area | v0.4 boundary |
-|---|---|
-| CLI | A Rust binary named `mfs`. The published v0.4 beta artifact is the CLI. |
-| Server | A Python FastAPI server named `mfs-server`. During the beta, run it from source or a locally built Docker/Compose image. |
-| Protocol | The CLI and SDKs call the HTTP `/v1` control plane. The CLI default endpoint is `http://127.0.0.1:13619`; `mfs-server run` and `mfs-server api` bind to `127.0.0.1:13619` by default. |
-| Ownership | Original sources remain the source of truth. MFS stores connector metadata, jobs, artifacts, and searchable indexes so clients can search, browse, and read them. |
-| Connectors | The `file` connector is imported directly. Other built-in schemes are imported lazily and skipped when optional dependencies are absent in that server environment. |
-| Deployment | Source, Docker all-in-one, and Compose all-in-one are runnable v0.4 shapes. The Helm api/worker chart is rendered as the post-v0.4 scalable direction. |
+The loop is identical whether a person or an agent is at the keyboard; only the
+ergonomics differ.
 
-## Agent and human usage
+An **agent** should scope its search to a path when it can, keep the `source` and
+`locator` from the JSON result, and reopen exact evidence before editing or
+answering — never act on a ranked snippet alone or guess at a locator shape.
 
-| User | Good pattern | Avoid |
-|---|---|---|
-| Agent | Use scoped `mfs --json search`, preserve `source` and `locator`, then reopen exact evidence before editing or answering. | Editing based only on ranked snippets or guessed locator shapes. |
-| Human | Use human output for orientation, `mfs tree` to narrow, and `mfs cat --range` for exact context. | Searching the whole namespace with `--all` when a narrower path is known. |
-| Integration developer | Use `/v1` or generated SDKs when shelling out is awkward, and handle API errors by `code`. | Depending on generated SDK README defaults without setting the actual server URL and bearer token. |
-| Operator | Start with source, Docker, or Compose all-in-one, persist `$MFS_HOME` or `/data`, and use upload mode when the server cannot read client paths. | Treating the rendered Helm api/worker chart as the default runnable v0.4 deployment. |
+A **person** leans on the human-readable output: `mfs tree` to get oriented,
+`mfs search` to find a starting point, and `mfs cat --range` to read just enough
+context. Save `--all` for when you genuinely don't know which source holds the
+answer; a scoped path is faster and easier to trust.
 
-## Beta caveats
+## Where to next
 
-| Caveat | Practical effect |
-|---|---|
-| Server distribution | The CLI is published; the server is run from repository source or a locally built container. |
-| Auth | `/v1` is bearer-token protected when auth is configured. Local CLI runs can read `$MFS_HOME/server.token`; remote clients must send a token. |
-| Connector availability | Built-in schemes depend on the server environment. Probe the connector on the server where it will run. |
-| Search completeness | Indexing state matters. If results are weak or incomplete, use `mfs ls --json`, `mfs grep`, and browse commands to separate ranking issues from indexing issues. |
-| API stability | The beta HTTP API may still shift before a stable v0.4 release, so pin versions for scripts and integrations. |
-
-## Open next
-
-| If you want to... | Open |
-|---|---|
-| Run MFS locally for the first time | [Quickstart](getting-started.md) |
-| Learn the search -> locate -> read loop | [Search and Browse](search-and-browse.md) |
-| Check exact command names and flags | [CLI Reference](cli.md) |
-| Add files, databases, SaaS tools, or object stores | [Connectors](connectors.md) |
-| Call MFS from another program | [HTTP API](api.md) and [SDKs](sdks.md) |
-| Pick a source, Docker, Compose, or rendered Helm shape | [Deployment](deployment.md) |
-| Debug endpoint, auth, upload, indexing, or browse failures | [Troubleshooting](troubleshooting.md) |
+If this sounds like your problem, the [Quickstart](getting-started.md) gets you
+running in a few minutes. To understand the pieces first, read
+[How it works](architecture.md). To bring your own sources in, start with
+[Connectors](connectors.md).

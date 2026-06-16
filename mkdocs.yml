@@ -30,40 +30,58 @@ repo_url: https://github.com/zilliztech/mfs
 repo_name: zilliztech/mfs
 
 nav:
-  - Overview:
-    - Home: index.md
+  - Getting started:
+    - Overview: index.md
     - Why MFS: why.md
-    - Architecture: architecture.md
-    - Status and Limits: roadmap.md
-  - Get Started:
     - Quickstart: getting-started.md
     - Examples: examples.md
+  - Concepts:
+    - How it works: architecture.md
+    - Search and browse: search-and-browse.md
+    - Content model: content-model.md
+    - Jobs and indexing: jobs.md
+    - Ingest pipeline: ingest-pipeline.md
+  - Connectors:
+    - Overview: connectors.md
+    - file: connectors/file.md
+    - web: connectors/web.md
+    - github: connectors/github.md
+    - postgres: connectors/postgres.md
+    - mysql: connectors/mysql.md
+    - mongo: connectors/mongo.md
+    - slack: connectors/slack.md
+    - discord: connectors/discord.md
+    - gmail: connectors/gmail.md
+    - notion: connectors/notion.md
+    - jira: connectors/jira.md
+    - linear: connectors/linear.md
+    - zendesk: connectors/zendesk.md
+    - hubspot: connectors/hubspot.md
+    - bigquery: connectors/bigquery.md
+    - snowflake: connectors/snowflake.md
+    - s3: connectors/s3.md
+    - gdrive: connectors/gdrive.md
+    - feishu: connectors/feishu.md
+  - Operations:
     - Configuration: configuration.md
-    - Auth and Secrets: auth-and-secrets.md
-    - Providers and Processing: providers.md
+    - Auth and secrets: auth-and-secrets.md
+    - Providers and processing: providers.md
     - Deployment: deployment.md
-    - Storage and Backup: storage-and-backup.md
+    - Storage and backup: storage-and-backup.md
     - Troubleshooting: troubleshooting.md
-  - User Guide:
-    - Search and Browse: search-and-browse.md
-    - Jobs and Indexing Progress: jobs.md
-    - CLI Reference: cli.md
-    - Connectors: connectors.md
-    - Connector Configuration Recipes: connector-config-recipes.md
-    - Connector Reference: connector-reference.md
-    - Skills: skills.md
-  - Developer Guide:
-    - Content Model: content-model.md
-    - Development: development.md
-    - Ingest Pipeline: ingest-pipeline.md
-    - Server: server.md
+  - Reference:
+    - CLI: cli.md
     - HTTP API: api.md
     - SDKs: sdks.md
-    - Evaluation: evaluation.md
-  - Help:
-    - Error Codes: errors.md
+    - Agent skills: skills.md
+    - Error codes: errors.md
     - Glossary: glossary.md
+  - Project:
+    - Evaluation: evaluation.md
+    - Development: development.md
+    - Server internals: server.md
     - FAQ: faq.md
+    - Status and limits: roadmap.md
 
 markdown_extensions:
   - admonition

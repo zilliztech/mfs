@@ -91,7 +91,7 @@ When MFS runs in Docker or Kubernetes, `env:VAR` and `file:/abs/path` are
 resolved inside the container or pod. Exporting a variable only in the shell
 that runs `mfs add` is not enough unless that shell is also starting the server.
 For connector-specific fields and pitfalls, see [Connectors](connectors.md) and
-[Connector Reference](connector-reference.md).
+the per-connector pages.
 
 ## Deployment Injection
 
@@ -99,16 +99,8 @@ For connector-specific fields and pitfalls, see [Connectors](connectors.md) and
 |---|---|---|---|
 | Source server | `MFS_API_TOKEN` in the server environment, or `$MFS_HOME/server.token` in auto mode | Server environment variables such as `MILVUS_TOKEN`, `ZILLIZ_TOKEN`, `ZILLIZ_API_KEY`, and provider SDK env vars | `MFS_HOME` defaults to `~/.mfs`. |
 | Docker all-in-one | `docker run -e MFS_API_TOKEN=...`, or `/data/server.token` when omitted | `docker run -e ...` for server-read env vars | Mount `/data` so generated tokens and state survive container removal. |
-| Compose all-in-one | `MFS_API_TOKEN: ${MFS_API_TOKEN:-}` and `MFS_HOME=/data` in `deployments/compose/docker-compose.yml` | Compose passes `OPENAI_API_KEY`; it also sets `MFS_MILVUS_URI` and `MFS_MILVUS_TOKEN` from host `ZILLIZ_*` values | If `MFS_API_TOKEN` is empty, read `/data/server.token` from the container. |
+| Compose all-in-one | `MFS_API_TOKEN: ${MFS_API_TOKEN:-}` and `MFS_HOME=/data` in `deployments/compose/docker-compose.yml` | Compose passes `OPENAI_API_KEY` and the `MILVUS_*` / `ZILLIZ_*` endpoint vars | If `MFS_API_TOKEN` is empty, read `/data/server.token` from the container. |
 | Helm-rendered API/worker | `MFS_API_TOKEN` from existing Secret key `api-token` | Secret keys `zilliz-token` and `openai-api-key` | Every API replica must share the same `api-token`. API probes use unauthenticated `/healthz`. |
-
-!!! warning "Rendered Milvus env name mismatch"
-    The current Compose file and Helm helper render `MFS_MILVUS_URI` and
-    `MFS_MILVUS_TOKEN`, while the current server config code reads
-    `MILVUS_URI` / `MILVUS_TOKEN`, `ZILLIZ_URI` / `ZILLIZ_TOKEN`, and
-    `ZILLIZ_API_KEY`. Treat the `MFS_MILVUS_*` names as a deployment/runtime
-    mismatch until the assets and server config are aligned. See
-    [Deployment](deployment.md#environment-variables).
 
 ## First Failure Recovery
 

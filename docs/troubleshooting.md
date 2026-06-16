@@ -1,8 +1,9 @@
 # Troubleshooting
 
-Use this page as a v0.4 runbook when MFS is reachable but a source does not
-index, search, browse, or read the way you expect. The CLI commands here match
-the current Rust `mfs` binary.
+Use this page when MFS is reachable but a source doesn't index, search, browse,
+or read the way you expect. Work top to bottom — the checks go from process
+health outward to indexing state, so you localize the problem instead of
+guessing.
 
 ## First Commands
 
@@ -228,7 +229,7 @@ the same thing:
 | Protocol search availability | `available`, `partial`, `building`, `unavailable` | Describes whether search should be used for a source: ready, incomplete, still indexing, or unavailable. |
 | Current `mfs ls PATH --json` entry status | `indexed`, `partial`, `not_indexed`, or `null` | Describes one listed entry from the objects table; `null` means the entry was seen by `ls` but has no object row. |
 
-In the current v0.4 CLI, use `mfs status` for connector rows and job counts,
+Use `mfs status` for connector rows and job counts,
 `mfs connector inspect TARGET` for object/job summaries for one connector, and
 `mfs ls PATH --json` for per-entry search state.
 For the identifier, locator, chunk-kind, and status vocabulary behind these
