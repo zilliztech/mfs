@@ -522,6 +522,12 @@ right:
   config, no registration and no writes.
 - **Read the reference** — each connector documents its exact fields and auth.
 
+> The connector TOML never holds a raw secret — it carries a **reference**
+> (`env:VAR` or `file:/path`), and the actual token, password, or credential
+> file lives on the **server** (its process env or a mounted file). So the CLI
+> and your agent never touch raw credentials, and a hosted MFS can have each user
+> supply their own through the service instead of a file on disk.
+
 ## 🏗️ Architecture
 
 Everything above runs the simplest way — client and server on one machine. The
@@ -560,13 +566,13 @@ each piece, see [Configure the server](#-configure-the-server).
 
 | Piece | Local (one machine) | Single host (its own VM or container) | Distributed (Compose / Kubernetes) |
 |---|---|---|---|
-| `mfs` CLI | your machine | your laptop / CI | your laptop / CI |
-| Agent skills | client side | client side | client side |
-| `mfs-server` + workers | your machine | the server host | api + worker pods |
-| `mfs-server setup` wizard | your machine | on the server host | run against the server, or pre-bake the config |
-| `server.toml` | `~/.mfs/server.toml` | on the server host | ConfigMap or mounted file |
-| Connector credentials, secret files | local disk | on the server host | Docker / k8s secrets, mounted |
-| Env vars (for `env:` refs) | the server's process env | the host's env | pod env |
+| `mfs` CLI | your machine | your machine | your machine |
+| Agent skills | your machine | your machine | your machine |
+| `mfs-server` + workers | your machine | the server host | the server cluster (api + worker pods) |
+| `mfs-server setup` wizard | your machine | the server host | the server cluster |
+| `server.toml` | your machine | the server host | the server cluster (ConfigMap / mounted file) |
+| Connector credentials + secret files | your machine | the server host | the server cluster (Docker / k8s secrets) |
+| `env:` / `file:` ref values | your machine | the server host | the server cluster (pod env / mounted files) |
 | Vector DB | Milvus Lite (local file) | self-hosted Milvus or Zilliz Cloud | Zilliz Cloud |
 | Metadata DB | SQLite (local file) | Postgres | Postgres |
 | `file://` ingest | server reads the path in place | CLI bundles + uploads the tree | CLI bundles + uploads the tree |
@@ -581,11 +587,6 @@ spell out in a prompt. Just use MFS normally.
 
 ### 🏭 Built for production
 
-MFS was built for production from day one — not a weekend demo. The split design
-scales to **production-scale** data: pair the vector backend with
-[Zilliz Cloud](https://cloud.zilliz.com/signup?utm_source=github&utm_medium=referral&utm_campaign=mfs-readme)'s Vector Lakebase and MFS indexes and searches
-massive corpora, with the reliability and [design choices below](#-features--how-it-works).
-
 For a split deployment, point the CLI at the server and you're set:
 
 ```bash
@@ -596,6 +597,11 @@ mfs status
 
 Docker images, a Compose file, and a Helm chart for split api / worker
 deployments live under [`deployments/`](deployments/).
+
+MFS was built for production from day one — not a weekend demo. The split design
+scales to **production-scale** data: pair the vector backend with
+[Zilliz Cloud](https://cloud.zilliz.com/signup?utm_source=github&utm_medium=referral&utm_campaign=mfs-readme)'s Vector Lakebase and MFS indexes and searches
+massive corpora, with the reliability and [design choices below](#-features--how-it-works).
 
 ## 🔧 Configure the server
 
@@ -642,8 +648,11 @@ What each section of `server.toml` configures:
 | `[summary]` | directory / file summaries | off | provider + model, `dir` / `file` scope |
 | `auth_token` | API auth | auto-generated `server.token` | a fixed token, or `-` to disable |
 
-Secrets never sit in the TOML as plaintext — use `env:VAR` or `file:/path` refs
-and the server resolves them at runtime.
+Secrets never sit in the TOML as plaintext — the TOML carries a **reference**
+(`env:VAR` or `file:/path`) and the real value lives on the **server** (its
+process env or a mounted credential file), resolved at runtime. The same holds
+for every connector's credentials, so secrets stay on the server, never on the
+client.
 
 <details>
 <summary>⭐ Get a free Zilliz Cloud cluster (URI + token)</summary>
@@ -737,6 +746,8 @@ at MFS and focus on the app on top.
 
 - Publish `mfs-server` to PyPI for one-command installs.
 - OAuth `client_credentials` for Salesforce and OAuth-only orgs.
+- Per-user credential management and access control for hosted / multi-tenant
+  MFS — upload secrets through the service instead of server-side files.
 - More connectors (Confluence, Asana, Drive shared drives).
 - Lock `/v1` HTTP API for the `v0.4.0` final.
 
