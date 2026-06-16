@@ -10,31 +10,31 @@
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/connectors/postgres/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/robustness/">
       
       
-        <link rel="prev" href="../github/">
+        <link rel="prev" href="../production/">
       
       
-        <link rel="next" href="../mysql/">
+        <link rel="next" href="../search-and-browse/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/logo.svg">
+      <link rel="icon" href="../assets/logo.svg">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>postgres - MFS</title>
+        <title>Robustness - MFS</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,9 +53,9 @@
       
     
     
-      <link rel="stylesheet" href="../../stylesheets/terminal.css">
+      <link rel="stylesheet" href="../stylesheets/terminal.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#postgres-postgres" class="md-skip">
+        <a href="#robustness" class="md-skip">
           Skip to content
         </a>
       
@@ -94,9 +94,9 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="MFS" class="md-header__button md-logo" aria-label="MFS" data-md-component="logo">
+    <a href=".." title="MFS" class="md-header__button md-logo" aria-label="MFS" data-md-component="logo">
       
-  <img src="../../assets/logo.svg" alt="logo">
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              postgres
+              Robustness
             
           </span>
         </div>
@@ -194,31 +194,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../.." class="md-tabs__link">
+        <a href=".." class="md-tabs__link">
           
   
   
   Getting started
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../../architecture/" class="md-tabs__link">
-          
-  
-  
-  Concepts
 
         </a>
       </li>
@@ -236,7 +216,27 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../" class="md-tabs__link">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../connectors/" class="md-tabs__link">
           
   
   
@@ -256,7 +256,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../configuration/" class="md-tabs__link">
+        <a href="../configuration/" class="md-tabs__link">
           
   
   
@@ -276,7 +276,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../cli/" class="md-tabs__link">
+        <a href="../cli/" class="md-tabs__link">
           
   
   
@@ -296,7 +296,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../evaluation/" class="md-tabs__link">
+        <a href="../evaluation/" class="md-tabs__link">
           
   
   
@@ -336,9 +336,9 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="MFS" class="md-nav__button md-logo" aria-label="MFS" data-md-component="logo">
+    <a href=".." title="MFS" class="md-nav__button md-logo" aria-label="MFS" data-md-component="logo">
       
-  <img src="../../assets/logo.svg" alt="logo">
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     MFS
@@ -417,7 +417,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -445,7 +445,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../why/" class="md-nav__link">
+      <a href="../why/" class="md-nav__link">
         
   
   
@@ -473,7 +473,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
@@ -501,7 +501,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../examples/" class="md-nav__link">
+      <a href="../examples/" class="md-nav__link">
         
   
   
@@ -509,233 +509,6 @@
     
   
     Examples
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
-        
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Concepts
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Concepts
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../architecture/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../production/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Design philosophy
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../robustness/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Robustness
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../search-and-browse/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Search and browse
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../content-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Content model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../ingest-pipeline/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Ingest pipeline
   
 
     
@@ -781,17 +554,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    Connectors
+    Concepts
   
 
     
@@ -802,12 +575,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Connectors
+    Concepts
   
 
           </label>
@@ -820,14 +593,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Overview
+    Architecture
   
 
     
@@ -848,70 +621,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../file/" class="md-nav__link">
+      <a href="../production/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    file
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../web/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    web
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../github/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    github
+    Design philosophy
   
 
     
@@ -948,7 +665,7 @@
   <span class="md-ellipsis">
     
   
-    postgres
+    Robustness
   
 
     
@@ -966,7 +683,7 @@
   <span class="md-ellipsis">
     
   
-    postgres
+    Robustness
   
 
     
@@ -992,10 +709,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-mfs-sees-it" class="md-nav__link">
+  <a href="#one-server-owns-the-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How MFS sees it
+        One server owns the state
       
     </span>
   </a>
@@ -1003,10 +720,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#credentials" class="md-nav__link">
+  <a href="#a-connectorjob-has-a-real-lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Credentials
+        A ConnectorJob has a real lifecycle
       
     </span>
   </a>
@@ -1014,10 +731,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
+  <a href="#crash-safe-and-resumable" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration
+        Crash-safe and resumable
       
     </span>
   </a>
@@ -1025,10 +742,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sync-and-freshness" class="md-nav__link">
+  <a href="#incremental-and-careful-about-deletions" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sync and freshness
+        Incremental, and careful about deletions
       
     </span>
   </a>
@@ -1036,10 +753,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#search-and-browse" class="md-nav__link">
+  <a href="#progressive-availability-important-things-first" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Search and browse
+        Progressive availability, important things first
       
     </span>
   </a>
@@ -1047,10 +764,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#pitfalls" class="md-nav__link">
+  <a href="#reuse-instead-of-recompute" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Pitfalls
+        Reuse instead of recompute
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failures-stay-contained" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failures stay contained
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#isolation-between-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Isolation between sources
       
     </span>
   </a>
@@ -1073,7 +812,290 @@
   
   
     <li class="md-nav__item">
-      <a href="../mysql/" class="md-nav__link">
+      <a href="../search-and-browse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search and browse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../content-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ingest-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ingest pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Connectors
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    file
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    web
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/github/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    github
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/postgres/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    postgres
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/mysql/" class="md-nav__link">
         
   
   
@@ -1101,7 +1123,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../mongo/" class="md-nav__link">
+      <a href="../connectors/mongo/" class="md-nav__link">
         
   
   
@@ -1129,7 +1151,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../slack/" class="md-nav__link">
+      <a href="../connectors/slack/" class="md-nav__link">
         
   
   
@@ -1157,7 +1179,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../discord/" class="md-nav__link">
+      <a href="../connectors/discord/" class="md-nav__link">
         
   
   
@@ -1185,7 +1207,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../gmail/" class="md-nav__link">
+      <a href="../connectors/gmail/" class="md-nav__link">
         
   
   
@@ -1213,7 +1235,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../notion/" class="md-nav__link">
+      <a href="../connectors/notion/" class="md-nav__link">
         
   
   
@@ -1241,7 +1263,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../jira/" class="md-nav__link">
+      <a href="../connectors/jira/" class="md-nav__link">
         
   
   
@@ -1269,7 +1291,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../linear/" class="md-nav__link">
+      <a href="../connectors/linear/" class="md-nav__link">
         
   
   
@@ -1297,7 +1319,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../zendesk/" class="md-nav__link">
+      <a href="../connectors/zendesk/" class="md-nav__link">
         
   
   
@@ -1325,7 +1347,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../hubspot/" class="md-nav__link">
+      <a href="../connectors/hubspot/" class="md-nav__link">
         
   
   
@@ -1353,7 +1375,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../bigquery/" class="md-nav__link">
+      <a href="../connectors/bigquery/" class="md-nav__link">
         
   
   
@@ -1381,7 +1403,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../snowflake/" class="md-nav__link">
+      <a href="../connectors/snowflake/" class="md-nav__link">
         
   
   
@@ -1409,7 +1431,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../s3/" class="md-nav__link">
+      <a href="../connectors/s3/" class="md-nav__link">
         
   
   
@@ -1437,7 +1459,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../gdrive/" class="md-nav__link">
+      <a href="../connectors/gdrive/" class="md-nav__link">
         
   
   
@@ -1465,7 +1487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../feishu/" class="md-nav__link">
+      <a href="../connectors/feishu/" class="md-nav__link">
         
   
   
@@ -1552,7 +1574,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/" class="md-nav__link">
+      <a href="../configuration/" class="md-nav__link">
         
   
   
@@ -1580,7 +1602,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../auth-and-secrets/" class="md-nav__link">
+      <a href="../auth-and-secrets/" class="md-nav__link">
         
   
   
@@ -1608,7 +1630,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../providers/" class="md-nav__link">
+      <a href="../providers/" class="md-nav__link">
         
   
   
@@ -1636,7 +1658,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../deployment/" class="md-nav__link">
+      <a href="../deployment/" class="md-nav__link">
         
   
   
@@ -1664,7 +1686,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../storage-and-backup/" class="md-nav__link">
+      <a href="../storage-and-backup/" class="md-nav__link">
         
   
   
@@ -1692,7 +1714,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../troubleshooting/" class="md-nav__link">
+      <a href="../troubleshooting/" class="md-nav__link">
         
   
   
@@ -1779,7 +1801,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli/" class="md-nav__link">
+      <a href="../cli/" class="md-nav__link">
         
   
   
@@ -1807,7 +1829,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/" class="md-nav__link">
+      <a href="../api/" class="md-nav__link">
         
   
   
@@ -1835,7 +1857,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sdks/" class="md-nav__link">
+      <a href="../sdks/" class="md-nav__link">
         
   
   
@@ -1863,7 +1885,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../skills/" class="md-nav__link">
+      <a href="../skills/" class="md-nav__link">
         
   
   
@@ -1891,7 +1913,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../errors/" class="md-nav__link">
+      <a href="../errors/" class="md-nav__link">
         
   
   
@@ -1919,7 +1941,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../glossary/" class="md-nav__link">
+      <a href="../glossary/" class="md-nav__link">
         
   
   
@@ -2006,7 +2028,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../evaluation/" class="md-nav__link">
+      <a href="../evaluation/" class="md-nav__link">
         
   
   
@@ -2034,7 +2056,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/" class="md-nav__link">
+      <a href="../development/" class="md-nav__link">
         
   
   
@@ -2062,7 +2084,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../server/" class="md-nav__link">
+      <a href="../server/" class="md-nav__link">
         
   
   
@@ -2090,7 +2112,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../faq/" class="md-nav__link">
+      <a href="../faq/" class="md-nav__link">
         
   
   
@@ -2118,7 +2140,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../roadmap/" class="md-nav__link">
+      <a href="../roadmap/" class="md-nav__link">
         
   
   
@@ -2173,10 +2195,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-mfs-sees-it" class="md-nav__link">
+  <a href="#one-server-owns-the-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How MFS sees it
+        One server owns the state
       
     </span>
   </a>
@@ -2184,10 +2206,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#credentials" class="md-nav__link">
+  <a href="#a-connectorjob-has-a-real-lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Credentials
+        A ConnectorJob has a real lifecycle
       
     </span>
   </a>
@@ -2195,10 +2217,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
+  <a href="#crash-safe-and-resumable" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration
+        Crash-safe and resumable
       
     </span>
   </a>
@@ -2206,10 +2228,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sync-and-freshness" class="md-nav__link">
+  <a href="#incremental-and-careful-about-deletions" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sync and freshness
+        Incremental, and careful about deletions
       
     </span>
   </a>
@@ -2217,10 +2239,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#search-and-browse" class="md-nav__link">
+  <a href="#progressive-availability-important-things-first" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Search and browse
+        Progressive availability, important things first
       
     </span>
   </a>
@@ -2228,10 +2250,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#pitfalls" class="md-nav__link">
+  <a href="#reuse-instead-of-recompute" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Pitfalls
+        Reuse instead of recompute
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failures-stay-contained" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failures stay contained
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#isolation-between-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Isolation between sources
       
     </span>
   </a>
@@ -2258,75 +2302,154 @@
   
 
 
-<h1 id="postgres-postgres">Postgres (<code>postgres</code>)<a class="headerlink" href="#postgres-postgres" title="Permanent link">&para;</a></h1>
-<p>The <code>postgres</code> connector indexes table rows as searchable records. Each row
-becomes an object you can search by meaning, and each table also gets a schema
-summary so you can search the <em>structure</em> ("which table has an email column?")
-not just the data.</p>
-<h2 id="how-mfs-sees-it">How MFS sees it<a class="headerlink" href="#how-mfs-sees-it" title="Permanent link">&para;</a></h2>
-<p>Tables live under their schema. Every table exposes its rows and its schema:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>postgres://prod-db/
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>└── public/
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    ├── tickets/
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    │   ├── rows.jsonl     table_rows    → one searchable chunk per row
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    │   └── schema.json    table_schema  → searchable column summary
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    └── users/
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        ├── rows.jsonl
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        └── schema.json
-</code></pre></div>
-<p>Rows are chunked per-row. To make a table searchable you must tell the connector
-which columns carry text — see <code>[[objects]]</code> below. Without that, rows still
-enumerate and you can <code>grep</code>/<code>cat</code> them, but they produce no semantic chunks.</p>
-<h2 id="credentials">Credentials<a class="headerlink" href="#credentials" title="Permanent link">&para;</a></h2>
-<p>You already have a database; what you need is a <strong>DSN</strong> and a read-only role.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>postgresql://user:pass@host:5432/dbname
-</code></pre></div>
+<h1 id="robustness">Robustness<a class="headerlink" href="#robustness" title="Permanent link">&para;</a></h1>
+<p>Good retrieval quality is the easy part. The hard part of a context layer is
+<em>running it every day</em>: a sync killed halfway, two processes touching the same
+store, an index cleared down to a stub, one bad file taking out a whole run. Those
+are state, lifecycle, and concurrency problems — orthogonal to how good your
+search is — and they're where most "thin search engine" tools quietly break under
+real traffic.</p>
+<p>MFS is engineered so these are <strong>structural non-issues</strong> rather than bugs you hit
+and patch one by one. It rests on two ideas from the
+<a href="../production/">Design philosophy</a> — the upstream source is the truth, and every
+operation is idempotent — and almost everything below follows from them.</p>
+<table>
+<thead>
+<tr>
+<th>A concrete situation</th>
+<th>What MFS does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Indexing is killed at file 8,000 of 20,000</td>
+<td>Work is per object and committed as it goes; the next <code>mfs add</code> picks up around file 8,001, not from scratch.</td>
+</tr>
+<tr>
+<td>Your embedding provider runs out of quota halfway and the rest fail</td>
+<td>The failed objects are recorded and the cursor isn't moved past them; top up the quota and re-run <code>mfs add</code> — it finishes only what's left.</td>
+</tr>
+<tr>
+<td>You start searching seconds after <code>mfs add</code>, before indexing finishes</td>
+<td>Indexing is async and incremental: a chunk is searchable the moment its object lands, and the most useful files are done first — so partial answers are useful right away.</td>
+</tr>
+<tr>
+<td>You cancel a sync (or remove the connector) with thousands of tasks still queued</td>
+<td>Cancel and remove also cancel the <em>queued</em> tasks, not just the stored rows — the queue doesn't keep grinding through work you stopped.</td>
+</tr>
+<tr>
+<td>You run the same <code>mfs add</code> twice, at once or back to back</td>
+<td>At most one sync runs per connector (plus one queued), and every write is idempotent — nothing is processed or stored twice.</td>
+</tr>
+<tr>
+<td>Some other tool's background watcher locks the local vector database</td>
+<td>Only the server ever opens the vector store; every client goes over HTTP, so there's no file for a second process to lock.</td>
+</tr>
+<tr>
+<td>You re-index just the 50 files that changed</td>
+<td>Deletions happen only on a full-set scan; a partial run never removes the 19,950 files it didn't list.</td>
+</tr>
+<tr>
+<td>One file with a broken encoding throws</td>
+<td>Each object succeeds or fails on its own; the bad one is marked <code>failed</code> and skipped, the rest finish.</td>
+</tr>
+<tr>
+<td>You switch git branches back and forth</td>
+<td>Unchanged content hits the cache by content hash — nothing is re-embedded; only genuinely changed files cost anything.</td>
+</tr>
+<tr>
+<td>You rename a directory, so every path under it changes</td>
+<td>The chunks are re-keyed and their vectors reused — no re-embedding, even though every path moved.</td>
+</tr>
+<tr>
+<td>An ignore rule or API key set for one source leaks into another</td>
+<td>Each connector's config is isolated rows in the database, not shared process state.</td>
+</tr>
+<tr>
+<td>You switch the embedding model</td>
+<td>The index is derived — <code>mfs add --force-index</code> rebuilds it from source; the config lives with the connector.</td>
+</tr>
+</tbody>
+</table>
+<p>The rest of this page is <em>how</em>.</p>
+<h2 id="one-server-owns-the-state">One server owns the state<a class="headerlink" href="#one-server-owns-the-state" title="Permanent link">&para;</a></h2>
+<p>MFS is a thin client over one stateful server. The <strong>server alone</strong> holds the
+connection to Milvus and owns all state; every client — CLI, SDK, agent skill —
+talks to it over HTTP. So multiple CLIs or agent sessions never contend over a
+database file or leak state into one another. The classic embedded-database
+failure — one process locks the vector file and another can't even open it — has
+nowhere to occur, because only the server ever touches it.</p>
+<h2 id="a-connectorjob-has-a-real-lifecycle">A ConnectorJob has a real lifecycle<a class="headerlink" href="#a-connectorjob-has-a-real-lifecycle" title="Permanent link">&para;</a></h2>
+<p>A sync runs as a <strong>ConnectorJob</strong> in a database-backed queue, not as
+fire-and-forget work. A uniqueness rule keeps at most one running and one queued
+sync per connector, so hitting <code>mfs add</code> twice doesn't double-scan or collide —
+the second is told the sync is already running. Sync is <strong>explicit</strong>: you trigger
+it. There's no hidden background scheduler racing itself or re-scanning behind
+your back. Cancelling a job — or removing the connector — also cancels its queued
+ObjectTasks, so a stopped job actually stops instead of draining a queue you no
+longer want.</p>
+<h2 id="crash-safe-and-resumable">Crash-safe and resumable<a class="headerlink" href="#crash-safe-and-resumable" title="Permanent link">&para;</a></h2>
+<p>Work is per-object and atomic, and a run's state is committed at the end. If the
+process is killed mid-sync — or the embedding provider runs out of quota and the
+remaining objects fail — nothing is left half-committed: the failed and unfinished
+objects keep their state, and the next <code>mfs add</code> picks up only what's left.</p>
+<p>Recovery collapses to "just run it again", because every write is <strong>idempotent</strong>.
+A chunk's primary key <em>is</em> its content address —
+<code>sha1(namespace + connector + object + chunk kind + locator)</code> — so writing it is a
+delete-then-insert that any worker, retry, or concurrent run produces identically:
+a re-run overwrites instead of duplicating, and two sources can never collide on
+the same key. That's why there's no <code>job retry</code> command, no resume-cursor state
+machine, no "how far did I get" bookkeeping — crashed means re-run, same result.</p>
+<h2 id="incremental-and-careful-about-deletions">Incremental, and careful about deletions<a class="headerlink" href="#incremental-and-careful-about-deletions" title="Permanent link">&para;</a></h2>
+<p>Re-syncing is incremental: per-object fingerprints (and connector cursors) mean
+only what actually changed is re-converted and re-embedded; everything unchanged
+is served from cache. Deletion is deliberately conservative — an incremental run
+<strong>never infers deletions</strong>. Only a full-set scan, which has truly enumerated the
+whole source, diffs it and removes what's genuinely gone. A partial or batched
+ingest therefore can't accidentally delete the records it didn't list this time.</p>
+<h2 id="progressive-availability-important-things-first">Progressive availability, important things first<a class="headerlink" href="#progressive-availability-important-things-first" title="Permanent link">&para;</a></h2>
+<p>Indexing doesn't block search. <code>mfs add</code> queues the work and returns; objects are
+processed in the background, and each chunk becomes searchable the moment its
+object lands — so you can start searching while a large sync is still running, and
+<code>ls --json</code> shows which objects are <code>indexed</code>, <code>partial</code>, or <code>not_indexed</code> yet.</p>
+<p>The order isn't arbitrary. The file connector ranks objects so the highest-signal
+ones go first — entrypoints like <code>README.md</code> and <code>CLAUDE.md</code>, then core source
+under <code>src/</code> / <code>lib/</code>, ahead of tests and generated output. The useful answers
+tend to be searchable early, long before the last file is done.</p>
+<h2 id="reuse-instead-of-recompute">Reuse instead of recompute<a class="headerlink" href="#reuse-instead-of-recompute" title="Permanent link">&para;</a></h2>
+<p>The expensive steps — uploading bytes and calling models — are guarded by two
+independent caches, so common edits cost almost nothing:</p>
 <ul>
-<li><strong>Cloud Postgres</strong> (RDS/Aurora, Cloud SQL, Azure): copy the connection string
-  from the console; substitute the real password.</li>
-<li><strong>Self-hosted</strong>: run <code>\conninfo</code> in <code>psql</code> to read host/port/db/user.</li>
+<li><strong>Bandwidth.</strong> In a client/server setup the file connector keeps a per-path
+  manifest (<code>file_state</code>), so a re-sync uploads only the bytes that changed. A
+  renamed or moved file is matched to its existing entry, so moving a 1 GB file
+  uploads nothing.</li>
+<li><strong>Model spend.</strong> The transformation cache memoizes every embedding, VLM, and
+  summary call, keyed by the content hash <em>and</em> the model. Identical content plus
+  identical model is a hit — across objects, across connectors, even across a
+  collection rebuild or a model rollback.</li>
 </ul>
-<p>A read-only role is enough — <code>USAGE</code> on each in-scope schema plus <code>SELECT</code> on its
-tables. Confirm connectivity from the machine that runs the server before handing
-the DSN to MFS:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>psql<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DSN</span><span class="s2">&quot;</span><span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT 1&quot;</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>psql<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DSN</span><span class="s2">&quot;</span><span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;\dt&quot;</span>
-</code></pre></div>
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">dsn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:PG_DSN&quot;</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">schemas</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;public&quot;</span><span class="p">]</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">cursor_column</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;updated_at&quot;</span><span class="w">   </span><span class="c1"># enables incremental re-sync</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/public/tickets&quot;</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updated_at&quot;</span><span class="p">]</span>
-</code></pre></div>
-<p><code>match</code> targets the connector-relative object path (<code>/public/tickets</code>), which
-covers its <code>rows.jsonl</code>. <code>text_fields</code> become the embedded text; <code>locator_fields</code>
-let you reopen an exact row with <code>cat --locator</code>; <code>metadata_fields</code> are returned
-alongside hits for filtering and display.</p>
-<h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
-<p>When you set <code>cursor_column</code> (typically <code>updated_at</code>), the connector tracks the
-high-water mark and re-syncs only rows changed since the last run. Deletions are
-caught by <code>full_scan</code>. <code>grep</code> runs as a pushdown — it queries Postgres directly
-rather than the index.</p>
-<h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>postgres://prod-db<span class="w"> </span>--config<span class="w"> </span>./postgres.toml
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO migration&quot;</span><span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>postgres://prod-db<span class="w"> </span>--kind<span class="w"> </span>schema_summary
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
-</code></pre></div>
-<h2 id="pitfalls">Pitfalls<a class="headerlink" href="#pitfalls" title="Permanent link">&para;</a></h2>
-<ul>
-<li>No <code>text_fields</code> → rows enumerate but produce no searchable chunks.</li>
-<li>Use read-only credentials; the connector only needs <code>SELECT</code>.</li>
-<li><code>max_read_rows</code> caps large tables and can mark recall partial.</li>
-</ul>
+<p>Two everyday cases fall straight out of this. <strong>Switching git branches</strong> changes a
+few files' content but not the rest, so only the genuinely changed files are
+re-embedded. <strong>Renaming a directory</strong> moves every path beneath it, but the
+content is identical — MFS re-keys the affected chunks and reuses their vectors
+rather than re-embedding the whole subtree the way a path-keyed index would.</p>
+<h2 id="failures-stay-contained">Failures stay contained<a class="headerlink" href="#failures-stay-contained" title="Permanent link">&para;</a></h2>
+<p>A worker pool drains jobs with timeouts and a circuit breaker. A single malformed
+object is marked failed and skipped rather than crashing the run; the breaker
+aborts a job only when failures pile up, surfaced as a clear code instead of a
+silent hang. A job that gets stuck times out and resets instead of wedging the
+queue forever.</p>
+<h2 id="isolation-between-sources">Isolation between sources<a class="headerlink" href="#isolation-between-sources" title="Permanent link">&para;</a></h2>
+<p>Per-connector configuration is stored as data in the database, not as mutable
+state shared inside a long-lived process. Two projects or sources can't leak
+settings — ignore rules, file extensions, credentials — into each other.</p>
+<hr />
+<p>These properties are what let the same MFS move from a laptop to production by
+configuration alone: point the vector backend at a managed Milvus/Zilliz cluster
+and metadata at Postgres, and the same crash-safe, concurrency-safe, idempotent
+design handles large corpora and real traffic. See <a href="../architecture/">Architecture</a>
+for the components and <a href="../deployment/">Deployment</a> for the topologies.</p>
 
 
 
@@ -2382,10 +2505,10 @@ rather than the index.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

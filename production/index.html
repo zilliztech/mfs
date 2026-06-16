@@ -16,7 +16,7 @@
         <link rel="prev" href="../architecture/">
       
       
-        <link rel="next" href="../search-and-browse/">
+        <link rel="next" href="../robustness/">
       
       
         
@@ -692,83 +692,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-stateful-server-arbitrates-everything" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        A stateful server arbitrates everything
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#jobs-with-a-real-lifecycle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Jobs with a real lifecycle
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#crash-safe-and-resumable" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Crash-safe and resumable
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#incremental-and-careful-about-deletions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Incremental, and careful about deletions
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#two-lines-of-defense-against-cost" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two lines of defense against cost
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#failures-stay-contained" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Failures stay contained
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#isolation-between-sources" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Isolation between sources
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#agent-first-one-protocol" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -794,6 +717,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../robustness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Robustness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -2200,83 +2151,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#a-stateful-server-arbitrates-everything" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        A stateful server arbitrates everything
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#jobs-with-a-real-lifecycle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Jobs with a real lifecycle
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#crash-safe-and-resumable" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Crash-safe and resumable
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#incremental-and-careful-about-deletions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Incremental, and careful about deletions
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#two-lines-of-defense-against-cost" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two lines of defense against cost
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#failures-stay-contained" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Failures stay contained
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#isolation-between-sources" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Isolation between sources
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#agent-first-one-protocol" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2320,56 +2194,9 @@
 
 <h1 id="design-philosophy">Design philosophy<a class="headerlink" href="#design-philosophy" title="Permanent link">&para;</a></h1>
 <p>This page is the <em>why</em> behind the <a href="../architecture/">Architecture</a>: the design
-decisions behind MFS and what each one buys you. A couple are about product shape
-— who it's for, how you extend it. Most are about the unglamorous part: holding
-up when you actually run it every day.</p>
-<p>Good retrieval quality is the easy part. The hard part of a context layer is
-<em>running it every day</em>: a sync killed halfway, two processes touching the same
-store, an index cleared down to a stub, one malformed file taking out a whole
-run. Those are state, lifecycle, and concurrency problems — orthogonal to how
-good your search is — and they're where most "thin search engine" tools quietly
-break under real traffic.</p>
-<p>MFS is engineered so these are <strong>structural non-issues</strong> rather than bugs you hit
-and patch one by one. The same design that lets it run on a laptop is what lets
-it run in production.</p>
-<table>
-<thead>
-<tr>
-<th>A concrete failure mode</th>
-<th>Why it doesn't happen in MFS</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Indexing is killed at file 8,000 of 20,000; on restart the tool either re-indexes the whole repo from scratch or loops forever thinking nothing is done</td>
-<td>Work is per object and committed as it goes; the next <code>mfs add</code> picks up at file 8,001</td>
-</tr>
-<tr>
-<td>A background file-watcher holds a lock on the local vector database, so a <code>search</code> you run in another terminal can't even open it</td>
-<td>Only the server ever opens the vector store; every client goes over HTTP, so there's no file for a second process to lock</td>
-</tr>
-<tr>
-<td>Two editor windows each auto-start a sync of the same repo and trample each other's writes</td>
-<td>At most one sync runs per connector (plus one queued); the duplicate is refused, not run twice</td>
-</tr>
-<tr>
-<td>You re-index just the 50 files that changed, and the tool deletes the other 19,950 because they weren't in this batch</td>
-<td>Deletions happen only on a full-set scan that enumerated the whole source; a partial run never removes what it didn't list</td>
-</tr>
-<tr>
-<td>One file with a broken encoding throws, and the entire indexing run dies with it</td>
-<td>Each object succeeds or fails on its own; the bad one is marked <code>failed</code> and skipped, the rest finish</td>
-</tr>
-<tr>
-<td>An ignore rule or API key you set for one repo silently applies to the next repo in the same session</td>
-<td>Each connector's config is isolated rows in the database, not shared state in a long-lived process</td>
-</tr>
-<tr>
-<td>Switching the embedding model means manually deleting the index, deleting a snapshot file, editing <code>.env</code>, and rebuilding from zero</td>
-<td>The index is derived — <code>mfs add --force-index</code> rebuilds it from source, and the config lives with the connector</td>
-</tr>
-</tbody>
-</table>
+decisions behind MFS and what each one buys you. They're the choices everything
+else follows from — including the daily-use guarantees over in
+<a href="../robustness/">Robustness</a>.</p>
 <h2 id="one-source-of-truth">One source of truth<a class="headerlink" href="#one-source-of-truth" title="Permanent link">&para;</a></h2>
 <p>Your upstream sources are the truth. MFS's metadata database is only its
 <em>knowledge</em> of them; the Milvus index and the caches are <strong>derived</strong>. Delete the
@@ -2379,66 +2206,10 @@ server's <code>file_state</code> table, not in a client-side snapshot. There's n
 snapshot file that can drift out of sync with what's actually indexed, which is a
 whole class of "the snapshot says 0 files, reindex forever" bugs that simply
 can't be expressed here.</p>
-<h2 id="a-stateful-server-arbitrates-everything">A stateful server arbitrates everything<a class="headerlink" href="#a-stateful-server-arbitrates-everything" title="Permanent link">&para;</a></h2>
-<p>MFS is a thin client over one stateful server. The <strong>server alone</strong> holds the
-connection to Milvus and owns all state; every client — CLI, SDK, agent skill —
-talks to it over HTTP. So multiple CLIs or agent sessions never contend over a
-database file or leak state into one another. The classic embedded-database
-failure — one process locks the vector file and another can't even open it — has
-nowhere to occur, because only the server ever touches it.</p>
-<h2 id="jobs-with-a-real-lifecycle">Jobs with a real lifecycle<a class="headerlink" href="#jobs-with-a-real-lifecycle" title="Permanent link">&para;</a></h2>
-<p>Ingest runs as a job in a database-backed queue, not as fire-and-forget work. A
-uniqueness rule keeps at most one running and one queued sync per connector, so
-hitting <code>mfs add</code> twice doesn't double-scan or collide — the second is told the
-sync is already running. Sync is <strong>explicit</strong>: you trigger it. There's no hidden
-background scheduler racing itself or re-scanning behind your back.</p>
-<h2 id="crash-safe-and-resumable">Crash-safe and resumable<a class="headerlink" href="#crash-safe-and-resumable" title="Permanent link">&para;</a></h2>
-<p>Work is per-object and atomic, and a run's state is committed at the end. If the
-process is killed mid-sync, nothing is left half-committed — the next <code>mfs add</code>
-picks up where it left off.</p>
-<p>Recovery collapses to "just run it again", because every write is <strong>idempotent</strong>.
-A chunk's primary key <em>is</em> its content address —
-<code>sha1(namespace + connector + object + chunk kind + locator)</code> — so writing it is a
-delete-then-insert that any worker, retry, or concurrent run produces identically:
-a re-run overwrites instead of duplicating, and two sources can never collide on
-the same key. That's why there's no <code>job retry</code> command, no resume-cursor state
-machine, no "how far did I get" bookkeeping — crashed means re-run, and the result
-is the same.</p>
-<p>This is also the backstop under several other decisions: you can delete and
-rebuild the index freely without corrupting it, the caches can be best-effort
-(lose them and they recompute), and a flaky run can simply abort and be re-run.
-All of it rests on "doing it twice is harmless".</p>
-<h2 id="incremental-and-careful-about-deletions">Incremental, and careful about deletions<a class="headerlink" href="#incremental-and-careful-about-deletions" title="Permanent link">&para;</a></h2>
-<p>Re-syncing is incremental: per-object fingerprints (and connector cursors) mean
-only what actually changed is re-converted and re-embedded; everything unchanged
-is served from cache. Deletion is deliberately conservative — an incremental run
-<strong>never infers deletions</strong>. Only a full-set scan, which has truly enumerated the
-whole source, diffs it and removes what's genuinely gone. A partial or batched
-ingest therefore can't accidentally delete the records that weren't in this
-batch.</p>
-<h2 id="two-lines-of-defense-against-cost">Two lines of defense against cost<a class="headerlink" href="#two-lines-of-defense-against-cost" title="Permanent link">&para;</a></h2>
-<p>Two kinds of cost, two independent mechanisms:</p>
-<ul>
-<li><strong>Bandwidth.</strong> In a client/server setup the file connector keeps a per-path
-  manifest (<code>file_state</code>), so a re-sync uploads only the bytes that changed. A
-  renamed or moved file is matched to its existing entry and re-uses what's
-  already on the server — moving a 1 GB file uploads nothing.</li>
-<li><strong>Model spend.</strong> The transformation cache memoizes every embedding, VLM, and
-  summary call, keyed by the content hash <em>and</em> the model. Identical input plus
-  identical model is a hit — across objects, across connectors, even across a
-  Milvus collection rebuild or an embedding-model rollback, because the cache is
-  addressed by content and model, not by anything in the index.</li>
-</ul>
-<h2 id="failures-stay-contained">Failures stay contained<a class="headerlink" href="#failures-stay-contained" title="Permanent link">&para;</a></h2>
-<p>A worker pool drains jobs with timeouts and a circuit breaker. A single
-malformed object is marked failed and skipped rather than crashing the run; the
-breaker aborts a job only when failures pile up, surfaced as a clear code instead
-of a silent hang. A job that gets stuck times out and resets instead of wedging
-the queue forever.</p>
-<h2 id="isolation-between-sources">Isolation between sources<a class="headerlink" href="#isolation-between-sources" title="Permanent link">&para;</a></h2>
-<p>Per-connector configuration is stored as data in the database, not as mutable
-state shared inside a long-lived process. Two projects or sources can't leak
-settings — ignore rules, file extensions, credentials — into each other.</p>
+<p>This pairs with a second rule held everywhere: <strong>every operation is idempotent</strong>,
+so doing it twice is harmless. Those two ideas — derived-from-truth and
+idempotent — are what make recovery, deletion, and re-syncing as simple as they
+are; <a href="../robustness/">Robustness</a> is the catalogue of what they buy.</p>
 <h2 id="agent-first-one-protocol">Agent-first, one protocol<a class="headerlink" href="#agent-first-one-protocol" title="Permanent link">&para;</a></h2>
 <p>MFS's first user is an agent, not a person. The primary interface is a
 shell-native CLI built from verbs an agent already knows (<code>ls</code>, <code>cat</code>, <code>grep</code>,
@@ -2461,13 +2232,6 @@ search → cache → store pipeline for free.</p>
 <p>That line is drawn on purpose: a new data source is a plugin, not a fork of the
 framework. The aim is for the connector catalog to grow the way Airbyte's or
 Singer's did — through the community.</p>
-<hr />
-<p>These properties are exactly what lets the same MFS move from a laptop to
-production by configuration alone: point the vector backend at a managed
-Milvus/Zilliz cluster and metadata at Postgres, and the same crash-safe,
-concurrency-safe, idempotent design handles large corpora and real traffic. See
-<a href="../architecture/">Architecture</a> for the components and <a href="../deployment/">Deployment</a>
-for the topologies.</p>
 
 
 
