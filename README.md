@@ -555,7 +555,8 @@ MFS is a **thin client over a stateful server**, talking over one HTTP `/v1` API
 The only real deployment choice is **where the server runs**. Move it onto its
 own host (a VM or a single container), or scale it out across a Docker Compose
 stack or a Kubernetes cluster — the CLI and skills stay with you either way.
-Where each piece sits by mode:
+The table below is a **recommended layout** per mode; for how to actually set
+each piece, see [Configure the server](#-configure-the-server).
 
 | Piece | Local (one machine) | Single host (its own VM or container) | Distributed (Compose / Kubernetes) |
 |---|---|---|---|
@@ -615,6 +616,10 @@ There are two ways to configure the server, and they write the same `server.toml
   doesn't surface (cache size / eviction, chunker thresholds, namespace, worker
   counts, per-connector tuning), lives in `~/.mfs/server.toml`. Edit it directly
   for anything beyond the basics.
+
+> Both run **on the server's machine or container**, not on the client — they
+> write the server's `server.toml`. In local mode (client and server on the same
+> machine), that's simply your local machine.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/2adc8090-76e2-4073-aae8-776ca4ba541e" alt="mfs-server setup wizard demo" width="820" />
