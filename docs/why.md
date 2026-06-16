@@ -11,31 +11,34 @@ a database row, a Slack thread, or a year-old design doc. That's the moment a
 plain shell runs out of road and a single, file-like search surface over every
 source starts to pay off.
 
-## When it's the right tool
+## What makes MFS different
 
-Use MFS when:
+Five things, and the point is having all of them at once:
 
-- You have a conceptual question and the exact phrasing is uncertain. Hybrid
-  search matches on meaning *and* keywords, so you find the answer even when it's
-  worded differently than your query.
-- You need to look across several kinds of source through one command surface —
-  repos, object stores, databases, SaaS tools — without learning each one's API.
-- You're building an agent workflow that needs structured, machine-readable
-  results: every command can emit JSON carrying the `source`, `locator`, and
-  metadata an agent needs to reopen a hit precisely.
-- You'd otherwise stand up a separate retrieval setup for each kind of source.
-  MFS is one workspace over all of them, so a single setup covers your whole
-  working context — its history and state included — instead of a harness per
-  scenario.
-
-Reach for something else when:
-
-- You want a real filesystem — POSIX mounts, writes, locks, kernel semantics.
-  MFS adds search, browse, and read surfaces *over* sources; it is not a mounted
-  filesystem.
-- You need a vector database for your own application. MFS uses Milvus for its
-  own index, but it isn't a drop-in vector store for your app — talk to Milvus or
-  Zilliz directly for that.
+- **🗂️ One file-like interface over any source.** Whatever the source or format —
+  a repo, a Postgres table, a Slack channel, a PDF — it becomes a single
+  file-like tree under a stable URI. Agents already speak shell, so there's no new
+  query language and no per-source SDK; the same handful of verbs reach
+  everything, and what you learn once carries across every connector.
+- **🌐 Your whole workspace, not a harness per scenario.** Memory, code, docs,
+  chat, tickets, databases — instead of wiring a separate retrieval setup for
+  each, MFS unifies your entire working context, with its history and state,
+  behind one interface. A single setup covers everything your agent works with.
+- **🔍 Search and browse, two legs of one loop.** Hybrid semantic + keyword search
+  locates fast across huge volumes; progressive browse then narrows to the exact
+  bytes or rows. Together they lift precise recall *and* cut token spend — you
+  pull in only what matters, and never trust a hit until you've reopened it. This
+  loop is what the [mental model](#the-mental-model-candidates-then-evidence)
+  below is all about.
+- **🛡️ Local and production, equally at home.** Run fully local and offline, or at
+  production scale — neither is an afterthought. Every component is swappable and
+  independently scalable, so the same MFS moves between the two by configuration
+  alone. The index is derived and crash-safe: upstream stays the source of truth,
+  so you can delete it and rebuild from the originals, losing nothing. See
+  [Built for production](production.md) for the engineering behind this.
+- **🤖 Agent-native.** Built for how agents actually work — especially context and
+  memory management — so it slots into any agent setup. And when you're building
+  an agent of your own, you can build it on top of MFS too.
 
 ## The mental model: candidates, then evidence
 
@@ -72,11 +75,6 @@ If a result looks weak or incomplete, that's usually a clue about *indexing*, no
 relevance. `mfs ls`, `mfs grep`, and the browse commands let you tell a ranking
 problem apart from a "not indexed yet" problem instead of guessing.
 
-!!! warning "Treat search results as candidates"
-    Before you quote, summarize, edit, or make a decision, reopen the exact
-    evidence with `cat`, `head`, `tail`, `export`, `cat --range`, or
-    `cat --locator`. The snippet is where you start, not what you cite.
-
 ## Agents and humans drive it the same way
 
 The loop is identical whether a person or an agent is at the keyboard; only the
@@ -93,22 +91,27 @@ answer; a scoped path is faster and easier to trust.
 
 ## How MFS compares
 
-Plenty of tools do one of these things well. MFS's bet is the *combination* —
-broad sources, both search and browse, an agent-native interface, self-hosted,
-and engineered to run in production. Compared to the usual alternatives:
+Plenty of tools do one of these things well; MFS's bet is having them together.
+Two rows below are our own earlier projects — **Claude Context** (a code-search
+MCP) and **memsearch** (an agent memory layer); the others are the closest tools
+in the space — **OpenViking** (agent context database), **Mirage** (a virtual
+filesystem for agents), **CocoIndex** (incremental data ETL), and **LlamaCloud**
+(managed parse + index + retrieval).
 
-| | MFS | Code-search tools | Memory layers | Managed RAG services |
+| Project | Many sources | Hybrid search | File-like browse | Production-grade server |
 |---|:--:|:--:|:--:|:--:|
-| Many source types — files, DBs, SaaS, chat | ✅ | ❌ | ❌ | ➖ |
-| Hybrid semantic + keyword search | ✅ | ➖ | ➖ | ✅ |
-| File-like progressive browse (`ls` / `cat` / `--range`) | ✅ | ❌ | ❌ | ❌ |
-| Agent-native CLI + skills | ✅ | ➖ | ➖ | ❌ |
-| Self-hosted and open source | ✅ | ➖ | ➖ | ❌ |
-| Stateful server — concurrency-safe, resumable, idempotent | ✅ | ❌ | ❌ | — |
+| **MFS** | Yes | Yes | Yes | Yes |
+| Claude Context | — | Yes | — | — |
+| memsearch | Partial | Yes | Partial | Partial |
+| OpenViking | Yes | Partial | — | Partial |
+| Mirage | Yes | — | Yes | — |
+| CocoIndex | Yes | — | — | Yes |
+| LlamaCloud | Yes | Yes | — | Yes |
 
-✅ built in · ➖ partial or varies · ❌ not the focus. The point isn't any single
-row — it's having every row at once. See [Built for production](production.md)
-for the engineering behind the last one.
+*Yes · Partial · — (not a focus of that tool).* Only MFS fills every column — and
+it's the only one that pairs hybrid search *with* file-like browse. LlamaCloud is
+also a managed service, where MFS is self-hosted and open source. See
+[Built for production](production.md) for the engineering behind the last column.
 
 ## Where to next
 
