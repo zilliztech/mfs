@@ -32,6 +32,12 @@ HubSpot uses a **Private App access token**.
 3. *Create app* → copy the access token (`pat-na1-…` for NA1, `pat-eu1-…` for
    EU). **It's shown only once.**
 
+![HubSpot Create legacy app button](https://github.com/user-attachments/assets/eead666d-2e61-43b6-af9d-0a6453a4e96c)
+
+![HubSpot private app basic info form](https://github.com/user-attachments/assets/dffe73cb-d60c-41c2-89d2-eb7ce59c8954)
+
+![HubSpot selected read scopes](https://github.com/user-attachments/assets/92dd7813-bb96-4f91-8e63-67805f654483)
+
 ## Configuration
 
 ```toml

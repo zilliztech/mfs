@@ -34,6 +34,12 @@ when the bot can't see what you can).
 
 **Bot token** — <https://api.slack.com/apps> → *Create New App* → *From scratch*:
 
+![Slack Create New App button](https://github.com/user-attachments/assets/40ffd973-84d2-483f-beca-720c723223c2)
+
+![Slack Create an app dialog](https://github.com/user-attachments/assets/5119276e-cde3-405e-bd86-7fb33b2218d9)
+
+![Slack From scratch app form](https://github.com/user-attachments/assets/abbdc1cf-012a-44ed-ae62-210abc252980)
+
 1. *OAuth & Permissions* → add Bot Token Scopes:
     - `channels:read`, `channels:history` — list and read public channels
     - `users:read` — the user directory (`users.jsonl`)

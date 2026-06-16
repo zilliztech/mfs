@@ -28,6 +28,12 @@ You need a **Notion Internal Integration token** plus explicit page sharing.
 2. Under *Capabilities*, enable **Read content** (nothing else is needed).
 3. Copy the **Internal Integration Token** (`secret_…`).
 
+![Notion connections page](https://github.com/user-attachments/assets/8e45d871-8304-4d4d-aab0-3a18ddba7cca)
+
+![Notion new connection auth method](https://github.com/user-attachments/assets/bf97bf0a-654c-43da-82d5-ac0c42ba71cc)
+
+![Notion read content capability](https://github.com/user-attachments/assets/e0b7569f-bbf6-454a-94c1-3f74fb0923aa)
+
 The token alone grants nothing — you must **share** each page or database with the
 integration: open the page → `•••` → *Connections* → *Connect to* → the
 integration. Sharing propagates to sub-pages, so sharing the workspace home page

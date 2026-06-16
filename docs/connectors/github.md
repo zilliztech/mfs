@@ -37,6 +37,16 @@ new token*:
    **Pull requests**, and **Metadata** (Metadata is always required).
 4. Generate and copy the `github_pat_...` value.
 
+![GitHub personal access tokens page](https://github.com/user-attachments/assets/d7fee707-304f-4195-9e45-de1577493558)
+
+![GitHub generate token menu](https://github.com/user-attachments/assets/c837450e-48ed-43ef-893a-7828f2741bc5)
+
+![GitHub fine-grained token form](https://github.com/user-attachments/assets/62d9923f-52bb-4e2a-a9f8-b9707bc48bc4)
+
+![GitHub repository access options](https://github.com/user-attachments/assets/d901ba9a-b8cb-4a39-9a20-27eb6668cafa)
+
+![GitHub repository permissions](https://github.com/user-attachments/assets/a887d024-26b1-418e-b063-24def34ccde9)
+
 **Classic PAT** also works (<https://github.com/settings/tokens/new>) with scope
 `repo` for private repos or `public_repo` for public-only. If the org enforces
 SSO, click *Configure SSO* on the token and authorize it for the org.

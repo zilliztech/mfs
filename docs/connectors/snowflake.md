@@ -50,6 +50,12 @@ account's MFA policy first.
 UI, attach a network policy covering your egress IPs, and put the token in
 `credential_ref`. Rotation is just "issue a new PAT, replace the secret".
 
+![Snowflake Users and roles page](https://github.com/user-attachments/assets/102fd1cf-3841-4606-918e-0cff54f356c2)
+
+![Snowflake programmatic access tokens section](https://github.com/user-attachments/assets/7fae2256-cf98-4750-8236-0fca285ab69f)
+
+![Snowflake new programmatic access token dialog](https://github.com/user-attachments/assets/9a2ba38a-8bed-4c9b-8c6b-1b6dcafd7909)
+
 Use a read-only role with `USAGE` on the warehouse/database/schemas and `SELECT`
 on the in-scope tables.
 

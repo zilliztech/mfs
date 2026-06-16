@@ -29,6 +29,12 @@ Service-account keys are **not** supported.
    `https://www.googleapis.com/auth/drive.readonly`. This writes `token.json`.
 4. Copy `token.json` to the server and reference it from the TOML.
 
+![Google Cloud Drive API page](https://github.com/user-attachments/assets/523b9021-f809-4b1f-a1ad-16703739c409)
+
+![Google Cloud Create credentials menu](https://github.com/user-attachments/assets/fc27a2aa-8eaf-4338-ada4-067be970857d)
+
+![Google Cloud OAuth desktop client form](https://github.com/user-attachments/assets/2872163a-18d2-4592-ac43-b7ffc49693ed)
+
 The authorized user must already be able to see the files — their own files plus
 anything explicitly shared with them. If you also use [`gmail`](gmail.md), request
 `gmail.readonly` in the same consent step and one `token.json` drives both.

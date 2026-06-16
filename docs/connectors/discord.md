@@ -37,6 +37,18 @@ Application*:
    *Read Message History*. Open the generated URL and add the bot to your server
    (you need Manage Server permission).
 
+![Discord applications page](https://github.com/user-attachments/assets/50d550fc-6e35-41e2-bbc2-deafa3aa81ca)
+
+![Discord create app dialog](https://github.com/user-attachments/assets/59893fdb-b152-4f7f-83bd-8b4cf429080b)
+
+![Discord bot token settings](https://github.com/user-attachments/assets/c6b2f7cd-0ef3-4de8-afdd-8389295f2be8)
+
+![Discord message content intent](https://github.com/user-attachments/assets/19905907-5ac7-47ed-b285-59c824660834)
+
+![Discord OAuth2 URL generator scopes](https://github.com/user-attachments/assets/70942093-8c13-4cd8-ab2a-39f65ea8777c)
+
+![Discord bot permissions](https://github.com/user-attachments/assets/56c5ca0a-fd36-4454-94db-f7d20555a7ce)
+
 **Guild ID** — enable *Settings → Advanced → Developer Mode*, then right-click the
 server name → *Copy Server ID*.
 

@@ -29,6 +29,16 @@ Console.
 3. *Permissions & Scopes* → add the read scopes, then request release/approval if
    your org requires it.
 
+![Feishu Create Custom App button](https://github.com/user-attachments/assets/1099fb06-aa59-4b5f-ba1b-543f7551e508)
+
+![Feishu Create custom app dialog](https://github.com/user-attachments/assets/99a2a7e2-769a-49b4-b3ba-2e8ee2409bea)
+
+![Feishu app credentials section](https://github.com/user-attachments/assets/478ddc09-79e5-4d8c-a3c2-e441ebb37c66)
+
+![Feishu Permissions and Scopes page](https://github.com/user-attachments/assets/4183bc00-e351-4576-9f19-8520290d114c)
+
+![Feishu Version Management and Release page](https://github.com/user-attachments/assets/f1fa494a-46eb-4934-a65f-97fbd9f6eef8)
+
 `feishu` and `lark` are separate registries — an app from one can't authorize
 against the other (the `region` field selects which).
 

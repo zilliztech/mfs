@@ -30,6 +30,10 @@ Three flavours, by deployment:
   empty, and a **Personal Access Token** from your Jira profile.
 - **Older Server (no PAT)**: username + password basic auth (discouraged).
 
+![Atlassian API tokens page](https://github.com/user-attachments/assets/578f84bc-f847-49a1-b318-495091f9c2cc)
+
+![Atlassian create API token dialog](https://github.com/user-attachments/assets/2118ce0d-4901-497d-aea8-2ecbf430d848)
+
 An API token inherits the issuing user's permissions — restricted projects look
 empty if that user can't see them.
 

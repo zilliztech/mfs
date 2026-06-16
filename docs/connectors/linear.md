@@ -27,6 +27,10 @@ A **Personal API key** from Linear:
    you'll sync.
 3. Copy the value (`lin_api_…`).
 
+![Linear Personal API keys section](https://github.com/user-attachments/assets/d89e4d97-7fc6-47ce-8dab-436d3c6e3e18)
+
+![Linear Create API key dialog](https://github.com/user-attachments/assets/6e2a3f03-9dab-4753-a8e7-607f04190f8f)
+
 The key is tied to the issuing user. Broad team access lets MFS enumerate all
 teams that user can see; restricted access must include every team you list in
 `teams`.

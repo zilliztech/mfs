@@ -39,6 +39,12 @@ paths:
 
 Make sure the **BigQuery API** is enabled on the project.
 
+![Google Cloud BigQuery API page](https://github.com/user-attachments/assets/fd034ea0-4607-4e74-b65a-106460830889)
+
+![Google Cloud service accounts page](https://github.com/user-attachments/assets/6d7dfb43-f7f9-46dc-a049-ed9cc251afea)
+
+![Google Cloud create service account form](https://github.com/user-attachments/assets/d8275bc9-1792-44fd-951a-18dd3cc789fd)
+
 ## Configuration
 
 ```toml

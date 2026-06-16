@@ -33,6 +33,12 @@ keys are **not** supported.
    `https://www.googleapis.com/auth/gmail.readonly`. This writes `token.json`.
 5. Copy `token.json` to the server and reference it from the TOML.
 
+![Google Cloud Gmail API page](https://github.com/user-attachments/assets/8a2b96ab-8ea6-4442-9e25-f186c879dd14)
+
+![Google Cloud Create credentials menu](https://github.com/user-attachments/assets/fc27a2aa-8eaf-4338-ada4-067be970857d)
+
+![Google Cloud OAuth desktop client form](https://github.com/user-attachments/assets/2872163a-18d2-4592-ac43-b7ffc49693ed)
+
 The connector only calls `messages.list` + `messages.get` — it never sends or
 modifies mail. If you also use [`gdrive`](gdrive.md), request `drive.readonly` in
 the same consent step and one `token.json` drives both.
