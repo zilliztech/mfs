@@ -11,14 +11,15 @@ MFS is engineered so these are **structural non-issues** rather than bugs you hi
 and patch one by one. The same design that lets it run on a laptop is what lets
 it run in production.
 
-| The hard part of running this daily | How MFS handles it |
+| A concrete failure mode | Why it doesn't happen in MFS |
 |---|---|
-| A sync killed halfway | Per-object atomic writes; the next `mfs add` just resumes |
-| Two processes touching the same store | One server owns all state and the index connection; clients talk HTTP |
-| A re-run duplicating results | Idempotent, namespace + connector-keyed records — re-runs overwrite |
-| A partial ingest deleting the wrong things | Deletions happen only on a full-set scan; incremental never infers them |
-| One bad file breaking the whole run | Per-object failure isolation plus a circuit breaker |
-| Config from one source leaking into another | Per-connector config is data in the DB, not shared process state |
+| Indexing is killed at file 8,000 of 20,000; on restart the tool either re-indexes the whole repo from scratch or loops forever thinking nothing is done | Work is per object and committed as it goes; the next `mfs add` picks up at file 8,001 |
+| A background file-watcher holds a lock on the local vector database, so a `search` you run in another terminal can't even open it | Only the server ever opens the vector store; every client goes over HTTP, so there's no file for a second process to lock |
+| Two editor windows each auto-start a sync of the same repo and trample each other's writes | At most one sync runs per connector (plus one queued); the duplicate is refused, not run twice |
+| You re-index just the 50 files that changed, and the tool deletes the other 19,950 because they weren't in this batch | Deletions happen only on a full-set scan that enumerated the whole source; a partial run never removes what it didn't list |
+| One file with a broken encoding throws, and the entire indexing run dies with it | Each object succeeds or fails on its own; the bad one is marked `failed` and skipped, the rest finish |
+| An ignore rule or API key you set for one repo silently applies to the next repo in the same session | Each connector's config is isolated rows in the database, not shared state in a long-lived process |
+| Switching the embedding model means manually deleting the index, deleting a snapshot file, editing `.env`, and rebuilding from zero | The index is derived — `mfs add --force-index` rebuilds it from source, and the config lives with the connector |
 
 ## One source of truth
 
