@@ -510,10 +510,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#when-its-the-right-tool" class="md-nav__link">
+  <a href="#what-makes-mfs-different" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When it's the right tool
+        What makes MFS different
       
     </span>
   </a>
@@ -2162,10 +2162,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#when-its-the-right-tool" class="md-nav__link">
+  <a href="#what-makes-mfs-different" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When it's the right tool
+        What makes MFS different
       
     </span>
   </a>
@@ -2246,30 +2246,33 @@ doesn't match the wording on disk, and the source you need might be a code file,
 a database row, a Slack thread, or a year-old design doc. That's the moment a
 plain shell runs out of road and a single, file-like search surface over every
 source starts to pay off.</p>
-<h2 id="when-its-the-right-tool">When it's the right tool<a class="headerlink" href="#when-its-the-right-tool" title="Permanent link">&para;</a></h2>
-<p>Use MFS when:</p>
+<h2 id="what-makes-mfs-different">What makes MFS different<a class="headerlink" href="#what-makes-mfs-different" title="Permanent link">&para;</a></h2>
+<p>Five things, and the point is having all of them at once:</p>
 <ul>
-<li>You have a conceptual question and the exact phrasing is uncertain. Hybrid
-  search matches on meaning <em>and</em> keywords, so you find the answer even when it's
-  worded differently than your query.</li>
-<li>You need to look across several kinds of source through one command surface —
-  repos, object stores, databases, SaaS tools — without learning each one's API.</li>
-<li>You're building an agent workflow that needs structured, machine-readable
-  results: every command can emit JSON carrying the <code>source</code>, <code>locator</code>, and
-  metadata an agent needs to reopen a hit precisely.</li>
-<li>You'd otherwise stand up a separate retrieval setup for each kind of source.
-  MFS is one workspace over all of them, so a single setup covers your whole
-  working context — its history and state included — instead of a harness per
-  scenario.</li>
-</ul>
-<p>Reach for something else when:</p>
-<ul>
-<li>You want a real filesystem — POSIX mounts, writes, locks, kernel semantics.
-  MFS adds search, browse, and read surfaces <em>over</em> sources; it is not a mounted
-  filesystem.</li>
-<li>You need a vector database for your own application. MFS uses Milvus for its
-  own index, but it isn't a drop-in vector store for your app — talk to Milvus or
-  Zilliz directly for that.</li>
+<li><strong>🗂️ One file-like interface over any source.</strong> Whatever the source or format —
+  a repo, a Postgres table, a Slack channel, a PDF — it becomes a single
+  file-like tree under a stable URI. Agents already speak shell, so there's no new
+  query language and no per-source SDK; the same handful of verbs reach
+  everything, and what you learn once carries across every connector.</li>
+<li><strong>🌐 Your whole workspace, not a harness per scenario.</strong> Memory, code, docs,
+  chat, tickets, databases — instead of wiring a separate retrieval setup for
+  each, MFS unifies your entire working context, with its history and state,
+  behind one interface. A single setup covers everything your agent works with.</li>
+<li><strong>🔍 Search and browse, two legs of one loop.</strong> Hybrid semantic + keyword search
+  locates fast across huge volumes; progressive browse then narrows to the exact
+  bytes or rows. Together they lift precise recall <em>and</em> cut token spend — you
+  pull in only what matters, and never trust a hit until you've reopened it. This
+  loop is what the <a href="#the-mental-model-candidates-then-evidence">mental model</a>
+  below is all about.</li>
+<li><strong>🛡️ Local and production, equally at home.</strong> Run fully local and offline, or at
+  production scale — neither is an afterthought. Every component is swappable and
+  independently scalable, so the same MFS moves between the two by configuration
+  alone. The index is derived and crash-safe: upstream stays the source of truth,
+  so you can delete it and rebuild from the originals, losing nothing. See
+  <a href="../production/">Built for production</a> for the engineering behind this.</li>
+<li><strong>🤖 Agent-native.</strong> Built for how agents actually work — especially context and
+  memory management — so it slots into any agent setup. And when you're building
+  an agent of your own, you can build it on top of MFS too.</li>
 </ul>
 <h2 id="the-mental-model-candidates-then-evidence">The mental model: candidates, then evidence<a class="headerlink" href="#the-mental-model-candidates-then-evidence" title="Permanent link">&para;</a></h2>
 <p>The one idea that makes MFS reliable is that <strong>search gives candidates, not
@@ -2301,12 +2304,6 @@ find, file-like browse to verify.</p>
 <p>If a result looks weak or incomplete, that's usually a clue about <em>indexing</em>, not
 relevance. <code>mfs ls</code>, <code>mfs grep</code>, and the browse commands let you tell a ranking
 problem apart from a "not indexed yet" problem instead of guessing.</p>
-<div class="admonition warning">
-<p class="admonition-title">Treat search results as candidates</p>
-<p>Before you quote, summarize, edit, or make a decision, reopen the exact
-evidence with <code>cat</code>, <code>head</code>, <code>tail</code>, <code>export</code>, <code>cat --range</code>, or
-<code>cat --locator</code>. The snippet is where you start, not what you cite.</p>
-</div>
 <h2 id="agents-and-humans-drive-it-the-same-way">Agents and humans drive it the same way<a class="headerlink" href="#agents-and-humans-drive-it-the-same-way" title="Permanent link">&para;</a></h2>
 <p>The loop is identical whether a person or an agent is at the keyboard; only the
 ergonomics differ.</p>
@@ -2318,67 +2315,78 @@ answering — never act on a ranked snippet alone or guess at a locator shape.</
 context. Save <code>--all</code> for when you genuinely don't know which source holds the
 answer; a scoped path is faster and easier to trust.</p>
 <h2 id="how-mfs-compares">How MFS compares<a class="headerlink" href="#how-mfs-compares" title="Permanent link">&para;</a></h2>
-<p>Plenty of tools do one of these things well. MFS's bet is the <em>combination</em> —
-broad sources, both search and browse, an agent-native interface, self-hosted,
-and engineered to run in production. Compared to the usual alternatives:</p>
+<p>Plenty of tools do one of these things well; MFS's bet is having them together.
+Two rows below are our own earlier projects — <strong>Claude Context</strong> (a code-search
+MCP) and <strong>memsearch</strong> (an agent memory layer); the others are the closest tools
+in the space — <strong>OpenViking</strong> (agent context database), <strong>Mirage</strong> (a virtual
+filesystem for agents), <strong>CocoIndex</strong> (incremental data ETL), and <strong>LlamaCloud</strong>
+(managed parse + index + retrieval).</p>
 <table>
 <thead>
 <tr>
-<th></th>
-<th style="text-align: center;">MFS</th>
-<th style="text-align: center;">Code-search tools</th>
-<th style="text-align: center;">Memory layers</th>
-<th style="text-align: center;">Managed RAG services</th>
+<th>Project</th>
+<th style="text-align: center;">Many sources</th>
+<th style="text-align: center;">Hybrid search</th>
+<th style="text-align: center;">File-like browse</th>
+<th style="text-align: center;">Production-grade server</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Many source types — files, DBs, SaaS, chat</td>
-<td style="text-align: center;">✅</td>
-<td style="text-align: center;">❌</td>
-<td style="text-align: center;">❌</td>
-<td style="text-align: center;">➖</td>
+<td><strong>MFS</strong></td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Yes</td>
 </tr>
 <tr>
-<td>Hybrid semantic + keyword search</td>
-<td style="text-align: center;">✅</td>
-<td style="text-align: center;">➖</td>
-<td style="text-align: center;">➖</td>
-<td style="text-align: center;">✅</td>
-</tr>
-<tr>
-<td>File-like progressive browse (<code>ls</code> / <code>cat</code> / <code>--range</code>)</td>
-<td style="text-align: center;">✅</td>
-<td style="text-align: center;">❌</td>
-<td style="text-align: center;">❌</td>
-<td style="text-align: center;">❌</td>
-</tr>
-<tr>
-<td>Agent-native CLI + skills</td>
-<td style="text-align: center;">✅</td>
-<td style="text-align: center;">➖</td>
-<td style="text-align: center;">➖</td>
-<td style="text-align: center;">❌</td>
-</tr>
-<tr>
-<td>Self-hosted and open source</td>
-<td style="text-align: center;">✅</td>
-<td style="text-align: center;">➖</td>
-<td style="text-align: center;">➖</td>
-<td style="text-align: center;">❌</td>
-</tr>
-<tr>
-<td>Stateful server — concurrency-safe, resumable, idempotent</td>
-<td style="text-align: center;">✅</td>
-<td style="text-align: center;">❌</td>
-<td style="text-align: center;">❌</td>
+<td>Claude Context</td>
 <td style="text-align: center;">—</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td>memsearch</td>
+<td style="text-align: center;">Partial</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Partial</td>
+<td style="text-align: center;">Partial</td>
+</tr>
+<tr>
+<td>OpenViking</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Partial</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">Partial</td>
+</tr>
+<tr>
+<td>Mirage</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">—</td>
+</tr>
+<tr>
+<td>CocoIndex</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">Yes</td>
+</tr>
+<tr>
+<td>LlamaCloud</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">Yes</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">Yes</td>
 </tr>
 </tbody>
 </table>
-<p>✅ built in · ➖ partial or varies · ❌ not the focus. The point isn't any single
-row — it's having every row at once. See <a href="../production/">Built for production</a>
-for the engineering behind the last one.</p>
+<p><em>Yes · Partial · — (not a focus of that tool).</em> Only MFS fills every column — and
+it's the only one that pairs hybrid search <em>with</em> file-like browse. LlamaCloud is
+also a managed service, where MFS is self-hosted and open source. See
+<a href="../production/">Built for production</a> for the engineering behind the last column.</p>
 <h2 id="where-to-next">Where to next<a class="headerlink" href="#where-to-next" title="Permanent link">&para;</a></h2>
 <p>If this sounds like your problem, the <a href="../getting-started/">Quickstart</a> gets you
 running in a few minutes. To understand the pieces first, read

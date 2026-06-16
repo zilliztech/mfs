@@ -2293,34 +2293,38 @@ it run in production.</p>
 <table>
 <thead>
 <tr>
-<th>The hard part of running this daily</th>
-<th>How MFS handles it</th>
+<th>A concrete failure mode</th>
+<th>Why it doesn't happen in MFS</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>A sync killed halfway</td>
-<td>Per-object atomic writes; the next <code>mfs add</code> just resumes</td>
+<td>Indexing is killed at file 8,000 of 20,000; on restart the tool either re-indexes the whole repo from scratch or loops forever thinking nothing is done</td>
+<td>Work is per object and committed as it goes; the next <code>mfs add</code> picks up at file 8,001</td>
 </tr>
 <tr>
-<td>Two processes touching the same store</td>
-<td>One server owns all state and the index connection; clients talk HTTP</td>
+<td>A background file-watcher holds a lock on the local vector database, so a <code>search</code> you run in another terminal can't even open it</td>
+<td>Only the server ever opens the vector store; every client goes over HTTP, so there's no file for a second process to lock</td>
 </tr>
 <tr>
-<td>A re-run duplicating results</td>
-<td>Idempotent, namespace + connector-keyed records — re-runs overwrite</td>
+<td>Two editor windows each auto-start a sync of the same repo and trample each other's writes</td>
+<td>At most one sync runs per connector (plus one queued); the duplicate is refused, not run twice</td>
 </tr>
 <tr>
-<td>A partial ingest deleting the wrong things</td>
-<td>Deletions happen only on a full-set scan; incremental never infers them</td>
+<td>You re-index just the 50 files that changed, and the tool deletes the other 19,950 because they weren't in this batch</td>
+<td>Deletions happen only on a full-set scan that enumerated the whole source; a partial run never removes what it didn't list</td>
 </tr>
 <tr>
-<td>One bad file breaking the whole run</td>
-<td>Per-object failure isolation plus a circuit breaker</td>
+<td>One file with a broken encoding throws, and the entire indexing run dies with it</td>
+<td>Each object succeeds or fails on its own; the bad one is marked <code>failed</code> and skipped, the rest finish</td>
 </tr>
 <tr>
-<td>Config from one source leaking into another</td>
-<td>Per-connector config is data in the DB, not shared process state</td>
+<td>An ignore rule or API key you set for one repo silently applies to the next repo in the same session</td>
+<td>Each connector's config is isolated rows in the database, not shared state in a long-lived process</td>
+</tr>
+<tr>
+<td>Switching the embedding model means manually deleting the index, deleting a snapshot file, editing <code>.env</code>, and rebuilding from zero</td>
+<td>The index is derived — <code>mfs add --force-index</code> rebuilds it from source, and the config lives with the connector</td>
 </tr>
 </tbody>
 </table>
