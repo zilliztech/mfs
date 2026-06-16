@@ -15,8 +15,8 @@ Related references:
 - [CLI](cli.md) for the full command surface.
 - [HTTP API](api.md) for direct `/v1` integration.
 - [Connectors](connectors.md) for source-specific reference pages.
-- [Content Model](content-model.md) for `source`, `locator`,
-  `metadata.fields`, chunk kinds, and search status vocabulary.
+- [Glossary](glossary.md) for `source`, `locator`, `metadata.fields`, chunk
+  kinds, and search-status vocabulary.
 - [Providers and Processing](providers.md) for embedding, summary, VLM, and
   converter behavior behind indexing and semantic search.
 - [Troubleshooting](troubleshooting.md) for ingest and indexing failures.

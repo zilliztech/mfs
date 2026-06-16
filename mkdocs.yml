@@ -40,7 +40,6 @@ nav:
     - Design philosophy: production.md
     - Robustness: robustness.md
     - Search and browse: search-and-browse.md
-    - Content model: content-model.md
     - Ingest pipeline: ingest-pipeline.md
   - Connectors:
     - Overview: connectors.md

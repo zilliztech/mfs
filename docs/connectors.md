@@ -148,8 +148,8 @@ metadata_fields = ["status", "updated_at"]  # returned alongside hits
 
 The public SaaS connectors (GitHub issues, Jira, Slack, Linear, Zendesk tickets,
 Gmail, Discord, Feishu) ship presets, so `[[objects]]` is optional there — use it
-only to override the default fields. See [Content model](content-model.md) for how
-these become `content`, `locator`, and `metadata.fields` in a result.
+only to override the default fields. See [Search and browse](search-and-browse.md#locate-exact-hits)
+for how these become `content`, `locator`, and `metadata.fields` in a result.
 
 ## After ingest
 

@@ -3,8 +3,7 @@
 This page describes how the server-side engine turns a stream of pending objects
 into rows in the vector index. It is the deepest layer of the architecture — for
 the system-level map, see [Architecture](architecture.md); for the server's
-process and module layout, see [Server](server.md). The code lives under
-`server/python/src/mfs_server/engine/`.
+process and module layout, see [Server](server.md).
 
 The pipeline has two lanes, distinguished by the granularity of the work they
 collect. They run **in parallel** and feed one shared tail:
@@ -137,8 +136,7 @@ Notes:
 
 - **`DirTreeBuilder` is in-memory state.** Unlike the durable `ObjectTask`
   queue, the tree is built during connector sync and lost on crash. Crash
-  recovery reconstructs it from durable object state — see `_recover_job_lane`
-  in `engine/engine.py`.
+  recovery reconstructs it from durable object state.
 - **Files do not gate a directory.** A summary folds its children's source
   content, not their embeddings, so a directory's `pending` counts only its
   un-summarized sub-directories. At sync end every leaf directory is ready

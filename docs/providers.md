@@ -188,9 +188,8 @@ flowchart LR
 The transformation cache is content-addressed by input hash, kind, provider,
 model, and version. Losing it causes recomputation. The artifact cache stores
 derived per-object blobs such as converted markdown and image-description text.
-For how these chunks appear as `ResultEnvelope.source`, `locator`,
-`metadata.chunk_kind`, and `metadata.fields`, see
-[Content Model](content-model.md).
+For how these chunks appear as `source`, `locator`, `metadata.chunk_kind`, and
+`metadata.fields`, see [Search and browse](search-and-browse.md#locate-exact-hits).
 
 ## Where Provider Errors Show Up
 

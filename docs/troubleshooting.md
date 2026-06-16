@@ -233,7 +233,7 @@ Use `mfs status` for connector rows and job counts,
 `mfs connector inspect TARGET` for object/job summaries for one connector, and
 `mfs ls PATH --json` for per-entry search state.
 For the identifier, locator, chunk-kind, and status vocabulary behind these
-fields, see [Content Model](content-model.md).
+fields, see [Glossary](glossary.md).
 
 ## Read and Browse Errors
 
