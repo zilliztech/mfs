@@ -443,16 +443,3 @@ Expected shapes:
 
 Next: [Search and Browse](search-and-browse.md), [CLI Reference](cli.md), and
 [Troubleshooting](troubleshooting.md).
-
-## Related references
-
-| Page | Use it for |
-|---|---|
-| [Quickstart](getting-started.md) | First source run and local defaults. |
-| [CLI Reference](cli.md) | Exact command names, flags, profiles, jobs, and connector commands. |
-| [Search and Browse](search-and-browse.md) | Search, grep, locator replay, range reads, and weak-result recovery. |
-| [Connectors](connectors.md) | Built-in connector catalog, TOML config, credentials, probe, add, update, and remove. |
-| [Deployment](deployment.md) | Source, Docker, Compose, upload mode, tokens, and topology boundaries. |
-| [HTTP API](api.md) | Direct `/v1` endpoints, auth, schemas, errors, and upload protocol. |
-| [Configuration](configuration.md) | Server config lookup, environment overrides, auth, and CLI endpoint precedence. |
-| [Troubleshooting](troubleshooting.md) | Endpoint, auth, upload, indexing, connector, search, and read failures. |

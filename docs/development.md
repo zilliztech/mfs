@@ -147,14 +147,3 @@ cd sdks/smoke
     The smoke README and smoke scripts target `127.0.0.1:8765`. The default
     `mfs-server run` and `mfs-server api` bind address is `127.0.0.1:13619`.
     Set up the live test server deliberately before running the harness.
-
-## What To Open Next
-
-| Need | Page |
-|---|---|
-| Runtime module map and server entrypoints | [Server](server.md) |
-| Exact endpoint paths, request fields, and response schemas | [HTTP API](api.md) |
-| Generated client coverage, examples, and SDK caveats | [SDKs](sdks.md) |
-| Config lookup, `MFS_HOME`, auth modes, and backend defaults | [Configuration](configuration.md) |
-| Source, Docker, Compose, and rendered Helm runtime shapes | [Deployment](deployment.md) |
-| Endpoint, auth, upload, indexing, search, and browse failures | [Troubleshooting](troubleshooting.md) |

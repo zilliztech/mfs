@@ -34,8 +34,8 @@ Five things, and the point is having all of them at once:
   production scale — neither is an afterthought. Every component is swappable and
   independently scalable, so the same MFS moves between the two by configuration
   alone. The index is derived and crash-safe: upstream stays the source of truth,
-  so you can delete it and rebuild from the originals, losing nothing. See
-  [Built for production](production.md) for the engineering behind this.
+  so you can delete it and rebuild from the originals, losing nothing. See the
+  [Design philosophy](production.md) for the engineering behind this.
 - **🤖 Agent-native.** Built for how agents actually work — especially context and
   memory management — so it slots into any agent setup. And when you're building
   an agent of your own, you can build it on top of MFS too.
@@ -110,12 +110,5 @@ filesystem for agents), **CocoIndex** (incremental data ETL), and **LlamaCloud**
 
 *Yes · Partial · — (not a focus of that tool).* Only MFS fills every column — and
 it's the only one that pairs hybrid search *with* file-like browse. LlamaCloud is
-also a managed service, where MFS is self-hosted and open source. See
-[Built for production](production.md) for the engineering behind the last column.
-
-## Where to next
-
-If this sounds like your problem, the [Quickstart](getting-started.md) gets you
-running in a few minutes. To understand the pieces first, read
-[How it works](architecture.md). To bring your own sources in, start with
-[Connectors](connectors.md).
+also a managed service, where MFS is self-hosted and open source. See the
+[Design philosophy](production.md) for the engineering behind the last column.

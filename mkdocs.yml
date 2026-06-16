@@ -36,8 +36,8 @@ nav:
     - Quickstart: getting-started.md
     - Examples: examples.md
   - Concepts:
-    - How it works: architecture.md
-    - Built for production: production.md
+    - Architecture: architecture.md
+    - Design philosophy: production.md
     - Search and browse: search-and-browse.md
     - Content model: content-model.md
     - Jobs and indexing: jobs.md

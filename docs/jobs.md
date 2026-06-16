@@ -120,15 +120,3 @@ check `search_status`, or use `mfs connector inspect TARGET` for one connector.
 | New add fails with `sync_already_running` | `mfs job list` and `mfs job show JOB_ID` | Wait for the in-flight sync or cancel the job if it should stop. |
 | `succeeded_objects` is `0` | `mfs connector inspect TARGET` and `mfs ls PATH --json` | Confirm the target URI, connector config, indexability, and `[[objects]] text_fields` for structured sources. |
 | `failed_objects` is non-zero | `mfs job show JOB_ID` | Read `error`, inspect the connector and a sample path, then rerun after fixing the cause. |
-
-## Related Pages
-
-| Page | Use it for |
-|---|---|
-| [Quickstart](getting-started.md) | First local `mfs add` checkpoint. |
-| [Content Model](content-model.md) | How object tasks become chunks, result envelopes, and object `search_status`. |
-| [CLI Reference](cli.md) | Exact command flags and output shapes. |
-| [HTTP API](api.md) | Endpoint paths and schema fields. |
-| [Storage and Backup](storage-and-backup.md) | How job, metadata, cache, and vector state fit into backup and reset workflows. |
-| [Troubleshooting](troubleshooting.md) | Endpoint, auth, upload, indexing, search, and browse recovery. |
-| [Search and Browse](search-and-browse.md) | How to keep working while search is partial or still building. |

@@ -1,4 +1,4 @@
-# How it works
+# Architecture
 
 MFS is a client/server system. A thin Rust CLI and the generated SDKs are client
 surfaces; all the real work happens in a stateful Python server. The split is
@@ -117,3 +117,6 @@ runs the API and workers as separate processes. The engine, connectors, and
 retrieval logic are identical; only the backends behind them change. See
 [Configuration](configuration.md) for the precedence rules and
 [Deployment](deployment.md) for the topologies.
+
+For *why* it's put together this way — the failure modes this shape rules out —
+see [Design philosophy](production.md).

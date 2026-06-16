@@ -63,18 +63,3 @@ Agents should use the command forms below.
 | `mfs-find` | `mfs-ingest` | The source is not registered, `mfs connector inspect TARGET` shows no useful object/chunk state, `mfs ls PATH --json` shows entries that should be indexed but are not, or the user needs a config change. |
 | `mfs-ingest` | `mfs-find` | A job succeeds and the user now wants to search, compare, summarize, or reopen evidence. |
 | Either skill | User | The workflow requires source credentials, destructive removal, broad full re-indexing, or an unsupported command such as job log tailing. |
-
-## Related Guides
-
-- [Search and Browse](search-and-browse.md) for the search-to-read loop,
-  locator reopening, JSON output, and weak-result recovery.
-- [Connectors](connectors.md) for connector selection, lifecycle commands, TOML
-  conventions, credential references, and the connector API map.
-- [CLI Reference](cli.md) for exact command shapes, global `--json`, jobs,
-  connector management, profiles, config, and local server commands.
-- [Troubleshooting](troubleshooting.md) for endpoint/auth issues, upload mode,
-  job inspection, empty search results, connector failures, and canonical error
-  recovery.
-
-[mfs-find-skill]: https://github.com/zilliztech/mfs/blob/main/skills/mfs-find/
-[mfs-ingest-skill]: https://github.com/zilliztech/mfs/blob/main/skills/mfs-ingest/
