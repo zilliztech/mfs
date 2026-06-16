@@ -8,7 +8,10 @@
   <a href="https://github.com/zilliztech/mfs/blob/main/LICENSE"><img src="https://img.shields.io/github/license/zilliztech/mfs?style=flat-square" alt="License"></a>
   <a href="https://crates.io/crates/mfs-cli"><img src="https://img.shields.io/crates/v/mfs-cli?style=flat-square&color=orange&logo=rust&logoColor=white" alt="crates.io"></a>
   <img src="https://img.shields.io/badge/python-%3E%3D3.10-blue?style=flat-square&logo=python&logoColor=white" alt="Python">
+  <a href="https://github.com/zilliztech/mfs/actions/workflows/lint.yml"><img src="https://img.shields.io/github/actions/workflow/status/zilliztech/mfs/lint.yml?branch=main&style=flat-square&label=lint" alt="Lint"></a>
   <a href="https://milvus.io/"><img src="https://img.shields.io/badge/powered%20by-Milvus-00A1EA?style=flat-square" alt="Milvus"></a>
+  <a href="https://deepwiki.com/zilliztech/mfs"><img src="https://img.shields.io/badge/DeepWiki-AI_docs-purple?style=flat-square&logo=gitbook&logoColor=white" alt="DeepWiki"></a>
+  <a href="https://x.com/zilliz_universe"><img src="https://img.shields.io/badge/follow-%40zilliz__universe-000000?style=flat-square&logo=x&logoColor=white" alt="X"></a>
   <a href="https://github.com/zilliztech/mfs/stargazers"><img src="https://img.shields.io/github/stars/zilliztech/mfs?style=flat-square" alt="Stars"></a>
 </p>
 
