@@ -24,7 +24,7 @@ to manage and harder to locate: for any given task, which slice of all that
 context is the part that actually matters? It piles up in:
 
 - **Code & repos** — every repo the agent reads or writes
-- **Memory & skills** — past-session transcripts, notes, reusable `SKILL.md` skills
+- **Memory & skills** — past-session transcripts, memory `.md` files, reusable `SKILL.md` skills
 - **Docs & knowledge** — PDFs, design specs, Notion, crawled web pages
 - **Chat & mail** — Slack, Discord, Gmail, Feishu
 - **Issues & CRM** — Jira, Linear, HubSpot, Zendesk
@@ -76,6 +76,26 @@ For project-level installs, re-run the `npx skills add` command to update.
 
 </details>
 
+<details>
+<summary>Prefer the shell, no agent?</summary>
+
+Run a local server, install the CLI, and drive the same loop directly:
+
+```bash
+# server — from source until it's published
+git clone https://github.com/zilliztech/mfs.git
+cd mfs/server/python && uv sync && uv run mfs-server run
+
+# CLI — `cargo install mfs-cli`, or the installer on the releases page
+mfs add /tmp/hello-mfs
+mfs search "where the greeting is printed" /tmp/hello-mfs
+```
+
+> macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if prompted about
+> an unidentified developer.
+
+</details>
+
 📥 Then open your agent (Claude Code, Codex, …) and ask in plain language. First,
 ingest something:
 
@@ -97,6 +117,10 @@ project, and show me the exact lines
 > it installs the `mfs` CLI, helps you start a local server, and downloads a
 > ~600 MB local embedding model into `~/.mfs/`. Give it a minute. After that the
 > whole stack runs locally and offline — **no API key, no GPU, no cloud account.**
+>
+> Don't want the model download? If you already have an embedding-service API key
+> (OpenAI, …), point the server at it instead — see
+> [Configure the server](#-configure-the-server).
 
 ## 💡 Use cases
 
@@ -563,7 +587,7 @@ mfs status
 Docker images, a Compose file, and a Helm chart for split api / worker
 deployments live under [`deployments/`](deployments/).
 
-## ⚙️ Configure the server
+## 🔧 Configure the server
 
 Almost all configuration lives **on the server** — the embedding provider, the
 vector backend, the metadata database, caches, auth, and every connector's
@@ -592,6 +616,21 @@ uv run mfs-server setup                      # full interactive walkthrough
 uv run mfs-server setup --section embedding  # re-run just one section
 ```
 
+What each section of `server.toml` configures:
+
+| Section | Configures | Default | Swap in |
+|---|---|---|---|
+| `[embedding]` | embedding provider · model · dim | local ONNX (BGE-M3 int8, no key) | `openai` · `gemini` · `voyage` · `ollama` · `local` — needs that provider's key/extra |
+| `[milvus]` | vector store | Milvus Lite (file under `~/.mfs/`) | self-hosted Milvus or Zilliz Cloud — set `uri` + `token` |
+| `[database]` | metadata + transformation-cache DB | SQLite (file) | Postgres — set `dsn` |
+| `[artifact_cache]` | converted-blob cache | local fs under `~/.mfs/cache` | size / eviction knobs |
+| `[description]` | image descriptions (vision LLM) | off | `openai` · `anthropic` · `gemini` — needs key |
+| `[summary]` | directory / file summaries | off | provider + model, `dir` / `file` scope |
+| `auth_token` | API auth | auto-generated `server.token` | a fixed token, or `-` to disable |
+
+Secrets never sit in the TOML as plaintext — use `env:VAR` or `file:/path` refs
+and the server resolves them at runtime.
+
 <details>
 <summary>Use OpenAI instead of the local model?</summary>
 
@@ -605,26 +644,6 @@ provider = "openai"      # instead of the default local "onnx"
 ```bash
 export OPENAI_API_KEY=sk-...
 ```
-
-</details>
-
-<details>
-<summary>Prefer the shell, no agent?</summary>
-
-Run a local server, install the CLI, and drive the loop directly:
-
-```bash
-# server — from source until it's published
-git clone https://github.com/zilliztech/mfs.git
-cd mfs/server/python && uv sync && uv run mfs-server run
-
-# CLI — `cargo install mfs-cli`, or the installer on the releases page
-mfs add /tmp/hello-mfs
-mfs search "where the greeting is printed" /tmp/hello-mfs
-```
-
-> macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if prompted about
-> an unidentified developer.
 
 </details>
 
