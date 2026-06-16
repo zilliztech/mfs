@@ -704,19 +704,18 @@ you never touch embeddings, the vector store, or per-source plumbing — you poi
 at MFS and focus on the app on top.
 
 ```text
+┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐
+│ agents           │   │ your app code    │   │ skills / MCP /   │
+│ → skills + CLI   │   │ → SDK (Py / TS)  │   │ plugins → CLI    │
+└────────┬─────────┘   └────────┬─────────┘   └────────┬─────────┘
+         │                      │                      │
+         └──────────────────────┼──────────────────────┘
+                                ▼
 ┌────────────────────────────────────────────────────────────────┐
-│ BUILD ON TOP — three ways in:                                  │
-│   • agents (Claude Code, Codex)  → mfs-find / mfs-ingest + CLI │
-│   • your app code                → SDK (Python / TypeScript)   │
-│   • your skills / MCP / plugins  → CLI                         │
-└────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌────────────────────────────────────────────────────────────────┐
-│ MFS  —  one file-like API:  CLI · SDK · HTTP /v1               │
-└────────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
+│ MFS  —  CLI · SDK · HTTP /v1                                   │
+└───────────────────────────────┬────────────────────────────────┘
+                                │
+                                ▼
 ┌────────────────────────────────────────────────────────────────┐
 │ index pipeline · chunking · embedding · vector DB · caches     │
 │ a catalog of source connectors  (MFS owns all of this)         │
