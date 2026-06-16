@@ -1,445 +1,190 @@
 # Examples
 
-Use this page when you need a runnable path rather than a full reference page.
-Each scenario includes prerequisites, commands, expected output shape, and the
-next page to open when you need the details.
+The same loop fits every source: **add** it once, **search** across it, then
+**reopen** the exact hit. The scenarios below show what that looks like in
+practice. Each `mfs` command is also one plain-language request to an agent —
+`/mfs-ingest` to add a source, `/mfs-find` to search and read (Codex uses
+`$mfs-ingest` / `$mfs-find`).
 
-!!! note "Values are examples"
-    Job ids, scores, line ranges, object counts, chunk counts, fingerprints, and
-    upload connector ids vary by server, source content, and connector output.
-    Use the field names and command flow as the stable parts.
+For the URI shape and credentials of any connector, see its page under
+[Connectors](connectors.md). First time configuring a source? Don't hand-write
+the TOML — tell the **mfs-ingest** skill what you want and it figures out the
+credentials and writes the config for you.
 
-## Pick the right path mode
+## Your agent's memory and skills
 
-| Server can read the client path? | Typical placement | Add command | Search scope to use later |
-|---|---|---|---|
-| Yes | CLI and `mfs-server` run on the same host, or both see the same mounted path | `mfs add PATH` | The original path, or the `file://local...` URI from results |
-| No | Docker container, remote VM, or different host | `mfs add --upload PATH` | The uploaded `file://CLIENT_ID...` connector URI shown by `mfs connector list` |
-
-!!! warning "Do not mix path modes"
-    Same-host shared-path indexing asks the server to read `PATH` directly.
-    Upload mode sends bytes from the client and indexes a server-side staged
-    copy. If search or browse misses after an upload, inspect the registered
-    connector URI and scope commands to that URI.
-
-## 1. Same-host local folder
-
-Use this when the CLI and server run on the same machine and the server process
-can read the path you pass to `mfs add`.
-
-Prerequisites:
-
-- `mfs-server run` is already listening on `127.0.0.1:13619`.
-- The local CLI can authenticate through `$MFS_HOME/server.token` or
-  `MFS_API_TOKEN`.
+Past-session memory files (`.md`, `.jsonl`) and reusable skills become one
+searchable namespace — the prompt you tuned last week or a decision logged three
+sessions ago is one query away.
 
 ```bash
-mkdir -p /tmp/mfs-examples/local/notes
-
-cat > /tmp/mfs-examples/local/README.md <<'EOF'
-# MFS local example
-
-The same-host path mode lets mfs-server read a local folder directly.
-The default API endpoint is 127.0.0.1:13619.
-Use cat with a line range before relying on a search snippet.
-EOF
-
-cat > /tmp/mfs-examples/local/notes/search.md <<'EOF'
-# Search note
-
-Search returns candidates.
-Cat reopens exact evidence by path, range, or locator.
-EOF
-
-mfs add /tmp/mfs-examples/local
-mfs job show JOB_ID
-mfs search "default API endpoint" /tmp/mfs-examples/local --top-k 5
-mfs cat /tmp/mfs-examples/local/README.md --range 1:6
+mfs add path/to/memory     # /mfs-ingest index my session memory
+mfs add path/to/skills     # /mfs-ingest index my skills
+mfs search "the prompt I tuned for refund disputes" --all
 ```
-
-Expected shape:
 
 ```text
-queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
-{"id":"JOB_ID","status":"succeeded",...}
-
-file://local/tmp/mfs-examples/local/README.md  score=...
-   The default API endpoint is 127.0.0.1:13619.
-
-# MFS local example
-...
+file://local/.agents/memory/2026-05-31.jsonl  score=0.88
+  {"role":"note","text":"refund-dispute prompt: lead with the order ID, then ..."}
+file://local/.agents/skills/support-triage/SKILL.md  score=0.74
+  ## Refund disputes — confirm the order ID first, then check the gateway log ...
 ```
 
-Next: [Quickstart](getting-started.md), [CLI Reference](cli.md), and
-[Search and Browse](search-and-browse.md).
+Reopen the hit to get the full note: `mfs cat file://local/.agents/memory/2026-05-31.jsonl`.
 
-## 2. Docker or remote upload mode
+## Your codebases
 
-Use this when the server cannot read the client path directly. This is the
-normal host-CLI to Docker-server path unless you mount a shared directory and
-pass the server-visible path with `--no-upload`.
-
-Prerequisites:
-
-- The server is reachable from the client.
-- `MFS_API_URL` points to that server.
-- `MFS_API_TOKEN` is the bearer token accepted by that server.
-
-For a Docker container named `mfs-server`, the token can usually be read from
-the persistent `/data` volume:
+Index the repos your agent reads or writes and grep them by meaning — find the
+helper by what it *does*, not the name you've forgotten.
 
 ```bash
-export MFS_API_URL=http://127.0.0.1:13619
-export MFS_API_TOKEN="$(docker exec mfs-server cat /data/server.token)"
+mfs add path/to/repo
+mfs search "where do we retry failed webhook deliveries?" path/to/repo
 ```
-
-For a remote server, set the token you configured on that server:
-
-```bash
-export MFS_API_URL=https://mfs.example.com
-export MFS_API_TOKEN="replace-with-your-server-token"
-```
-
-Then upload and index a client-side folder:
-
-```bash
-mkdir -p /tmp/mfs-examples/upload
-
-cat > /tmp/mfs-examples/upload/runbook.md <<'EOF'
-# Upload mode runbook
-
-Upload mode is for Docker or remote servers that cannot read the client path.
-The CLI sends changed files and the server indexes the staged copy.
-EOF
-
-mfs add --upload /tmp/mfs-examples/upload
-mfs job show JOB_ID
-mfs connector list
-```
-
-Expected shape:
 
 ```text
-uploaded 1 changed, 0 renamed, 0 deleted
-queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
-{"id":"JOB_ID","status":"succeeded",...}
-
-file       active   file://CLIENT_ID/tmp/mfs-examples/upload
+file://local/repos/payments/webhooks/deliver.go  score=0.84
+  87  // cap exponential backoff at 6 attempts, then dead-letter
+  88  func (d *Dispatcher) retryDelivery(ev Event) error {
 ```
 
-Use the displayed connector URI for search and browse if the bare host path is
-not resolved:
+The hit carries a line range, so you reopen exactly those lines:
+`mfs cat file://local/repos/payments/webhooks/deliver.go --range 80:110`.
+
+## Documents, images, any format
+
+PDFs, Word docs, Markdown, screenshots — MFS converts each to text **locally**
+(PDF / docx → Markdown, no API key), and with a vision model enabled it describes
+images too. One search spans every format.
 
 ```bash
-TARGET="file://CLIENT_ID/tmp/mfs-examples/upload"
-
-mfs connector inspect "$TARGET"
-mfs search "server indexes the staged copy" "$TARGET" --top-k 5
-mfs cat "$TARGET/runbook.md" --range 1:6
+mfs add path/to/docs
+mfs add path/to/screenshots
+mfs search "audit-log retention and the dashboards that show it" --all
 ```
-
-Expected `inspect` shape:
-
-```json
-{
-  "root_uri": "file://CLIENT_ID/tmp/mfs-examples/upload",
-  "type": "file",
-  "status": "active",
-  "objects": {"indexed": 1},
-  "object_count": 1,
-  "chunk_count": 1,
-  "jobs": {"succeeded": 1}
-}
-```
-
-Next: [Deployment](deployment.md), [Configuration](configuration.md), and
-[Troubleshooting](troubleshooting.md).
-
-## 3. Connector probe, add, and readback
-
-This example uses the `web` connector because it has no local filesystem
-assumption. Replace the target and TOML with another connector from
-[Connectors](connectors.md) when you need Slack, Postgres, S3, GitHub, or another
-source.
-
-Prerequisites:
-
-- The server has the connector dependencies for the scheme you use.
-- The server process can reach the source and resolve any `env:` or `file:`
-  credential references in the TOML.
-
-```bash
-cat > /tmp/mfs-examples-web.toml <<'EOF'
-start_urls = ["https://example.com/"]
-allowed_domains = ["example.com"]
-max_pages = 1
-EOF
-
-mfs connector probe web://example --config /tmp/mfs-examples-web.toml
-JOB_ID="$(mfs connector add web://example --config /tmp/mfs-examples-web.toml | sed -n 's/^job: //p')"
-
-while :; do
-  JOB_JSON="$(mfs job show "$JOB_ID")"
-  printf '%s\n' "$JOB_JSON"
-  STATUS="$(printf '%s\n' "$JOB_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["status"])')"
-  case "$STATUS" in
-    succeeded) break ;;
-    failed|cancelled) exit 1 ;;
-  esac
-  sleep 1
-done
-
-mfs connector inspect web://example
-```
-
-Expected shapes:
 
 ```text
-web  ok=true  ...
+file://local/design-docs/data-governance.pdf  score=0.86
+  ... Audit logs are retained for 400 days, then moved to cold storage ...
+file://local/screenshots/grafana-2026-06-02.png  score=0.71
+  A Grafana dashboard; the p99 latency panel climbs to ~800 ms around 14:10 ...
 ```
 
-```json
-{
-  "id": "JOB_ID",
-  "status": "succeeded",
-  "op_kind": "sync",
-  "total_objects": 1,
-  "succeeded_objects": 1,
-  "failed_objects": 0
-}
-```
+Note that structured text like `.csv` and `.json` is browseable and greppable but
+not part of semantic search — see [the `file` connector](connectors/file.md#what-gets-indexed).
 
-Read back through search plus locator. The exact source path and locator depend
-on the connector output, so capture them from JSON:
+## Cloud drives and buckets
+
+Mount a Google Drive or S3 bucket; its files become searchable text alongside
+your local ones — no syncing, no downloads.
 
 ```bash
-HIT_JSON="$(mfs --json search "Example Domain" web://example --top-k 1)"
-SOURCE="$(
-  printf '%s\n' "$HIT_JSON" |
-    python3 -c 'import json,sys; print(json.load(sys.stdin)["results"][0]["source"])'
-)"
-LOCATOR="$(
-  printf '%s\n' "$HIT_JSON" |
-    python3 -c 'import json,sys; hit=json.load(sys.stdin)["results"][0]; loc=hit.get("locator"); print(json.dumps(loc) if loc is not None else "")'
-)"
-
-if [ -n "$LOCATOR" ]; then
-  mfs cat "$SOURCE" --locator "$LOCATOR"
-else
-  mfs cat "$SOURCE" --range 1:80
-fi
+mfs add gdrive://my-drive --config ./gdrive.toml
+mfs add s3://acme-exports --config ./s3.toml
+mfs search "the Q3 board deck" --all
 ```
 
-Expected search shape:
-
-```json
-{
-  "results": [
-    {
-      "source": "web://example/...",
-      "content": "Example Domain...",
-      "score": 0.8,
-      "locator": {"lines": [1, 20]},
-      "metadata": {
-        "kind": "search",
-        "chunk_kind": "body",
-        "fields": {}
-      }
-    }
-  ]
-}
+```text
+gdrive://my-drive/Board/2026-Q3-review.pdf  score=0.87
+  ... Q3 highlights: net revenue retention 118%, two enterprise logos closed ...
+s3://acme-exports/finance/2026-q3-summary.csv  score=0.70
+  quarter,net_revenue,nrr,churn  2026Q3,4.2M,1.18,1.4% ...
 ```
 
-Next: [Connectors](connectors.md) and [Troubleshooting](troubleshooting.md).
+## Online sources
 
-## 4. Direct HTTP add, poll, search, and read
-
-Use this when you are integrating without shelling out to `mfs`. The example
-uses the same-host path mode; for true client/server upload protocol details,
-see [HTTP API](api.md).
-
-Prerequisites:
-
-- The API URL is reachable.
-- The server can read `/tmp/mfs-examples/http`.
-- A worker can drain queued jobs. Source, Docker, and Compose SQLite all-in-one
-  runs start an in-process worker; API/worker deployments need a worker process.
-- `MFS_TOKEN` is the bearer token for `/v1` requests. `GET /healthz` does not
-  require the token, but `/v1` endpoints do when auth is enabled.
+Crawl a docs site or mount a GitHub repo with its issues — remote content lands
+in the same namespace as your local files.
 
 ```bash
-mkdir -p /tmp/mfs-examples/http
-
-cat > /tmp/mfs-examples/http/api.md <<'EOF'
-# HTTP API example
-
-POST /v1/add returns a job_id.
-GET /v1/jobs/{job_id} returns job status and object counts.
-GET /v1/search returns result envelopes with source, content, score, locator, and metadata.
-GET /v1/cat reopens exact content.
-EOF
-
-export MFS_URL="${MFS_API_URL:-http://127.0.0.1:13619}"
-export MFS_TOKEN="${MFS_API_TOKEN:-$(cat ${MFS_HOME:-$HOME/.mfs}/server.token 2>/dev/null || true)}"
-
-JOB_ID="$(
-  curl -sS -H "Authorization: Bearer $MFS_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d '{"target":"/tmp/mfs-examples/http","process":false}' \
-    "$MFS_URL/v1/add" |
-    python3 -c 'import json,sys; print(json.load(sys.stdin)["job_id"])'
-)"
-
-while :; do
-  JOB_JSON="$(
-    curl -sS -H "Authorization: Bearer $MFS_TOKEN" \
-      "$MFS_URL/v1/jobs/$JOB_ID"
-  )"
-  printf '%s\n' "$JOB_JSON" | python3 -m json.tool
-  STATUS="$(printf '%s\n' "$JOB_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin)["status"])')"
-  case "$STATUS" in
-    succeeded) break ;;
-    failed|cancelled) exit 1 ;;
-  esac
-  sleep 1
-done
+mfs add web://docs.your-product.com
+mfs add github://your-org/your-repo --config ./github.toml
+mfs search "how do we rotate signing keys?" --all
 ```
 
-After `status` is `succeeded`, search and reopen the first hit:
+```text
+web://docs.your-product.com/security/key-rotation  score=0.88
+  ... Signing keys rotate every 90 days; trigger an early rotation from the admin console ...
+github://your-org/your-repo/_meta/issues.jsonl  score=0.75
+  #312  "Automate signing-key rotation"  state=open  labels=[security]
+```
+
+## Team chat and tickets
+
+Mount Slack, Gmail, Jira, Linear and pull the thread, the ticket, and the email
+behind a decision into one answer.
 
 ```bash
-SEARCH_JSON="$(
-  curl -G -sS -H "Authorization: Bearer $MFS_TOKEN" \
-    "$MFS_URL/v1/search" \
-    --data-urlencode "q=result envelopes with source" \
-    --data-urlencode "path=/tmp/mfs-examples/http" \
-    --data-urlencode "top_k=1"
-)"
-
-printf '%s\n' "$SEARCH_JSON" | python3 -m json.tool
-
-SOURCE="$(
-  printf '%s\n' "$SEARCH_JSON" |
-    python3 -c 'import json,sys; print(json.load(sys.stdin)["results"][0]["source"])'
-)"
-LOCATOR="$(
-  printf '%s\n' "$SEARCH_JSON" |
-    python3 -c 'import json,sys; hit=json.load(sys.stdin)["results"][0]; loc=hit.get("locator"); print(json.dumps(loc) if loc is not None else "")'
-)"
-
-if [ -n "$LOCATOR" ]; then
-  curl -G -sS -H "Authorization: Bearer $MFS_TOKEN" \
-    "$MFS_URL/v1/cat" \
-    --data-urlencode "path=$SOURCE" \
-    --data-urlencode "locator=$LOCATOR" |
-    python3 -m json.tool
-else
-  curl -G -sS -H "Authorization: Bearer $MFS_TOKEN" \
-    "$MFS_URL/v1/cat" \
-    --data-urlencode "path=$SOURCE" |
-    python3 -m json.tool
-fi
+mfs add slack://acme --config ./slack.toml
+mfs add jira://acme  --config ./jira.toml
+mfs search "why did we revert the burst guard?" --all
 ```
 
-Expected shapes:
-
-```json
-{"job_id": "JOB_ID"}
+```text
+slack://acme/channels/platform__C012345/messages.jsonl  score=0.90
+  [Tue 09:40] @carol: reverting the burst guard — it dropped healthy traffic
+  [Tue 09:42] @dave:  agreed, reopening PLAT-491 to re-tune the window
+jira://acme/projects/PLAT/issues.jsonl  score=0.81
+  PLAT-491  "rate-limit guard misfires under burst"  state=Reopened
 ```
 
-```json
-{
-  "id": "JOB_ID",
-  "status": "succeeded",
-  "op_kind": "sync",
-  "error": null,
-  "total_objects": 1,
-  "succeeded_objects": 1,
-  "failed_objects": 0
-}
-```
+A chat hit reopens the whole thread, and a ticket reopens by its key:
+`mfs cat jira://acme/projects/PLAT/issues.jsonl --locator '{"key":"PLAT-491"}'`.
 
-```json
-{
-  "results": [
-    {
-      "source": "file://local/tmp/mfs-examples/http/api.md",
-      "content": "GET /v1/search returns result envelopes...",
-      "score": 0.82,
-      "locator": {"lines": [1, 6]},
-      "metadata": {"kind": "search", "chunk_kind": "body", "fields": {}}
-    }
-  ]
-}
-```
+## Customers and support
 
-```json
-{
-  "source": "file://local/tmp/mfs-examples/http/api.md",
-  "content": "# HTTP API example\n..."
-}
-```
-
-Next: [HTTP API](api.md), [SDKs](sdks.md), and
-[Troubleshooting](troubleshooting.md).
-
-## 5. Daily search to exact evidence
-
-Use this when a source is already indexed and you need to turn a candidate into
-exact content without manually copying line numbers.
-
-Prerequisites:
-
-- The source has already been added and indexed.
-- You know a path or URI scope, or you intentionally use `--all`.
+Pull your CRM and help desk together — the account, its open tickets, and the
+notes behind a customer issue in one query.
 
 ```bash
-HIT_JSON="$(mfs --json search "cat reopens exact evidence" /tmp/mfs-examples/local --top-k 1)"
-
-SOURCE="$(
-  printf '%s\n' "$HIT_JSON" |
-    python3 -c 'import json,sys; print(json.load(sys.stdin)["results"][0]["source"])'
-)"
-LOCATOR="$(
-  printf '%s\n' "$HIT_JSON" |
-    python3 -c 'import json,sys; hit=json.load(sys.stdin)["results"][0]; loc=hit.get("locator"); print(json.dumps(loc) if loc is not None else "")'
-)"
-
-if [ -n "$LOCATOR" ]; then
-  mfs cat "$SOURCE" --locator "$LOCATOR"
-else
-  mfs cat "$SOURCE" --range 1:80
-fi
-
-mfs cat "$SOURCE" --meta
+mfs add hubspot://acme  --config ./hubspot.toml
+mfs add zendesk://acme  --config ./zendesk.toml
+mfs search "why is Globex unhappy with onboarding?" --all
 ```
 
-If search is weak, use exact or browse-first commands:
+```text
+zendesk://acme/tickets/records.jsonl  score=0.88
+  #5821  "Onboarding blocked on SSO setup"  status=open  priority=high
+hubspot://acme/companies/records.jsonl  score=0.74
+  Globex — renewal at risk; onboarding friction flagged by the CSM ...
+```
+
+## Production data
+
+Point MFS at Postgres, Mongo, or BigQuery and search rows as text — each row is a
+file-like object, so `mfs cat` pulls back the full record.
 
 ```bash
-mfs grep "cat reopens exact evidence" /tmp/mfs-examples/local
-mfs ls /tmp/mfs-examples/local --json
-mfs tree /tmp/mfs-examples/local -L 2
-mfs head /tmp/mfs-examples/local/README.md -n 5
+mfs add postgres://prod --config ./pg.toml
+mfs search "refunds stuck in pending over 7 days" postgres://prod/public/orders/rows.jsonl
 ```
 
-Expected shapes:
-
-```json
-{
-  "source": "file://local/tmp/mfs-examples/local/notes/search.md",
-  "content": "Cat reopens exact evidence..."
-}
+```text
+postgres://prod/public/orders/rows.jsonl  score=0.79
+  {"id":"ord_8842","status":"pending","refund_requested_at":"2026-05-30", ...}
 ```
 
-```json
-{
-  "source": "file://local/tmp/mfs-examples/local/notes/search.md",
-  "media_type": "text/markdown",
-  "size_hint": 123,
-  "fingerprint": "..."
-}
+Reopen the full row by its key:
+`mfs cat postgres://prod/public/orders/rows.jsonl --locator '{"id":"ord_8842"}'`.
+
+## One query across everything
+
+With several sources registered, `--all` fans one query across all of them —
+files, databases, trackers, chat — in a single result shape, so any hit copies
+straight into `mfs cat`.
+
+```bash
+mfs search "rate-limit guard misfires under burst" --all
 ```
 
-Next: [Search and Browse](search-and-browse.md), [CLI Reference](cli.md), and
-[Troubleshooting](troubleshooting.md).
+```text
+slack://acme/channels/oncall__C0A1B2/messages.jsonl  score=0.91
+  [Mon 22:14] @alice: ratelimiter pegged 500ms p99 tail, dump attached
+jira://acme/projects/PLAT/issues.jsonl  score=0.83
+  PLAT-491  "rate-limit guard misfires under burst"  state=In Progress
+file://local/repo/src/throttle.go  score=0.71
+  42  func handleRateLimit(req Request) error {
+```
+
+The locators are uniform, so the same `mfs cat` reopens any of them — a line
+range for the code file, a structured locator for the ticket.

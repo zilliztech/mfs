@@ -75,28 +75,13 @@ If a result looks weak or incomplete, that's usually a clue about *indexing*, no
 relevance. `mfs ls`, `mfs grep`, and the browse commands let you tell a ranking
 problem apart from a "not indexed yet" problem instead of guessing.
 
-## Agents and humans drive it the same way
-
-The loop is identical whether a person or an agent is at the keyboard; only the
-ergonomics differ.
-
-An **agent** should scope its search to a path when it can, keep the `source` and
-`locator` from the JSON result, and reopen exact evidence before editing or
-answering — never act on a ranked snippet alone or guess at a locator shape.
-
-A **person** leans on the human-readable output: `mfs tree` to get oriented,
-`mfs search` to find a starting point, and `mfs cat --range` to read just enough
-context. Save `--all` for when you genuinely don't know which source holds the
-answer; a scoped path is faster and easier to trust.
-
 ## How MFS compares
 
-Plenty of tools do one of these things well; MFS's bet is having them together.
-Two rows below are our own earlier projects — **Claude Context** (a code-search
-MCP) and **memsearch** (an agent memory layer); the others are the closest tools
-in the space — **OpenViking** (agent context database), **Mirage** (a virtual
-filesystem for agents), **CocoIndex** (incremental data ETL), and **LlamaCloud**
-(managed parse + index + retrieval).
+Plenty of tools do one of these things well — code search, agent memory, managed
+RAG, virtual filesystems. MFS's bet is having them all at once: broad sources,
+hybrid search *and* file-like browse, an agent-native interface, self-hosted, and
+engineered for production. The table sets it against the closest tools in the
+space.
 
 | Project | Many sources | Hybrid search | File-like browse | Production-grade server |
 |---|:--:|:--:|:--:|:--:|
@@ -109,6 +94,5 @@ filesystem for agents), **CocoIndex** (incremental data ETL), and **LlamaCloud**
 | LlamaCloud | Yes | Yes | — | Yes |
 
 *Yes · Partial · — (not a focus of that tool).* Only MFS fills every column — and
-it's the only one that pairs hybrid search *with* file-like browse. LlamaCloud is
-also a managed service, where MFS is self-hosted and open source. See the
+it's the only one that pairs hybrid search *with* file-like browse. See the
 [Design philosophy](production.md) for the engineering behind the last column.

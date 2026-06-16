@@ -1,10 +1,80 @@
 # Quickstart
 
-This is a first-run runbook: install the CLI, start the server, index a folder,
-and verify search and browse — a few minutes end to end. The CLI (`mfs`) is a
-small Rust binary; the server (`mfs-server`) is a Python app that owns
-connectors, indexing, embeddings, search, and browsing. The CLI just talks to it
-over HTTP.
+The fastest way to run MFS is to let your agent drive it: install the two skills,
+then ask in plain language. The agent installs the CLI, starts a local server, and
+runs the commands for you. Prefer to do everything by hand? Jump to
+[the manual path](#the-manual-path) — it's the same flow, one command at a time,
+and it's worth reading even if you use the skills, because it shows what's
+happening underneath.
+
+## Install the skills
+
+```bash
+# every project + every supported agent (drop -g for the current project only)
+npx skills add zilliztech/mfs --all -g
+```
+
+This installs two skills: **mfs-ingest** (bring sources in and keep them fresh)
+and **mfs-find** (search and browse what's ingested).
+
+<details>
+<summary>Install to a specific agent</summary>
+
+Pass one or more `-a <agent>`:
+
+```bash
+npx skills add zilliztech/mfs -a claude-code -a codex -g
+```
+
+`<agent>` can be `claude-code`, `codex`, `cursor`, `windsurf`, `github-copilot`,
+`gemini-cli`, `opencode`, `zed`, `cline`, `continue` — 70+ agents in all.
+
+</details>
+
+<details>
+<summary>Check for updates</summary>
+
+```bash
+npx skills check
+npx skills update
+```
+
+For project-level installs, re-run the `npx skills add` command to update.
+
+</details>
+
+## Let your agent drive it
+
+Open your agent (Claude Code, Codex, …) and ask in plain language. First, ingest
+something:
+
+```text
+Use the mfs-ingest skill to spin up a tiny hello-world project in /tmp/hello-mfs
+and ingest it
+```
+
+Then search and read across it:
+
+```text
+Use the mfs-find skill to find where the greeting is printed in the hello-mfs
+project, and show me the exact lines
+```
+
+That's it — you're running. From here, point MFS at your real sources;
+[Connectors](connectors.md) covers each one.
+
+!!! note "The first run is a one-time setup"
+    The agent walks you through it: it installs the `mfs` CLI, starts a local
+    server, and downloads a ~600 MB local embedding model into `~/.mfs/`. Give it
+    a minute. After that the whole stack runs **locally and offline — no API key,
+    no GPU, no cloud account.** Already have an embedding-service key (OpenAI, …)?
+    Point the server at it instead and skip the download — see
+    [Configuration](configuration.md).
+
+## The manual path
+
+Under the skills is a Rust CLI (`mfs`) talking to a Python server (`mfs-server`)
+over HTTP. Here is the same first run, done by hand.
 
 ```mermaid
 flowchart LR
@@ -14,44 +84,29 @@ flowchart LR
   cli --> commands["search / ls / tree / cat"]
 ```
 
-## What you will verify
+### 1. Install the CLI
 
-| Checkpoint | Success signal |
-|---|---|
-| CLI installed | `mfs --version` prints a CLI version. |
-| Server running | `mfs status` returns a JSON object with `connectors` and `jobs`. |
-| Auth wired locally | No manual token is needed when CLI and server share `$MFS_HOME`. |
-| Folder queued | `mfs add <path>` returns a queued job id. |
-| Search and browse work | `mfs search`, `mfs ls`, `mfs tree`, and `mfs cat` return content from the same folder. |
-
-## 1. Install the Rust CLI
-
-Install the published CLI release:
+Install the published release:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf \
   https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.2/mfs-cli-installer.sh | sh
 ```
 
-Or install from crates.io:
+Or from crates.io:
 
 ```bash
 cargo install mfs-cli --version 0.4.0-beta.2
 ```
 
-Verify the binary:
-
 ```bash
 mfs --version
 ```
 
-Expected checkpoint:
+On macOS, run `xattr -d com.apple.quarantine $(which mfs)` once if you're prompted
+about an unidentified developer.
 
-```text
-mfs 0.4...
-```
-
-## 2. Run the Python server from source
+### 2. Run the server from source
 
 For now, run the server from the repository source tree:
 
@@ -63,37 +118,32 @@ uv run mfs-server setup
 uv run mfs-server run
 ```
 
-`mfs-server setup` writes the server config to `$MFS_HOME/server.toml`. If
-`MFS_HOME` is not set, MFS uses `~/.mfs`. You can press Enter through the setup
-wizard to keep the local defaults:
+`mfs-server setup` writes the server config to `$MFS_HOME/server.toml` (default
+`~/.mfs`). Press Enter through the wizard to keep the local defaults:
 
 | Server concern | Default first-run backend |
 |---|---|
 | Embeddings | Local ONNX, `gpahal/bge-m3-onnx-int8`, 1024 dimensions |
 | Vector database | Milvus Lite, `$MFS_HOME/milvus.db` |
-| Database | SQLite for connector state, object state, jobs, and transformation-cache lookup |
+| Metadata database | SQLite, for connectors, objects, jobs, and the transformation-cache lookup |
 | Artifact cache | Local filesystem under `$MFS_HOME/cache` |
 | API auth | Auto-generated bearer token at `$MFS_HOME/server.token` |
 | Image summaries / VLM | Off |
 
-!!! note "First ONNX run"
-    `mfs-server run` preloads the default local ONNX embedding model. If it is
-    not already cached, startup downloads it into `$MFS_HOME/onnx-cache/`.
-    Keep that directory if you want later runs to reuse the model.
+`mfs-server run` preloads the local ONNX model on first start, downloading it into
+`$MFS_HOME/onnx-cache/` if it isn't cached. It binds `127.0.0.1:13619`. Leave this
+terminal open.
 
-By default, `mfs-server run` binds to `127.0.0.1:13619`. Leave this terminal
-open.
+### 3. Verify the connection
 
-## 3. Verify the CLI/server connection
-
-Open a second terminal. If you kept the default endpoint, no extra environment
-variables are required:
+In a second terminal, with the default endpoint, no environment variables are
+needed:
 
 ```bash
 mfs status
 ```
 
-Expected shape with a fresh `$MFS_HOME`:
+A fresh `$MFS_HOME` returns:
 
 ```json
 {
@@ -102,26 +152,17 @@ Expected shape with a fresh `$MFS_HOME`:
 }
 ```
 
-If this host already has MFS state, `connectors` or `jobs` may not be empty.
-The checkpoint is that the CLI receives authenticated JSON from the server.
-
-The server protects `/v1` with bearer-token auth by default. On the same host,
-the CLI automatically reads `$MFS_HOME/server.token`, so a local first run does
-not need `MFS_API_TOKEN`.
-
-If you changed the endpoint, point the CLI at it:
+The server protects `/v1` with a bearer token by default; on the same host the
+CLI reads `$MFS_HOME/server.token` automatically. If you changed the endpoint,
+point the CLI at it:
 
 ```bash
 export MFS_API_URL=http://127.0.0.1:13619
-mfs status
 ```
 
-For persistent remote profiles, see [CLI Reference](cli.md). For server and
-environment settings, see [Configuration](configuration.md).
+### 4. Index a folder
 
-## 4. Create a small folder to index
-
-Use a tiny folder first. This keeps the first indexing run easy to reason about:
+Start small so the first run is easy to reason about:
 
 ```bash
 mkdir -p /tmp/mfs-quickstart/notes
@@ -141,36 +182,24 @@ Use mfs cat with --range to verify exact context.
 EOF
 ```
 
-## 5. Add the folder and watch indexing
-
-For a local first run, let the server read the same host path:
+For a local run, let the server read the same-host path directly:
 
 ```bash
 mfs add /tmp/mfs-quickstart
 ```
 
-Expected checkpoint:
-
-```text
-queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
-```
-
-The job id differs per run. The important signal is that `mfs job show JOB_ID`
-eventually reaches `succeeded` and `failed_objects` is `0`.
-
-You can inspect server state at any point:
+`mfs add` returns a job id immediately and indexes in the background. Watch it
+reach `succeeded`:
 
 ```bash
 mfs status
 mfs job list
 mfs job show JOB_ID
-mfs connector list
 ```
 
-For job ids and progress states, see
-[Jobs and Indexing Progress](jobs.md).
+See [Jobs and indexing](jobs.md) for the job states.
 
-## 6. Search, browse, and read
+### 5. Search, browse, and read
 
 Search within the indexed folder:
 
@@ -178,67 +207,50 @@ Search within the indexed folder:
 mfs search "FastAPI server default endpoint" /tmp/mfs-quickstart --top-k 5
 ```
 
-Expected output includes matching source URIs and scores. For a local path, the
-source URI contains `file://local` plus the absolute file path:
+A hit looks like this — the `file://local` URI plus the absolute path is what you
+feed back to `cat`:
 
 ```text
 file://local/tmp/mfs-quickstart/README.md  score=...
    MFS uses a Rust CLI and a Python server.
 ```
 
-Search the whole namespace only when you intentionally want every registered
-source:
+Search every registered source at once only when you mean to:
 
 ```bash
 mfs search "literal token matters" --all --top-k 5
 ```
 
-Browse the indexed folder:
+Browse the tree and read exact content before trusting a hit:
 
 ```bash
 mfs ls /tmp/mfs-quickstart
 mfs tree /tmp/mfs-quickstart -L 2
-```
-
-Read exact content before you trust a search hit:
-
-```bash
 mfs cat /tmp/mfs-quickstart/README.md --range 1:6
-mfs cat /tmp/mfs-quickstart/notes/search.md --peek
-```
-
-Use literal search when the exact token matters:
-
-```bash
 mfs grep "127.0.0.1:13619" /tmp/mfs-quickstart
 ```
 
-For more retrieval patterns, continue to [Search and Browse](search-and-browse.md).
+[Search and browse](search-and-browse.md) covers the full retrieval loop.
 
-## 7. Use upload mode for true client/server runs
+### 6. Upload mode, for a real client/server split
 
-The local command above works when `mfs-server` can read the path you pass to
-`mfs add`. That is true for a same-host shell where the server and CLI share the
-filesystem.
-
-Use upload mode when the server cannot read the client path, such as a Docker
-server, a remote VM, or a different host:
+The commands above assume `mfs-server` can read the path you pass to `mfs add` —
+true on a same-host shell. When the server can't see the client's filesystem (a
+Docker server, a remote VM, a different host), use upload mode:
 
 ```bash
 mfs add --upload /tmp/mfs-quickstart
 ```
 
-Upload mode scans the client folder, sends changed files to the server, and
-indexes the staged copy. Use `--force-upload` only when you need to resend every
-file; use `--force-index` when the server already has the staged bytes but you
-want a full re-index.
+Upload scans the client folder, sends only changed files, and indexes the staged
+copy.
 
 | Situation | Command |
 |---|---|
-| CLI and server run on the same host and share paths | `mfs add /path/to/folder` |
-| Server runs in Docker or on another host | `mfs add --upload /path/to/folder` |
-| Remote endpoint is set in `MFS_API_URL` and the target is a local path | The CLI auto-selects upload unless `--no-upload` is set. |
-| Server can read a shared mounted path even though endpoint looks remote | `mfs add --no-upload /shared/path` |
+| CLI and server share the filesystem | `mfs add /path/to/folder` |
+| Server is in Docker or on another host | `mfs add --upload /path/to/folder` |
+| `MFS_API_URL` is remote and the target is a local path | the CLI auto-selects upload unless `--no-upload` is set |
+| Server reads a shared mounted path despite a remote endpoint | `mfs add --no-upload /shared/path` |
 
-For deployment topologies, see [Deployment](deployment.md). If upload or auth
-does not behave as expected, see [Troubleshooting](troubleshooting.md).
+[Deployment](deployment.md) covers the topologies; [Troubleshooting](troubleshooting.md)
+covers upload and auth issues.
