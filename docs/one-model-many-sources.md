@@ -1,133 +1,117 @@
 # One model, many sources
 
-A repository of code, a Postgres table, a Slack workspace, a folder of PDFs, an
-S3 bucket — these have almost nothing in common. They differ in **shape** (a file
-vs. a row vs. a message thread), in **access** (read a disk vs. call an API vs.
-run a query), in **how they change** (a modified time vs. a row's timestamp vs. an
-etag), and in **what they cost** to process. Left to themselves, each would demand
-its own indexer, its own search stack, its own everything.
+A code repo, a Postgres table, a Slack workspace, a folder of PDFs — they share
+almost nothing:
 
-MFS's central bet is that all of that difference can be made to *disappear before
-it reaches the rest of the system*. Every source is projected onto **one small
-model**, and from that point on — search, browse, caching, recovery — nothing
-knows or cares what the source originally was. The whole design is really one
-discipline: deciding where to force that uniformity, and where to leave a source
-free.
+| Source | What one "thing" is | How you reach it | How it signals change |
+|---|---|---|---|
+| a code repo | a file | read the disk | the file's content hash |
+| a Postgres table | a row | run a SQL query | an `updated_at` column |
+| a Slack channel | a message thread | call the Slack API | the timestamp of the newest message |
+| a folder of PDFs | a file, converted to text | read, then convert | size + mtime, then a hash |
 
-## Everything becomes a file-like tree
+Left alone, each would need its own indexer and its own search stack. MFS's bet is
+to **project every source onto one small model** before it reaches the rest of the
+system — so search, browse, caching, and recovery are written once and never need
+to know what the source really was. The rest of this page is those projections,
+and the few places where MFS deliberately lets sources differ.
 
-The first projection is the boldest. Whatever the source, it is presented as a
-tree of **objects** — each either a file-like thing you can read or a
-directory-like thing you can list. A database table, a Slack channel, a Drive
-folder all flatten onto the same `ls` / `cat` / `tree` surface. An agent that
-knows how to walk a folder already knows how to walk every source.
+## Projection 1 — everything is a file-like tree
 
-This works because "file-like" means *addressable and readable*, not *stored as a
-file*. A row set is readable; a channel is listable. That is enough — and the
-moment it holds, the entire browsing experience is written once and works
-everywhere.
+Whatever the source, you walk it with the same `ls` / `cat` / `tree` you'd use on
+a folder. A database and a chat workspace browse identically:
 
-## A handful of shapes, not a thousand
+```bash
+$ mfs ls postgres://prod/public
+tickets/   users/
 
-Underneath the tree, every object is sorted into a **small, fixed, closed set of
-kinds** — prose documents, code, images, tabular rows, record collections,
-message threads, and a few more. A source's job is only to say which kind each of
-its objects is; the kind then decides everything downstream — how the object is
-split, whether and how it's embedded, what a result drawn from it looks like.
+$ mfs ls slack://acme/channels
+eng-backend__C012345/   general__C067890/
+```
 
-This is the keystone of the unification, and it rests on a quiet observation: the
-variety of the world's data is enormous, but the variety of *what you must do to
-make something searchable* is small. Pin each object to one of a few kinds and the
-expensive machinery — chunking, embedding, indexing — is built once and inherited
-by every source, the ones that exist today and the ones added later. Bringing in a
-new source becomes a matter of *classifying* it, not of building a pipeline for
-it.
+"File-like" here means *addressable and readable*, not *stored as a file*: a
+table's rows are readable, a channel is listable — that's enough. Objects even
+carry a type hint in their name, so one `cat` knows how to render each:
 
-## The families of sources, and how a sync works
+| You see | It is | `cat` renders |
+|---|---|---|
+| `…/tickets/rows.jsonl` | a table's rows | the records |
+| `…/tickets/schema.json` | the table's shape | the columns |
+| `…/pages/install.md` | a converted web / Notion page | Markdown |
 
-The kinds aren't scattered at random — in practice today's connectors fall into a
-few families, and a family largely decides what an object is and, especially, how
-a re-sync figures out *what changed*. That last part is where heterogeneity bites
-hardest, so it's the clearest place to watch the model absorb it.
+## Projection 2 — a handful of kinds
 
-- **Files and blobs** — local folders, S3, Drive, a crawled site, a repo's code.
-  An object is a file; its text is read or converted and chunked as a document or
-  code body. There's no trustworthy "what changed" signal to lean on, so a sync
-  **re-enumerates and compares content fingerprints** — a cheap size/mtime check,
-  then a hash if needed — and a file that has vanished is caught by diffing the
-  full set. (Local files are the one special case: their bytes sit on the client,
-  so they're uploaded first.)
+Under the tree, every object is sorted into one of a **small, fixed set of
+kinds**, and the kind — not the source — decides what becomes searchable:
 
-- **Databases and warehouses** — Postgres, MySQL, Mongo, BigQuery, Snowflake. An
-  object is a table or collection, and each **row becomes one searchable record**
-  (the table also gets a schema summary). Here a reliable change signal exists, so
-  a sync rides a **cursor column — usually an `updated_at` timestamp — and pulls
-  only the rows touched since last time**, so re-syncing a million-row table costs
-  almost nothing. And because a query engine is right there, these sources can
-  push a `grep` down into the database instead of scanning it.
+| Example object | Kind | What it becomes |
+|---|---|---|
+| `engine.py` | code | line-addressed chunks |
+| a design PDF | document | converted text, split into chunks |
+| one ticket row | table row | one searchable record |
+| a Slack thread | message thread | one chunk per thread |
+| a screenshot | image | a VLM description (when enabled) |
 
-- **Messages and mail** — Slack, Discord, Gmail, Feishu. An object is a channel,
-  label, or chat exposing a **stream of messages**, grouped into threads so a hit
-  reopens the whole conversation. Chat history is append-mostly, so a sync simply
-  **advances past the last message it saw** — and, on purpose, it does not infer
-  deletions: a message you stop seeing is treated as "not new", never as "gone".
+The variety of the world's data is huge; the variety of *what you do to make it
+searchable* is small. Pin each object to a kind and the expensive machinery —
+chunking, embedding, indexing — is built once and inherited by every source. A new
+source is **classified**, not engineered.
 
-- **Issues, CRM, and docs** — Jira, Linear, Zendesk, HubSpot, Notion. An object
-  is a project, team, or object type exposing **records**, each rendered into one
-  chunk by a built-in field mapping; like databases, they ride an
-  **updated-timestamp cursor** for incremental sync.
+## Projection 3 — one handle reopens any hit
 
-The point isn't the catalogue. It's that four very different change stories —
-re-hash the file, ask the cursor, advance the stream, poll the timestamp — all
-funnel into the same uniform report, so everything *after* the sync is written
-once and behaves identically.
+A search result is only useful if you can reopen the exact thing it found, whether
+that's some lines in a file or one row in a table. So every hit comes back with a
+`source` (which object) and a `locator` (which slice inside it), and the *same*
+`cat` reopens either:
 
-## One way to point, one way to change
+```bash
+# hit in a code file → the locator is a line range
+mfs cat file://local/repo/engine.py --locator '{"lines":[42,78]}'
 
-Two more things must be uniform for the model to hold together.
+# hit in a database table → the locator is the row key
+mfs cat postgres://prod/public/tickets/rows.jsonl --locator '{"id":12345}'
+```
 
-**Pointing.** A search hit has to be reopenable whether it's a span of lines in a
-file, a single row of a table, or a thread in a channel. So every hit carries the
-same kind of handle — a stable address for the object plus a small pointer to the
-slice inside it — and the same read command reopens any of them. You never learn a
-per-source addressing scheme; a result from anywhere is a result you can act on.
+You never learn a per-source addressing scheme. A hit from anywhere is something
+you reopen with the same command.
 
-**Changing.** As the families above show, every source detects change in its own
-way. MFS doesn't try to unify the *detection* — it unifies the *report*. However a
-source works out what moved, it speaks back the same short vocabulary: this
-appeared, this changed, this is gone. Re-syncing, incremental updates, and the
-careful handling of deletions are then written once against that vocabulary, never
-against one source's quirks.
+## Projection 4 — many change stories, one report
 
-## Where uniformity stops — on purpose
+Detecting change is where sources differ most, so MFS doesn't unify the
+*detection* — it unifies the *report*. Each family works out what moved in its own
+way, then reports the same three things back: added, changed, removed.
 
-A model that forced *everything* the same would be a straitjacket. A database has
-a change cursor a plain folder doesn't; a query can filter at the origin far more
-cheaply than scanning files can. So MFS draws a second, deliberate line: each
-source **declares what it can do**, and the framework plans around the
-declaration. A source that can search or filter at the origin is allowed to; one
-that can't is given the framework's general path instead. The differences aren't
-hidden — they're stated in a common form, so the system can adapt to them
-uniformly rather than special-casing each source by name.
+| Family | An object is | A re-sync detects change by | Example |
+|---|---|---|---|
+| **Files & blobs** — file, S3, Drive, web, repo code | a file | re-scanning and comparing content hashes | edit `README.md` → its hash changes → re-indexed; delete it → caught by the full-set diff |
+| **Databases & warehouses** — Postgres, Mongo, BigQuery… | a table's rows | riding an `updated_at`-style cursor | 12 rows change in a 1M-row table → only those 12 are re-pulled |
+| **Messages & mail** — Slack, Gmail, Feishu… | a message stream | advancing past the newest message seen | 30 new messages since last sync → only those fetched; old threads untouched |
+| **Issues, CRM & docs** — Jira, Linear, Notion… | records | polling an updated timestamp | a reopened Jira ticket → re-indexed on the next sync |
 
-The other reserved freedom is **layout**. Each connector designs its own tree —
-what the directories look like, what counts as an object, how things are named —
-because that is where a source's real structure lives, and forcing sameness there
-would only obscure it. Everything *beneath* the layout is uniform; the layout
-itself is the connector's to shape.
+Because the *report* is identical, re-syncing, incremental updates, and deletion
+handling are written once — never against any one source's quirks.
+
+## Where MFS deliberately lets sources differ
+
+Forcing *everything* uniform would be a straitjacket. Two things are left to each
+connector — and both are **declared**, so the framework can plan around them
+instead of special-casing by name:
+
+| Difference | Example | What MFS does |
+|---|---|---|
+| **What it can push down** | Postgres can run a `grep` as a SQL `WHERE`; a plain folder can't | uses the source's own filter when it has one, falls back to its own scan when it doesn't |
+| **Whether it has a time cursor** | `gdrive` and `feishu` accept `mfs add --since 2026-01-01`; most connectors don't | honors `--since` where it's real, rejects it where it isn't |
+| **The tree layout** | a repo mirrors its folders; Postgres lays out `schema/table/rows.jsonl` | each connector designs its own tree; everything *beneath* the layout stays uniform |
 
 ## Why the line is drawn here
 
-This split is what lets MFS be both broad and small at once. Search, browse,
-ranking, the caches, crash recovery, the index — all of it is written against the
-one model, so it behaves identically for a source shipped today and one shipped
-next year. And a new connector is a thin adapter: project the source onto the
-model, declare what it can do, lay out its tree, and the entire engine comes for
-free.
+Search, ranking, the caches, crash recovery, the index — all written against the
+one model, so they behave the same for a source shipped today and one shipped next
+year. And a new connector is a thin adapter: classify its objects, report changes
+in the common vocabulary, lay out a tree. Get that right and the whole engine
+comes for free.
 
-It is the same idea that lets a shell operate on countless programs through a few
-file operations, and that let data-integration ecosystems grow enormous connector
-catalogs: **unify the common part hard, keep the differences thin.** See
-[Design philosophy](production.md) for the principles behind it,
-[Architecture](architecture.md#core-concepts) for the concrete pieces, and
-[Connectors](connectors.md) for the sources themselves.
+It's the same trade that lets a shell drive countless programs through a few file
+operations — **unify the common part hard, keep the differences thin.** See
+[Design philosophy](production.md), [Architecture](architecture.md#core-concepts),
+and [Connectors](connectors.md).
