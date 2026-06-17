@@ -35,35 +35,6 @@ them with the same icons:
 - 🟩 **Index** — the vector store (Milvus Lite by default, or a configured
   Milvus / Zilliz endpoint).
 
-## Why this shape
-
-Three pressures push the design into the shape on the next page.
-
-1. **Workloads are heterogeneous and bursty.** Different connectors emit very
-   different chunk volumes — a Postgres table can produce millions of small
-   row-records, a single PDF only tens of structured chunks, a Slack channel
-   sits somewhere in between. The pipeline must not let the chunkiest source
-   blow up memory.
-2. **The expensive steps are external.** Embedding, VLM description, summary
-   generation. Per-call latency and per-call cost are high; both drop sharply
-   with batch size. The pipeline must aim for the densest possible batches
-   even when many small tasks run side-by-side.
-3. **Crashes happen mid-stream.** A worker restart must not duplicate index
-   rows, double-charge the provider, or silently skip work that was almost
-   done.
-
-The shape that falls out:
-
-| Concern | Mechanism |
-|---|---|
-| **Memory ceiling** | A bounded shared queue (`ChunkQueue`) makes producers block when the consumer falls behind. The in-flight chunk set is hard-bounded regardless of how chunky the source is. |
-| **Batch density** | One process-wide `EmbedConsumer` accumulates chunks across every task and every object kind, then flushes one embed call + one upsert per batch. Small tasks piggyback on large tasks' batches. |
-| **Per-object correctness** | The consumer issues `delete_by_object` on a task's first chunk, before any new upsert lands. Re-running a task is idempotent; the index never holds an overlap between old and new versions of the same object. |
-| **Extensible to new object kinds** | A typed `ChunksProducer` interface per okind. Adding a new kind (audio, video, …) is one new producer file plus one dispatch entry — no change to the consumer, the cache, or the index path. |
-| **Extensible to new aggregate kinds** | The Job Lane emits its output back into `ChunkQueue` as a new `chunk_kind`. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path. |
-| **Crash recovery** | `ObjectTask` is durable. The Job Lane's `DirTreeBuilder` is in-memory but rebuilt from durable object state on restart. |
-| **Provider cost** | Model outputs (VLM, summary) are memoized in the content-addressed, single-flight Transformation Cache, and file conversions in the per-object Artifact Cache keyed by a content+version token — so the two lanes never re-run the same conversion or double-call the same provider for the same input, even when they miss concurrently. |
-
 ## High-level overview
 
 ![Ingest pipeline overview — two upstream lanes share one cache pair, one chunk queue, one embed consumer, and one index](https://github.com/user-attachments/assets/68d840c1-b510-49c3-82b5-fd610b2871ed)
@@ -162,3 +133,33 @@ Notes:
   lanes share. The Job Lane folding an image draws from the same in-flight VLM
   budget as the Object Lane image producer, so enabling summaries does not
   double the pressure on the provider.
+
+## Why this shape
+
+Now that the pieces have names, here's what forced them. Three pressures pushed
+the design into the shape above:
+
+1. **Workloads are heterogeneous and bursty.** Different connectors emit very
+   different chunk volumes — a Postgres table can produce millions of small
+   row-records, a single PDF only tens of structured chunks, a Slack channel
+   sits somewhere in between. The pipeline must not let the chunkiest source
+   blow up memory.
+2. **The expensive steps are external.** Embedding, VLM description, summary
+   generation. Per-call latency and per-call cost are high; both drop sharply
+   with batch size. The pipeline must aim for the densest possible batches
+   even when many small tasks run side-by-side.
+3. **Crashes happen mid-stream.** A worker restart must not duplicate index
+   rows, double-charge the provider, or silently skip work that was almost
+   done.
+
+How each maps to a piece you've now seen:
+
+| Concern | Mechanism |
+|---|---|
+| **Memory ceiling** | The bounded `ChunkQueue` makes producers block when the consumer falls behind. The in-flight chunk set is hard-bounded regardless of how chunky the source is. |
+| **Batch density** | One process-wide `EmbedConsumer` accumulates chunks across every task and every object kind, then flushes one embed call + one upsert per batch. Small tasks piggyback on large tasks' batches. |
+| **Per-object correctness** | The consumer issues `delete_by_object` on a task's first chunk, before any new upsert lands. Re-running a task is idempotent; the index never holds an overlap between old and new versions of the same object. |
+| **Extensible to new object kinds** | A typed producer per object kind. Adding a new kind (audio, video, …) is one new producer plus one dispatch entry — no change to the consumer, the cache, or the index path. |
+| **Extensible to new aggregate kinds** | The Job Lane emits its output back into the `ChunkQueue` as a new `chunk_kind`. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path. |
+| **Crash recovery** | The `ObjectTask` queue is durable. The Job Lane's directory tree is in-memory but rebuilt from durable object state on restart. |
+| **Provider cost** | Model outputs (VLM, summary) are memoized in the content-addressed Transformation Cache, and file conversions in the per-object Artifact Cache keyed by a content+version token — so the two lanes never re-run the same conversion or double-call the same provider for the same input, even when they miss concurrently. |
