@@ -16,8 +16,8 @@ with [`./generate.sh`](generate.sh) after the spec changes.
 
 | Language | Directory | Package metadata | Generator | Reference entry |
 |---|---|---|---|---|
-| Python | [`python/`](python) | `mfs_sdk` `0.4.0-beta.3` | `python` with `urllib3` | [`python/docs/README.md`](python/docs/README.md) |
-| TypeScript | [`typescript/`](typescript) | `@mfs/sdk` `0.4.0-beta.3` | `typescript-fetch` | [`typescript/docs/README.md`](typescript/docs/README.md) |
+| Python | [`python/`](python) | `mfs_sdk` `0.4.0` | `python` with `urllib3` | [`python/docs/README.md`](python/docs/README.md) |
+| TypeScript | [`typescript/`](typescript) | `@mfs/sdk` `0.4.0` | `typescript-fetch` | [`typescript/docs/README.md`](typescript/docs/README.md) |
 
 APIs are grouped by tag: `ServerApi` (info/status), `IngestApi` (add/job),
 `RetrievalApi` (search/grep), `BrowseApi` (ls/cat). Search results use

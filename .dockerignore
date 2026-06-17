@@ -2,31 +2,32 @@
 # source instead of ~800 MB of dev-machine clutter) so layer-cache hits aren't
 # undone by an irrelevant file changing.
 
-# Python build artefacts
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-build/
-dist/
-wheels/
+# Python build artefacts. `**/` so nested dirs (server/python, sdks/python, …)
+# are matched too — slashless patterns only match the context root in Docker.
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.egg-info/
+**/build/
+**/dist/
+**/wheels/
 
 # Virtual environments
-.venv/
-venv/
+**/.venv/
+**/venv/
 
 # Lint / test caches
-.ruff_cache/
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
+**/.ruff_cache/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.coverage
+**/htmlcov/
 
 # Rust target dirs (cli/ and server-rs/ both build locally during dev)
-target/
+**/target/
 
 # Node / TS
-node_modules/
+**/node_modules/
 
 # IDE / OS
 .DS_Store

@@ -68,7 +68,7 @@ mfs status
 
 ## Status
 
-This is the `v0.4.x` beta line. APIs may shift before `v0.4.0` stable.
+This is the `v0.4.x` line. The HTTP API may still shift between minor releases.
 Track the main repo for changes:
 
 https://github.com/zilliztech/mfs/releases

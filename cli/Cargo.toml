@@ -1,6 +1,6 @@
 [package]
 name = "mfs-cli"
-version = "0.4.0-beta.2"
+version = "0.4.0"
 edition = "2021"
 authors = ["Cheney Zhang <chen.zhang@zilliz.com>"]
 description = "MFS CLI — shell-native client for Multi-source File-like Search"

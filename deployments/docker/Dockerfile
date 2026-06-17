@@ -6,7 +6,7 @@
 # Build context = repo root:
 #   docker build -f deployments/docker/Dockerfile \
 #                --build-arg EXTRAS="[all-connectors]" \
-#                -t mfs-server:0.4.0-beta.2 .
+#                -t mfs-server:0.4.0 .
 #
 # Layer caching strategy (matters a lot — without it every code edit re-pulls
 # all of pymilvus / onnxruntime / markitdown / huggingface-hub / ... ~ minutes):
@@ -26,8 +26,38 @@
 #   MFS_API_TOKEN=...                   # default = auto-generated to /data/server.token
 #   OPENAI_API_KEY=...                  # only if embedding.provider = openai
 #
-# The native Rust accelerator (server-rs) is OPTIONAL — omitted here so the image
-# stays pure-Python; mfs_server.common.accel falls back transparently.
+# The native Rust accelerator (server-rs) is OPTIONAL. By default the image stays
+# pure-Python (mfs_server.common.accel falls back transparently). Build it in with:
+#   docker build -f deployments/docker/Dockerfile --build-arg ACCEL=1 -t mfs-server .
+# ACCEL=1 selects the `accel-build` stage below (Rust toolchain + maturin compile
+# the PyO3 wheel); ACCEL=0 (default) skips that stage entirely, so the Rust
+# toolchain is never pulled and the image is unchanged.
+
+# --- optional native acceleration (server-rs), selected by ARG ACCEL ----------
+ARG ACCEL=0
+
+# Real builder: compile the mfs-server-rs PyO3 wheel. Only built when ACCEL=1
+# (nothing in the default image depends on it).
+FROM python:3.11-slim AS accel-build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential curl \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN pip install --no-cache-dir "maturin>=1.7,<2.0"
+COPY server-rs /src/server-rs
+RUN cd /src/server-rs && maturin build --release --out /wheels
+
+# Empty alternative: provides an empty /wheels so the final COPY is a no-op when
+# ACCEL=0, without dragging in the Rust toolchain.
+FROM python:3.11-slim AS accel-0
+RUN mkdir -p /wheels
+
+FROM accel-build AS accel-1
+
+# Resolves to accel-0 (empty) or accel-1 (built wheel) at build time.
+FROM accel-${ACCEL} AS accel
+
 FROM python:3.11-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
@@ -45,7 +75,7 @@ WORKDIR /app
 # Copying ONLY these (not src/) means subsequent code edits don't invalidate
 # the layer that does the slow `pip install`.
 COPY server/python/pyproject.toml /app/server/python/pyproject.toml
-COPY README.md /app/README.md
+COPY server/python/README.md /app/server/python/README.md
 
 # Layer 3: install ALL third-party deps. Trick: hatchling needs the source tree
 # to build a wheel; create a stub `src/mfs_server/__init__.py` so the local
@@ -69,6 +99,14 @@ COPY server/python/src /app/server/python/src
 # every third-party dep is already pinned in the env from layer 3, --force-reinstall
 # to swap the stub mfs_server out for the real one. No network calls here.
 RUN pip install /app/server/python --no-deps --force-reinstall
+
+# Layer 6 (optional): install the native acceleration wheel. /wheels is empty
+# when ACCEL=0, so this is a no-op for the default pure-Python image.
+COPY --from=accel /wheels /tmp/accel-wheels
+RUN if ls /tmp/accel-wheels/*.whl >/dev/null 2>&1; then \
+        pip install /tmp/accel-wheels/*.whl; \
+    fi \
+    && rm -rf /tmp/accel-wheels
 
 # data volume: SQLite metadata + Milvus Lite + cache live here (mount to persist!)
 RUN mkdir -p /data

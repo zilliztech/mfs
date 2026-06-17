@@ -197,6 +197,38 @@ kubectl port-forward svc/mfs-api 13619:13619
 curl http://127.0.0.1:13619/healthz
 ```
 
+## Native acceleration (optional)
+
+A few server hot paths — the gitignore directory walk, parallel content hashing,
+linear `grep`, and `tail` — have an optional Rust extension (`mfs-server-rs`,
+built from `server-rs/`). It is **never required**: when the wheel isn't
+installed, the server uses an equivalent pure-Python path and behaves
+identically, just slower on large inputs. So treat it as a performance knob, not
+a dependency.
+
+It is **not** published to PyPI. Build it locally and install it into the same
+environment as the server.
+
+**In the Docker image**, pass `--build-arg ACCEL=1` — a separate build stage
+compiles the wheel with a Rust toolchain and installs it; the default
+(`ACCEL=0`) ships a pure-Python image and never pulls the toolchain:
+
+```bash
+docker build -f deployments/docker/Dockerfile \
+  --build-arg ACCEL=1 --build-arg EXTRAS="[all-connectors]" -t mfs-server .
+```
+
+**For a source / virtualenv install**, build the wheel with maturin (needs a
+Rust toolchain) into the server's environment:
+
+```bash
+cd server-rs
+uv run --project ../server/python maturin develop --release   # in-place
+# or: maturin build --release && pip install target/wheels/mfs_server_rs-*.whl
+```
+
+The server detects it automatically on the next start — nothing to configure.
+
 ## Environment variables
 
 | Variable | Effect | Default |

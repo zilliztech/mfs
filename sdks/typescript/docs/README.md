@@ -12,7 +12,7 @@
 
 | Item | Current guidance |
 |---|---|
-| Package metadata | `@mfs/sdk` `0.4.0-beta.3` in [`../package.json`](../package.json). Generated scaffold text may still say `0.4.0`. |
+| Package metadata | `@mfs/sdk` `0.4.0` in [`../package.json`](../package.json). |
 | Normal server URL | `http://127.0.0.1:13619` for `mfs-server run` / `mfs-server api`. |
 | Generated default URL | `http://127.0.0.1:8765`; use it only when you intentionally start a server there, such as for the smoke harness. |
 | Bearer auth | When runtime auth is enabled, every request except `GET /healthz` must include `Authorization: Bearer <token>`. |

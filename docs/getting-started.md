@@ -90,13 +90,13 @@ Install the published release:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/zilliztech/mfs/releases/download/v0.4.0-beta.2/mfs-cli-installer.sh | sh
+  https://github.com/zilliztech/mfs/releases/download/v0.4.0/mfs-cli-installer.sh | sh
 ```
 
 Or from crates.io:
 
 ```bash
-cargo install mfs-cli --version 0.4.0-beta.2
+cargo install mfs-cli --version 0.4.0
 ```
 
 ```bash

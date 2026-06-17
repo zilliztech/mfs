@@ -1,8 +1,8 @@
 [project]
 name = "mfs-server"
-version = "0.4.0-beta.3"
+version = "0.4.0"
 description = "MFS server — Multi-source File-like Search (heavy side: connectors, ingest, retrieval, storage)"
-readme = "../../README.md"
+readme = "README.md"
 license = "Apache-2.0"
 authors = [
     { name = "Cheney Zhang", email = "chen.zhang@zilliz.com" },
@@ -126,7 +126,7 @@ testpaths = ["tests"]
 # Native hot-path acceleration lives in server-rs/ (PyO3, built with maturin:
 # `cd server-rs && maturin develop --release`). It is OPTIONAL at runtime —
 # mfs_server.common.accel falls back to pure Python when the wheel isn't installed.
-# A release ships it as a per-platform wheel bundled with mfs-server.
+# It is not published to PyPI; build it locally to opt in (see docs/deployment.md).
 
 [dependency-groups]
 dev = [

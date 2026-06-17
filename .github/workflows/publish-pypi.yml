@@ -1,0 +1,48 @@
+# Publish mfs-server to PyPI when a version tag is pushed.
+# Runs in parallel with the main Release workflow (CLI binaries -> GitHub
+# Release) and publish-crates.yml (CLI -> crates.io). All trigger on the same tag.
+#
+# Auth is PyPI Trusted Publishing (OIDC) — no API token. One-time setup on PyPI:
+# project mfs-server -> Settings -> Publishing -> add a GitHub publisher with
+#   owner: zilliztech, repo: mfs, workflow: publish-pypi.yml, environment: pypi
+# (for the very first release, register it as a "pending publisher" instead).
+
+name: Publish PyPI
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish mfs-server to PyPI
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write   # required for Trusted Publishing
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Verify tag matches mfs-server version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG_VERSION=$(grep -m1 '^version' server/python/pyproject.toml | sed -E 's/version *= *"([^"]+)"/\1/')
+          if [ "$TAG" != "$PKG_VERSION" ]; then
+            echo "Tag $TAG does not match server/python/pyproject.toml version $PKG_VERSION"
+            exit 1
+          fi
+
+      - name: Build sdist + wheel
+        run: uv build
+        working-directory: server/python
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: server/python/dist
