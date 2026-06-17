@@ -59,6 +59,41 @@ There are only a few kinds, so the expensive work behind each one — splitting,
 embedding, indexing — is built once and reused by every source. Bringing in a new
 source is mostly a matter of saying which kind each thing is.
 
+## Which part of each object gets searched
+
+For a file or a message this is obvious — the file's text, the message's text, all
+of it. The interesting case is structured data: a database row has many columns,
+and *you* decide which ones are worth searching. You point MFS at three sets of
+columns per table:
+
+| Role | Which columns | For a `tickets` table |
+|---|---|---|
+| The searchable text (what gets embedded) | `text_fields` | `title`, `description` |
+| How to reopen the exact row | `locator_fields` | `id` |
+| Kept alongside for filtering and display | `metadata_fields` | `status`, `priority`, `updated_at` |
+
+So one ticket row becomes a record built from its title and description,
+reopenable by its `id`, with its status and priority carried along. Columns you
+don't list — an internal flag, a foreign key — are simply ignored, and a table you
+give no `text_fields` still shows up to browse and `grep` but has nothing to search
+by meaning.
+
+You don't always have to set this up. The chat and SaaS sources ship sensible
+defaults — a Jira issue indexes its summary, description, and comments; a Slack
+thread indexes each message as "who: what" — so they work the moment you add them,
+and the field lists are only there to override. Databases are the case you
+normally configure, since only you know which columns are worth searching.
+
+And some things deliberately aren't searched:
+
+| Object | What happens |
+|---|---|
+| code and documents (PDF, Markdown, docx…) | converted to text and embedded — fully searchable |
+| each table's schema | a small summary, so you can search the structure ("which table has an email column?") |
+| an image | embedded only if image descriptions are turned on |
+| raw structured text — `.json`, `.csv`, `.yaml`, `.log` | you can browse and `grep` it, but it isn't embedded for semantic search |
+| a binary, or anything marked not-indexable | kept for browsing only |
+
 ## One command reopens any result
 
 A search result is only useful if you can reopen exactly what it found — a few
