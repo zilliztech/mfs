@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/connectors/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/one-model-many-sources/">
       
       
-        <link rel="prev" href="../caching/">
+        <link rel="prev" href="../production/">
       
       
-        <link rel="next" href="file/">
+        <link rel="next" href="../robustness/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Overview - MFS</title>
+        <title>One model, many sources - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#connectors" class="md-skip">
+        <a href="#one-model-many-sources" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Overview
+              One model, many sources
             
           </span>
         </div>
@@ -210,10 +210,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../architecture/" class="md-tabs__link">
           
   
@@ -230,13 +232,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../connectors/" class="md-tabs__link">
           
   
   
@@ -533,26 +533,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -570,7 +575,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -641,10 +646,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../one-model-many-sources/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One model, many sources
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -660,6 +692,81 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#everything-becomes-a-file-like-tree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Everything becomes a file-like tree
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-handful-of-shapes-not-a-thousand" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A handful of shapes, not a thousand
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#one-way-to-point-one-way-to-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One way to point, one way to change
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-uniformity-stops-on-purpose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where uniformity stops — on purpose
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-the-line-is-drawn-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why the line is drawn here
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -816,31 +923,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
@@ -858,7 +960,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -873,37 +975,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Overview
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../connectors/" class="md-nav__link">
         
   
   
@@ -919,92 +994,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#the-catalog" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The catalog
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#file-like-vs-structured-sources" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        File-like vs structured sources
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#lifecycle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Lifecycle
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#credentials-references-not-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Credentials: references, not values
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#objects-for-structured-rows" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        [[objects]] for structured rows
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#after-ingest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        After ingest
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1017,7 +1006,7 @@
   
   
     <li class="md-nav__item">
-      <a href="file/" class="md-nav__link">
+      <a href="../connectors/file/" class="md-nav__link">
         
   
   
@@ -1045,7 +1034,7 @@
   
   
     <li class="md-nav__item">
-      <a href="web/" class="md-nav__link">
+      <a href="../connectors/web/" class="md-nav__link">
         
   
   
@@ -1073,7 +1062,7 @@
   
   
     <li class="md-nav__item">
-      <a href="github/" class="md-nav__link">
+      <a href="../connectors/github/" class="md-nav__link">
         
   
   
@@ -1101,7 +1090,7 @@
   
   
     <li class="md-nav__item">
-      <a href="postgres/" class="md-nav__link">
+      <a href="../connectors/postgres/" class="md-nav__link">
         
   
   
@@ -1129,7 +1118,7 @@
   
   
     <li class="md-nav__item">
-      <a href="mysql/" class="md-nav__link">
+      <a href="../connectors/mysql/" class="md-nav__link">
         
   
   
@@ -1157,7 +1146,7 @@
   
   
     <li class="md-nav__item">
-      <a href="mongo/" class="md-nav__link">
+      <a href="../connectors/mongo/" class="md-nav__link">
         
   
   
@@ -1185,7 +1174,7 @@
   
   
     <li class="md-nav__item">
-      <a href="slack/" class="md-nav__link">
+      <a href="../connectors/slack/" class="md-nav__link">
         
   
   
@@ -1213,7 +1202,7 @@
   
   
     <li class="md-nav__item">
-      <a href="discord/" class="md-nav__link">
+      <a href="../connectors/discord/" class="md-nav__link">
         
   
   
@@ -1241,7 +1230,7 @@
   
   
     <li class="md-nav__item">
-      <a href="gmail/" class="md-nav__link">
+      <a href="../connectors/gmail/" class="md-nav__link">
         
   
   
@@ -1269,7 +1258,7 @@
   
   
     <li class="md-nav__item">
-      <a href="notion/" class="md-nav__link">
+      <a href="../connectors/notion/" class="md-nav__link">
         
   
   
@@ -1297,7 +1286,7 @@
   
   
     <li class="md-nav__item">
-      <a href="jira/" class="md-nav__link">
+      <a href="../connectors/jira/" class="md-nav__link">
         
   
   
@@ -1325,7 +1314,7 @@
   
   
     <li class="md-nav__item">
-      <a href="linear/" class="md-nav__link">
+      <a href="../connectors/linear/" class="md-nav__link">
         
   
   
@@ -1353,7 +1342,7 @@
   
   
     <li class="md-nav__item">
-      <a href="zendesk/" class="md-nav__link">
+      <a href="../connectors/zendesk/" class="md-nav__link">
         
   
   
@@ -1381,7 +1370,7 @@
   
   
     <li class="md-nav__item">
-      <a href="hubspot/" class="md-nav__link">
+      <a href="../connectors/hubspot/" class="md-nav__link">
         
   
   
@@ -1409,7 +1398,7 @@
   
   
     <li class="md-nav__item">
-      <a href="bigquery/" class="md-nav__link">
+      <a href="../connectors/bigquery/" class="md-nav__link">
         
   
   
@@ -1437,7 +1426,7 @@
   
   
     <li class="md-nav__item">
-      <a href="snowflake/" class="md-nav__link">
+      <a href="../connectors/snowflake/" class="md-nav__link">
         
   
   
@@ -1465,7 +1454,7 @@
   
   
     <li class="md-nav__item">
-      <a href="s3/" class="md-nav__link">
+      <a href="../connectors/s3/" class="md-nav__link">
         
   
   
@@ -1493,7 +1482,7 @@
   
   
     <li class="md-nav__item">
-      <a href="gdrive/" class="md-nav__link">
+      <a href="../connectors/gdrive/" class="md-nav__link">
         
   
   
@@ -1521,7 +1510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="feishu/" class="md-nav__link">
+      <a href="../connectors/feishu/" class="md-nav__link">
         
   
   
@@ -2229,10 +2218,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-catalog" class="md-nav__link">
+  <a href="#everything-becomes-a-file-like-tree" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The catalog
+        Everything becomes a file-like tree
       
     </span>
   </a>
@@ -2240,10 +2229,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#file-like-vs-structured-sources" class="md-nav__link">
+  <a href="#a-handful-of-shapes-not-a-thousand" class="md-nav__link">
     <span class="md-ellipsis">
       
-        File-like vs structured sources
+        A handful of shapes, not a thousand
       
     </span>
   </a>
@@ -2251,10 +2240,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#lifecycle" class="md-nav__link">
+  <a href="#one-way-to-point-one-way-to-change" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Lifecycle
+        One way to point, one way to change
       
     </span>
   </a>
@@ -2262,10 +2251,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#credentials-references-not-values" class="md-nav__link">
+  <a href="#where-uniformity-stops-on-purpose" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Credentials: references, not values
+        Where uniformity stops — on purpose
       
     </span>
   </a>
@@ -2273,21 +2262,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#objects-for-structured-rows" class="md-nav__link">
+  <a href="#why-the-line-is-drawn-here" class="md-nav__link">
     <span class="md-ellipsis">
       
-        [[objects]] for structured rows
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#after-ingest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        After ingest
+        Why the line is drawn here
       
     </span>
   </a>
@@ -2314,273 +2292,81 @@
   
 
 
-<h1 id="connectors">Connectors<a class="headerlink" href="#connectors" title="Permanent link">&para;</a></h1>
-<p>A connector turns a source into a file-like URI tree. Once you register one, the
-same commands you use on a local folder work everywhere — search, grep, ls, tree,
-cat — whether the bytes live in a GitHub repo, a Postgres table, a Slack channel,
-or an S3 bucket:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;release checklist&quot;</span><span class="w"> </span>github://owner/repo
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs<span class="w"> </span>ls<span class="w"> </span>slack://acme/channels
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod-db/public/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;: 12345}&#39;</span>
-</code></pre></div>
-<p>This page covers what's available and the mechanics shared across all
-connectors — the lifecycle, the credential model, and the <code>[[objects]]</code> config
-for structured sources. Each connector has its own page with its URI shape,
-credentials, and quirks; the catalog below links to them.</p>
-<div class="admonition note">
-<p class="admonition-title">Connectors are optional extras</p>
-<p><code>file</code> is always available. The other connectors load lazily and are skipped
-on a server that doesn't have their dependencies installed. A scheme being
-listed here means it's in the codebase — not that it's installed on every
-server. Always <code>probe</code> on the target server before a large sync.</p>
-</div>
-<h2 id="the-catalog">The catalog<a class="headerlink" href="#the-catalog" title="Permanent link">&para;</a></h2>
-<p><strong>Local &amp; web</strong></p>
-<table>
-<thead>
-<tr>
-<th>Connector</th>
-<th>Use it for</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="file/"><code>file</code></a></td>
-<td>Local directory trees — code, docs, PDFs. No credentials.</td>
-</tr>
-<tr>
-<td><a href="web/"><code>web</code></a></td>
-<td>Crawl HTTP(S) pages into searchable markdown.</td>
-</tr>
-<tr>
-<td><a href="s3/"><code>s3</code></a></td>
-<td>Objects under an S3 / R2 / GCS / MinIO bucket prefix.</td>
-</tr>
-<tr>
-<td><a href="gdrive/"><code>gdrive</code></a></td>
-<td>Google Drive files visible to a user OAuth token.</td>
-</tr>
-<tr>
-<td><a href="notion/"><code>notion</code></a></td>
-<td>Notion pages and database records shared with an integration.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Databases &amp; warehouses</strong></p>
-<table>
-<thead>
-<tr>
-<th>Connector</th>
-<th>Use it for</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="postgres/"><code>postgres</code></a></td>
-<td>Postgres table rows + schema, incremental sync.</td>
-</tr>
-<tr>
-<td><a href="mysql/"><code>mysql</code></a></td>
-<td>MySQL table rows + schema in one database.</td>
-</tr>
-<tr>
-<td><a href="mongo/"><code>mongo</code></a></td>
-<td>MongoDB documents, one record each.</td>
-</tr>
-<tr>
-<td><a href="bigquery/"><code>bigquery</code></a></td>
-<td>BigQuery table rows via Application Default Credentials.</td>
-</tr>
-<tr>
-<td><a href="snowflake/"><code>snowflake</code></a></td>
-<td>Snowflake table rows, key-pair / password / PAT auth.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Issues, code &amp; work tracking</strong></p>
-<table>
-<thead>
-<tr>
-<th>Connector</th>
-<th>Use it for</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="github/"><code>github</code></a></td>
-<td>Repo code, plus optional issues and pull requests.</td>
-</tr>
-<tr>
-<td><a href="jira/"><code>jira</code></a></td>
-<td>Jira issues by project (Cloud or Server).</td>
-</tr>
-<tr>
-<td><a href="linear/"><code>linear</code></a></td>
-<td>Linear issues across teams.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>CRM &amp; support</strong></p>
-<table>
-<thead>
-<tr>
-<th>Connector</th>
-<th>Use it for</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="hubspot/"><code>hubspot</code></a></td>
-<td>HubSpot CRM objects — contacts, companies, deals, tickets.</td>
-</tr>
-<tr>
-<td><a href="zendesk/"><code>zendesk</code></a></td>
-<td>Zendesk tickets, comments, users, organizations.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Chat, mail &amp; collaborative docs</strong></p>
-<table>
-<thead>
-<tr>
-<th>Connector</th>
-<th>Use it for</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="slack/"><code>slack</code></a></td>
-<td>Slack channel threads and the user directory.</td>
-</tr>
-<tr>
-<td><a href="discord/"><code>discord</code></a></td>
-<td>Discord guild channel messages and active threads.</td>
-</tr>
-<tr>
-<td><a href="gmail/"><code>gmail</code></a></td>
-<td>Gmail threads under chosen labels.</td>
-</tr>
-<tr>
-<td><a href="feishu/"><code>feishu</code></a></td>
-<td>Feishu / Lark chats and docx documents.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="file-like-vs-structured-sources">File-like vs structured sources<a class="headerlink" href="#file-like-vs-structured-sources" title="Permanent link">&para;</a></h2>
-<p>Connectors come in two shapes, and the difference decides how much config you
-write:</p>
-<ul>
-<li><strong>File-like</strong> sources (<code>file</code>, <code>web</code>, <code>github</code> code, <code>s3</code>, <code>gdrive</code>, <code>notion</code>
-  pages) expose real files. They're classified by type and indexed automatically —
-  no per-object config needed.</li>
-<li><strong>Structured</strong> sources (the databases, plus issue/CRM/chat connectors) expose
-  rows, records, and message threads as <code>.jsonl</code> objects. To make a row
-  searchable, MFS needs to know which fields carry text. The public SaaS
-  connectors ship <strong>built-in presets</strong> so they work out of the box; the database
-  connectors need an <code>[[objects]]</code> block per table (see below).</li>
-</ul>
-<h2 id="lifecycle">Lifecycle<a class="headerlink" href="#lifecycle" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>&lt;target&gt;<span class="w"> </span>--config<span class="w"> </span>./connector.toml<span class="w">   </span><span class="c1"># check creds + reachability</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>&lt;target&gt;<span class="w"> </span>--config<span class="w"> </span>./connector.toml<span class="w">               </span><span class="c1"># register + index (returns a job)</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>mfs<span class="w"> </span>job<span class="w"> </span>show<span class="w"> </span>JOB_ID<span class="w">                                       </span><span class="c1"># watch it reach succeeded</span>
-</code></pre></div>
-<table>
-<thead>
-<tr>
-<th>Task</th>
-<th>Command</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Probe without registering</td>
-<td><code>mfs connector probe &lt;target&gt; --config &lt;file&gt;</code></td>
-</tr>
-<tr>
-<td>Add / register and index</td>
-<td><code>mfs add &lt;target&gt; --config &lt;file&gt;</code></td>
-</tr>
-<tr>
-<td>Skip the confirm prompt</td>
-<td><code>mfs add &lt;target&gt; --config &lt;file&gt; --yes</code></td>
-</tr>
-<tr>
-<td>Re-sync (incremental)</td>
-<td><code>mfs add &lt;target&gt;</code> again</td>
-</tr>
-<tr>
-<td>Re-sync from a date</td>
-<td><code>mfs add &lt;target&gt; --since &lt;date&gt;</code> (only <a href="gdrive/"><code>gdrive</code></a> and <a href="feishu/"><code>feishu</code></a>)</td>
-</tr>
-<tr>
-<td>Force a full re-index</td>
-<td><code>mfs add &lt;target&gt; --force-index</code></td>
-</tr>
-<tr>
-<td>List connectors</td>
-<td><code>mfs connector list</code></td>
-</tr>
-<tr>
-<td>Inspect one</td>
-<td><code>mfs connector inspect &lt;target&gt;</code></td>
-</tr>
-<tr>
-<td>Update config</td>
-<td><code>mfs connector update &lt;target&gt; --config &lt;file&gt;</code></td>
-</tr>
-<tr>
-<td>Remove</td>
-<td><code>mfs connector remove &lt;target&gt;</code> (or <code>mfs remove &lt;target&gt;</code>)</td>
-</tr>
-</tbody>
-</table>
-<p>For an external target, <code>mfs add</code> first runs a <strong>zero-billing estimate</strong> — it
-discovers the object count and dry-runs the chunker/tokenizer (no embedding API
-calls) and asks you to confirm before queueing. Pass <code>--yes</code> to skip it.</p>
-<div class="admonition warning">
-<p class="admonition-title">Remove is destructive inside MFS</p>
-<p>Removing a connector never touches the source system, but it does drop the
-connector's MFS metadata, artifacts, and index. Keep the confirmation prompt
-on unless you're scripting deliberately.</p>
-</div>
-<h2 id="credentials-references-not-values">Credentials: references, not values<a class="headerlink" href="#credentials-references-not-values" title="Permanent link">&para;</a></h2>
-<p>A connector's TOML never holds a raw secret. It carries a <strong>reference</strong>, and the
-server resolves it when it builds the plugin — so the real value lives on the
-server, never in the TOML or the database:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:SLACK_BOT_TOKEN&quot;</span><span class="w">                       </span><span class="c1"># from a server env var</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">dsn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:PG_PROD_DSN&quot;</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">credential_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file:/etc/mfs/snowflake/rsa_key.p8&quot;</span><span class="w">   </span><span class="c1"># file contents (k8s/docker secret)</span>
-</code></pre></div>
-<ul>
-<li><code>env:VAR_NAME</code> — read from the <strong>server process</strong> environment (not your client
-  shell) when the connector is constructed.</li>
-<li><code>file:/abs/path</code> — the file's contents; the path must be absolute.</li>
-</ul>
-<p>Set env vars in the environment that starts <code>mfs-server</code>, and keep credential
-files outside the repo with tight permissions. See
-<a href="../auth-and-secrets/#connector-credentials">Auth and secrets</a> for the full
-boundary.</p>
-<h2 id="objects-for-structured-rows"><code>[[objects]]</code> for structured rows<a class="headerlink" href="#objects-for-structured-rows" title="Permanent link">&para;</a></h2>
-<p>Database connectors need an object rule per table so MFS knows which columns are
-searchable text and which key reopens an exact record:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/public/tickets&quot;</span><span class="w">               </span><span class="c1"># connector-relative object path</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;description&quot;</span><span class="p">]</span><span class="w">  </span><span class="c1"># embedded, searchable content</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span><span class="w">                 </span><span class="c1"># the key for `cat --locator`</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">metadata_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;updated_at&quot;</span><span class="p">]</span><span class="w">  </span><span class="c1"># returned alongside hits</span>
-</code></pre></div>
-<p>The public SaaS connectors (GitHub issues, Jira, Slack, Linear, Zendesk tickets,
-Gmail, Discord, Feishu) ship presets, so <code>[[objects]]</code> is optional there — use it
-only to override the default fields. See <a href="../search-and-browse/#locate-exact-hits">Search and browse</a>
-for how these become <code>content</code>, <code>locator</code>, and <code>metadata.fields</code> in a result.</p>
-<h2 id="after-ingest">After ingest<a class="headerlink" href="#after-ingest" title="Permanent link">&para;</a></h2>
-<p>Every scheme answers the same commands:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing escalation&quot;</span><span class="w"> </span>zendesk://acme<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;rate limit retry policy&quot;</span><span class="w"> </span>--all
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mfs<span class="w"> </span>tree<span class="w"> </span>postgres://prod-db<span class="w"> </span>-L<span class="w"> </span><span class="m">3</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>github://owner/repo/src/main.rs<span class="w"> </span>--range<span class="w"> </span><span class="m">100</span>:150
-</code></pre></div>
-<p>See <a href="../search-and-browse/">Search and browse</a> for the retrieval loop.</p>
+<h1 id="one-model-many-sources">One model, many sources<a class="headerlink" href="#one-model-many-sources" title="Permanent link">&para;</a></h1>
+<p>A repository of code, a Postgres table, a Slack workspace, a folder of PDFs, an
+S3 bucket — these have almost nothing in common. They differ in <strong>shape</strong> (a file
+vs. a row vs. a message thread), in <strong>access</strong> (read a disk vs. call an API vs.
+run a query), in <strong>how they change</strong> (a modified time vs. a row's timestamp vs. an
+etag), and in <strong>what they cost</strong> to process. Left to themselves, each would demand
+its own indexer, its own search stack, its own everything.</p>
+<p>MFS's central bet is that all of that difference can be made to <em>disappear before
+it reaches the rest of the system</em>. Every source is projected onto <strong>one small
+model</strong>, and from that point on — search, browse, caching, recovery — nothing
+knows or cares what the source originally was. The whole design is really one
+discipline: deciding where to force that uniformity, and where to leave a source
+free.</p>
+<h2 id="everything-becomes-a-file-like-tree">Everything becomes a file-like tree<a class="headerlink" href="#everything-becomes-a-file-like-tree" title="Permanent link">&para;</a></h2>
+<p>The first projection is the boldest. Whatever the source, it is presented as a
+tree of <strong>objects</strong> — each either a file-like thing you can read or a
+directory-like thing you can list. A database table, a Slack channel, a Drive
+folder all flatten onto the same <code>ls</code> / <code>cat</code> / <code>tree</code> surface. An agent that
+knows how to walk a folder already knows how to walk every source.</p>
+<p>This works because "file-like" means <em>addressable and readable</em>, not <em>stored as a
+file</em>. A row set is readable; a channel is listable. That is enough — and the
+moment it holds, the entire browsing experience is written once and works
+everywhere.</p>
+<h2 id="a-handful-of-shapes-not-a-thousand">A handful of shapes, not a thousand<a class="headerlink" href="#a-handful-of-shapes-not-a-thousand" title="Permanent link">&para;</a></h2>
+<p>Underneath the tree, every object is sorted into a <strong>small, fixed, closed set of
+kinds</strong> — prose documents, code, images, tabular rows, record collections,
+message threads, and a few more. A source's job is only to say which kind each of
+its objects is; the kind then decides everything downstream — how the object is
+split, whether and how it's embedded, what a result drawn from it looks like.</p>
+<p>This is the keystone of the unification, and it rests on a quiet observation: the
+variety of the world's data is enormous, but the variety of <em>what you must do to
+make something searchable</em> is small. Pin each object to one of a few kinds and the
+expensive machinery — chunking, embedding, indexing — is built once and inherited
+by every source, the ones that exist today and the ones added later. Bringing in a
+new source becomes a matter of <em>classifying</em> it, not of building a pipeline for
+it.</p>
+<h2 id="one-way-to-point-one-way-to-change">One way to point, one way to change<a class="headerlink" href="#one-way-to-point-one-way-to-change" title="Permanent link">&para;</a></h2>
+<p>Two more things must be uniform for the model to hold together.</p>
+<p><strong>Pointing.</strong> A search hit has to be reopenable whether it's a span of lines in a
+file, a single row of a table, or a thread in a channel. So every hit carries the
+same kind of handle — a stable address for the object plus a small pointer to the
+slice inside it — and the same read command reopens any of them. You never learn a
+per-source addressing scheme; a result from anywhere is a result you can act on.</p>
+<p><strong>Changing.</strong> Every source detects change in its own way. MFS doesn't try to
+unify the <em>detection</em> — it unifies the <em>report</em>. However a source works out what
+moved, it speaks the same short vocabulary back: this appeared, this changed, this
+is gone. Re-syncing, incremental updates, and the careful handling of deletions
+are then written once against that vocabulary, never against one source's quirks.</p>
+<h2 id="where-uniformity-stops-on-purpose">Where uniformity stops — on purpose<a class="headerlink" href="#where-uniformity-stops-on-purpose" title="Permanent link">&para;</a></h2>
+<p>A model that forced <em>everything</em> the same would be a straitjacket. A database has
+a change cursor a plain folder doesn't; a query can filter at the origin far more
+cheaply than scanning files can. So MFS draws a second, deliberate line: each
+source <strong>declares what it can do</strong>, and the framework plans around the
+declaration. A source that can search or filter at the origin is allowed to; one
+that can't is given the framework's general path instead. The differences aren't
+hidden — they're stated in a common form, so the system can adapt to them
+uniformly rather than special-casing each source by name.</p>
+<p>The other reserved freedom is <strong>layout</strong>. Each connector designs its own tree —
+what the directories look like, what counts as an object, how things are named —
+because that is where a source's real structure lives, and forcing sameness there
+would only obscure it. Everything <em>beneath</em> the layout is uniform; the layout
+itself is the connector's to shape.</p>
+<h2 id="why-the-line-is-drawn-here">Why the line is drawn here<a class="headerlink" href="#why-the-line-is-drawn-here" title="Permanent link">&para;</a></h2>
+<p>This split is what lets MFS be both broad and small at once. Search, browse,
+ranking, the caches, crash recovery, the index — all of it is written against the
+one model, so it behaves identically for a source shipped today and one shipped
+next year. And a new connector is a thin adapter: project the source onto the
+model, declare what it can do, lay out its tree, and the entire engine comes for
+free.</p>
+<p>It is the same idea that lets a shell operate on countless programs through a few
+file operations, and that let data-integration ecosystems grow enormous connector
+catalogs: <strong>unify the common part hard, keep the differences thin.</strong> See
+<a href="../production/">Design philosophy</a> for the principles behind it,
+<a href="../architecture/#core-concepts">Architecture</a> for the concrete pieces, and
+<a href="../connectors/">Connectors</a> for the sources themselves.</p>
 
 
 
