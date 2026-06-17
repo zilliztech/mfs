@@ -709,10 +709,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#projection-1-everything-is-a-file-like-tree" class="md-nav__link">
+  <a href="#they-all-look-like-a-tree-of-files" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Projection 1 — everything is a file-like tree
+        They all look like a tree of files
       
     </span>
   </a>
@@ -720,10 +720,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#projection-2-a-handful-of-kinds" class="md-nav__link">
+  <a href="#every-object-is-one-of-a-few-kinds" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Projection 2 — a handful of kinds
+        Every object is one of a few kinds
       
     </span>
   </a>
@@ -731,10 +731,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#projection-3-one-handle-reopens-any-hit" class="md-nav__link">
+  <a href="#one-command-reopens-any-result" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Projection 3 — one handle reopens any hit
+        One command reopens any result
       
     </span>
   </a>
@@ -742,10 +742,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#projection-4-many-change-stories-one-report" class="md-nav__link">
+  <a href="#every-source-reports-changes-the-same-way" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Projection 4 — many change stories, one report
+        Every source reports changes the same way
       
     </span>
   </a>
@@ -753,21 +753,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-mfs-deliberately-lets-sources-differ" class="md-nav__link">
+  <a href="#whats-built-once-and-what-a-new-source-adds" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where MFS deliberately lets sources differ
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-the-line-is-drawn-here" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why the line is drawn here
+        What's built once, and what a new source adds
       
     </span>
   </a>
@@ -2229,10 +2218,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#projection-1-everything-is-a-file-like-tree" class="md-nav__link">
+  <a href="#they-all-look-like-a-tree-of-files" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Projection 1 — everything is a file-like tree
+        They all look like a tree of files
       
     </span>
   </a>
@@ -2240,10 +2229,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#projection-2-a-handful-of-kinds" class="md-nav__link">
+  <a href="#every-object-is-one-of-a-few-kinds" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Projection 2 — a handful of kinds
+        Every object is one of a few kinds
       
     </span>
   </a>
@@ -2251,10 +2240,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#projection-3-one-handle-reopens-any-hit" class="md-nav__link">
+  <a href="#one-command-reopens-any-result" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Projection 3 — one handle reopens any hit
+        One command reopens any result
       
     </span>
   </a>
@@ -2262,10 +2251,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#projection-4-many-change-stories-one-report" class="md-nav__link">
+  <a href="#every-source-reports-changes-the-same-way" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Projection 4 — many change stories, one report
+        Every source reports changes the same way
       
     </span>
   </a>
@@ -2273,21 +2262,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-mfs-deliberately-lets-sources-differ" class="md-nav__link">
+  <a href="#whats-built-once-and-what-a-new-source-adds" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where MFS deliberately lets sources differ
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-the-line-is-drawn-here" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why the line is drawn here
+        What's built once, and what a new source adds
       
     </span>
   </a>
@@ -2315,15 +2293,15 @@
 
 
 <h1 id="one-model-many-sources">One model, many sources<a class="headerlink" href="#one-model-many-sources" title="Permanent link">&para;</a></h1>
-<p>A code repo, a Postgres table, a Slack workspace, a folder of PDFs — they share
-almost nothing:</p>
+<p>A code repo, a Postgres table, a Slack workspace, a folder of PDFs — they have
+almost nothing in common:</p>
 <table>
 <thead>
 <tr>
 <th>Source</th>
 <th>What one "thing" is</th>
 <th>How you reach it</th>
-<th>How it signals change</th>
+<th>How it tells you something changed</th>
 </tr>
 </thead>
 <tbody>
@@ -2343,39 +2321,41 @@ almost nothing:</p>
 <td>a Slack channel</td>
 <td>a message thread</td>
 <td>call the Slack API</td>
-<td>the timestamp of the newest message</td>
+<td>the time of the newest message</td>
 </tr>
 <tr>
 <td>a folder of PDFs</td>
-<td>a file, converted to text</td>
-<td>read, then convert</td>
-<td>size + mtime, then a hash</td>
+<td>a file, turned into text</td>
+<td>read it, then convert it</td>
+<td>its size and modified time, then a hash</td>
 </tr>
 </tbody>
 </table>
-<p>Left alone, each would need its own indexer and its own search stack. MFS's bet is
-to <strong>project every source onto one small model</strong> before it reaches the rest of the
-system — so search, browse, caching, and recovery are written once and never need
-to know what the source really was. The rest of this page is those projections,
-and the few places where MFS deliberately lets sources differ.</p>
-<h2 id="projection-1-everything-is-a-file-like-tree">Projection 1 — everything is a file-like tree<a class="headerlink" href="#projection-1-everything-is-a-file-like-tree" title="Permanent link">&para;</a></h2>
-<p>Whatever the source, you walk it with the same <code>ls</code> / <code>cat</code> / <code>tree</code> you'd use on
-a folder. A database and a chat workspace browse identically:</p>
+<p>If MFS handled each one its own way, every source would need its own indexer and
+its own search. Instead, MFS makes <strong>every source look the same to everything
+downstream</strong>. Once a source is brought in, search, browse, caching, and recovery
+don't know or care what it really was. This page shows the few things MFS makes
+identical, the few it lets each source keep its own way, and why that split is
+what makes adding a new source easy.</p>
+<h2 id="they-all-look-like-a-tree-of-files">They all look like a tree of files<a class="headerlink" href="#they-all-look-like-a-tree-of-files" title="Permanent link">&para;</a></h2>
+<p>Whatever the source, you walk it with the same <code>ls</code>, <code>cat</code>, and <code>tree</code> you'd use
+on a folder. A database and a chat workspace browse exactly alike:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>$<span class="w"> </span>mfs<span class="w"> </span>ls<span class="w"> </span>postgres://prod/public
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>tickets/<span class="w">   </span>users/
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>$<span class="w"> </span>mfs<span class="w"> </span>ls<span class="w"> </span>slack://acme/channels
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>eng-backend__C012345/<span class="w">   </span>general__C067890/
 </code></pre></div>
-<p>"File-like" here means <em>addressable and readable</em>, not <em>stored as a file</em>: a
-table's rows are readable, a channel is listable — that's enough. Objects even
-carry a type hint in their name, so one <code>cat</code> knows how to render each:</p>
+<p>Nothing here is actually a file on disk — a table's rows and a chat's threads
+aren't. "Looks like a file" just means you can <strong>list it and read it</strong>, and that's
+all the rest of MFS needs. Each object even has a telling extension, so one <code>cat</code>
+knows how to show it:</p>
 <table>
 <thead>
 <tr>
 <th>You see</th>
 <th>It is</th>
-<th><code>cat</code> renders</th>
+<th><code>cat</code> shows</th>
 </tr>
 </thead>
 <tbody>
@@ -2386,37 +2366,38 @@ carry a type hint in their name, so one <code>cat</code> knows how to render eac
 </tr>
 <tr>
 <td><code>…/tickets/schema.json</code></td>
-<td>the table's shape</td>
-<td>the columns</td>
+<td>the table's columns</td>
+<td>the schema</td>
 </tr>
 <tr>
 <td><code>…/pages/install.md</code></td>
-<td>a converted web / Notion page</td>
+<td>a converted web or Notion page</td>
 <td>Markdown</td>
 </tr>
 </tbody>
 </table>
-<h2 id="projection-2-a-handful-of-kinds">Projection 2 — a handful of kinds<a class="headerlink" href="#projection-2-a-handful-of-kinds" title="Permanent link">&para;</a></h2>
-<p>Under the tree, every object is sorted into one of a <strong>small, fixed set of
-kinds</strong>, and the kind — not the source — decides what becomes searchable:</p>
+<h2 id="every-object-is-one-of-a-few-kinds">Every object is one of a few kinds<a class="headerlink" href="#every-object-is-one-of-a-few-kinds" title="Permanent link">&para;</a></h2>
+<p>MFS doesn't try to special-case a thousand formats. It sorts every object into one
+of a <strong>small set of kinds</strong>, and the kind — not where it came from — decides how
+it's made searchable:</p>
 <table>
 <thead>
 <tr>
 <th>Example object</th>
 <th>Kind</th>
-<th>What it becomes</th>
+<th>What it turns into</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>engine.py</code></td>
 <td>code</td>
-<td>line-addressed chunks</td>
+<td>chunks addressed by line range</td>
 </tr>
 <tr>
 <td>a design PDF</td>
 <td>document</td>
-<td>converted text, split into chunks</td>
+<td>text, converted and split into chunks</td>
 </tr>
 <tr>
 <td>one ticket row</td>
@@ -2431,109 +2412,106 @@ kinds</strong>, and the kind — not the source — decides what becomes searcha
 <tr>
 <td>a screenshot</td>
 <td>image</td>
-<td>a VLM description (when enabled)</td>
+<td>a short description (when image support is on)</td>
 </tr>
 </tbody>
 </table>
-<p>The variety of the world's data is huge; the variety of <em>what you do to make it
-searchable</em> is small. Pin each object to a kind and the expensive machinery —
-chunking, embedding, indexing — is built once and inherited by every source. A new
-source is <strong>classified</strong>, not engineered.</p>
-<h2 id="projection-3-one-handle-reopens-any-hit">Projection 3 — one handle reopens any hit<a class="headerlink" href="#projection-3-one-handle-reopens-any-hit" title="Permanent link">&para;</a></h2>
-<p>A search result is only useful if you can reopen the exact thing it found, whether
-that's some lines in a file or one row in a table. So every hit comes back with a
-<code>source</code> (which object) and a <code>locator</code> (which slice inside it), and the <em>same</em>
-<code>cat</code> reopens either:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># hit in a code file → the locator is a line range</span>
+<p>There are only a few kinds, so the expensive work behind each one — splitting,
+embedding, indexing — is built once and reused by every source. Bringing in a new
+source is mostly a matter of saying which kind each thing is.</p>
+<h2 id="one-command-reopens-any-result">One command reopens any result<a class="headerlink" href="#one-command-reopens-any-result" title="Permanent link">&para;</a></h2>
+<p>A search result is only useful if you can reopen exactly what it found — a few
+lines of a file, or one row of a table. So every result comes back with two
+things: which object it's in, and a small <code>locator</code> for the spot inside it. The
+same <code>cat</code> reopens either one:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># result in a code file → the locator is a line range</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>file://local/repo/engine.py<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;lines&quot;:[42,78]}&#39;</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># hit in a database table → the locator is the row key</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># result in a database table → the locator is the row&#39;s key</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>mfs<span class="w"> </span>cat<span class="w"> </span>postgres://prod/public/tickets/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:12345}&#39;</span>
 </code></pre></div>
-<p>You never learn a per-source addressing scheme. A hit from anywhere is something
-you reopen with the same command.</p>
-<h2 id="projection-4-many-change-stories-one-report">Projection 4 — many change stories, one report<a class="headerlink" href="#projection-4-many-change-stories-one-report" title="Permanent link">&para;</a></h2>
-<p>Detecting change is where sources differ most, so MFS doesn't unify the
-<em>detection</em> — it unifies the <em>report</em>. Each family works out what moved in its own
-way, then reports the same three things back: added, changed, removed.</p>
+<p>You never have to learn a different way to address each source. A result from
+anywhere is something you reopen with the same command.</p>
+<h2 id="every-source-reports-changes-the-same-way">Every source reports changes the same way<a class="headerlink" href="#every-source-reports-changes-the-same-way" title="Permanent link">&para;</a></h2>
+<p>When you re-run <code>mfs add</code>, MFS redoes only what actually changed. Each kind of
+source works out "what changed" in its own way — but they all report it back the
+same way (added, changed, removed), so the update logic is written once:</p>
 <table>
 <thead>
 <tr>
-<th>Family</th>
-<th>An object is</th>
-<th>A re-sync detects change by</th>
-<th>Example</th>
+<th>Source family</th>
+<th>What changed is found by</th>
+<th>For example</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>Files &amp; blobs</strong> — file, S3, Drive, web, repo code</td>
-<td>a file</td>
 <td>re-scanning and comparing content hashes</td>
-<td>edit <code>README.md</code> → its hash changes → re-indexed; delete it → caught by the full-set diff</td>
+<td>edit <code>README.md</code> and its hash changes, so it's re-indexed; delete it and the full re-scan notices it's gone</td>
 </tr>
 <tr>
 <td><strong>Databases &amp; warehouses</strong> — Postgres, Mongo, BigQuery…</td>
-<td>a table's rows</td>
-<td>riding an <code>updated_at</code>-style cursor</td>
-<td>12 rows change in a 1M-row table → only those 12 are re-pulled</td>
+<td>reading an <code>updated_at</code>-style column</td>
+<td>12 rows change in a million-row table, and only those 12 are re-pulled</td>
 </tr>
 <tr>
 <td><strong>Messages &amp; mail</strong> — Slack, Gmail, Feishu…</td>
-<td>a message stream</td>
-<td>advancing past the newest message seen</td>
-<td>30 new messages since last sync → only those fetched; old threads untouched</td>
+<td>continuing past the newest message it already has</td>
+<td>30 new messages since last time, so only those are fetched; old threads are left alone</td>
 </tr>
 <tr>
 <td><strong>Issues, CRM &amp; docs</strong> — Jira, Linear, Notion…</td>
-<td>records</td>
-<td>polling an updated timestamp</td>
-<td>a reopened Jira ticket → re-indexed on the next sync</td>
+<td>checking an "updated" timestamp</td>
+<td>reopen a Jira ticket and it's re-indexed on the next sync</td>
 </tr>
 </tbody>
 </table>
-<p>Because the <em>report</em> is identical, re-syncing, incremental updates, and deletion
-handling are written once — never against any one source's quirks.</p>
-<h2 id="where-mfs-deliberately-lets-sources-differ">Where MFS deliberately lets sources differ<a class="headerlink" href="#where-mfs-deliberately-lets-sources-differ" title="Permanent link">&para;</a></h2>
-<p>Forcing <em>everything</em> uniform would be a straitjacket. Two things are left to each
-connector — and both are <strong>declared</strong>, so the framework can plan around them
-instead of special-casing by name:</p>
+<h2 id="whats-built-once-and-what-a-new-source-adds">What's built once, and what a new source adds<a class="headerlink" href="#whats-built-once-and-what-a-new-source-adds" title="Permanent link">&para;</a></h2>
+<p>Everything above is what makes the last part true: <strong>adding a new source is a
+small job, because all the hard parts already exist.</strong> Someone writing a connector
+for a new tool doesn't build a search engine — they write a thin adapter that
+answers a few questions about their source, and get everything else for free:</p>
 <table>
 <thead>
 <tr>
-<th>Difference</th>
-<th>Example</th>
-<th>What MFS does</th>
+<th>Built once, in MFS — a new source just reuses it</th>
+<th>What a new source has to provide</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>What it can push down</strong></td>
-<td>Postgres can run a <code>grep</code> as a SQL <code>WHERE</code>; a plain folder can't</td>
-<td>uses the source's own filter when it has one, falls back to its own scan when it doesn't</td>
+<td>splitting, embedding, image descriptions, summaries</td>
+<td>how to connect and sign in</td>
 </tr>
 <tr>
-<td><strong>Whether it has a time cursor</strong></td>
-<td><code>gdrive</code> and <code>feishu</code> accept <code>mfs add --since 2026-01-01</code>; most connectors don't</td>
-<td>honors <code>--since</code> where it's real, rejects it where it isn't</td>
+<td>the search index and ranking</td>
+<td>the tree layout — what its folders and objects look like</td>
 </tr>
 <tr>
-<td><strong>The tree layout</strong></td>
-<td>a repo mirrors its folders; Postgres lays out <code>schema/table/rows.jsonl</code></td>
-<td>each connector designs its own tree; everything <em>beneath</em> the layout stays uniform</td>
+<td><code>ls</code> / <code>cat</code> / <code>grep</code> / <code>search</code> and the HTTP API</td>
+<td>which kind each object is</td>
+</tr>
+<tr>
+<td>the job queue, caching, crash recovery, deletions</td>
+<td>how to read an object, and how to tell what changed</td>
 </tr>
 </tbody>
 </table>
-<h2 id="why-the-line-is-drawn-here">Why the line is drawn here<a class="headerlink" href="#why-the-line-is-drawn-here" title="Permanent link">&para;</a></h2>
-<p>Search, ranking, the caches, crash recovery, the index — all written against the
-one model, so they behave the same for a source shipped today and one shipped next
-year. And a new connector is a thin adapter: classify its objects, report changes
-in the common vocabulary, lay out a tree. Get that right and the whole engine
-comes for free.</p>
-<p>It's the same trade that lets a shell drive countless programs through a few file
-operations — <strong>unify the common part hard, keep the differences thin.</strong> See
-<a href="../production/">Design philosophy</a>, <a href="../architecture/#core-concepts">Architecture</a>,
-and <a href="../connectors/">Connectors</a>.</p>
+<p>In practice that adapter is a handful of small functions — often a few hundred
+lines — and the source is then searchable and browsable like everything else.
+There are a couple of <strong>optional</strong> extras for sources that can do better, and MFS
+falls back to its general path when they can't:</p>
+<ul>
+<li>a database can answer a <code>grep</code> with a SQL <code>WHERE</code> clause instead of scanning;</li>
+<li>a source with a real timestamp can support <code>mfs add --since 2026-01-01</code>.</li>
+</ul>
+<p>That's the whole reason for pinning everything to one model: the common, expensive
+part is written once, and the list of supported sources grows just by adding thin
+adapters. It's the same trade that lets a shell drive thousands of programs
+through a few file commands — make the shared part the same, keep the differences
+small. See <a href="../production/">Design philosophy</a>,
+<a href="../architecture/#core-concepts">Architecture</a>, and <a href="../connectors/">Connectors</a>.</p>
 
 
 
