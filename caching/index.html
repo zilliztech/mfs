@@ -2199,10 +2199,11 @@
 
 
 <h1 id="caching">Caching<a class="headerlink" href="#caching" title="Permanent link">&para;</a></h1>
-<p>The two expensive parts of ingest are <strong>converting</strong> a source (a PDF into text, an
-image into a description) and <strong>calling models</strong> (embeddings, VLM, summaries). MFS
-keeps two caches so it almost never pays for the same work twice. They sit at
-different points and are keyed differently, so it's worth knowing which is which.</p>
+<p>The two expensive parts of ingest are <strong>converting</strong> a source — turning a PDF or
+Office doc into text — and <strong>calling models</strong> — embeddings, image (VLM)
+descriptions, and summaries. MFS keeps two caches so it almost never pays for the
+same work twice. They sit at different points and are keyed differently, so it's
+worth knowing which holds what.</p>
 <table>
 <thead>
 <tr>
@@ -2214,8 +2215,8 @@ different points and are keyed differently, so it's worth knowing which is which
 <tbody>
 <tr>
 <td>Holds</td>
-<td>a converted object — Markdown from a PDF, a head preview, VLM text</td>
-<td>model call outputs — embeddings, VLM descriptions, summaries</td>
+<td>converted object bytes — Markdown from a PDF, a structured head preview</td>
+<td>model-call outputs — embeddings, image (VLM) descriptions, summaries</td>
 </tr>
 <tr>
 <td>Keyed by</td>
@@ -2242,11 +2243,13 @@ different points and are keyed differently, so it's worth knowing which is which
 <p>Neither is a source of truth — both are derived, and losing either costs
 recompute, not correctness.</p>
 <h2 id="artifact-cache">Artifact cache<a class="headerlink" href="#artifact-cache" title="Permanent link">&para;</a></h2>
-<p>When MFS converts an object (PDF → Markdown, an image → VLM text) or grabs a head
-preview, it stores the result as an <strong>artifact</strong> so the next <code>cat</code> / <code>head</code> /
-<code>tail</code> reads the converted bytes instead of going back to the connector and
-converting again. The kinds in use today are <code>converted_md</code>, <code>head_cache</code>, and
-<code>vlm_text</code>.</p>
+<p>When MFS converts an object (a PDF or Office doc → Markdown) or grabs a head
+preview of a structured object, it stores the result as an <strong>artifact</strong> so the
+next <code>cat</code> / <code>head</code> / <code>tail</code> reads the converted bytes instead of going back to
+the connector and converting again. The kinds in use today are <code>converted_md</code>
+(converted document text) and <code>head_cache</code> (a structured-object preview). An
+image's VLM description is <em>not</em> an artifact — it's a model output, so it lives in
+the transformation cache below.</p>
 <p>The bytes live on the filesystem (or object store); the
 <a href="../schema/#the-metadata-database"><code>artifact_cache</code> table</a> is just the index —
 keyed by <code>(namespace_id, object_uri, artifact_kind)</code>, with a <code>storage_path</code> and a
@@ -2258,10 +2261,11 @@ converted doc fast, and it's the shared input the <a href="../ingest-pipeline/">
 folds when it summarizes a directory — the children are read from here, not
 re-converted.</p>
 <h2 id="transformation-cache">Transformation cache<a class="headerlink" href="#transformation-cache" title="Permanent link">&para;</a></h2>
-<p>Embeddings, VLM descriptions, and summaries are the calls that cost real money and
-latency. The transformation cache memoizes each one, keyed by <strong>content and
-model</strong> rather than by object, so identical input never gets sent to a provider
-twice.</p>
+<p>Embeddings, image (VLM) descriptions, and summaries are the calls that cost real
+money and latency. The transformation cache memoizes each one, keyed by <strong>content
+and model</strong> rather than by object, so identical input never gets sent to a
+provider twice. (This is where an image's description lives — it's a model output,
+not a converted artifact.)</p>
 <p>The key is <code>cache_key = sha1(input_hash + kind + provider + model + version +
 config)</code> — where <code>input_hash</code> is the hash of the raw input text or bytes. Because
 the model identity is <em>in</em> the key, a hit is valid no matter where the same

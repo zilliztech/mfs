@@ -804,6 +804,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-transformation-cache-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The transformation-cache database
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-milvus-collection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -816,10 +827,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#partition-key-and-how-fields-map-to-your-data" class="md-nav__link">
+  <a href="#connectors-namespaces-and-the-partition-key" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Partition key and how fields map to your data
+        Connectors, namespaces, and the partition key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-the-fields-map-to-your-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the fields map to your data
       
     </span>
   </a>
@@ -2185,6 +2207,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-transformation-cache-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The transformation-cache database
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-milvus-collection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2197,10 +2230,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#partition-key-and-how-fields-map-to-your-data" class="md-nav__link">
+  <a href="#connectors-namespaces-and-the-partition-key" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Partition key and how fields map to your data
+        Connectors, namespaces, and the partition key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-the-fields-map-to-your-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the fields map to your data
       
     </span>
   </a>
@@ -2233,11 +2277,13 @@
 
 
 <h1 id="schema-design">Schema design<a class="headerlink" href="#schema-design" title="Permanent link">&para;</a></h1>
-<p>MFS keeps state in two stores: a <strong>metadata database</strong> (SQLite locally, Postgres
-at scale) for bookkeeping, and a <strong>Milvus collection</strong> for the searchable
-vectors. This page is what's in each and how the Milvus fields map back to your
-sources. The vocabulary here — connector, object, ConnectorJob, ObjectTask,
-chunk — is defined in <a href="../architecture/#core-concepts">Architecture</a>.</p>
+<p>MFS persists state across a few stores: a <strong>metadata database</strong> for bookkeeping
+(it also holds the work queue), a separate <strong>transformation-cache database</strong> for
+memoized model outputs, the <strong>Milvus collection</strong> for searchable vectors, and an
+<strong>object store</strong> (the local filesystem by default) for artifact bytes. The two
+relational databases are SQLite locally and Postgres at scale. This page walks
+each one. The vocabulary — connector, object, ConnectorJob, ObjectTask, chunk — is
+defined in <a href="../architecture/#core-concepts">Architecture</a>.</p>
 <h2 id="the-metadata-database">The metadata database<a class="headerlink" href="#the-metadata-database" title="Permanent link">&para;</a></h2>
 <p>One relational database holds everything MFS knows about your sources and the
 work it's doing on them. The tables:</p>
@@ -2308,11 +2354,36 @@ work it's doing on them. The tables:</p>
   upstream source or derived work; none of it is the source data itself. Drop the
   whole database and a re-sync rebuilds it.</li>
 </ul>
+<h2 id="the-transformation-cache-database">The transformation-cache database<a class="headerlink" href="#the-transformation-cache-database" title="Permanent link">&para;</a></h2>
+<p>Model outputs — embeddings, image (VLM) descriptions, summaries — are memoized in
+their <strong>own</strong> database, separate from the metadata DB (a standalone SQLite file by
+default, or a shared Postgres). Keeping it apart is deliberate: it's high-churn,
+best-effort data whose loss only costs recompute, so it never sits on the metadata
+DB's transactional path. It has one table:</p>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>One row per</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transformation_cache</code></td>
+<td>one memoized model call</td>
+<td><code>cache_key</code> (primary key), <code>kind</code> (<code>embedding</code> / <code>vlm</code> / <code>summary</code>), <code>input_hash</code>, <code>provider</code>, <code>model</code>, <code>model_version</code>, <code>output_bytes</code>, <code>hit_count</code>, <code>last_hit_at</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>cache_key</code> folds the input hash together with the provider, model, and
+version, so a hit is only ever returned for the exact same input <em>and</em> model. See
+<a href="../caching/">Caching</a> for how it's used.</p>
 <h2 id="the-milvus-collection">The Milvus collection<a class="headerlink" href="#the-milvus-collection" title="Permanent link">&para;</a></h2>
-<p>All searchable chunks live in <strong>one Milvus collection</strong>. Its name bakes in a
-schema fingerprint and the embedding dimension, so changing the schema or
-swapping the embedding model targets a <em>fresh</em> collection instead of corrupting
-the current one.</p>
+<p>All searchable chunks live in Milvus. By default they share <strong>one collection</strong>,
+whose name bakes in the schema version and the embedding dimension
+(<code>mfs_chunks__v{N}_d{dim}</code>), so changing the schema or swapping the embedding
+model targets a <em>fresh</em> collection instead of corrupting the current one.</p>
 <table>
 <thead>
 <tr>
@@ -2383,12 +2454,26 @@ the current one.</p>
 sparse-inverted BM25 index, and <code>namespace_id</code> / <code>object_uri</code> / <code>chunk_kind</code> get
 scalar inverted indexes for fast filtering (skipped on Milvus Lite, which falls
 back to a scan).</p>
-<h3 id="partition-key-and-how-fields-map-to-your-data">Partition key and how fields map to your data<a class="headerlink" href="#partition-key-and-how-fields-map-to-your-data" title="Permanent link">&para;</a></h3>
-<p>The <strong>partition key is <code>connector_uri</code></strong>, so each connector's chunks sit in their
-own partition. A scoped query (<code>mfs search "…" postgres://prod</code>) only touches that
-connector's partition; <code>--all</code> fans across them. One collection keeps operations
-simple; the partition key keeps scoped search fast.</p>
-<p>The other fields are just your data, addressed at three levels of granularity:</p>
+<h3 id="connectors-namespaces-and-the-partition-key">Connectors, namespaces, and the partition key<a class="headerlink" href="#connectors-namespaces-and-the-partition-key" title="Permanent link">&para;</a></h3>
+<p>Three things scope a chunk, at three levels:</p>
+<ul>
+<li><strong>Connector</strong> is the <strong>partition key</strong> (<code>connector_uri</code>). Each connector's
+  chunks sit in their own partition, so a scoped query
+  (<code>mfs search "…" postgres://prod</code>) only touches that connector's partition,
+  while <code>--all</code> fans across them.</li>
+<li><strong>Namespace</strong> is the tenant boundary. By default (<code>collection_strategy =
+  "shared"</code>) all namespaces share the one collection and are separated by the
+  <code>namespace_id</code> field; set <code>collection_strategy = "per_namespace"</code> and each
+  namespace gets its own collection (<code>mfs_chunks__{namespace}__v{N}_d{dim}</code>) for
+  hard isolation. Today MFS runs a single <code>default</code> namespace with zero config;
+  per-user / per-workspace namespaces are a <a href="../roadmap/">v0.5+ direction</a>.</li>
+<li><strong>Schema and model version</strong> are baked into the collection name, so an
+  incompatible change — a new embedding dimension, a schema bump — lands in a
+  fresh collection instead of mixing with the old one.</li>
+</ul>
+<h3 id="how-the-fields-map-to-your-data">How the fields map to your data<a class="headerlink" href="#how-the-fields-map-to-your-data" title="Permanent link">&para;</a></h3>
+<p>Beyond those, the fields are just your data, addressed at three levels of
+granularity:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>connector_uri   postgres://prod          ← which source
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   object_uri   …/public/tickets/rows.jsonl   ← which object (file / row set / thread)
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>      locator   {&quot;id&quot;: 12345}            ← which slice inside it
