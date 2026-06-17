@@ -1,10 +1,12 @@
 # Schema design
 
-MFS keeps state in two stores: a **metadata database** (SQLite locally, Postgres
-at scale) for bookkeeping, and a **Milvus collection** for the searchable
-vectors. This page is what's in each and how the Milvus fields map back to your
-sources. The vocabulary here — connector, object, ConnectorJob, ObjectTask,
-chunk — is defined in [Architecture](architecture.md#core-concepts).
+MFS persists state across a few stores: a **metadata database** for bookkeeping
+(it also holds the work queue), a separate **transformation-cache database** for
+memoized model outputs, the **Milvus collection** for searchable vectors, and an
+**object store** (the local filesystem by default) for artifact bytes. The two
+relational databases are SQLite locally and Postgres at scale. This page walks
+each one. The vocabulary — connector, object, ConnectorJob, ObjectTask, chunk — is
+defined in [Architecture](architecture.md#core-concepts).
 
 ## The metadata database
 
@@ -34,12 +36,28 @@ Two design points worth calling out:
   upstream source or derived work; none of it is the source data itself. Drop the
   whole database and a re-sync rebuilds it.
 
+## The transformation-cache database
+
+Model outputs — embeddings, image (VLM) descriptions, summaries — are memoized in
+their **own** database, separate from the metadata DB (a standalone SQLite file by
+default, or a shared Postgres). Keeping it apart is deliberate: it's high-churn,
+best-effort data whose loss only costs recompute, so it never sits on the metadata
+DB's transactional path. It has one table:
+
+| Table | One row per | Holds |
+|---|---|---|
+| `transformation_cache` | one memoized model call | `cache_key` (primary key), `kind` (`embedding` / `vlm` / `summary`), `input_hash`, `provider`, `model`, `model_version`, `output_bytes`, `hit_count`, `last_hit_at`. |
+
+The `cache_key` folds the input hash together with the provider, model, and
+version, so a hit is only ever returned for the exact same input *and* model. See
+[Caching](caching.md) for how it's used.
+
 ## The Milvus collection
 
-All searchable chunks live in **one Milvus collection**. Its name bakes in a
-schema fingerprint and the embedding dimension, so changing the schema or
-swapping the embedding model targets a *fresh* collection instead of corrupting
-the current one.
+All searchable chunks live in Milvus. By default they share **one collection**,
+whose name bakes in the schema version and the embedding dimension
+(`mfs_chunks__v{N}_d{dim}`), so changing the schema or swapping the embedding
+model targets a *fresh* collection instead of corrupting the current one.
 
 | Field | Type | What it is |
 |---|---|---|
@@ -60,14 +78,28 @@ sparse-inverted BM25 index, and `namespace_id` / `object_uri` / `chunk_kind` get
 scalar inverted indexes for fast filtering (skipped on Milvus Lite, which falls
 back to a scan).
 
-### Partition key and how fields map to your data
+### Connectors, namespaces, and the partition key
 
-The **partition key is `connector_uri`**, so each connector's chunks sit in their
-own partition. A scoped query (`mfs search "…" postgres://prod`) only touches that
-connector's partition; `--all` fans across them. One collection keeps operations
-simple; the partition key keeps scoped search fast.
+Three things scope a chunk, at three levels:
 
-The other fields are just your data, addressed at three levels of granularity:
+- **Connector** is the **partition key** (`connector_uri`). Each connector's
+  chunks sit in their own partition, so a scoped query
+  (`mfs search "…" postgres://prod`) only touches that connector's partition,
+  while `--all` fans across them.
+- **Namespace** is the tenant boundary. By default (`collection_strategy =
+  "shared"`) all namespaces share the one collection and are separated by the
+  `namespace_id` field; set `collection_strategy = "per_namespace"` and each
+  namespace gets its own collection (`mfs_chunks__{namespace}__v{N}_d{dim}`) for
+  hard isolation. Today MFS runs a single `default` namespace with zero config;
+  per-user / per-workspace namespaces are a [v0.5+ direction](roadmap.md).
+- **Schema and model version** are baked into the collection name, so an
+  incompatible change — a new embedding dimension, a schema bump — lands in a
+  fresh collection instead of mixing with the old one.
+
+### How the fields map to your data
+
+Beyond those, the fields are just your data, addressed at three levels of
+granularity:
 
 ```text
 connector_uri   postgres://prod          ← which source

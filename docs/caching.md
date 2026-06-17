@@ -1,13 +1,14 @@
 # Caching
 
-The two expensive parts of ingest are **converting** a source (a PDF into text, an
-image into a description) and **calling models** (embeddings, VLM, summaries). MFS
-keeps two caches so it almost never pays for the same work twice. They sit at
-different points and are keyed differently, so it's worth knowing which is which.
+The two expensive parts of ingest are **converting** a source — turning a PDF or
+Office doc into text — and **calling models** — embeddings, image (VLM)
+descriptions, and summaries. MFS keeps two caches so it almost never pays for the
+same work twice. They sit at different points and are keyed differently, so it's
+worth knowing which holds what.
 
 | | Artifact cache | Transformation cache |
 |---|---|---|
-| Holds | a converted object — Markdown from a PDF, a head preview, VLM text | model call outputs — embeddings, VLM descriptions, summaries |
+| Holds | converted object bytes — Markdown from a PDF, a structured head preview | model-call outputs — embeddings, image (VLM) descriptions, summaries |
 | Keyed by | object + kind | content hash + model |
 | Reused | per object, to serve reads | across objects, connectors, and namespaces |
 | Bytes live in | the filesystem / object store (a row in `artifact_cache` points to them) | its own table (`transformation_cache`) |
@@ -18,11 +19,13 @@ recompute, not correctness.
 
 ## Artifact cache
 
-When MFS converts an object (PDF → Markdown, an image → VLM text) or grabs a head
-preview, it stores the result as an **artifact** so the next `cat` / `head` /
-`tail` reads the converted bytes instead of going back to the connector and
-converting again. The kinds in use today are `converted_md`, `head_cache`, and
-`vlm_text`.
+When MFS converts an object (a PDF or Office doc → Markdown) or grabs a head
+preview of a structured object, it stores the result as an **artifact** so the
+next `cat` / `head` / `tail` reads the converted bytes instead of going back to
+the connector and converting again. The kinds in use today are `converted_md`
+(converted document text) and `head_cache` (a structured-object preview). An
+image's VLM description is *not* an artifact — it's a model output, so it lives in
+the transformation cache below.
 
 The bytes live on the filesystem (or object store); the
 [`artifact_cache` table](schema.md#the-metadata-database) is just the index —
@@ -38,10 +41,11 @@ re-converted.
 
 ## Transformation cache
 
-Embeddings, VLM descriptions, and summaries are the calls that cost real money and
-latency. The transformation cache memoizes each one, keyed by **content and
-model** rather than by object, so identical input never gets sent to a provider
-twice.
+Embeddings, image (VLM) descriptions, and summaries are the calls that cost real
+money and latency. The transformation cache memoizes each one, keyed by **content
+and model** rather than by object, so identical input never gets sent to a
+provider twice. (This is where an image's description lives — it's a model output,
+not a converted artifact.)
 
 The key is `cache_key = sha1(input_hash + kind + provider + model + version +
 config)` — where `input_hash` is the hash of the raw input text or bytes. Because
