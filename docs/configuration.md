@@ -270,7 +270,7 @@ token = "env:MFS_API_TOKEN"
 === "Local defaults"
 
     ```bash
-    pip install mfs-server
+    uv tool install mfs-server
     mfs-server setup
     mfs-server run
     ```

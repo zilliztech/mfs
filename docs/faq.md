@@ -16,7 +16,7 @@
 Install the `mfs` CLI, then install and start the server:
 
 ```bash
-pip install mfs-server
+uv tool install mfs-server
 mfs-server setup
 mfs-server run
 ```

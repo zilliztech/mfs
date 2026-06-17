@@ -107,13 +107,13 @@ about an unidentified developer.
 ### 2. Run the server
 
 ```bash
-pip install mfs-server               # or: pipx install mfs-server
+uv tool install mfs-server
 mfs-server setup
 mfs-server run
 ```
 
 Add the connectors you need with extras, e.g.
-`pip install "mfs-server[all-connectors]"`. To work from a checkout instead, see
+`uv tool install "mfs-server[all-connectors]"`. To work from a checkout instead, see
 [Development](development.md).
 
 `mfs-server setup` writes the server config to `$MFS_HOME/server.toml` (default

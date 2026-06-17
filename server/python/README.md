@@ -15,14 +15,14 @@ and the generated SDKs are just clients of this server.
 ## Install
 
 ```bash
-pip install mfs-server                     # core + local ONNX embeddings, Milvus Lite, SQLite
-pip install "mfs-server[all-connectors]"   # add every connector's SDK
-pip install "mfs-server[pg,s3,slack]"      # or just the connectors you need
+uv tool install mfs-server                     # core + local ONNX embeddings, Milvus Lite, SQLite
+uv tool install "mfs-server[all-connectors]"   # add every connector's SDK
+uv tool install "mfs-server[pg,s3,slack]"      # or just the connectors you need
 ```
 
-`pipx install mfs-server` works too if you want it isolated. The defaults run
-fully offline: local ONNX (BGE) embeddings, Milvus Lite, and SQLite, with no
-cloud account or API key.
+`uv tool install` puts `mfs-server` on your PATH in an isolated environment. The
+defaults run fully offline: local ONNX (BGE) embeddings, Milvus Lite, and
+SQLite, with no cloud account or API key.
 
 ## Run
 

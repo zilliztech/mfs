@@ -5,7 +5,7 @@ operator's guide to the shapes that server can take — from a local server on
 your laptop to a container to a Kubernetes split — and how a client reaches each
 one.
 
-The server installs from PyPI (`pip install mfs-server`) or runs from a
+The server installs from PyPI (`uv tool install mfs-server`) or runs from a
 container you build from the repository. For the credential boundary see
 [Auth and secrets](auth-and-secrets.md); for model/provider setup see
 [Providers and processing](providers.md); for backup and restore see
@@ -77,8 +77,8 @@ unauthenticated; every `/v1` endpoint needs the token when auth is on.
 ## Local server
 
 ```bash
-pip install mfs-server                       # base server
-pip install "mfs-server[all-connectors]"     # + every connector's SDK
+uv tool install mfs-server                       # base server
+uv tool install "mfs-server[all-connectors]"     # + every connector's SDK
 
 mfs-server setup                     # optional: write $MFS_HOME/server.toml
 mfs-server run                       # binds 127.0.0.1:13619
@@ -219,13 +219,12 @@ docker build -f deployments/docker/Dockerfile \
   --build-arg ACCEL=1 --build-arg EXTRAS="[all-connectors]" -t mfs-server .
 ```
 
-**For a source / virtualenv install**, build the wheel with maturin (needs a
+**When running from a checkout**, build the extension with maturin (needs a
 Rust toolchain) into the server's environment:
 
 ```bash
 cd server-rs
-uv run --project ../server/python maturin develop --release   # in-place
-# or: maturin build --release && pip install target/wheels/mfs_server_rs-*.whl
+uv run --project ../server/python maturin develop --release
 ```
 
 The server detects it automatically on the next start — nothing to configure.

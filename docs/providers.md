@@ -12,12 +12,12 @@ topologies, use [Deployment](deployment.md).
 
 | Need | Use | Setup path | Credential or service |
 |---|---|---|---|
-| Local default with no API key | `onnx` embeddings | `pip install mfs-server`, then `mfs-server setup --section embedding` or built-in defaults | None |
-| Hosted OpenAI embeddings | `openai` embeddings | `pip install mfs-server`, then `mfs-server setup --section embedding` | `OPENAI_API_KEY` |
-| Google Gemini embeddings | `gemini` embeddings | `pip install "mfs-server[gemini]"`, then `mfs-server setup --section embedding` | `GOOGLE_API_KEY`, or Vertex AI auth for the embedding SDK |
-| Voyage embeddings | `voyage` embeddings | `pip install "mfs-server[voyage]"`, then `mfs-server setup --section embedding` | `VOYAGE_API_KEY` |
-| Local Ollama embeddings | `ollama` embeddings | `pip install "mfs-server[ollama]"`, then `mfs-server setup --section embedding` | Running Ollama server; `OLLAMA_HOST` is optional |
-| Local sentence-transformers embeddings | `local` embeddings | `pip install "mfs-server[local]"`, then `mfs-server setup --section embedding` | None; this extra pulls the sentence-transformers stack |
+| Local default with no API key | `onnx` embeddings | `uv tool install mfs-server`, then `mfs-server setup --section embedding` or built-in defaults | None |
+| Hosted OpenAI embeddings | `openai` embeddings | `uv tool install mfs-server`, then `mfs-server setup --section embedding` | `OPENAI_API_KEY` |
+| Google Gemini embeddings | `gemini` embeddings | `uv tool install "mfs-server[gemini]"`, then `mfs-server setup --section embedding` | `GOOGLE_API_KEY`, or Vertex AI auth for the embedding SDK |
+| Voyage embeddings | `voyage` embeddings | `uv tool install "mfs-server[voyage]"`, then `mfs-server setup --section embedding` | `VOYAGE_API_KEY` |
+| Local Ollama embeddings | `ollama` embeddings | `uv tool install "mfs-server[ollama]"`, then `mfs-server setup --section embedding` | Running Ollama server; `OLLAMA_HOST` is optional |
+| Local sentence-transformers embeddings | `local` embeddings | `uv tool install "mfs-server[local]"`, then `mfs-server setup --section embedding` | None; this extra pulls the sentence-transformers stack |
 | Image-description and summary setup | `openai`, `anthropic`, or `gemini` LLM/VLM | `mfs-server setup --section vlm` | Provider key for the selected LLM/VLM provider |
 
 Provider names are exact. The supported embedding names are `openai`, `onnx`,
@@ -28,18 +28,18 @@ Provider names are exact. The supported embedding names are `openai`, `onnx`,
 The base install includes the OpenAI SDK and the default ONNX embedding stack:
 
 ```bash
-pip install mfs-server
+uv tool install mfs-server
 ```
 
 Alternate provider extras are separate:
 
 ```bash
-pip install "mfs-server[gemini]"
-pip install "mfs-server[voyage]"
-pip install "mfs-server[ollama]"
-pip install "mfs-server[local]"
-pip install "mfs-server[anthropic]"
-pip install "mfs-server[all-providers]"
+uv tool install "mfs-server[gemini]"
+uv tool install "mfs-server[voyage]"
+uv tool install "mfs-server[ollama]"
+uv tool install "mfs-server[local]"
+uv tool install "mfs-server[anthropic]"
+uv tool install "mfs-server[all-providers]"
 ```
 
 `all-providers` installs Gemini, Voyage, Ollama, and Anthropic provider
@@ -55,10 +55,10 @@ models.
 |---|---|---|---|---|---|
 | `onnx` | `gpahal/bge-m3-onnx-int8` | 1024 in the default config; probed from the model by setup | Core | No API key | `mfs-server run` and `mfs-server worker` preload the model at startup; if files are not cached under `$MFS_HOME/onnx-cache/`, startup downloads them. |
 | `openai` | `text-embedding-3-small` | 1536 for the default model | Core | `OPENAI_API_KEY`; `OPENAI_BASE_URL` is optional | No local model download. Unknown model dimensions may require a trial embedding call. |
-| `gemini` | `gemini-embedding-001` | 768 for the default model | `pip install "mfs-server[gemini]"` or `all-providers` | `GOOGLE_API_KEY`, or Vertex AI auth with `GOOGLE_GENAI_USE_VERTEXAI=true` | Known model dimensions use a local table; unknown models require a trial embedding call. |
-| `voyage` | `voyage-3-lite` | 512 for the default model | `pip install "mfs-server[voyage]"` or `all-providers` | `VOYAGE_API_KEY` | Known model dimensions use a local table; unknown models require a trial embedding call. |
-| `ollama` | `nomic-embed-text` | Detected by a trial embed against the selected Ollama model | `pip install "mfs-server[ollama]"` or `all-providers` | Running Ollama server; `OLLAMA_HOST` can point at a non-default host | The selected model must be available to the Ollama server before dimension probing and embedding can succeed. |
-| `local` | `all-MiniLM-L6-v2` | Detected from sentence-transformers model metadata | `pip install "mfs-server[local]"` | No API key | `mfs-server run` and `mfs-server worker` preload the sentence-transformers model on the detected device: CUDA, MPS, then CPU. |
+| `gemini` | `gemini-embedding-001` | 768 for the default model | `uv tool install "mfs-server[gemini]"` or `all-providers` | `GOOGLE_API_KEY`, or Vertex AI auth with `GOOGLE_GENAI_USE_VERTEXAI=true` | Known model dimensions use a local table; unknown models require a trial embedding call. |
+| `voyage` | `voyage-3-lite` | 512 for the default model | `uv tool install "mfs-server[voyage]"` or `all-providers` | `VOYAGE_API_KEY` | Known model dimensions use a local table; unknown models require a trial embedding call. |
+| `ollama` | `nomic-embed-text` | Detected by a trial embed against the selected Ollama model | `uv tool install "mfs-server[ollama]"` or `all-providers` | Running Ollama server; `OLLAMA_HOST` can point at a non-default host | The selected model must be available to the Ollama server before dimension probing and embedding can succeed. |
+| `local` | `all-MiniLM-L6-v2` | Detected from sentence-transformers model metadata | `uv tool install "mfs-server[local]"` | No API key | `mfs-server run` and `mfs-server worker` preload the sentence-transformers model on the detected device: CUDA, MPS, then CPU. |
 
 Prefer the setup wizard when switching providers:
 
@@ -94,8 +94,8 @@ Text summary and image-description clients use the LLM provider registry.
 | Provider | Default text and vision model | Dependency | Runtime requirement |
 |---|---|---|---|
 | `openai` | `gpt-4o-mini` | Core | `OPENAI_API_KEY`; `OPENAI_BASE_URL` is optional |
-| `anthropic` | `claude-sonnet-4-5-20250929` | `pip install "mfs-server[anthropic]"` or `all-providers` | `ANTHROPIC_API_KEY` |
-| `gemini` | `gemini-2.0-flash` | `pip install "mfs-server[gemini]"` or `all-providers` | `GOOGLE_API_KEY`; the Gemini provider module also documents Vertex AI auth |
+| `anthropic` | `claude-sonnet-4-5-20250929` | `uv tool install "mfs-server[anthropic]"` or `all-providers` | `ANTHROPIC_API_KEY` |
+| `gemini` | `gemini-2.0-flash` | `uv tool install "mfs-server[gemini]"` or `all-providers` | `GOOGLE_API_KEY`; the Gemini provider module also documents Vertex AI auth |
 
 Image descriptions and directory/file summaries are both off by default. They
 are two independent subsystems — each has its own enable switch and its own

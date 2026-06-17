@@ -15,7 +15,7 @@ decide what to rely on.
 - **The CLI and the loop.** `mfs add`, `search`, `grep`, `ls`, `tree`, `cat`,
   `head`, `tail`, `export`, and the `connector` / `job` subcommands are the
   steady surface. Examples in these docs track them.
-- **Local first run.** Install the CLI, `pip install mfs-server`, index a
+- **Local first run.** Install the CLI, `uv tool install mfs-server`, index a
   folder — the defaults (ONNX embeddings, Milvus Lite, SQLite, a generated token)
   work offline with no cloud account.
 - **The `/v1` control plane.** `protocol/openapi.yaml` is the source of truth for

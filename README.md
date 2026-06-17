@@ -91,8 +91,8 @@ For project-level installs, re-run the `npx skills add` command to update.
 Run a local server, install the CLI, and drive the same loop directly:
 
 ```bash
-# server — pip install mfs-server (or pipx)
-pip install mfs-server && mfs-server run
+# server — install once as a uv tool, then run
+uv tool install mfs-server && mfs-server run
 
 # CLI — `cargo install mfs-cli`, or the installer on the releases page
 mfs add /tmp/hello-mfs
