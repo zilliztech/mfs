@@ -5,23 +5,25 @@ into rows in the vector index. It is the deepest layer of the architecture — f
 the system-level map, see [Architecture](architecture.md); for the server's
 process and module layout, see [Server](server.md).
 
-The pipeline has two lanes, distinguished by the granularity of the work they
-collect. They run **in parallel** and feed one shared tail:
+The pipeline's shape follows from one question: **at what granularity can a piece
+of work be extracted?**
 
-- **Object Lane** — always on, works at object granularity. Every object becomes
-  a stream of chunks, the chunks become vectors, the vectors become rows in the
-  index.
-- **Job Lane** — optional, controlled by `[summary].enabled`, works at job
-  granularity. It folds each directory of a connector job into a summary,
-  bottom-up. Each summary travels back through the same tail and lands in the
-  same index as one more chunk kind.
+Most indexing is per-object and independent — read one object, split it, embed it
+— so it runs in the **Object Lane**, always on. But some work can't be done one
+object at a time. A directory summary has to fold its children in order
+(bottom-up: a parent only after its sub-directories), so it depends on other
+objects instead of belonging to any single one. That runs at job granularity, in
+the **Job Lane** (optional, enabled by `[summary].enabled`). The Job Lane is the
+general home for that whole class — anything with cross-object ordering or
+dependencies — and a directory summary is, today, its one member.
 
-The lanes are not phases: the Job Lane does not wait for the Object Lane to
-finish. A directory summary folds its children's **source content** (re-read or
-reused from the cache), not their embeddings, so the moment enumeration
-completes the Job Lane can summarize a directory while its files are still being
-embedded. The two lanes hit different backend services (the embedder vs. the
-LLM/VLM), so running them together keeps both busy.
+Both lanes end in the same thing, chunks, so they **converge into one embedding
+tail**: one chunk queue, one embed consumer, one index. A directory summary lands
+as just another chunk kind next to `body`, `row_text`, and the rest. The lanes
+run in parallel — the Job Lane folds children's *source content* (re-read or
+reused from the cache, not their embeddings), so it doesn't wait for the Object
+Lane, and because the two lean on different backends (the embedder vs. the summary
+LLM/VLM), running them together keeps both busy.
 
 Both lanes are wired around the same four concepts. The diagrams below mark
 them with the same icons:
@@ -136,30 +138,49 @@ Notes:
 
 ## Why this shape
 
-Now that the pieces have names, here's what forced them. Three pressures pushed
-the design into the shape above:
+The design follows from a few first principles, not from any single feature.
 
-1. **Workloads are heterogeneous and bursty.** Different connectors emit very
-   different chunk volumes — a Postgres table can produce millions of small
-   row-records, a single PDF only tens of structured chunks, a Slack channel
-   sits somewhere in between. The pipeline must not let the chunkiest source
-   blow up memory.
-2. **The expensive steps are external.** Embedding, VLM description, summary
-   generation. Per-call latency and per-call cost are high; both drop sharply
-   with batch size. The pipeline must aim for the densest possible batches
-   even when many small tasks run side-by-side.
-3. **Crashes happen mid-stream.** A worker restart must not duplicate index
-   rows, double-charge the provider, or silently skip work that was almost
-   done.
+### Two lanes, because granularity differs
 
-How each maps to a piece you've now seen:
+The split is by the one thing that actually varies: **the granularity at which
+work can be extracted.** If a piece of work can be done one object at a time, with
+no dependence on other objects, it takes the Object Lane. If it can't — because it
+needs an order, or it folds several objects together — it takes the Job Lane. A
+directory summary is the standing example: a parent can only be summarized after
+its children, so the work is inherently job-level, not object-level. The lane is
+the general home for that class, so future cross-object work (other rollups,
+dependency-ordered derivations) joins it without a new pipeline. Both lanes end in
+chunks, so they converge into one embedding tail.
 
-| Concern | Mechanism |
-|---|---|
-| **Memory ceiling** | The bounded `ChunkQueue` makes producers block when the consumer falls behind. The in-flight chunk set is hard-bounded regardless of how chunky the source is. |
-| **Batch density** | One process-wide `EmbedConsumer` accumulates chunks across every task and every object kind, then flushes one embed call + one upsert per batch. Small tasks piggyback on large tasks' batches. |
-| **Per-object correctness** | The consumer issues `delete_by_object` on a task's first chunk, before any new upsert lands. Re-running a task is idempotent; the index never holds an overlap between old and new versions of the same object. |
-| **Extensible to new object kinds** | A typed producer per object kind. Adding a new kind (audio, video, …) is one new producer plus one dispatch entry — no change to the consumer, the cache, or the index path. |
-| **Extensible to new aggregate kinds** | The Job Lane emits its output back into the `ChunkQueue` as a new `chunk_kind`. Future aggregate types — file-level summaries, table-level summaries, project READMEs — follow the same pattern, with no second embed path. |
-| **Crash recovery** | The `ObjectTask` queue is durable. The Job Lane's directory tree is in-memory but rebuilt from durable object state on restart. |
-| **Provider cost** | Model outputs (VLM, summary) are memoized in the content-addressed Transformation Cache, and file conversions in the per-object Artifact Cache keyed by a content+version token — so the two lanes never re-run the same conversion or double-call the same provider for the same input, even when they miss concurrently. |
+### Two queues, to decouple producer from consumer
+
+A queue between stages lets each side run at its own pace: producers pile work up,
+and when the queue fills they **block** (backpressure) and wait their turn rather
+than running the server out of memory. MFS uses two queues for two different jobs,
+and they're built differently on purpose.
+
+**The upstream queue is durable** — the `ObjectTask` table. Its job is to record
+*what state each object is in*: done, failed, or not yet processed. That record is
+the whole point. A second `mfs add`, a cancel, or a duplicate request is resolved
+against it; and because it survives a crash, a restart simply resumes. This is
+what makes the pipeline idempotent and recoverable — re-runs, duplicates, and
+"index, then cancel" are all settled here, at the durable front of the line.
+
+**The downstream queue is in-memory** — the `ChunkQueue`. An embed consumer pulls
+the already-split chunks from it and embeds them in batches. Putting a queue in
+front of that consumer is what lets the **batch size be tuned freely**, and that
+matters because **embedding is the slowest step in the system — the bottleneck —**
+and different embedding services have very different throughput, so it must be the
+operator's to configure. This queue doesn't need to be durable: splitting an
+object into chunks is fast and cheap, so if the in-memory queue is lost in a
+crash, the durable upstream queue just replays those objects and the chunks are
+remade in moments.
+
+### One tail, so every kind shares one path
+
+Because both lanes converge on the same `ChunkQueue` → embed consumer → index,
+there is exactly one embedding path and one upsert path. A new chunk kind — a
+file-level summary, a table rollup — is just another value flowing through it, with
+no second embed path and no second collection. And since the consumer batches
+across every task and kind at once, a small task rides along in a large one's
+batch, keeping that expensive embed call dense.
