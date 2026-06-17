@@ -78,21 +78,21 @@ run it defaults to `~/.mfs`; the Docker image and Compose setup use `/data`.
 Run the full server wizard:
 
 ```bash
-uv run mfs-server setup
+mfs-server setup
 ```
 
 Run a single section later:
 
 ```bash
-uv run mfs-server setup --section embedding
-uv run mfs-server setup --section auth
+mfs-server setup --section embedding
+mfs-server setup --section auth
 ```
 
 Write and run a specific config file:
 
 ```bash
-uv run mfs-server setup --config /tmp/mfs-server.toml
-uv run mfs-server run --config /tmp/mfs-server.toml
+mfs-server setup --config /tmp/mfs-server.toml
+mfs-server run --config /tmp/mfs-server.toml
 ```
 
 The wizard walks these sections in order:
@@ -270,10 +270,9 @@ token = "env:MFS_API_TOKEN"
 === "Local defaults"
 
     ```bash
-    cd mfs/server/python
-    uv sync
-    uv run mfs-server setup
-    uv run mfs-server run
+    pip install mfs-server
+    mfs-server setup
+    mfs-server run
     ```
 
     In another terminal:
@@ -287,7 +286,7 @@ token = "env:MFS_API_TOKEN"
 
     ```bash
     export MFS_API_TOKEN="replace-with-a-shared-token"
-    uv run mfs-server run
+    mfs-server run
     ```
 
     On clients:
@@ -303,12 +302,12 @@ token = "env:MFS_API_TOKEN"
     ```bash
     export MILVUS_URI="$ZILLIZ_URI"
     export MILVUS_TOKEN="$ZILLIZ_TOKEN"
-    uv run mfs-server run
+    mfs-server run
     ```
 
 === "Postgres metadata"
 
     ```bash
     export MFS_METADATA_DSN="postgresql://user:pass@host:5432/mfs"
-    uv run mfs-server run
+    mfs-server run
     ```

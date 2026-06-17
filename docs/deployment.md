@@ -1,12 +1,12 @@
 # Deployment
 
 You run one `mfs-server`; everything else points at it. This page is the
-operator's guide to the shapes that server can take — from a source checkout on
+operator's guide to the shapes that server can take — from a local server on
 your laptop to a container to a Kubernetes split — and how a client reaches each
 one.
 
-The CLI is published; for now the server runs from the repository source or a
-container you build from it. For the credential boundary see
+The server installs from PyPI (`pip install mfs-server`) or runs from a
+container you build from the repository. For the credential boundary see
 [Auth and secrets](auth-and-secrets.md); for model/provider setup see
 [Providers and processing](providers.md); for backup and restore see
 [Storage and backup](storage-and-backup.md).
@@ -15,7 +15,7 @@ container you build from it. For the credential boundary see
 
 | Topology | What runs | Best for | State lives in |
 |---|---|---|---|
-| Source server | `mfs-server run` + the `mfs` CLI on one host | Local use, evaluation, connector development | `$MFS_HOME` (default `~/.mfs`) |
+| Local server | `mfs-server run` + the `mfs` CLI on one host | Local use, evaluation, connector development | `$MFS_HOME` (default `~/.mfs`) |
 | Docker all-in-one | One container running `mfs-server run` | An isolated, repeatable server | a `/data` volume |
 | Compose all-in-one | The same container wrapped in Compose | Repeatable container startup | the `mfs-data` volume at `/data` |
 | Kubernetes api/worker | Separate API and worker Deployments + a Service | Horizontal scale | Postgres, object storage, managed Milvus/Zilliz |
@@ -74,18 +74,19 @@ unauthenticated; every `/v1` endpoint needs the token when auth is on.
 | Direct HTTP client | Send `Authorization: Bearer <token>` on `/v1`. |
 | Kubernetes | One shared API token for all API replicas, from the configured secret. |
 
-## Source server
+## Local server
 
 ```bash
-git clone https://github.com/zilliztech/mfs.git
-cd mfs/server/python
+pip install mfs-server                       # base server
+pip install "mfs-server[all-connectors]"     # + every connector's SDK
 
-uv sync                              # base server
-uv sync --extra all-connectors       # + every connector's SDK
-
-uv run mfs-server setup              # optional: write $MFS_HOME/server.toml
-uv run mfs-server run                # binds 127.0.0.1:13619
+mfs-server setup                     # optional: write $MFS_HOME/server.toml
+mfs-server run                       # binds 127.0.0.1:13619
 ```
+
+To run from a checkout instead — for connector development or local changes —
+`uv sync` in `server/python` and prefix the commands with `uv run` (see
+[Development](development.md)).
 
 The first-run defaults are fully local and need no API key: ONNX embeddings
 (`gpahal/bge-m3-onnx-int8`, 1024 dims), Milvus Lite, SQLite, a local artifact

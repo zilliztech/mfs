@@ -91,9 +91,8 @@ For project-level installs, re-run the `npx skills add` command to update.
 Run a local server, install the CLI, and drive the same loop directly:
 
 ```bash
-# server — from source until it's published
-git clone https://github.com/zilliztech/mfs.git
-cd mfs/server/python && uv sync && uv run mfs-server run
+# server — pip install mfs-server (or pipx)
+pip install mfs-server && mfs-server run
 
 # CLI — `cargo install mfs-cli`, or the installer on the releases page
 mfs add /tmp/hello-mfs
@@ -631,8 +630,8 @@ There are two ways to configure the server, and they write the same `server.toml
 </p>
 
 ```bash
-uv run mfs-server setup                      # full interactive walkthrough
-uv run mfs-server setup --section embedding  # re-run just one section
+mfs-server setup                      # full interactive walkthrough
+mfs-server setup --section embedding  # re-run just one section
 ```
 
 What each section of `server.toml` configures:

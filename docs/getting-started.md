@@ -86,17 +86,15 @@ flowchart LR
 
 ### 1. Install the CLI
 
-Install the published release:
-
 ```bash
 curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/zilliztech/mfs/releases/download/v0.4.0/mfs-cli-installer.sh | sh
+  https://github.com/zilliztech/mfs/releases/latest/download/mfs-cli-installer.sh | sh
 ```
 
 Or from crates.io:
 
 ```bash
-cargo install mfs-cli --version 0.4.0
+cargo install mfs-cli
 ```
 
 ```bash
@@ -106,17 +104,17 @@ mfs --version
 On macOS, run `xattr -d com.apple.quarantine $(which mfs)` once if you're prompted
 about an unidentified developer.
 
-### 2. Run the server from source
-
-For now, run the server from the repository source tree:
+### 2. Run the server
 
 ```bash
-git clone https://github.com/zilliztech/mfs.git
-cd mfs/server/python
-uv sync
-uv run mfs-server setup
-uv run mfs-server run
+pip install mfs-server               # or: pipx install mfs-server
+mfs-server setup
+mfs-server run
 ```
+
+Add the connectors you need with extras, e.g.
+`pip install "mfs-server[all-connectors]"`. To work from a checkout instead, see
+[Development](development.md).
 
 `mfs-server setup` writes the server config to `$MFS_HOME/server.toml` (default
 `~/.mfs`). Press Enter through the wizard to keep the local defaults:

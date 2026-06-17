@@ -6,16 +6,16 @@ summary of what's stable, what's still rough, and what isn't here yet, so you ca
 decide what to rely on.
 
 !!! warning "Pin what you test"
-    During the beta, pin the CLI version and run the server from the same
-    repository checkout you're evaluating. Verify any API or SDK integration
-    against the running server, not just the generated client docs.
+    During the beta, pin the CLI and `mfs-server` versions you're evaluating and
+    keep them in step. Verify any API or SDK integration against the running
+    server, not just the generated client docs.
 
 ## What's stable
 
 - **The CLI and the loop.** `mfs add`, `search`, `grep`, `ls`, `tree`, `cat`,
   `head`, `tail`, `export`, and the `connector` / `job` subcommands are the
   steady surface. Examples in these docs track them.
-- **Local first run.** Install the CLI, run the server from source, index a
+- **Local first run.** Install the CLI, `pip install mfs-server`, index a
   folder — the defaults (ONNX embeddings, Milvus Lite, SQLite, a generated token)
   work offline with no cloud account.
 - **The `/v1` control plane.** `protocol/openapi.yaml` is the source of truth for
@@ -26,8 +26,6 @@ decide what to rely on.
 
 ## What's still beta
 
-- **Server distribution.** The CLI is published; the server runs from the
-  repository source (or a container you build from it). It isn't on PyPI yet.
 - **SDK coverage.** The generated Python and TypeScript clients cover the common
   server, ingest, retrieval, and browse calls. A few endpoints (connector
   management, the file manifest/upload steps, `head`/`tail`/`export`, job

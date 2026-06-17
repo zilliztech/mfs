@@ -13,13 +13,12 @@
 
 ## What is the shortest first run?
 
-Install the published `mfs` CLI, then run the server from source:
+Install the `mfs` CLI, then install and start the server:
 
 ```bash
-cd mfs/server/python
-uv sync
-uv run mfs-server setup
-uv run mfs-server run
+pip install mfs-server
+mfs-server setup
+mfs-server run
 ```
 
 In another terminal, verify the server, add a small folder, search, and reopen
@@ -151,12 +150,12 @@ directly for operations missing from the generated clients.
 
 | Shape | When to use it |
 |---|---|
-| Source `mfs-server run` | Local use, evaluation, and connector development. |
+| Local `mfs-server run` | Local use, evaluation, and connector development. |
 | Docker / Compose all-in-one | An isolated, repeatable single-host server. |
 | Kubernetes api/worker | Horizontal scale against externalized state. |
 
-The CLI is published; the server runs from source or a container you build from
-it. See [Deployment](deployment.md) for each shape.
+The server installs from PyPI or runs from a container you build from the
+repository. See [Deployment](deployment.md) for each shape.
 
 ## How do I troubleshoot a confusing result?
 

@@ -325,9 +325,8 @@ file under `$MFS_HOME`.
 | `mfs serve status` | Report whether the recorded pid is alive. |
 | `mfs serve logs` | Print the last 40 lines from `$MFS_HOME/server.log`. |
 
-Use the source-run commands in [Quickstart](getting-started.md) or
-[Deployment](deployment.md) when you need explicit `uv run mfs-server setup`
-and `uv run mfs-server run` control.
+See [Quickstart](getting-started.md) or [Deployment](deployment.md) when you
+need explicit `mfs-server setup` and `mfs-server run` control.
 
 ## JSON and Errors
 
