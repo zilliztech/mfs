@@ -731,6 +731,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#which-part-of-each-object-gets-searched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which part of each object gets searched
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#one-command-reopens-any-result" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2240,6 +2251,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#which-part-of-each-object-gets-searched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which part of each object gets searched
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#one-command-reopens-any-result" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2419,6 +2441,78 @@ it's made searchable:</p>
 <p>There are only a few kinds, so the expensive work behind each one — splitting,
 embedding, indexing — is built once and reused by every source. Bringing in a new
 source is mostly a matter of saying which kind each thing is.</p>
+<h2 id="which-part-of-each-object-gets-searched">Which part of each object gets searched<a class="headerlink" href="#which-part-of-each-object-gets-searched" title="Permanent link">&para;</a></h2>
+<p>For a file or a message this is obvious — the file's text, the message's text, all
+of it. The interesting case is structured data: a database row has many columns,
+and <em>you</em> decide which ones are worth searching. You point MFS at three sets of
+columns per table:</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Which columns</th>
+<th>For a <code>tickets</code> table</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The searchable text (what gets embedded)</td>
+<td><code>text_fields</code></td>
+<td><code>title</code>, <code>description</code></td>
+</tr>
+<tr>
+<td>How to reopen the exact row</td>
+<td><code>locator_fields</code></td>
+<td><code>id</code></td>
+</tr>
+<tr>
+<td>Kept alongside for filtering and display</td>
+<td><code>metadata_fields</code></td>
+<td><code>status</code>, <code>priority</code>, <code>updated_at</code></td>
+</tr>
+</tbody>
+</table>
+<p>So one ticket row becomes a record built from its title and description,
+reopenable by its <code>id</code>, with its status and priority carried along. Columns you
+don't list — an internal flag, a foreign key — are simply ignored, and a table you
+give no <code>text_fields</code> still shows up to browse and <code>grep</code> but has nothing to search
+by meaning.</p>
+<p>You don't always have to set this up. The chat and SaaS sources ship sensible
+defaults — a Jira issue indexes its summary, description, and comments; a Slack
+thread indexes each message as "who: what" — so they work the moment you add them,
+and the field lists are only there to override. Databases are the case you
+normally configure, since only you know which columns are worth searching.</p>
+<p>And some things deliberately aren't searched:</p>
+<table>
+<thead>
+<tr>
+<th>Object</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>code and documents (PDF, Markdown, docx…)</td>
+<td>converted to text and embedded — fully searchable</td>
+</tr>
+<tr>
+<td>each table's schema</td>
+<td>a small summary, so you can search the structure ("which table has an email column?")</td>
+</tr>
+<tr>
+<td>an image</td>
+<td>embedded only if image descriptions are turned on</td>
+</tr>
+<tr>
+<td>raw structured text — <code>.json</code>, <code>.csv</code>, <code>.yaml</code>, <code>.log</code></td>
+<td>you can browse and <code>grep</code> it, but it isn't embedded for semantic search</td>
+</tr>
+<tr>
+<td>a binary, or anything marked not-indexable</td>
+<td>kept for browsing only</td>
+</tr>
+</tbody>
+</table>
 <h2 id="one-command-reopens-any-result">One command reopens any result<a class="headerlink" href="#one-command-reopens-any-result" title="Permanent link">&para;</a></h2>
 <p>A search result is only useful if you can reopen exactly what it found — a few
 lines of a file, or one row of a table. So every result comes back with two
