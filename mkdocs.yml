@@ -41,6 +41,8 @@ nav:
     - Robustness: robustness.md
     - Search and browse: search-and-browse.md
     - Ingest pipeline: ingest-pipeline.md
+    - Schema design: schema.md
+    - Caching: caching.md
   - Connectors:
     - Overview: connectors.md
     - file: connectors/file.md
