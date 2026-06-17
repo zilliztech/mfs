@@ -2441,7 +2441,7 @@
 operator's guide to the shapes that server can take — from a local server on
 your laptop to a container to a Kubernetes split — and how a client reaches each
 one.</p>
-<p>The server installs from PyPI (<code>pip install mfs-server</code>) or runs from a
+<p>The server installs from PyPI (<code>uv tool install mfs-server</code>) or runs from a
 container you build from the repository. For the credential boundary see
 <a href="../auth-and-secrets/">Auth and secrets</a>; for model/provider setup see
 <a href="../providers/">Providers and processing</a>; for backup and restore see
@@ -2586,8 +2586,8 @@ unauthenticated; every <code>/v1</code> endpoint needs the token when auth is on
 </tbody>
 </table>
 <h2 id="local-server">Local server<a class="headerlink" href="#local-server" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mfs-server<span class="w">                       </span><span class="c1"># base server</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mfs-server[all-connectors]&quot;</span><span class="w">     </span><span class="c1"># + every connector&#39;s SDK</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>mfs-server<span class="w">                       </span><span class="c1"># base server</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mfs-server[all-connectors]&quot;</span><span class="w">     </span><span class="c1"># + every connector&#39;s SDK</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>mfs-server<span class="w"> </span>setup<span class="w">                     </span><span class="c1"># optional: write $MFS_HOME/server.toml</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>mfs-server<span class="w"> </span>run<span class="w">                       </span><span class="c1"># binds 127.0.0.1:13619</span>
@@ -2724,11 +2724,10 @@ compiles the wheel with a Rust toolchain and installs it; the default
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>docker<span class="w"> </span>build<span class="w"> </span>-f<span class="w"> </span>deployments/docker/Dockerfile<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span>--build-arg<span class="w"> </span><span class="nv">ACCEL</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>--build-arg<span class="w"> </span><span class="nv">EXTRAS</span><span class="o">=</span><span class="s2">&quot;[all-connectors]&quot;</span><span class="w"> </span>-t<span class="w"> </span>mfs-server<span class="w"> </span>.
 </code></pre></div>
-<p><strong>For a source / virtualenv install</strong>, build the wheel with maturin (needs a
+<p><strong>When running from a checkout</strong>, build the extension with maturin (needs a
 Rust toolchain) into the server's environment:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nb">cd</span><span class="w"> </span>server-rs
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>uv<span class="w"> </span>run<span class="w"> </span>--project<span class="w"> </span>../server/python<span class="w"> </span>maturin<span class="w"> </span>develop<span class="w"> </span>--release<span class="w">   </span><span class="c1"># in-place</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># or: maturin build --release &amp;&amp; pip install target/wheels/mfs_server_rs-*.whl</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>uv<span class="w"> </span>run<span class="w"> </span>--project<span class="w"> </span>../server/python<span class="w"> </span>maturin<span class="w"> </span>develop<span class="w"> </span>--release
 </code></pre></div>
 <p>The server detects it automatically on the next start — nothing to configure.</p>
 <h2 id="environment-variables">Environment variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>

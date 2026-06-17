@@ -2470,12 +2470,12 @@ over HTTP. Here is the same first run, done by hand.</p>
 <p>On macOS, run <code>xattr -d com.apple.quarantine $(which mfs)</code> once if you're prompted
 about an unidentified developer.</p>
 <h3 id="2-run-the-server">2. Run the server<a class="headerlink" href="#2-run-the-server" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mfs-server<span class="w">               </span><span class="c1"># or: pipx install mfs-server</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>mfs-server
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mfs-server<span class="w"> </span>setup
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>mfs-server<span class="w"> </span>run
 </code></pre></div>
 <p>Add the connectors you need with extras, e.g.
-<code>pip install "mfs-server[all-connectors]"</code>. To work from a checkout instead, see
+<code>uv tool install "mfs-server[all-connectors]"</code>. To work from a checkout instead, see
 <a href="../development/">Development</a>.</p>
 <p><code>mfs-server setup</code> writes the server config to <code>$MFS_HOME/server.toml</code> (default
 <code>~/.mfs</code>). Press Enter through the wizard to keep the local defaults:</p>
