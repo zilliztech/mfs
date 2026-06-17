@@ -2505,11 +2505,10 @@
 </tbody>
 </table>
 <h2 id="what-is-the-shortest-first-run">What is the shortest first run?<a class="headerlink" href="#what-is-the-shortest-first-run" title="Permanent link">&para;</a></h2>
-<p>Install the published <code>mfs</code> CLI, then run the server from source:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>mfs/server/python
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>uv<span class="w"> </span>sync
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+<p>Install the <code>mfs</code> CLI, then install and start the server:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mfs-server
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>mfs-server<span class="w"> </span>setup
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>mfs-server<span class="w"> </span>run
 </code></pre></div>
 <p>In another terminal, verify the server, add a small folder, search, and reopen
 the exact source:</p>
@@ -2627,7 +2626,7 @@ directly for operations missing from the generated clients.</p>
 </thead>
 <tbody>
 <tr>
-<td>Source <code>mfs-server run</code></td>
+<td>Local <code>mfs-server run</code></td>
 <td>Local use, evaluation, and connector development.</td>
 </tr>
 <tr>
@@ -2640,8 +2639,8 @@ directly for operations missing from the generated clients.</p>
 </tr>
 </tbody>
 </table>
-<p>The CLI is published; the server runs from source or a container you build from
-it. See <a href="../deployment/">Deployment</a> for each shape.</p>
+<p>The server installs from PyPI or runs from a container you build from the
+repository. See <a href="../deployment/">Deployment</a> for each shape.</p>
 <h2 id="how-do-i-troubleshoot-a-confusing-result">How do I troubleshoot a confusing result?<a class="headerlink" href="#how-do-i-troubleshoot-a-confusing-result" title="Permanent link">&para;</a></h2>
 <p>Start with the ladder that separates endpoint, auth, job, indexing, and browse
 state:</p>

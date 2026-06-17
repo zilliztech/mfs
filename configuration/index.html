@@ -2535,15 +2535,15 @@ token when the container is removed.</p>
 </div>
 <h2 id="setup-wizard-sections">Setup Wizard Sections<a class="headerlink" href="#setup-wizard-sections" title="Permanent link">&para;</a></h2>
 <p>Run the full server wizard:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs-server<span class="w"> </span>setup
 </code></pre></div>
 <p>Run a single section later:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>embedding
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>auth
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>embedding
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>auth
 </code></pre></div>
 <p>Write and run a specific config file:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w"> </span>--config<span class="w"> </span>/tmp/mfs-server.toml
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run<span class="w"> </span>--config<span class="w"> </span>/tmp/mfs-server.toml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs-server<span class="w"> </span>setup<span class="w"> </span>--config<span class="w"> </span>/tmp/mfs-server.toml
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mfs-server<span class="w"> </span>run<span class="w"> </span>--config<span class="w"> </span>/tmp/mfs-server.toml
 </code></pre></div>
 <p>The wizard walks these sections in order:</p>
 <table>
@@ -2916,10 +2916,9 @@ and <a href="../troubleshooting/">Troubleshooting</a>.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Local defaults</label><label for="__tabbed_1_2">Known token</label><label for="__tabbed_1_3">Remote Milvus</label><label for="__tabbed_1_4">Postgres metadata</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>mfs/server/python
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>uv<span class="w"> </span>sync
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mfs-server
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mfs-server<span class="w"> </span>setup
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>mfs-server<span class="w"> </span>run
 </code></pre></div>
 <p>In another terminal:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>status
@@ -2928,7 +2927,7 @@ and <a href="../troubleshooting/">Troubleshooting</a>.</p>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_TOKEN</span><span class="o">=</span><span class="s2">&quot;replace-with-a-shared-token&quot;</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mfs-server<span class="w"> </span>run
 </code></pre></div>
 <p>On clients:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_URL</span><span class="o">=</span>http://127.0.0.1:13619
@@ -2939,12 +2938,12 @@ and <a href="../troubleshooting/">Troubleshooting</a>.</p>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MILVUS_URI</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$ZILLIZ_URI</span><span class="s2">&quot;</span>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MILVUS_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$ZILLIZ_TOKEN</span><span class="s2">&quot;</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>mfs-server<span class="w"> </span>run
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_METADATA_DSN</span><span class="o">=</span><span class="s2">&quot;postgresql://user:pass@host:5432/mfs&quot;</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>mfs-server<span class="w"> </span>run
 </code></pre></div>
 </div>
 </div>

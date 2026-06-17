@@ -1672,10 +1672,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#source-server" class="md-nav__link">
+  <a href="#local-server" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Source server
+        Local server
       
     </span>
   </a>
@@ -2323,10 +2323,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#source-server" class="md-nav__link">
+  <a href="#local-server" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Source server
+        Local server
       
     </span>
   </a>
@@ -2438,11 +2438,11 @@
 
 <h1 id="deployment">Deployment<a class="headerlink" href="#deployment" title="Permanent link">&para;</a></h1>
 <p>You run one <code>mfs-server</code>; everything else points at it. This page is the
-operator's guide to the shapes that server can take — from a source checkout on
+operator's guide to the shapes that server can take — from a local server on
 your laptop to a container to a Kubernetes split — and how a client reaches each
 one.</p>
-<p>The CLI is published; for now the server runs from the repository source or a
-container you build from it. For the credential boundary see
+<p>The server installs from PyPI (<code>pip install mfs-server</code>) or runs from a
+container you build from the repository. For the credential boundary see
 <a href="../auth-and-secrets/">Auth and secrets</a>; for model/provider setup see
 <a href="../providers/">Providers and processing</a>; for backup and restore see
 <a href="../storage-and-backup/">Storage and backup</a>.</p>
@@ -2458,7 +2458,7 @@ container you build from it. For the credential boundary see
 </thead>
 <tbody>
 <tr>
-<td>Source server</td>
+<td>Local server</td>
 <td><code>mfs-server run</code> + the <code>mfs</code> CLI on one host</td>
 <td>Local use, evaluation, connector development</td>
 <td><code>$MFS_HOME</code> (default <code>~/.mfs</code>)</td>
@@ -2585,16 +2585,16 @@ unauthenticated; every <code>/v1</code> endpoint needs the token when auth is on
 </tr>
 </tbody>
 </table>
-<h2 id="source-server">Source server<a class="headerlink" href="#source-server" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/zilliztech/mfs.git
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>mfs/server/python
+<h2 id="local-server">Local server<a class="headerlink" href="#local-server" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>mfs-server<span class="w">                       </span><span class="c1"># base server</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mfs-server[all-connectors]&quot;</span><span class="w">     </span><span class="c1"># + every connector&#39;s SDK</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>uv<span class="w"> </span>sync<span class="w">                              </span><span class="c1"># base server</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>all-connectors<span class="w">       </span><span class="c1"># + every connector&#39;s SDK</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>setup<span class="w">              </span><span class="c1"># optional: write $MFS_HOME/server.toml</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>uv<span class="w"> </span>run<span class="w"> </span>mfs-server<span class="w"> </span>run<span class="w">                </span><span class="c1"># binds 127.0.0.1:13619</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>mfs-server<span class="w"> </span>setup<span class="w">                     </span><span class="c1"># optional: write $MFS_HOME/server.toml</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>mfs-server<span class="w"> </span>run<span class="w">                       </span><span class="c1"># binds 127.0.0.1:13619</span>
 </code></pre></div>
+<p>To run from a checkout instead — for connector development or local changes —
+<code>uv sync</code> in <code>server/python</code> and prefix the commands with <code>uv run</code> (see
+<a href="../development/">Development</a>).</p>
 <p>The first-run defaults are fully local and need no API key: ONNX embeddings
 (<code>gpahal/bge-m3-onnx-int8</code>, 1024 dims), Milvus Lite, SQLite, a local artifact
 cache, VLM off, and an auto-generated bearer token. Verify from another terminal:</p>

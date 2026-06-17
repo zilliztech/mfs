@@ -2297,16 +2297,16 @@ summary of what's stable, what's still rough, and what isn't here yet, so you ca
 decide what to rely on.</p>
 <div class="admonition warning">
 <p class="admonition-title">Pin what you test</p>
-<p>During the beta, pin the CLI version and run the server from the same
-repository checkout you're evaluating. Verify any API or SDK integration
-against the running server, not just the generated client docs.</p>
+<p>During the beta, pin the CLI and <code>mfs-server</code> versions you're evaluating and
+keep them in step. Verify any API or SDK integration against the running
+server, not just the generated client docs.</p>
 </div>
 <h2 id="whats-stable">What's stable<a class="headerlink" href="#whats-stable" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>The CLI and the loop.</strong> <code>mfs add</code>, <code>search</code>, <code>grep</code>, <code>ls</code>, <code>tree</code>, <code>cat</code>,
   <code>head</code>, <code>tail</code>, <code>export</code>, and the <code>connector</code> / <code>job</code> subcommands are the
   steady surface. Examples in these docs track them.</li>
-<li><strong>Local first run.</strong> Install the CLI, run the server from source, index a
+<li><strong>Local first run.</strong> Install the CLI, <code>pip install mfs-server</code>, index a
   folder — the defaults (ONNX embeddings, Milvus Lite, SQLite, a generated token)
   work offline with no cloud account.</li>
 <li><strong>The <code>/v1</code> control plane.</strong> <code>protocol/openapi.yaml</code> is the source of truth for
@@ -2317,8 +2317,6 @@ against the running server, not just the generated client docs.</p>
 </ul>
 <h2 id="whats-still-beta">What's still beta<a class="headerlink" href="#whats-still-beta" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Server distribution.</strong> The CLI is published; the server runs from the
-  repository source (or a container you build from it). It isn't on PyPI yet.</li>
 <li><strong>SDK coverage.</strong> The generated Python and TypeScript clients cover the common
   server, ingest, retrieval, and browse calls. A few endpoints (connector
   management, the file manifest/upload steps, <code>head</code>/<code>tail</code>/<code>export</code>, job
