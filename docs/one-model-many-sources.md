@@ -43,6 +43,45 @@ by every source, the ones that exist today and the ones added later. Bringing in
 new source becomes a matter of *classifying* it, not of building a pipeline for
 it.
 
+## The families of sources, and how a sync works
+
+The kinds aren't scattered at random — in practice today's connectors fall into a
+few families, and a family largely decides what an object is and, especially, how
+a re-sync figures out *what changed*. That last part is where heterogeneity bites
+hardest, so it's the clearest place to watch the model absorb it.
+
+- **Files and blobs** — local folders, S3, Drive, a crawled site, a repo's code.
+  An object is a file; its text is read or converted and chunked as a document or
+  code body. There's no trustworthy "what changed" signal to lean on, so a sync
+  **re-enumerates and compares content fingerprints** — a cheap size/mtime check,
+  then a hash if needed — and a file that has vanished is caught by diffing the
+  full set. (Local files are the one special case: their bytes sit on the client,
+  so they're uploaded first.)
+
+- **Databases and warehouses** — Postgres, MySQL, Mongo, BigQuery, Snowflake. An
+  object is a table or collection, and each **row becomes one searchable record**
+  (the table also gets a schema summary). Here a reliable change signal exists, so
+  a sync rides a **cursor column — usually an `updated_at` timestamp — and pulls
+  only the rows touched since last time**, so re-syncing a million-row table costs
+  almost nothing. And because a query engine is right there, these sources can
+  push a `grep` down into the database instead of scanning it.
+
+- **Messages and mail** — Slack, Discord, Gmail, Feishu. An object is a channel,
+  label, or chat exposing a **stream of messages**, grouped into threads so a hit
+  reopens the whole conversation. Chat history is append-mostly, so a sync simply
+  **advances past the last message it saw** — and, on purpose, it does not infer
+  deletions: a message you stop seeing is treated as "not new", never as "gone".
+
+- **Issues, CRM, and docs** — Jira, Linear, Zendesk, HubSpot, Notion. An object
+  is a project, team, or object type exposing **records**, each rendered into one
+  chunk by a built-in field mapping; like databases, they ride an
+  **updated-timestamp cursor** for incremental sync.
+
+The point isn't the catalogue. It's that four very different change stories —
+re-hash the file, ask the cursor, advance the stream, poll the timestamp — all
+funnel into the same uniform report, so everything *after* the sync is written
+once and behaves identically.
+
 ## One way to point, one way to change
 
 Two more things must be uniform for the model to hold together.
@@ -53,11 +92,12 @@ same kind of handle — a stable address for the object plus a small pointer to 
 slice inside it — and the same read command reopens any of them. You never learn a
 per-source addressing scheme; a result from anywhere is a result you can act on.
 
-**Changing.** Every source detects change in its own way. MFS doesn't try to
-unify the *detection* — it unifies the *report*. However a source works out what
-moved, it speaks the same short vocabulary back: this appeared, this changed, this
-is gone. Re-syncing, incremental updates, and the careful handling of deletions
-are then written once against that vocabulary, never against one source's quirks.
+**Changing.** As the families above show, every source detects change in its own
+way. MFS doesn't try to unify the *detection* — it unifies the *report*. However a
+source works out what moved, it speaks back the same short vocabulary: this
+appeared, this changed, this is gone. Re-syncing, incremental updates, and the
+careful handling of deletions are then written once against that vocabulary, never
+against one source's quirks.
 
 ## Where uniformity stops — on purpose
 
