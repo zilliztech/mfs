@@ -10,31 +10,31 @@
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/connectors/snowflake/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/caching/">
       
       
-        <link rel="prev" href="../bigquery/">
+        <link rel="prev" href="../schema/">
       
       
-        <link rel="next" href="../s3/">
+        <link rel="next" href="../connectors/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/logo.svg">
+      <link rel="icon" href="../assets/logo.svg">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>snowflake - MFS</title>
+        <title>Caching - MFS</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,9 +53,9 @@
       
     
     
-      <link rel="stylesheet" href="../../stylesheets/terminal.css">
+      <link rel="stylesheet" href="../stylesheets/terminal.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#snowflake-snowflake" class="md-skip">
+        <a href="#caching" class="md-skip">
           Skip to content
         </a>
       
@@ -94,9 +94,9 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="MFS" class="md-header__button md-logo" aria-label="MFS" data-md-component="logo">
+    <a href=".." title="MFS" class="md-header__button md-logo" aria-label="MFS" data-md-component="logo">
       
-  <img src="../../assets/logo.svg" alt="logo">
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              snowflake
+              Caching
             
           </span>
         </div>
@@ -194,31 +194,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../.." class="md-tabs__link">
+        <a href=".." class="md-tabs__link">
           
   
   
   Getting started
-
-        </a>
-      </li>
-    
-  
-
-      
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../../architecture/" class="md-tabs__link">
-          
-  
-  
-  Concepts
 
         </a>
       </li>
@@ -236,7 +216,27 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../" class="md-tabs__link">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../connectors/" class="md-tabs__link">
           
   
   
@@ -256,7 +256,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../configuration/" class="md-tabs__link">
+        <a href="../configuration/" class="md-tabs__link">
           
   
   
@@ -276,7 +276,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../cli/" class="md-tabs__link">
+        <a href="../cli/" class="md-tabs__link">
           
   
   
@@ -296,7 +296,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../evaluation/" class="md-tabs__link">
+        <a href="../evaluation/" class="md-tabs__link">
           
   
   
@@ -336,9 +336,9 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="MFS" class="md-nav__button md-logo" aria-label="MFS" data-md-component="logo">
+    <a href=".." title="MFS" class="md-nav__button md-logo" aria-label="MFS" data-md-component="logo">
       
-  <img src="../../assets/logo.svg" alt="logo">
+  <img src="../assets/logo.svg" alt="logo">
 
     </a>
     MFS
@@ -417,7 +417,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -445,7 +445,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../why/" class="md-nav__link">
+      <a href="../why/" class="md-nav__link">
         
   
   
@@ -473,7 +473,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../getting-started/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
@@ -501,7 +501,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../examples/" class="md-nav__link">
+      <a href="../examples/" class="md-nav__link">
         
   
   
@@ -509,261 +509,6 @@
     
   
     Examples
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
-        
-          
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Concepts
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Concepts
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../architecture/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../production/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Design philosophy
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../robustness/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Robustness
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../search-and-browse/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Search and browse
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../ingest-pipeline/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Ingest pipeline
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../schema/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Schema design
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../caching/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Caching
   
 
     
@@ -809,17 +554,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    Connectors
+    Concepts
   
 
     
@@ -830,12 +575,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Connectors
+    Concepts
   
 
           </label>
@@ -848,14 +593,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Overview
+    Architecture
   
 
     
@@ -876,14 +621,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../file/" class="md-nav__link">
+      <a href="../production/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    file
+    Design philosophy
   
 
     
@@ -904,14 +649,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../web/" class="md-nav__link">
+      <a href="../robustness/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    web
+    Robustness
   
 
     
@@ -932,14 +677,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../github/" class="md-nav__link">
+      <a href="../search-and-browse/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    github
+    Search and browse
   
 
     
@@ -960,14 +705,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../postgres/" class="md-nav__link">
+      <a href="../ingest-pipeline/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    postgres
+    Ingest pipeline
   
 
     
@@ -988,294 +733,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../mysql/" class="md-nav__link">
+      <a href="../schema/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    mysql
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../mongo/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    mongo
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../slack/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    slack
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../discord/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    discord
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../gmail/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    gmail
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../notion/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    notion
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../jira/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    jira
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../linear/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    linear
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../zendesk/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    zendesk
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../hubspot/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    hubspot
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../bigquery/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    bigquery
+    Schema design
   
 
     
@@ -1312,7 +777,7 @@
   <span class="md-ellipsis">
     
   
-    snowflake
+    Caching
   
 
     
@@ -1330,7 +795,7 @@
   <span class="md-ellipsis">
     
   
-    snowflake
+    Caching
   
 
     
@@ -1356,10 +821,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-mfs-sees-it" class="md-nav__link">
+  <a href="#artifact-cache" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How MFS sees it
+        Artifact cache
       
     </span>
   </a>
@@ -1367,54 +832,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#credentials" class="md-nav__link">
+  <a href="#transformation-cache" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Credentials
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sync-and-freshness" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sync and freshness
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#search-and-browse" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Search and browse
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#pitfalls" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pitfalls
+        Transformation cache
       
     </span>
   </a>
@@ -1430,6 +851,65 @@
 
               
             
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Connectors
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
               
                 
   
@@ -1437,7 +917,483 @@
   
   
     <li class="md-nav__item">
-      <a href="../s3/" class="md-nav__link">
+      <a href="../connectors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/file/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    file
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    web
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/github/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    github
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/postgres/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    postgres
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/mysql/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mysql
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/mongo/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mongo
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/slack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/discord/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    discord
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/gmail/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    gmail
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/notion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    notion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/jira/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    jira
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/linear/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    linear
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/zendesk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    zendesk
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/hubspot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    hubspot
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/bigquery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    bigquery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/snowflake/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    snowflake
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/s3/" class="md-nav__link">
         
   
   
@@ -1465,7 +1421,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../gdrive/" class="md-nav__link">
+      <a href="../connectors/gdrive/" class="md-nav__link">
         
   
   
@@ -1493,7 +1449,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../feishu/" class="md-nav__link">
+      <a href="../connectors/feishu/" class="md-nav__link">
         
   
   
@@ -1580,7 +1536,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../configuration/" class="md-nav__link">
+      <a href="../configuration/" class="md-nav__link">
         
   
   
@@ -1608,7 +1564,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../auth-and-secrets/" class="md-nav__link">
+      <a href="../auth-and-secrets/" class="md-nav__link">
         
   
   
@@ -1636,7 +1592,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../providers/" class="md-nav__link">
+      <a href="../providers/" class="md-nav__link">
         
   
   
@@ -1664,7 +1620,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../deployment/" class="md-nav__link">
+      <a href="../deployment/" class="md-nav__link">
         
   
   
@@ -1692,7 +1648,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../storage-and-backup/" class="md-nav__link">
+      <a href="../storage-and-backup/" class="md-nav__link">
         
   
   
@@ -1720,7 +1676,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../troubleshooting/" class="md-nav__link">
+      <a href="../troubleshooting/" class="md-nav__link">
         
   
   
@@ -1807,7 +1763,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cli/" class="md-nav__link">
+      <a href="../cli/" class="md-nav__link">
         
   
   
@@ -1835,7 +1791,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/" class="md-nav__link">
+      <a href="../api/" class="md-nav__link">
         
   
   
@@ -1863,7 +1819,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sdks/" class="md-nav__link">
+      <a href="../sdks/" class="md-nav__link">
         
   
   
@@ -1891,7 +1847,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../skills/" class="md-nav__link">
+      <a href="../skills/" class="md-nav__link">
         
   
   
@@ -1919,7 +1875,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../errors/" class="md-nav__link">
+      <a href="../errors/" class="md-nav__link">
         
   
   
@@ -1947,7 +1903,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../glossary/" class="md-nav__link">
+      <a href="../glossary/" class="md-nav__link">
         
   
   
@@ -2034,7 +1990,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../evaluation/" class="md-nav__link">
+      <a href="../evaluation/" class="md-nav__link">
         
   
   
@@ -2062,7 +2018,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../development/" class="md-nav__link">
+      <a href="../development/" class="md-nav__link">
         
   
   
@@ -2090,7 +2046,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../server/" class="md-nav__link">
+      <a href="../server/" class="md-nav__link">
         
   
   
@@ -2118,7 +2074,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../faq/" class="md-nav__link">
+      <a href="../faq/" class="md-nav__link">
         
   
   
@@ -2146,7 +2102,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../roadmap/" class="md-nav__link">
+      <a href="../roadmap/" class="md-nav__link">
         
   
   
@@ -2201,10 +2157,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-mfs-sees-it" class="md-nav__link">
+  <a href="#artifact-cache" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How MFS sees it
+        Artifact cache
       
     </span>
   </a>
@@ -2212,54 +2168,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#credentials" class="md-nav__link">
+  <a href="#transformation-cache" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Credentials
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sync-and-freshness" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sync and freshness
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#search-and-browse" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Search and browse
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#pitfalls" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pitfalls
+        Transformation cache
       
     </span>
   </a>
@@ -2286,78 +2198,91 @@
   
 
 
-<h1 id="snowflake-snowflake">Snowflake (<code>snowflake</code>)<a class="headerlink" href="#snowflake-snowflake" title="Permanent link">&para;</a></h1>
-<p>The <code>snowflake</code> connector indexes Snowflake table rows as searchable records, with
-a schema summary per table.</p>
-<h2 id="how-mfs-sees-it">How MFS sees it<a class="headerlink" href="#how-mfs-sees-it" title="Permanent link">&para;</a></h2>
-<p>Snowflake folds unquoted identifiers to uppercase, so paths and locators are
-uppercase too:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>snowflake://analytics/
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>└── PROD/
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    └── PUBLIC/
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        └── tables/
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>            └── TICKETS/
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                ├── rows.jsonl     table_rows    → one searchable chunk per row
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                └── schema.json    table_schema  → searchable column summary
-</code></pre></div>
-<p>Rows are chunked per-row and need <code>[[objects]].text_fields</code> to become searchable.</p>
-<h2 id="credentials">Credentials<a class="headerlink" href="#credentials" title="Permanent link">&para;</a></h2>
-<p>Three auth modes, selected with <code>auth_mode</code>. <strong>Key-pair is the default and the
-recommended production path.</strong></p>
-<p><strong>Key-pair</strong> (<code>auth_mode = "key-pair"</code>):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>openssl<span class="w"> </span>genrsa<span class="w"> </span><span class="m">2048</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>pkcs8<span class="w"> </span>-topk8<span class="w"> </span>-inform<span class="w"> </span>PEM<span class="w"> </span>-out<span class="w"> </span>rsa_key.p8<span class="w"> </span>-nocrypt
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>openssl<span class="w"> </span>rsa<span class="w"> </span>-in<span class="w"> </span>rsa_key.p8<span class="w"> </span>-pubout<span class="w"> </span>-out<span class="w"> </span>rsa_key.pub
-</code></pre></div>
-<p>Register the public key on the user, then point <code>credential_ref</code> at the private
-key:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">ALTER</span><span class="w"> </span><span class="k">USER</span><span class="w"> </span><span class="n">mfs_reader</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">RSA_PUBLIC_KEY</span><span class="o">=</span><span class="s1">&#39;&lt;rsa_key.pub minus header/footer&gt;&#39;</span><span class="p">;</span>
-</code></pre></div>
-<p><code>credential_ref</code> must resolve to a PEM PKCS#8 RSA private key. If it has a
-passphrase, set <code>private_key_passphrase_ref</code> too.</p>
-<p><strong>Password</strong> (<code>auth_mode = "password"</code>): <code>credential_ref</code> carries the password
-(prefer an <code>env:</code>/<code>file:</code> ref). Snowflake is tightening password login — check your
-account's MFA policy first.</p>
-<p><strong>PAT</strong> (<code>auth_mode = "pat"</code>): issue a Programmatic Access Token in the Snowflake
-UI, attach a network policy covering your egress IPs, and put the token in
-<code>credential_ref</code>. Rotation is just "issue a new PAT, replace the secret".</p>
-<p><img alt="Snowflake Users and roles page" src="https://github.com/user-attachments/assets/102fd1cf-3841-4606-918e-0cff54f356c2" /></p>
-<p><img alt="Snowflake programmatic access tokens section" src="https://github.com/user-attachments/assets/7fae2256-cf98-4750-8236-0fca285ab69f" /></p>
-<p><img alt="Snowflake new programmatic access token dialog" src="https://github.com/user-attachments/assets/9a2ba38a-8bed-4c9b-8c6b-1b6dcafd7909" /></p>
-<p>Use a read-only role with <code>USAGE</code> on the warehouse/database/schemas and <code>SELECT</code>
-on the in-scope tables.</p>
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">account</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;abcdefg-xy12345&quot;</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">user</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader&quot;</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">warehouse</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_wh&quot;</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mfs_reader_role&quot;</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;PROD&quot;</span><span class="w">               </span><span class="c1"># or databases = [&quot;PROD&quot;, &quot;ANALYTICS&quot;]</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">auth_mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;key-pair&quot;</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">credential_ref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file:/etc/mfs/snowflake/rsa_key.p8&quot;</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/PROD/PUBLIC/tables/TICKETS&quot;</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;TITLE&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;DESCRIPTION&quot;</span><span class="p">]</span>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span>
-</code></pre></div>
-<h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
-<p>The connector uses table <code>row_count</code> as its change signal; deletions are caught by
-<code>full_scan</code>. Warehouses may auto-resume on the first query, adding startup
-latency.</p>
-<h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing event&quot;</span><span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;EMAIL column&quot;</span><span class="w"> </span>snowflake://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>mfs<span class="w"> </span>cat<span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;ID&quot;:12345}&#39;</span>
-</code></pre></div>
-<h2 id="pitfalls">Pitfalls<a class="headerlink" href="#pitfalls" title="Permanent link">&para;</a></h2>
+<h1 id="caching">Caching<a class="headerlink" href="#caching" title="Permanent link">&para;</a></h1>
+<p>The two expensive parts of ingest are <strong>converting</strong> a source (a PDF into text, an
+image into a description) and <strong>calling models</strong> (embeddings, VLM, summaries). MFS
+keeps two caches so it almost never pays for the same work twice. They sit at
+different points and are keyed differently, so it's worth knowing which is which.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Artifact cache</th>
+<th>Transformation cache</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Holds</td>
+<td>a converted object — Markdown from a PDF, a head preview, VLM text</td>
+<td>model call outputs — embeddings, VLM descriptions, summaries</td>
+</tr>
+<tr>
+<td>Keyed by</td>
+<td>object + kind</td>
+<td>content hash + model</td>
+</tr>
+<tr>
+<td>Reused</td>
+<td>per object, to serve reads</td>
+<td>across objects, connectors, and namespaces</td>
+</tr>
+<tr>
+<td>Bytes live in</td>
+<td>the filesystem / object store (a row in <code>artifact_cache</code> points to them)</td>
+<td>its own table (<code>transformation_cache</code>)</td>
+</tr>
+<tr>
+<td>If you lose it</td>
+<td>re-converted on next read</td>
+<td>recomputed on next sync</td>
+</tr>
+</tbody>
+</table>
+<p>Neither is a source of truth — both are derived, and losing either costs
+recompute, not correctness.</p>
+<h2 id="artifact-cache">Artifact cache<a class="headerlink" href="#artifact-cache" title="Permanent link">&para;</a></h2>
+<p>When MFS converts an object (PDF → Markdown, an image → VLM text) or grabs a head
+preview, it stores the result as an <strong>artifact</strong> so the next <code>cat</code> / <code>head</code> /
+<code>tail</code> reads the converted bytes instead of going back to the connector and
+converting again. The kinds in use today are <code>converted_md</code>, <code>head_cache</code>, and
+<code>vlm_text</code>.</p>
+<p>The bytes live on the filesystem (or object store); the
+<a href="../schema/#the-metadata-database"><code>artifact_cache</code> table</a> is just the index —
+keyed by <code>(namespace_id, object_uri, artifact_kind)</code>, with a <code>storage_path</code> and a
+<code>source_key</code>. That <code>source_key</code> is a freshness token combining the source content
+with the converter's identity: on the next sync, if it still matches, the artifact
+is reused as-is; if the file changed or the converter was upgraded, it's rebuilt.</p>
+<p>So the artifact cache is <strong>per object</strong>: it's what makes browsing a big PDF or a
+converted doc fast, and it's the shared input the <a href="../ingest-pipeline/">Job Lane</a>
+folds when it summarizes a directory — the children are read from here, not
+re-converted.</p>
+<h2 id="transformation-cache">Transformation cache<a class="headerlink" href="#transformation-cache" title="Permanent link">&para;</a></h2>
+<p>Embeddings, VLM descriptions, and summaries are the calls that cost real money and
+latency. The transformation cache memoizes each one, keyed by <strong>content and
+model</strong> rather than by object, so identical input never gets sent to a provider
+twice.</p>
+<p>The key is <code>cache_key = sha1(input_hash + kind + provider + model + version +
+config)</code> — where <code>input_hash</code> is the hash of the raw input text or bytes. Because
+the model identity is <em>in</em> the key, a hit is valid no matter where the same
+content shows up: a different object, a different connector, even after the Milvus
+collection is rebuilt or the embedding model is rolled back to a prior version.
+Each row also records <code>last_hit_at</code>, so the cache can be evicted LRU.</p>
+<p>Two more properties matter:</p>
 <ul>
-<li>Identifiers fold to uppercase — paths and locators must match the returned
-  casing.</li>
-<li>Rows need <code>text_fields</code> to be searchable.</li>
-<li>Password auth is subject to Snowflake's tightening login policies; prefer
-  key-pair.</li>
+<li><strong>Single-flight.</strong> If several tasks miss on the same key at once, a lock lets
+  exactly one of them make the provider call; the rest wait and reuse the result,
+  instead of all firing the same expensive request.</li>
+<li><strong>Cross-lane.</strong> The Object Lane and the Job Lane share this cache, so the Job
+  Lane summarizing an image draws on the same VLM result the Object Lane already
+  computed — never a second call for the same input.</li>
 </ul>
+<p>This is what makes the everyday cases in <a href="../robustness/">Robustness</a> cheap:
+switching git branches re-embeds only the files whose content actually changed,
+and rebuilding the index from scratch still hits the cache for every chunk whose
+content and model are unchanged.</p>
+<p>For the bandwidth side of the story — uploading only changed bytes — see the
+<code>file_state</code> manifest in <a href="../schema/#the-metadata-database">Schema design</a>.</p>
 
 
 
@@ -2413,10 +2338,10 @@ latency.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
