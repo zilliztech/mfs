@@ -38,6 +38,7 @@ nav:
   - Concepts:
     - Architecture: architecture.md
     - Design philosophy: production.md
+    - One model, many sources: one-model-many-sources.md
     - Robustness: robustness.md
     - Search and browse: search-and-browse.md
     - Ingest pipeline: ingest-pipeline.md
