@@ -59,7 +59,7 @@ the user revokes access.
 ```toml
 token = "env:SLACK_BOT_TOKEN"
 channel_types = ["public_channel"]   # + private_channel, mpim, im
-oldest = "now-30d"                    # optional history floor
+oldest = "1700000000"                 # optional history floor: unix ts (seconds)
 max_read_rows = 50000
 ```
 

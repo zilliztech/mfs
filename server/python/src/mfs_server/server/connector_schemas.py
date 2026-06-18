@@ -66,7 +66,7 @@ SCHEMAS: dict[str, ConnectorSchema] = {
             ConnectorField(
                 "allowed_domains", "Allowed domains (limit crawl scope)", multi=True, required=False
             ),
-            ConnectorField("max_pages", "Max pages", type="int", default="100", required=False),
+            ConnectorField("max_pages", "Max pages", type="int", default="50", required=False),
         ],
     ),
     "s3": ConnectorSchema(
@@ -262,7 +262,12 @@ SCHEMAS: dict[str, ConnectorSchema] = {
             ConnectorField(
                 "username", "Email (Cloud) — leave empty for Server PAT", required=False
             ),
-            ConnectorField("api_token", "API token (Cloud) or PAT (Server)", secret=True),
+            ConnectorField(
+                "api_token", "API token (Cloud auth: email + token)", secret=True, required=False
+            ),
+            ConnectorField(
+                "token", "Personal Access Token (Server / DC auth)", secret=True, required=False
+            ),
             ConnectorField(
                 "projects",
                 "Project keys (comma-separated, empty = all)",
@@ -343,7 +348,7 @@ SCHEMAS: dict[str, ConnectorSchema] = {
                 help="comma-separated: public_channel, private_channel, mpim, im",
             ),
             ConnectorField(
-                "oldest", "Oldest history boundary (e.g. now-30d, or unix ts)", required=False
+                "oldest", "Oldest history boundary (unix timestamp in seconds)", required=False
             ),
             ConnectorField(
                 "max_read_rows",

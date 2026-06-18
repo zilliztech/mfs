@@ -16,7 +16,7 @@ to markdown, indexes the markdown.
 | key | default | meaning |
 |---|---|---|
 | `allowed_domains` | _start_urls' domains_ | restrict crawl scope (e.g. `["docs.example.com"]`) |
-| `max_pages` | 100 | hard cap on pages crawled |
+| `max_pages` | 50 | hard cap on pages crawled |
 
 ## URI tree
 
