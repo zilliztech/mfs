@@ -405,7 +405,7 @@ class Engine:
         ctx = self._pending_finalize.pop(task_uri, None)
         if ctx is None:
             return
-        cid, relpath, st, indexable, plugin, task_id = ctx
+        cid, connector_uri, relpath, st, indexable, plugin, task_id = ctx
         if error is not None:
             # Embed/upsert failed for this object. Record it failed and leave the cursor where
             # it was (on_object_indexed not called) so the object isn't treated as committed.
@@ -422,15 +422,25 @@ class Engine:
             search_status = "partial"
         else:
             search_status = "indexed"
-        await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
-        await plugin.on_object_indexed(relpath)
-        # Completion lives here, not in the worker loop: the pump enqueues chunks without
-        # blocking, so only the consumer knows when they have landed. Conditional on
-        # status='running' so a task cancelled out from under us is not revived.
-        await self.meta.execute(
+        # Claim completion FIRST, guarded on status='running'. Completion lives here, not in
+        # the worker loop: the pump enqueues chunks without blocking, so only the consumer
+        # knows when they have landed.
+        won = await self.meta.execute_rowcount(
             "UPDATE object_tasks SET status='succeeded', finished_at=? WHERE id=? AND status='running'",
             (_now(), task_id),
         )
+        if won == 0:
+            # The task was cancelled out from under us while its chunks were embedding (an
+            # external `job cancel`, or a connector removal racing the shared consumer). We
+            # have already upserted this object's chunks to Milvus and no objects row will
+            # ever point at them — but search queries Milvus directly, so they would survive
+            # as orphan hits (un-inspectable, un-cat-able, yet matchable). Reconcile by
+            # deleting them, leaving the cursor untouched so a later sync re-does the object
+            # cleanly. No-op when chunk_count == 0.
+            await asyncio.to_thread(self.milvus.delete_by_object, self.ns, connector_uri, task_uri)
+            return
+        await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
+        await plugin.on_object_indexed(relpath)
 
     async def _write_object_row(
         self, cid: str, relpath: str, st, indexable: bool, search_status: str, chunk_count: int
@@ -2025,7 +2035,15 @@ class Engine:
             # The objects-table row + on_object_indexed are written by _on_pipeline_object_indexed
             # when the consumer reports the task done, so stash the per-object context and
             # return before the shared inline tail.
-            self._pending_finalize[full_uri] = (cid, relpath, st, indexable, plugin, task["id"])
+            self._pending_finalize[full_uri] = (
+                cid,
+                connector_uri,
+                relpath,
+                st,
+                indexable,
+                plugin,
+                task["id"],
+            )
             await self._index_via_pipeline(plugin, connector_uri, relpath, full_uri, okind, task)
             # "deferred": the producer chunks are enqueued; the EmbedConsumer success hook
             # (_on_pipeline_object_indexed) writes the objects row + flips status when they land.
