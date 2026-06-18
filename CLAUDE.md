@@ -44,7 +44,8 @@ Rust:
 
 ```bash
 cd cli && cargo build --release && cargo test
-cargo fmt --manifest-path cli/Cargo.toml --all -- --check
+cargo fmt --manifest-path cli/Cargo.toml --all -- --check       # CI format-checks cli
+cargo fmt --manifest-path server-rs/Cargo.toml --all -- --check # ...and server-rs
 ```
 
 All server state (config, token, SQLite metadata, Milvus Lite vectors, caches, and

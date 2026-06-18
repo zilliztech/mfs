@@ -154,7 +154,10 @@ uv run --extra dev ruff check src/ tests/            # lint
 
 # Rust
 cargo fmt --manifest-path cli/Cargo.toml --all
-cargo fmt --manifest-path cli/Cargo.toml --all -- --check   # CI mode
+cargo fmt --manifest-path server-rs/Cargo.toml --all
+# CI mode (checks both crates):
+cargo fmt --manifest-path cli/Cargo.toml --all -- --check
+cargo fmt --manifest-path server-rs/Cargo.toml --all -- --check
 ```
 
 Pre-commit runs these on staged files if you ran `pre-commit install`.
