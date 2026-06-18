@@ -162,7 +162,9 @@ class LsEntry(BaseModel):
         None, description="indexed | partial | not_indexed | null if unseen"
     )
     indexable: Optional[bool] = Field(
-        None, description="whether this object is eligible for indexing"
+        None,
+        description="eligible for indexing (not binary, not opted out) — not a promise it is "
+        "searchable; whether chunks were actually embedded is reported by search_status",
     )
 
 
