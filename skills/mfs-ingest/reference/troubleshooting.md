@@ -135,8 +135,8 @@ mfs ls <uri>
 - Has entries → step 2.
 
 ```bash
-# 2. are the entries marked indexable?
-mfs ls <uri> --json | jq '.entries[] | {name, indexable, search_status}'
+# 2. are the entries marked indexable? (read each entry's indexable / search_status)
+mfs ls <uri> --json
 ```
 
 - All `indexable: false` → toml might have an `[[objects]] indexable =
