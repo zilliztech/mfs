@@ -75,11 +75,12 @@ Notes:
 - **Queue ① is durable.** `ObjectTask` rows sit in the metadata database, so a
   worker crash never loses pending work. Workers claim by `(priority ASC,
   started_at ASC)`.
-- **The Producer pool is okind-dispatched.** One `ChunksProducer` per object
-  kind (text/code/document, image, message_stream, record_collection,
-  table_rows, table_schema). The pool itself does not know what it will get;
-  `select_producer(okind, ctx)` picks the implementation. Adding a new kind is
-  one new producer file plus one new dispatch branch.
+- **The Producer pool is okind-dispatched.** `select_producer(okind, ctx)` maps
+  the eight object kinds (`document`, `code`, `text_blob`, `image`,
+  `message_stream`, `table_rows`, `record_collection`, `table_schema`) onto five
+  `ChunksProducer` classes — text/code/text_blob/document share one, and
+  table_rows/record_collection share one. The pool itself does not know what it
+  will get; the dispatch picks the implementation.
 - **Queue ② is in-memory and bounded.** `ChunkQueue` is an `asyncio.Queue` whose
   `maxsize` is derived from `embedding.batch_size`. When the consumer falls
   behind, producers block on `put()`. This is the single most important

@@ -18,7 +18,7 @@ topologies, use [Deployment](deployment.md).
 | Voyage embeddings | `voyage` embeddings | `uv tool install "mfs-server[voyage]"`, then `mfs-server setup --section embedding` | `VOYAGE_API_KEY` |
 | Local Ollama embeddings | `ollama` embeddings | `uv tool install "mfs-server[ollama]"`, then `mfs-server setup --section embedding` | Running Ollama server; `OLLAMA_HOST` is optional |
 | Local sentence-transformers embeddings | `local` embeddings | `uv tool install "mfs-server[local]"`, then `mfs-server setup --section embedding` | None; this extra pulls the sentence-transformers stack |
-| Image-description and summary setup | `openai`, `anthropic`, or `gemini` LLM/VLM | `mfs-server setup --section vlm` | Provider key for the selected LLM/VLM provider |
+| Image-description and summary setup | `openai`, `anthropic`, or `gemini` LLM/VLM | `mfs-server setup --section description` (and `--section summary`) | Provider key for the selected LLM/VLM provider |
 
 Provider names are exact. The supported embedding names are `openai`, `onnx`,
 `gemini`, `voyage`, `ollama`, and `local`.

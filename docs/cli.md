@@ -135,7 +135,7 @@ a local chunker/tokenizer dry run and does not make embedding API calls.
 Human output is a queued job line:
 
 ```text
-queued (job JOB_ID). Worker running in background -- run `mfs status` to check progress.
+queued (job JOB_ID). Worker running in background — run `mfs status` to check progress.
 ```
 
 With `--json`, the queued output is:

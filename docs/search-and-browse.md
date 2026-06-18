@@ -157,10 +157,11 @@ mfs cat file://local/path/to/repo/src/throttle.go --locator '{"lines":[42,78]}'
 ```bash
 mfs cat ./logs/app.log --range 200:
 mfs cat ./logs/app.log --range :80
-mfs cat ./logs/app.log --range 120
+mfs cat ./logs/app.log --range 120:200
 ```
 
-A lone start value such as `120` is treated like `120:`.
+A range needs an explicit colon. One side may be empty (`200:` = from line 200 to
+the end, `:80` = first 80 lines), but a bare `120` is rejected.
 
 For large objects, avoid bare `cat`:
 
