@@ -2664,9 +2664,10 @@ scan, or a notice.</p>
 <p><code>cat --range</code> also accepts open-ended forms:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./logs/app.log<span class="w"> </span>--range<span class="w"> </span><span class="m">200</span>:
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./logs/app.log<span class="w"> </span>--range<span class="w"> </span>:80
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./logs/app.log<span class="w"> </span>--range<span class="w"> </span><span class="m">120</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>./logs/app.log<span class="w"> </span>--range<span class="w"> </span><span class="m">120</span>:200
 </code></pre></div>
-<p>A lone start value such as <code>120</code> is treated like <code>120:</code>.</p>
+<p>A range needs an explicit colon. One side may be empty (<code>200:</code> = from line 200 to
+the end, <code>:80</code> = first 80 lines), but a bare <code>120</code> is rejected.</p>
 <p>For large objects, avoid bare <code>cat</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>mfs<span class="w"> </span>head<span class="w"> </span>./logs/app.log<span class="w"> </span>-n<span class="w"> </span><span class="m">40</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mfs<span class="w"> </span>tail<span class="w"> </span>./logs/app.log<span class="w"> </span>--lines<span class="w"> </span><span class="m">80</span>

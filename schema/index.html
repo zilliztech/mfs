@@ -2404,9 +2404,9 @@ DB's transactional path. It has one table:</p>
 </tr>
 </tbody>
 </table>
-<p>The <code>cache_key</code> folds the input hash together with the provider, model, and
-version, so a hit is only ever returned for the exact same input <em>and</em> model. See
-<a href="../caching/">Caching</a> for how it's used.</p>
+<p>The <code>cache_key</code> folds the input hash together with the call <code>kind</code>, provider,
+model, version, and config, so a hit is only ever returned for the exact same
+input <em>and</em> model. See <a href="../caching/">Caching</a> for the full key and how it's used.</p>
 <h2 id="the-milvus-collection">The Milvus collection<a class="headerlink" href="#the-milvus-collection" title="Permanent link">&para;</a></h2>
 <p>All searchable chunks live in Milvus. By default they share <strong>one collection</strong>,
 whose name bakes in the schema version and the embedding dimension

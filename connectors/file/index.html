@@ -2388,12 +2388,10 @@ instead, where rows become first-class records.</p>
 <p>The simple case needs no TOML at all:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>./docs
 </code></pre></div>
-<p>Optional TOML tunes the edges — cap file size, or mark a subtree browse-only:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">max_file_bytes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5_000_000</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">[[objects]]</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data/exports&quot;</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">indexable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">        </span><span class="c1"># stays browseable, never embedded</span>
+<p>Optional TOML tunes the edges — e.g. mark a subtree browse-only:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">match</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data/exports&quot;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">indexable</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">        </span><span class="c1"># stays browseable, never embedded</span>
 </code></pre></div>
 <p><code>indexable = false</code> keeps an object in the tree for <code>ls</code>/<code>cat</code> but skips the
 embedding step.</p>
@@ -2402,8 +2400,7 @@ embedding step.</p>
 <ul>
 <li>Built-in defaults drop <code>node_modules/</code>, <code>.git/</code>, <code>__pycache__/</code>, <code>*.pyc</code>, and
   similar generated paths.</li>
-<li>A <code>.gitignore</code> or <code>.mfsignore</code> at the root extends the ignore set.</li>
-<li>Files over <code>max_file_bytes</code> are skipped.</li>
+<li>A <code>.gitignore</code> or <code>.mfsignore</code> at the connector root extends the ignore set.</li>
 </ul>
 <p>Symlinks are resolved inside the connector root; any path that escapes the root
 (<code>../secret</code>) is rejected outright.</p>
