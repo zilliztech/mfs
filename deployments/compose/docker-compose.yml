@@ -19,8 +19,8 @@ services:
     command: ["run", "--bind", "0.0.0.0:13619"]
     environment:
       # omit to use bundled Milvus Lite under /data; set to use Zilliz Cloud
-      MFS_MILVUS_URI: ${ZILLIZ_URI:-/data/milvus.db}
-      MFS_MILVUS_TOKEN: ${ZILLIZ_TOKEN:-}
+      MILVUS_URI: ${ZILLIZ_URI:-/data/milvus.db}
+      MILVUS_TOKEN: ${ZILLIZ_TOKEN:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       MFS_HOME: /data
       # The API requires a Bearer token. Set MFS_API_TOKEN to a known value
