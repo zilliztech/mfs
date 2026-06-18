@@ -31,7 +31,6 @@ API endpoints used (all sync, wrapped in asyncio.to_thread):
 from __future__ import annotations
 
 import asyncio
-import datetime
 import json
 import re
 from collections.abc import AsyncIterator
@@ -43,6 +42,7 @@ from lark_oapi.api.docx.v1 import GetDocumentRequest, RawContentDocumentRequest
 from lark_oapi.api.drive.v1 import ListFileRequest
 from lark_oapi.api.im.v1 import ListChatRequest, ListMessageRequest
 
+from ...common.timeparse import parse_time_bound
 from ..base import (
     Capabilities,
     ConnectorPlugin,
@@ -90,11 +90,11 @@ def _extract_text(msg_type: str, content: str) -> str:
 
 
 def _since_ts(since: str) -> float:
-    """Parse a --since date/datetime to unix seconds (Feishu file modified_time is unix sec)."""
-    s = since.strip()
-    if "T" not in s:
-        s = s + "T00:00:00"
-    return datetime.datetime.fromisoformat(s).timestamp()
+    """Parse a --since date/datetime/now-30d to unix seconds (Feishu modified_time is unix sec)."""
+    ts = parse_time_bound(since)
+    if ts is None:
+        raise ValueError("empty --since value")
+    return ts
 
 
 class FeishuPlugin(ConnectorPlugin):

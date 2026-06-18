@@ -152,12 +152,11 @@ to the user, then write toml + run `mfs add`.
 6. **Follow the job** until terminal state:
    ```bash
    mfs job show <job_id>
-   # or polled:
-   while true; do
-     state=$(mfs job show <job_id> | jq -r .status)
-     [ "$state" = succeeded ] || [ "$state" = failed ] && break
+   # or polled (no jq needed — grep the JSON status field):
+   while ! mfs job show <job_id> | grep -qE '"status": *"(succeeded|failed|cancelled)"'; do
      sleep 5
    done
+   mfs job show <job_id>
    ```
 
 7. **Confirm result** — report what's *searchable*, not just what was registered:

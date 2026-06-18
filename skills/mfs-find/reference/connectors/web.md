@@ -13,7 +13,7 @@ conversion is via markitdown.
 
 ## Chunk kind
 
-`chunk_body` — recursive markdown chunker (headings as natural splits).
+`body` — recursive markdown chunker (headings as natural splits).
 
 ## Locator
 

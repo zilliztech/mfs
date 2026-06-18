@@ -48,9 +48,9 @@ DB's transactional path. It has one table:
 |---|---|---|
 | `transformation_cache` | one memoized model call | `cache_key` (primary key), `kind` (`embedding` / `vlm` / `summary`), `input_hash`, `provider`, `model`, `model_version`, `output_bytes`, `hit_count`, `last_hit_at`. |
 
-The `cache_key` folds the input hash together with the provider, model, and
-version, so a hit is only ever returned for the exact same input *and* model. See
-[Caching](caching.md) for how it's used.
+The `cache_key` folds the input hash together with the call `kind`, provider,
+model, version, and config, so a hit is only ever returned for the exact same
+input *and* model. See [Caching](caching.md) for the full key and how it's used.
 
 ## The Milvus collection
 

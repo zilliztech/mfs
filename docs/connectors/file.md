@@ -52,11 +52,9 @@ The simple case needs no TOML at all:
 mfs add ./docs
 ```
 
-Optional TOML tunes the edges — cap file size, or mark a subtree browse-only:
+Optional TOML tunes the edges — e.g. mark a subtree browse-only:
 
 ```toml
-max_file_bytes = 5_000_000
-
 [[objects]]
 match = "/data/exports"
 indexable = false        # stays browseable, never embedded
@@ -71,8 +69,7 @@ The connector honors ignore rules so you don't index noise:
 
 - Built-in defaults drop `node_modules/`, `.git/`, `__pycache__/`, `*.pyc`, and
   similar generated paths.
-- A `.gitignore` or `.mfsignore` at the root extends the ignore set.
-- Files over `max_file_bytes` are skipped.
+- A `.gitignore` or `.mfsignore` at the connector root extends the ignore set.
 
 Symlinks are resolved inside the connector root; any path that escapes the root
 (`../secret`) is rejected outright.

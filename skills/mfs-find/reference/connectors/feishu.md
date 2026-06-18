@@ -39,7 +39,7 @@ object; the content is the rendered markdown body.
 
 - **`thread_aggregate`** in `messages.jsonl` (thread-aggregated, same
   pattern as Slack — by `thread_id`)
-- **`chunk_body`** in `*.md` (recursive chunker splits long docx into
+- **`body`** in `*.md` (recursive chunker splits long docx into
   size-bounded chunks at heading boundaries)
 
 ## Locator

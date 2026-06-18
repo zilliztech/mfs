@@ -40,12 +40,12 @@ respects the user's per-message visibility.
 | key | default | meaning |
 |---|---|---|
 | `channel_types` | `["public_channel"]` | which channel kinds; values: `public_channel`, `private_channel`, `mpim`, `im` |
-| `oldest` | _none_ | history floor: unix ts OR `now-30d` syntax |
+| `oldest` | _none_ | history floor: ISO date (`2026-05-01`), relative (`now-30d`), or a unix ts |
 | `max_read_rows` | 50000 | per-channel message cap |
 
 For a large workspace (many channels × deep history), scope the sync to the
 channels you need (`channel_types`, or fewer channels) and bound the volume with
-`max_read_rows`, `oldest`, or `--since`. That keeps each sync's size — and the
+`max_read_rows` or `oldest`. That keeps each sync's size — and the
 server work it takes — in hand.
 
 No `[[objects]]` block is needed — the `slack.messages` preset
@@ -59,7 +59,7 @@ profile.title / profile.email).
 ```toml
 token = "env:SLACK_BOT_TOKEN"
 channel_types = ["public_channel", "private_channel"]
-oldest = "now-90d"
+oldest = "now-90d"      # ISO date / now-Nd / unix ts; messages before this are skipped
 max_read_rows = 50000
 ```
 
@@ -75,8 +75,9 @@ mfs add slack://acme --config /tmp/mfs-slack-acme.toml
 - **`channels:history` rate limit**: tier-2 (~20 calls/min). Big
   workspaces (1000+ channels × full history) take significant wall
   time on first sync.
-- **`oldest=now-30d`** is parsed by the connector; absolute Unix ts
-  also works.
+- **`oldest` accepts an ISO date (`2026-05-01`), a relative offset (`now-30d`),
+  or a raw unix timestamp** — the connector converts it to the unix seconds Slack's
+  API expects. Slack has no `--since` support (no `since_pushdown`); use `oldest`.
 - **Bot's identity**: messages the bot itself sent appear in
   `messages.jsonl`. If that's noise, filter at search time with a
   metadata predicate on `user`.

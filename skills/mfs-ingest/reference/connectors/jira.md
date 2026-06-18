@@ -14,12 +14,14 @@ Three flavours — pick based on your Jira deployment.
 
 **Atlassian Server / Data Center (self-hosted)**:
 - URL: `https://jira.acme.internal`
-- Username: leave empty
-- API token: a Personal Access Token from your Jira profile →
+- Create a Personal Access Token from your Jira profile →
   **Personal Access Tokens** → Create.
+- Put the PAT in the **`token`** field (not `api_token`), set `cloud = false`,
+  and leave `username` empty. Setting `token` is what selects the PAT auth path.
 
 **Older Server (no PAT support)**:
-- Username + password basic auth. Discouraged but supported.
+- Username + password basic auth (`username` + `api_token`), `cloud = false`.
+  Discouraged but supported.
 
 ## Required toml fields
 
@@ -27,13 +29,12 @@ Three flavours — pick based on your Jira deployment.
 |---|---|
 | `url` | full Jira base URL |
 | `cloud` | `true` for Atlassian Cloud, `false` for Server / DC |
-| `api_token` | the token (`env:JIRA_API_TOKEN` recommended) |
+| auth (pick by deployment) | **Cloud**: `username` (email) + `api_token`. **Server / DC**: `token` (PAT). `env:` recommended for the secret. |
 
 ## Optional
 
 | key | default | meaning |
 |---|---|---|
-| `username` | _required for Cloud_ | account email; leave empty for Server PAT |
 | `projects` | _all_ | comma-separated project keys (e.g. `["ENG", "OPS"]`) |
 | `max_read_rows` | 100000 | per-project issue cap |
 
@@ -64,6 +65,14 @@ max_read_rows = 50000
 ```bash
 export JIRA_API_TOKEN=...
 mfs add jira://acme --config /tmp/mfs-jira.toml
+```
+
+Server / DC uses a PAT in `token` instead:
+
+```toml
+url = "https://jira.acme.internal"
+cloud = false
+token = "env:JIRA_PAT"
 ```
 
 ## Pitfalls

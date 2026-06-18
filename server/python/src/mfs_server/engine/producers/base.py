@@ -132,9 +132,11 @@ class SummaryConcurrencyGate(ConcurrencyGate):
 
 @runtime_checkable
 class ArtifactStore(Protocol):
-    """Per-object derived-artifact store (converted_md / vlm_text / head_cache /
+    """Per-object derived-artifact store (converted_md / head_cache /
     raw_records). The engine's ArtifactStoreAdapter backs this with the real
-    artifact_cache + its metadata row; tests back it with an in-memory fake."""
+    artifact_cache + its metadata row; tests back it with an in-memory fake.
+    (VLM descriptions are model output and live in the transformation cache,
+    not here.)"""
 
     async def put_artifact(
         self, namespace_id: str, object_uri: str, kind: str, data: bytes, currency: str = ""

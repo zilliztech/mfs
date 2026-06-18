@@ -156,8 +156,8 @@ After changing:
 ```bash
 mfs-server reload    # validates server.toml and reports resolved backends
 # restart the running server process to apply the new embedding config
-# then re-ingest each connector:
-mfs --json connector list | jq -r '.[].root_uri' | while read uri; do
+# then re-ingest each connector (root_uri is the 3rd column of `connector list`):
+mfs connector list | awk '{print $3}' | while read uri; do
   mfs add "$uri" --full
 done
 ```

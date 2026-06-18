@@ -77,6 +77,38 @@ DEFAULT_IGNORE = [
     "*.lock",
 ]
 
+
+def _walk_raise(err: OSError) -> None:
+    """os.walk onerror: propagate so the scan fails loudly (enumerate fully or raise)."""
+    raise err
+
+
+def _translate_ignore_line(reldir: str, line: str) -> Optional[str]:
+    """Rewrite one `.gitignore`/`.mfsignore` line found in directory `reldir` (root-relative,
+    "" for the connector root) into a root-relative gitwildmatch pattern.
+
+    git applies an ignore file per directory; the walker only takes one flat pattern list, so
+    we fold the per-directory scoping into the pattern itself. An anchored line (leading `/`,
+    or a `/` before the trailing one) is scoped to `reldir`; a floating line (`*.so`, `build/`)
+    matches at any depth below `reldir`, so it becomes `reldir/**/<line>`. Negation (`!`) and a
+    trailing-slash (dir-only) are preserved. Blanks/comments return None."""
+    s = line.strip()
+    if not s or s.startswith("#"):
+        return None
+    neg = s.startswith("!")
+    if neg:
+        s = s[1:]
+    if not reldir:
+        return ("!" if neg else "") + s  # root ignore file is already root-relative
+    if s.startswith("/"):
+        core = reldir + s  # "/target" under "a/b" -> "a/b/target"
+    elif "/" in s.rstrip("/"):
+        core = reldir + "/" + s  # anchored "foo/bar" -> "a/b/foo/bar"
+    else:
+        core = reldir + "/**/" + s  # floating "*.so" / "build/" -> "a/b/**/*.so"
+    return ("!" if neg else "") + core
+
+
 CODE_EXT = {
     ".py",
     ".js",
@@ -226,15 +258,50 @@ class FilePlugin(ConnectorPlugin):
         return "/" + str(real.relative_to(self.root)).replace(os.sep, "/")
 
     def _ignore_patterns(self) -> list[str]:
-        lines = list(DEFAULT_IGNORE)
-        for fname in (".gitignore", ".mfsignore"):
-            f = self.root / fname
-            if f.is_file():
-                lines += f.read_text(errors="ignore").splitlines()
-        return lines
+        """Full-tree ignore set: DEFAULT_IGNORE plus every `.gitignore`/`.mfsignore` in the
+        tree, each translated to root-relative patterns so the single flat list `walk_tree`
+        consumes reproduces git's per-directory semantics. Honors nested ignore files (a
+        subproject's own `.gitignore`, e.g. a Rust `target/`), which a root-only read missed.
+        Prunes ignored dirs as it descends, so it never walks into `.venv` / `node_modules` /
+        a nested build dir just to look for ignore files."""
+        patterns = list(DEFAULT_IGNORE)
+        root = str(self.root)
+        for dirpath, dirnames, _files in os.walk(root, onerror=_walk_raise):
+            rel = os.path.relpath(dirpath, root).replace(os.sep, "/")
+            reldir = "" if rel == "." else rel
+            for fname in (".gitignore", ".mfsignore"):
+                f = os.path.join(dirpath, fname)
+                if os.path.isfile(f):
+                    with open(f, encoding="utf-8", errors="ignore") as fh:
+                        for line in fh.read().splitlines():
+                            t = _translate_ignore_line(reldir, line)
+                            if t:
+                                patterns.append(t)
+            # prune subdirs already ignored by the rules gathered so far — don't descend
+            spec = pathspec.PathSpec.from_lines("gitwildmatch", patterns)
+            dirnames[:] = [
+                d for d in dirnames if not spec.match_file((f"{reldir}/{d}" if reldir else d) + "/")
+            ]
+        return patterns
 
-    def _load_ignore(self) -> pathspec.PathSpec:
-        return pathspec.PathSpec.from_lines("gitwildmatch", self._ignore_patterns())
+    def _load_ignore_for(self, reldir: str) -> pathspec.PathSpec:
+        """Ignore spec that applies to the children of directory `reldir` (root-relative, ""
+        for root): DEFAULT_IGNORE plus the `.gitignore`/`.mfsignore` of root and every ancestor
+        down to `reldir`, each translated to root-relative patterns. Cheap (O(depth)) — used by
+        `list`, which only needs the ancestor chain, not a full-tree walk."""
+        patterns = list(DEFAULT_IGNORE)
+        parts = [p for p in reldir.split("/") if p]
+        for i in range(len(parts) + 1):
+            d = "/".join(parts[:i])
+            base = self.root / d if d else self.root
+            for fname in (".gitignore", ".mfsignore"):
+                f = base / fname
+                if f.is_file():
+                    for line in f.read_text(encoding="utf-8", errors="ignore").splitlines():
+                        t = _translate_ignore_line(d, line)
+                        if t:
+                            patterns.append(t)
+        return pathspec.PathSpec.from_lines("gitwildmatch", patterns)
 
     # --- object_kind ---
     def object_kind_of(self, path: str) -> ObjectKind:
@@ -320,7 +387,8 @@ class FilePlugin(ConnectorPlugin):
         real = self._real(path)
         if not real.is_dir():
             raise NotADirectoryError(path)
-        spec = self._load_ignore()
+        rel = os.path.relpath(real, self.root).replace(os.sep, "/")
+        spec = self._load_ignore_for("" if rel == "." else rel)
         entries: list[Entry] = []
         for child in sorted(real.iterdir(), key=lambda p: p.name):
             rel = str(child.relative_to(self.root)).replace(os.sep, "/")

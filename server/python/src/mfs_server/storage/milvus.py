@@ -325,6 +325,41 @@ class MilvusStore:
             return int(rows[0]["count(*)"])
         return 0
 
+    # Directory summaries (chunk_kind='directory_summary') live in Milvus but have no
+    # `objects` row — the Job Lane tracks them separately. The orphan GC reconciles against
+    # the objects table, so it must scope both its count and its scan to non-summary chunks,
+    # or it would treat every legitimate directory summary as an orphan.
+    GC_SCOPE_EXPR = 'chunk_kind != "directory_summary"'
+
+    def distinct_objects(self, namespace_id: str) -> list[tuple[str, str]]:
+        """Every distinct (connector_uri, object_uri) of non-summary chunks in the collection.
+
+        Used only by the startup orphan GC, and only after a cheap count check has
+        already found excess rows — so this full scan is paid solely when orphans
+        actually exist, never on a healthy index."""
+        assert self.client is not None
+        name = self.resolve_collection(namespace_id)
+        if not self.client.has_collection(name):
+            return []
+        seen: set[tuple[str, str]] = set()
+        it = self.client.query_iterator(
+            collection_name=name,
+            filter=self.GC_SCOPE_EXPR,
+            output_fields=["connector_uri", "object_uri"],
+            batch_size=1000,
+            **self._cl_kw(),
+        )
+        try:
+            while True:
+                batch = it.next()
+                if not batch:
+                    break
+                for r in batch:
+                    seen.add((r["connector_uri"], r["object_uri"]))
+        finally:
+            it.close()
+        return sorted(seen)
+
     def get_chunks_by_object(
         self, namespace_id: str, connector_uri: str, object_uri: str
     ) -> list[dict]:

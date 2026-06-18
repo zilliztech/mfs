@@ -130,7 +130,7 @@ Other useful flags:
 - `--top-k N` — default 10; raise to 20-30 on a weak first round.
 - `--all` — search every registered connector. Otherwise scope to a path/URI prefix.
 - `--kind <list>` — restrict chunk kinds (`row_text`, `thread_aggregate`,
-  `chunk_body`, `summary`, `vlm_description`, …).
+  `body`, `summary`, `vlm_description`, …).
 - `--collapse` — keep only the top-scoring chunk per object; later chunks
   from the same source are dropped, not merged. Recall stays as-is (the
   query still hits the same candidates), but the visible result count can

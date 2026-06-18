@@ -221,6 +221,7 @@ class Engine:
         if preload_local_models:
             await self._preload_startup_models()
         self._build_pipeline()
+        await self._gc_orphan_chunks()
         await self._recover_job_lane()
         # ConnectorJobWatcher runs in this same event loop as the EmbedConsumer + SummaryWorker
         # pool, finalizing jobs out-of-band (§5.7).
@@ -237,6 +238,58 @@ class Engine:
         )
         await asyncio.to_thread(self.embed.preload_provider)
         print("mfs-server: embedding provider ready", flush=True)
+
+    async def _gc_orphan_chunks(self) -> int:
+        """Startup reconcile: delete Milvus chunks that no committed `objects` row points at.
+
+        Orphans arise only in narrow windows — a consumer crash between chunk upsert and the
+        finalize hook, or chunks left before the per-object self-heal landed (see
+        _on_pipeline_object_indexed). They are invisible to ls/inspect/cat (no objects row)
+        yet still match search, which queries Milvus directly.
+
+        Cost-guarded so a healthy index pays almost nothing: compare the Milvus row total
+        against the sum of committed chunk_counts (both scoped to non-summary chunks —
+        directory summaries have no objects row). They match unless there is genuine excess,
+        so the full distinct-object scan + per-object delete runs only when orphans exist."""
+        try:
+            total = await asyncio.to_thread(self.milvus.count, self.ns, self.milvus.GC_SCOPE_EXPR)
+            if total == 0:
+                return 0
+            conns = await self.meta.fetchall(
+                "SELECT id, root_uri FROM connectors WHERE namespace_id=?", (self.ns,)
+            )
+            expected = 0
+            valid: set[str] = set()
+            for c in conns:
+                rows = await self.meta.fetchall(
+                    "SELECT object_uri, chunk_count FROM objects "
+                    "WHERE connector_id=? AND chunk_count>0",
+                    (c["id"],),
+                )
+                for r in rows:
+                    expected += int(r["chunk_count"])
+                    valid.add(c["root_uri"] + r["object_uri"])
+            if total <= expected:
+                return 0  # healthy (or under-indexed, not an orphan case) — stop after the counts
+            # genuine excess: enumerate non-summary objects and drop those with no committed row
+            present = await asyncio.to_thread(self.milvus.distinct_objects, self.ns)
+            deleted = 0
+            for connector_uri, object_uri in present:
+                if object_uri not in valid:
+                    await asyncio.to_thread(
+                        self.milvus.delete_by_object, self.ns, connector_uri, object_uri
+                    )
+                    deleted += 1
+            if deleted:
+                print(
+                    f"mfs-server: startup GC purged {deleted} orphan object(s) from the index",
+                    flush=True,
+                )
+            return deleted
+        except Exception as e:  # noqa: BLE001
+            # Best-effort housekeeping; never block startup on it.
+            print(f"mfs-server: startup orphan GC skipped ({e})", flush=True)
+            return 0
 
     async def shutdown(self) -> None:
         if self._job_watcher is not None:
@@ -405,7 +458,7 @@ class Engine:
         ctx = self._pending_finalize.pop(task_uri, None)
         if ctx is None:
             return
-        cid, relpath, st, indexable, plugin, task_id = ctx
+        cid, connector_uri, relpath, st, indexable, plugin, task_id = ctx
         if error is not None:
             # Embed/upsert failed for this object. Record it failed and leave the cursor where
             # it was (on_object_indexed not called) so the object isn't treated as committed.
@@ -422,15 +475,25 @@ class Engine:
             search_status = "partial"
         else:
             search_status = "indexed"
-        await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
-        await plugin.on_object_indexed(relpath)
-        # Completion lives here, not in the worker loop: the pump enqueues chunks without
-        # blocking, so only the consumer knows when they have landed. Conditional on
-        # status='running' so a task cancelled out from under us is not revived.
-        await self.meta.execute(
+        # Claim completion FIRST, guarded on status='running'. Completion lives here, not in
+        # the worker loop: the pump enqueues chunks without blocking, so only the consumer
+        # knows when they have landed.
+        won = await self.meta.execute_rowcount(
             "UPDATE object_tasks SET status='succeeded', finished_at=? WHERE id=? AND status='running'",
             (_now(), task_id),
         )
+        if won == 0:
+            # The task was cancelled out from under us while its chunks were embedding (an
+            # external `job cancel`, or a connector removal racing the shared consumer). We
+            # have already upserted this object's chunks to Milvus and no objects row will
+            # ever point at them — but search queries Milvus directly, so they would survive
+            # as orphan hits (un-inspectable, un-cat-able, yet matchable). Reconcile by
+            # deleting them, leaving the cursor untouched so a later sync re-does the object
+            # cleanly. No-op when chunk_count == 0.
+            await asyncio.to_thread(self.milvus.delete_by_object, self.ns, connector_uri, task_uri)
+            return
+        await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
+        await plugin.on_object_indexed(relpath)
 
     async def _write_object_row(
         self, cid: str, relpath: str, st, indexable: bool, search_status: str, chunk_count: int
@@ -2025,7 +2088,15 @@ class Engine:
             # The objects-table row + on_object_indexed are written by _on_pipeline_object_indexed
             # when the consumer reports the task done, so stash the per-object context and
             # return before the shared inline tail.
-            self._pending_finalize[full_uri] = (cid, relpath, st, indexable, plugin, task["id"])
+            self._pending_finalize[full_uri] = (
+                cid,
+                connector_uri,
+                relpath,
+                st,
+                indexable,
+                plugin,
+                task["id"],
+            )
             await self._index_via_pipeline(plugin, connector_uri, relpath, full_uri, okind, task)
             # "deferred": the producer chunks are enqueued; the EmbedConsumer success hook
             # (_on_pipeline_object_indexed) writes the objects row + flips status when they land.

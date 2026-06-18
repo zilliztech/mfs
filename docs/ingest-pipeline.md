@@ -54,8 +54,8 @@ The two lanes feed into one tail.
 - **From `ChunkQueue` onward, everything is shared.** One `ChunkQueue`, one
   `EmbedConsumer`, one cache pair, one index. The Job Lane has no separate embed
   path, no separate upsert path, no separate collection — its output is just
-  one more `chunk_kind` (`directory_summary`) alongside `file`, `code`,
-  `image`, and the rest.
+  one more `chunk_kind` (`directory_summary`) alongside `body`, `row_text`,
+  `vlm_description`, and the rest.
 - **The shared cache pays off across the two lanes.** Folding a directory
   re-reads whatever PDF was converted or whatever image was VLM-described in the
   Object Lane. A conversion is reused from the Artifact Cache when its
@@ -75,11 +75,12 @@ Notes:
 - **Queue ① is durable.** `ObjectTask` rows sit in the metadata database, so a
   worker crash never loses pending work. Workers claim by `(priority ASC,
   started_at ASC)`.
-- **The Producer pool is okind-dispatched.** One `ChunksProducer` per object
-  kind (text/code/document, image, message_stream, record_collection,
-  table_rows, table_schema). The pool itself does not know what it will get;
-  `select_producer(okind, ctx)` picks the implementation. Adding a new kind is
-  one new producer file plus one new dispatch branch.
+- **The Producer pool is okind-dispatched.** `select_producer(okind, ctx)` maps
+  the eight object kinds (`document`, `code`, `text_blob`, `image`,
+  `message_stream`, `table_rows`, `record_collection`, `table_schema`) onto five
+  `ChunksProducer` classes — text/code/text_blob/document share one, and
+  table_rows/record_collection share one. The pool itself does not know what it
+  will get; the dispatch picks the implementation.
 - **Queue ② is in-memory and bounded.** `ChunkQueue` is an `asyncio.Queue` whose
   `maxsize` is derived from `embedding.batch_size`. When the consumer falls
   behind, producers block on `put()`. This is the single most important
@@ -128,8 +129,8 @@ Notes:
 - **The Job Lane shares the tail.** Every `directory_summary` chunk is written
   into the same `ChunkQueue`. There is no separate embed path, no separate upsert
   path, no separate index. From the `EmbedConsumer`'s perspective,
-  `directory_summary` is just one more `chunk_kind`, sitting next to `file`,
-  `code`, `image`, and the rest in the same Milvus collection.
+  `directory_summary` is just one more `chunk_kind`, sitting next to `body`,
+  `row_text`, `vlm_description`, and the rest in the same Milvus collection.
 - **Shared provider budgets.** The VLM and summary providers are protected by
   process-wide concurrency gates (`description_gate`, `summary_gate`) that both
   lanes share. The Job Lane folding an image draws from the same in-flight VLM
