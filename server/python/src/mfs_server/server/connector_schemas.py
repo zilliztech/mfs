@@ -348,7 +348,7 @@ SCHEMAS: dict[str, ConnectorSchema] = {
                 help="comma-separated: public_channel, private_channel, mpim, im",
             ),
             ConnectorField(
-                "oldest", "Oldest history boundary (unix timestamp in seconds)", required=False
+                "oldest", "Oldest history boundary (ISO date, now-30d, or unix ts)", required=False
             ),
             ConnectorField(
                 "max_read_rows",

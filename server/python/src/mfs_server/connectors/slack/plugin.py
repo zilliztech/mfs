@@ -20,6 +20,7 @@ from typing import Optional
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web.async_client import AsyncWebClient
 
+from ...common.timeparse import parse_time_bound
 from ..base import (
     Capabilities,
     ConnectorPlugin,
@@ -160,7 +161,9 @@ class SlackPlugin(ConnectorPlugin):
         parts = self._parts(path)
         if len(parts) == 3 and parts[0] == "channels" and parts[2] == "messages.jsonl":
             channel = self._channel_id(parts[1])
-            oldest = self._cfg("oldest")  # optional unix ts lower bound
+            # accept an ISO date / now-30d / unix ts; Slack's API wants a unix-seconds string
+            oldest_ts = parse_time_bound(self._cfg("oldest"))
+            oldest = str(oldest_ts) if oldest_ts is not None else None
             limit = self._cfg("max_read_rows", 50000)
             n, cursor = 0, None
             while n < limit:
