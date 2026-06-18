@@ -54,8 +54,8 @@ The two lanes feed into one tail.
 - **From `ChunkQueue` onward, everything is shared.** One `ChunkQueue`, one
   `EmbedConsumer`, one cache pair, one index. The Job Lane has no separate embed
   path, no separate upsert path, no separate collection — its output is just
-  one more `chunk_kind` (`directory_summary`) alongside `file`, `code`,
-  `image`, and the rest.
+  one more `chunk_kind` (`directory_summary`) alongside `body`, `row_text`,
+  `vlm_description`, and the rest.
 - **The shared cache pays off across the two lanes.** Folding a directory
   re-reads whatever PDF was converted or whatever image was VLM-described in the
   Object Lane. A conversion is reused from the Artifact Cache when its
@@ -128,8 +128,8 @@ Notes:
 - **The Job Lane shares the tail.** Every `directory_summary` chunk is written
   into the same `ChunkQueue`. There is no separate embed path, no separate upsert
   path, no separate index. From the `EmbedConsumer`'s perspective,
-  `directory_summary` is just one more `chunk_kind`, sitting next to `file`,
-  `code`, `image`, and the rest in the same Milvus collection.
+  `directory_summary` is just one more `chunk_kind`, sitting next to `body`,
+  `row_text`, `vlm_description`, and the rest in the same Milvus collection.
 - **Shared provider budgets.** The VLM and summary providers are protected by
   process-wide concurrency gates (`description_gate`, `summary_gate`) that both
   lanes share. The Job Lane folding an image draws from the same in-flight VLM

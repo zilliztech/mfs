@@ -39,7 +39,7 @@ collections.
 
 - **`row_text`** in `_meta/issues.jsonl` / `_meta/pulls.jsonl`: one
   per issue/PR; content combines `title + body + comments[].body`.
-- **`chunk_body`** in `code/<file>`: source code chunked by AST
+- **`body`** in `code/<file>`: source code chunked by AST
   (CodeChunker for Python/JS/Go/Rust/...) or by markdown headings.
 
 ## Locator

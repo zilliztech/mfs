@@ -36,7 +36,7 @@ lists, code blocks preserved; mentions and inline DBs flatten.
 ## Chunk kinds
 
 - **`row_text`** for database rows
-- **`chunk_body`** for pages (recursive chunker)
+- **`body`** for pages (recursive chunker)
 
 ## Locator
 

@@ -24,7 +24,7 @@ file becomes one MFS object.
 
 ## Chunk kinds
 
-- `chunk_body` for text/markdown/code/converted docs
+- `body` for text/markdown/code/converted docs
 - `vlm_description` for images (only with VLM)
 - `directory_summary` for dirs (only with summary)
 

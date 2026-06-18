@@ -13,10 +13,10 @@ Or just bare paths: `mfs search "X" /abs/path` resolves to
 
 | Source | Routing | Chunk kind |
 |---|---|---|
-| Markdown / plain text | chonkie RecursiveChunker | `chunk_body` |
-| Source code (Python / JS / TS / Go / Rust / Java / …) | chonkie CodeChunker (AST-aware) | `chunk_body` |
-| PDF | markitdown → md → chunked | `chunk_body` (+ `converted_md` artifact cached) |
-| Office (`.docx`/`.xlsx`/`.pptx`) | markitdown | `chunk_body` |
+| Markdown / plain text | chonkie RecursiveChunker | `body` |
+| Source code (Python / JS / TS / Go / Rust / Java / …) | chonkie CodeChunker (AST-aware) | `body` |
+| PDF | markitdown → md → chunked | `body` (+ `converted_md` artifact cached) |
+| Office (`.docx`/`.xlsx`/`.pptx`) | markitdown | `body` |
 | Images (`.png`/`.jpg`/...) | VLM if `summary.enabled` | `vlm_description` |
 | Binary (no media handler) | enumerated, NOT indexed | — |
 
