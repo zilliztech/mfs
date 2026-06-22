@@ -12,7 +12,7 @@
 
 | Item | Current guidance |
 |---|---|
-| Package metadata | `mfs_sdk` `0.4.1` in [`../pyproject.toml`](../pyproject.toml). |
+| Package metadata | `mfs_sdk` `0.4.2` in [`../pyproject.toml`](../pyproject.toml). |
 | Normal server URL | `http://127.0.0.1:13619` for `mfs-server run` / `mfs-server api`. |
 | Generated default URL | `http://127.0.0.1:8765`; use it only when you intentionally start a server there, such as for the smoke harness. |
 | Bearer auth | When runtime auth is enabled, every request except `GET /healthz` must include `Authorization: Bearer <token>`. |

@@ -19,8 +19,8 @@ OpenAPI spec or regenerating the checked-in SDK sources.
 
 | Language | Package name | Import | Checked-in version | Generator |
 |---|---|---|---|---|
-| Python | `mfs_sdk` | `import mfs_sdk` | `0.4.1` | OpenAPI Generator `python` client with `urllib3` |
-| TypeScript | `@mfs/sdk` | `import { ... } from "@mfs/sdk"` | `0.4.1` | OpenAPI Generator `typescript-fetch` client |
+| Python | `mfs_sdk` | `import mfs_sdk` | `0.4.2` | OpenAPI Generator `python` client with `urllib3` |
+| TypeScript | `@mfs/sdk` | `import { ... } from "@mfs/sdk"` | `0.4.2` | OpenAPI Generator `typescript-fetch` client |
 
 Generated source docs:
 

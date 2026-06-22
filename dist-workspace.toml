@@ -10,7 +10,7 @@ cargo-dist-version = "0.32.0"
 ci = "github"
 # Installers to generate per release
 installers = ["shell"]
-# Target platforms (Rust target-triple syntax). v0.4.1: Linux + macOS only.
+# Target platforms (Rust target-triple syntax). v0.4.2: Linux + macOS only.
 # musl variants for Linux give a static, distro-portable binary.
 targets = [
     "x86_64-unknown-linux-musl",

@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "mfs-server-rs"
-version = "0.4.1"
+version = "0.4.2"
 description = "MFS server hot-path acceleration (PyO3): directory scan, JSONL streaming, linear grep"
 readme = "../README.md"
 license = "Apache-2.0"

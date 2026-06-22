@@ -2,5 +2,5 @@ apiVersion: v2
 name: mfs
 description: Multi-source File-like Search — API + worker on Kubernetes (design/10 §4.4)
 type: application
-version: 0.4.1
-appVersion: "0.4.1"
+version: 0.4.2
+appVersion: "0.4.2"
