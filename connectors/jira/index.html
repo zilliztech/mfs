@@ -2351,14 +2351,16 @@ empty if that user can't see them.</p>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">projects</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ENG&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;OPS&quot;</span><span class="p">]</span><span class="w">      </span><span class="c1"># empty = all visible projects</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
 </code></pre></div>
+<p>Save the file as <code>jira.toml</code>, then probe and index:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml
+</code></pre></div>
 <h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
 <p>The connector uses the issue <code>updated</code> timestamp as its cursor; Cloud retrieval
 pages through <code>enhanced_jql</code>. Deletions are caught by <code>full_scan</code>.</p>
 <h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>jira://acme<span class="w"> </span>--config<span class="w"> </span>./jira.toml
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO regression&quot;</span><span class="w"> </span>jira://acme/projects/ENG/issues.jsonl
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>jira://acme/projects/ENG/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;key&quot;:&quot;ENG-1234&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SSO regression&quot;</span><span class="w"> </span>jira://acme/projects/ENG/issues.jsonl
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>jira://acme/projects/ENG/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;key&quot;:&quot;ENG-1234&quot;}&#39;</span>
 </code></pre></div>
 <h2 id="pitfalls">Pitfalls<a class="headerlink" href="#pitfalls" title="Permanent link">&para;</a></h2>
 <ul>

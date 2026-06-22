@@ -2333,22 +2333,29 @@ TOML; the credentials must be visible to the <strong>server process</strong>. Th
 paths:</p>
 <ol>
 <li>
-<p><strong>Service account JSON</strong> (production): create a service account with
-   <code>roles/bigquery.dataViewer</code> on the target datasets, then point the server at
-   it:</p>
+<p><strong>Service account JSON</strong> (production): in Google Cloud Console, open
+   <em>IAM &amp; Admin → Service Accounts</em> → <strong>Create service account</strong>. Name it
+   <code>mfs-bigquery-reader</code>, grant <code>roles/bigquery.dataViewer</code> on the target
+   datasets or project, then open the service account's <em>Keys</em> tab →
+   <strong>Add key → Create new key → JSON</strong>. Store the downloaded JSON outside the
+   repo and point the server at it:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GOOGLE_APPLICATION_CREDENTIALS</span><span class="o">=</span>/path/to/sa.json
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>mfs-server<span class="w"> </span>run
 </code></pre></div>
 </li>
 <li>
-<p><strong><code>gcloud auth application-default login</code></strong> (dev / single-user) — writes
-   <code>~/.config/gcloud/application_default_credentials.json</code>.</p>
+<p><strong><code>gcloud auth application-default login</code></strong> (dev / single-user): run it as
+   the same OS user that starts <code>mfs-server</code>. It opens a browser consent flow and
+   writes <code>~/.config/gcloud/application_default_credentials.json</code>.</p>
 </li>
 <li>
 <p><strong>Workload Identity</strong> on GKE / Cloud Run — ADC is automatic.</p>
 </li>
 </ol>
-<p>Make sure the <strong>BigQuery API</strong> is enabled on the project.</p>
+<p>Before any of those, open <em>APIs &amp; Services → Library → BigQuery API</em> and enable
+it on the project. If the connector can authenticate but cannot list a dataset,
+check the dataset IAM page first; the service account needs read access to every
+dataset listed in <code>datasets</code>.</p>
 <p><img alt="Google Cloud BigQuery API page" src="https://github.com/user-attachments/assets/fd034ea0-4607-4e74-b65a-106460830889" /></p>
 <p><img alt="Google Cloud service accounts page" src="https://github.com/user-attachments/assets/6d7dfb43-f7f9-46dc-a049-ed9cc251afea" /></p>
 <p><img alt="Google Cloud create service account form" src="https://github.com/user-attachments/assets/d8275bc9-1792-44fd-951a-18dd3cc789fd" /></p>
@@ -2362,16 +2369,18 @@ paths:</p>
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">text_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;body_markdown&quot;</span><span class="p">]</span>
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">locator_fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;article_id&quot;</span><span class="p">]</span>
 </code></pre></div>
+<p>Save the file as <code>bigquery.toml</code>, then probe before the first index:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
+</code></pre></div>
 <h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
 <p>The connector uses the table's <code>modified</code> time as its cursor; deletions are caught
 by <code>full_scan</code>. It reads rows via <code>list_rows</code>, so <code>max_read_rows</code> caps large
 tables.</p>
 <h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>bigquery://analytics<span class="w"> </span>--config<span class="w"> </span>./bigquery.toml
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund event&quot;</span><span class="w"> </span>bigquery://analytics/events/tables/user_events/rows.jsonl
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>bigquery://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>mfs<span class="w"> </span>cat<span class="w"> </span>bigquery://analytics/kb/tables/articles/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;article_id&quot;:&quot;a-123&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund event&quot;</span><span class="w"> </span>bigquery://analytics/events/tables/user_events/rows.jsonl
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;email column&quot;</span><span class="w"> </span>bigquery://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>bigquery://analytics/kb/tables/articles/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;article_id&quot;:&quot;a-123&quot;}&#39;</span>
 </code></pre></div>
 <h2 id="pitfalls">Pitfalls<a class="headerlink" href="#pitfalls" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2379,6 +2388,8 @@ tables.</p>
 <li>BigQuery has no primary key for most tables — choose stable <code>locator_fields</code>
   explicitly.</li>
 <li>Rows need <code>text_fields</code> to be searchable.</li>
+<li>User ADC from <code>gcloud</code> is convenient for local testing; service accounts or
+  workload identity are easier to operate in long-running deployments.</li>
 </ul>
 
 

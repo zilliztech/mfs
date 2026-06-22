@@ -2356,14 +2356,16 @@ without config; add <code>[[objects]]</code> to index non-default properties.</p
 </code></pre></div>
 <p>If <code>object_types</code> is omitted, the connector probes the common objects and silently
 drops the ones the portal rejects (a 403 on Service Hub tickets, say).</p>
+<p>Save the file as <code>hubspot.toml</code>, then probe and index:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
+</code></pre></div>
 <h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
 <p>The connector uses each object's <code>hs_lastmodifieddate</code> as its cursor for
 incremental re-sync; deletions are caught by <code>full_scan</code>.</p>
 <h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>hubspot://acme<span class="w"> </span>--config<span class="w"> </span>./hubspot.toml
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;customer health&quot;</span><span class="w"> </span>hubspot://acme/contacts/records.jsonl
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>hubspot://acme/contacts/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;12345&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;customer health&quot;</span><span class="w"> </span>hubspot://acme/contacts/records.jsonl
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>hubspot://acme/contacts/records.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;id&quot;:&quot;12345&quot;}&#39;</span>
 </code></pre></div>
 <h2 id="pitfalls">Pitfalls<a class="headerlink" href="#pitfalls" title="Permanent link">&para;</a></h2>
 <ul>

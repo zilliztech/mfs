@@ -2345,14 +2345,16 @@ teams that user can see; restricted access must include every team you list in
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">api_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:LINEAR_API_KEY&quot;</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">teams</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;ENG&quot;</span><span class="p">]</span><span class="w">               </span><span class="c1"># empty = all visible teams</span>
 </code></pre></div>
+<p>Save the file as <code>linear.toml</code>, then probe and index:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml
+</code></pre></div>
 <h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
 <p>The connector uses the issue <code>updatedAt</code> field as its cursor for incremental
 re-sync; deletions are caught by <code>full_scan</code>.</p>
 <h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>linear://workspace<span class="w"> </span>--config<span class="w"> </span>./linear.toml
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing migration&quot;</span><span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;identifier&quot;:&quot;ENG-42&quot;}&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing migration&quot;</span><span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>linear://workspace/teams/ENG/issues.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;identifier&quot;:&quot;ENG-42&quot;}&#39;</span>
 </code></pre></div>
 <h2 id="pitfalls">Pitfalls<a class="headerlink" href="#pitfalls" title="Permanent link">&para;</a></h2>
 <ul>

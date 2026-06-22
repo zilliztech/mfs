@@ -2333,9 +2333,14 @@ only; other types are browse/export only.</p>
 <p>Pick the path for your provider:</p>
 <ul>
 <li>
-<p><strong>AWS S3</strong>: an IAM access key (or STS temporary credentials). boto3 reads
-  <code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code> from the environment
-  automatically, so you can omit them from the TOML. Minimum IAM policy:</p>
+<p><strong>AWS S3</strong>: prefer an instance/task role when the server runs on AWS; otherwise
+  create a narrow IAM user or STS credential. In the AWS console, open
+  <em>IAM → Users</em> (or the role used by your server) → add an inline policy with
+  the bucket/prefix read permissions. If you create an access key, open
+  <em>Security credentials → Create access key</em>, copy the access key ID and secret
+  once, and inject them into the server environment. boto3 also reads
+  <code>AWS_ACCESS_KEY_ID</code> / <code>AWS_SECRET_ACCESS_KEY</code> automatically, so you can omit
+  them from the TOML. Minimum IAM policy:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;Statement&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span>
@@ -2349,10 +2354,13 @@ only; other types are browse/export only.</p>
 <li>
 <p><strong>Cloudflare R2</strong>: an R2 API token with Object Read; set
   <code>endpoint_url = "https://&lt;account-id&gt;.r2.cloudflarestorage.com"</code> and
-  <code>region = "auto"</code>.</p>
+  <code>region = "auto"</code>. Create the token from the R2 dashboard, scope it to the
+  bucket when possible, and copy the Access Key ID / Secret Access Key pair.</p>
 </li>
-<li><strong>GCS (S3 interop)</strong>: an HMAC key; <code>endpoint_url = "https://storage.googleapis.com"</code>.</li>
-<li><strong>MinIO</strong>: the service's access/secret key; <code>endpoint_url</code> of your MinIO URL.</li>
+<li><strong>GCS (S3 interop)</strong>: create an HMAC key for a service account with Storage
+  Object Viewer access, then set <code>endpoint_url = "https://storage.googleapis.com"</code>.</li>
+<li><strong>MinIO</strong>: create or choose a read-only access key in the MinIO console and
+  set <code>endpoint_url</code> to your MinIO URL, for example <code>https://minio.example.com</code>.</li>
 </ul>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">bucket</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;acme-docs&quot;</span>
@@ -2362,16 +2370,18 @@ only; other types are browse/export only.</p>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">secret_access_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:AWS_SECRET_ACCESS_KEY&quot;</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="c1"># endpoint_url = &quot;https://&lt;account-id&gt;.r2.cloudflarestorage.com&quot;   # R2/GCS/MinIO</span>
 </code></pre></div>
+<p>Save the file as <code>s3.toml</code>, then probe the bucket and prefix before indexing:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
+</code></pre></div>
 <h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
 <p>The connector uses each object's <code>etag</code> as its cursor, so re-syncs only re-process
 changed objects; deletions are caught by <code>full_scan</code>. Versioned buckets expose
 only the latest version.</p>
 <h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>s3://acme-docs<span class="w"> </span>--config<span class="w"> </span>./s3.toml
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;retention policy&quot;</span><span class="w"> </span>s3://acme-docs/engineering/rfc/
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.pdf<span class="w"> </span>/tmp/rfc-001.pdf
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;retention policy&quot;</span><span class="w"> </span>s3://acme-docs/engineering/rfc/
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mfs<span class="w"> </span><span class="nb">export</span><span class="w"> </span>s3://acme-docs/engineering/rfc/rfc-001.pdf<span class="w"> </span>/tmp/rfc-001.pdf
 </code></pre></div>
 <h2 id="pitfalls">Pitfalls<a class="headerlink" href="#pitfalls" title="Permanent link">&para;</a></h2>
 <ul>

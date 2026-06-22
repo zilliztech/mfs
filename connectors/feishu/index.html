@@ -2387,8 +2387,10 @@ Scopes</strong>: <code>im:chat:readonly</code>, <code>im:message.group_msg:get_a
 <p>Add the connector — the wizard runs a one-time browser authorization inline:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>mfs-server<span class="w"> </span>connector<span class="w"> </span>add<span class="w"> </span>feishu://workspace
 </code></pre></div>
-<p>Open the printed URL and approve. <strong>This consent must be done by a person and
-can't be automated</strong> — it's the OAuth user-authorization step. After that the
+<p>The wizard prompts for App ID, App Secret, region, and auth mode, writes the TOML
+under <code>$MFS_HOME/connectors/</code>, and registers the connector against the local
+server. Open the printed URL and approve. <strong>This consent must be done by a person
+and can't be automated</strong> — it's the OAuth user-authorization step. After that the
 token refreshes automatically while the connector is actively synced (each sync
 renews it). If it goes unused for several days the authorization expires; the next
 use reports that re-authorization is needed. To re-authorize, have a person
@@ -2411,6 +2413,12 @@ Add the same scopes as <strong>Bot Scopes</strong>.</p>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">docs_folder_token</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;fldcn...&quot;</span><span class="w">   </span><span class="c1"># optional: limit docs to one shared folder</span>
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">max_read_rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50000</span>
 </code></pre></div>
+<p>Tenant mode does not need browser consent. You can use the same
+<code>mfs-server connector add feishu://workspace</code> wizard and choose <code>tenant</code>, or save
+the TOML yourself and run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mfs<span class="w"> </span>connector<span class="w"> </span>probe<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>feishu://workspace<span class="w"> </span>--config<span class="w"> </span>./feishu.toml
+</code></pre></div>
 <h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
 <p>The connector uses the message <code>create_time</code> as its cursor; deletion detection is
 <code>never</code>. Like <a href="../gdrive/"><code>gdrive</code></a>, it honors <code>--since</code>: user mode can enumerate
@@ -2418,9 +2426,9 @@ your whole My Space, so for a large account estimate first (optionally with a
 <code>since</code> date) and use <code>mfs add feishu://&lt;alias&gt; --since &lt;date&gt;</code> to index only
 recently-changed docs. Older docs are left untouched and can be added later.</p>
 <h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>feishu://workspace/chats/
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;quarterly roadmap&quot;</span><span class="w"> </span>feishu://workspace/docs/
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/docs/Roadmap__doccnxxx.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;deploy failed&quot;</span><span class="w"> </span>feishu://workspace/chats/
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;quarterly roadmap&quot;</span><span class="w"> </span>feishu://workspace/docs/
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>feishu://workspace/docs/Roadmap__doccnxxx.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80
 </code></pre></div>
 <h2 id="pitfalls">Pitfalls<a class="headerlink" href="#pitfalls" title="Permanent link">&para;</a></h2>
 <ul>
