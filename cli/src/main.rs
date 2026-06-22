@@ -1065,8 +1065,9 @@ struct ScanEntry {
     inode: u64,
 }
 
-/// Walk a directory (skipping noisy dirs) collecting per-file stat (rel path, size,
-/// mtime_ns, inode). Mirrors the server file connector's default ignores roughly.
+/// Walk a directory collecting per-file stat (rel path, size, mtime_ns, inode).
+/// This is the upload-mode boundary, so it must honor the same ignore files a
+/// same-host file connector would honor before bytes leave the client.
 fn scan_tree(root: &std::path::Path) -> Result<Vec<ScanEntry>, String> {
     use std::os::unix::fs::MetadataExt;
     const SKIP: &[&str] = &[
@@ -1082,34 +1083,43 @@ fn scan_tree(root: &std::path::Path) -> Result<Vec<ScanEntry>, String> {
         ".vscode",
     ];
     let mut out = Vec::new();
-    let mut stack = vec![root.to_path_buf()];
-    while let Some(dir) = stack.pop() {
-        let rd = std::fs::read_dir(&dir).map_err(|e| format!("scan {}: {e}", dir.display()))?;
-        for ent in rd {
-            let ent = ent.map_err(|e| e.to_string())?;
-            let path = ent.path();
-            let md = ent.metadata().map_err(|e| e.to_string())?;
-            let name = ent.file_name().to_string_lossy().to_string();
-            if md.is_dir() {
-                if !SKIP.contains(&name.as_str()) {
-                    stack.push(path);
-                }
-            } else if md.is_file() {
-                let rel = path
-                    .strip_prefix(root)
-                    .map_err(|e| e.to_string())?
-                    .to_string_lossy()
-                    .replace('\\', "/");
-                out.push(ScanEntry {
-                    rel,
-                    size: md.size(),
-                    // ns since epoch fits i64 until year ~2262; send as a JSON number so it
-                    // round-trips to the server's int field and stat-compares cleanly next sync
-                    mtime_ns: md.mtime() * 1_000_000_000 + md.mtime_nsec(),
-                    inode: md.ino(),
-                });
-            }
+    let mut builder = ignore::WalkBuilder::new(root);
+    builder
+        .hidden(false)
+        .parents(true)
+        .ignore(false)
+        .git_ignore(true)
+        .git_global(false)
+        .git_exclude(false)
+        .add_custom_ignore_filename(".mfsignore")
+        .filter_entry(|ent| {
+            let Some(name) = ent.file_name().to_str() else {
+                return true;
+            };
+            !SKIP.contains(&name)
+        });
+
+    for dent in builder.build() {
+        let dent = dent.map_err(|e| e.to_string())?;
+        let path = dent.path();
+        let is_file = dent.file_type().map(|ft| ft.is_file()).unwrap_or(false);
+        if !is_file {
+            continue;
         }
+        let md = dent.metadata().map_err(|e| e.to_string())?;
+        let rel = path
+            .strip_prefix(root)
+            .map_err(|e| e.to_string())?
+            .to_string_lossy()
+            .replace('\\', "/");
+        out.push(ScanEntry {
+            rel,
+            size: md.size(),
+            // ns since epoch fits i64 until year ~2262; send as a JSON number so it
+            // round-trips to the server's int field and stat-compares cleanly next sync
+            mtime_ns: md.mtime() * 1_000_000_000 + md.mtime_nsec(),
+            inode: md.ino(),
+        });
     }
     Ok(out)
 }
@@ -1617,6 +1627,66 @@ fn parse(resp: reqwest::blocking::Response) -> CliResult<Value> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    fn temp_tree(name: &str) -> std::path::PathBuf {
+        let n = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let p = std::env::temp_dir().join(format!("mfs-cli-{name}-{}-{n}", std::process::id()));
+        std::fs::create_dir_all(&p).unwrap();
+        p
+    }
+
+    fn write_file(path: &std::path::Path, content: &str) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
+    }
+
+    #[test]
+    fn upload_scan_honors_ignore_files() {
+        let root = temp_tree("scan-ignore");
+        write_file(&root.join(".gitignore"), "ignored_dir/\n*.tmp\n");
+        write_file(&root.join(".mfsignore"), "private/**\n");
+        write_file(&root.join("keep.md"), "keep");
+        write_file(&root.join("ignored_dir/secret.md"), "secret");
+        write_file(&root.join("scratch.tmp"), "tmp");
+        write_file(&root.join("private/token.txt"), "token");
+        write_file(&root.join("nested/.gitignore"), "/target\n");
+        write_file(&root.join("nested/keep.py"), "print('keep')");
+        write_file(&root.join("nested/target/out.bin"), "ignored");
+        write_file(&root.join("node_modules/pkg/index.js"), "ignored");
+        #[cfg(unix)]
+        {
+            let outside = root.with_extension("outside");
+            write_file(&outside, "outside");
+            std::os::unix::fs::symlink(outside, root.join("outside-link.txt")).unwrap();
+        }
+
+        let mut rels: Vec<String> = scan_tree(&root)
+            .unwrap()
+            .into_iter()
+            .map(|e| e.rel)
+            .collect();
+        rels.sort();
+
+        assert_eq!(
+            rels,
+            vec![
+                ".gitignore".to_string(),
+                ".mfsignore".to_string(),
+                "keep.md".to_string(),
+                "nested/.gitignore".to_string(),
+                "nested/keep.py".to_string(),
+            ]
+        );
+
+        #[cfg(unix)]
+        {
+            let _ = std::fs::remove_file(root.with_extension("outside"));
+        }
+        std::fs::remove_dir_all(&root).unwrap();
+    }
 
     #[test]
     fn expand_tree_entries_adds_nested_children_until_depth_limit() {

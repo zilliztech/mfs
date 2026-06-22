@@ -26,6 +26,7 @@ toml = "0.8"
 sha1 = "0.10"
 tar = "0.4"
 flate2 = "1"
+ignore = "0.4"
 
 [profile.release]
 opt-level = 2
