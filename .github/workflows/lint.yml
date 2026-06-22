@@ -17,6 +17,64 @@ permissions:
   contents: read
 
 jobs:
+  version-lockstep:
+    name: package version lockstep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Verify package versions match
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import sys
+          import tomllib
+
+          root = pathlib.Path.cwd()
+
+          def toml_version(path: str) -> str:
+              with (root / path).open("rb") as f:
+                  return tomllib.load(f)["project" if path.endswith("pyproject.toml") else "package"]["version"]
+
+          def lock_version(path: str, package_name: str) -> str:
+              with (root / path).open("rb") as f:
+                  data = tomllib.load(f)
+              for package in data["package"]:
+                  if package["name"] == package_name:
+                      return package["version"]
+              raise SystemExit(f"{package_name} not found in {path}")
+
+          package_lock = json.loads((root / "sdks/typescript/package-lock.json").read_text())
+          versions = {
+              "cli/Cargo.toml": toml_version("cli/Cargo.toml"),
+              "cli/Cargo.lock": lock_version("cli/Cargo.lock", "mfs-cli"),
+              "server/python/pyproject.toml": toml_version("server/python/pyproject.toml"),
+              "server/python/uv.lock": lock_version("server/python/uv.lock", "mfs-server"),
+              "server-rs/Cargo.toml": toml_version("server-rs/Cargo.toml"),
+              "server-rs/Cargo.lock": lock_version("server-rs/Cargo.lock", "mfs-server-rs"),
+              "server-rs/pyproject.toml": toml_version("server-rs/pyproject.toml"),
+              "sdks/python/pyproject.toml": toml_version("sdks/python/pyproject.toml"),
+              "sdks/python/uv.lock": lock_version("sdks/python/uv.lock", "mfs-sdk"),
+              "sdks/typescript/package.json": json.loads((root / "sdks/typescript/package.json").read_text())["version"],
+              "sdks/typescript/package-lock.json": package_lock["version"],
+              "sdks/typescript/package-lock.json packages.\"\"": package_lock["packages"][""]["version"],
+          }
+
+          if len(set(versions.values())) == 1:
+              print(f"package versions match: {next(iter(versions.values()))}")
+              sys.exit(0)
+
+          print("package versions are not in lockstep:")
+          for path, version in versions.items():
+              print(f"  {path}: {version}")
+          sys.exit(1)
+          PY
+
   ruff:
     name: ruff format (Python)
     runs-on: ubuntu-latest

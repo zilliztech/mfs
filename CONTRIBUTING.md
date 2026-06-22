@@ -67,6 +67,11 @@ mfs/
 └── evaluation/       Embedding / retrieval benchmarks.
 ```
 
+The checked-in SDKs are generated from `protocol/openapi.yaml`, not from CLI
+commands. Regenerate them only when the HTTP contract changes; CLI-only changes
+do not require SDK regeneration. Release version bumps should keep the package
+metadata for the CLI, server, server-rs, and both SDKs in lockstep.
+
 ## Setup
 
 You'll need:
