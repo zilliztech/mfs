@@ -55,8 +55,10 @@ Add the connector — the wizard runs a one-time browser authorization inline:
 mfs-server connector add feishu://workspace
 ```
 
-Open the printed URL and approve. **This consent must be done by a person and
-can't be automated** — it's the OAuth user-authorization step. After that the
+The wizard prompts for App ID, App Secret, region, and auth mode, writes the TOML
+under `$MFS_HOME/connectors/`, and registers the connector against the local
+server. Open the printed URL and approve. **This consent must be done by a person
+and can't be automated** — it's the OAuth user-authorization step. After that the
 token refreshes automatically while the connector is actively synced (each sync
 renews it). If it goes unused for several days the authorization expires; the next
 use reports that re-authorization is needed. To re-authorize, have a person
@@ -86,6 +88,15 @@ region = "feishu"
 auth = "tenant"
 docs_folder_token = "fldcn..."   # optional: limit docs to one shared folder
 max_read_rows = 50000
+```
+
+Tenant mode does not need browser consent. You can use the same
+`mfs-server connector add feishu://workspace` wizard and choose `tenant`, or save
+the TOML yourself and run:
+
+```bash
+mfs connector probe feishu://workspace --config ./feishu.toml
+mfs add feishu://workspace --config ./feishu.toml
 ```
 
 ## Sync and freshness

@@ -32,7 +32,10 @@ CREATE USER 'mfs_reader'@'%' IDENTIFIED BY '<password>';
 GRANT SELECT ON prod.* TO 'mfs_reader'@'%';
 ```
 
-Confirm connectivity before handing credentials to MFS:
+Use the server's egress host instead of `%` when you can. For managed MySQL,
+also allow the server's IP or security group before testing. Confirm
+connectivity from the machine that runs the server before handing credentials to
+MFS:
 
 ```bash
 mysql -h <host> -P <port> -u <user> -p<pw> <database> -e "SHOW TABLES"
@@ -55,6 +58,14 @@ text_fields = ["title", "description"]
 locator_fields = ["id"]
 ```
 
+Keep the password in the server environment, then probe and index:
+
+```bash
+export MYSQL_PASSWORD='<password>'
+mfs connector probe mysql://prod-db --config ./mysql.toml
+mfs add mysql://prod-db --config ./mysql.toml
+```
+
 ## Sync and freshness
 
 With `cursor_column` set (usually `updated_at`), re-syncs pull only rows changed
@@ -64,9 +75,6 @@ straight to MySQL.
 ## Search and browse
 
 ```bash
-mfs connector probe mysql://prod-db --config ./mysql.toml
-mfs add mysql://prod-db --config ./mysql.toml
-
 mfs search "billing bug" mysql://prod-db/tickets/rows.jsonl
 mfs search "email column" mysql://prod-db --kind schema_summary
 mfs cat mysql://prod-db/tickets/rows.jsonl --locator '{"id":12345}'
@@ -76,6 +84,8 @@ mfs cat mysql://prod-db/tickets/rows.jsonl --locator '{"id":12345}'
 
 - One connector = one database.
 - No `text_fields` → browsable rows, but no row search.
+- If probe fails while a local `mysql` command works, test from the server host
+  or container; connector credentials are resolved there.
 - Legacy `utf8` (3-byte) collations can return mojibake for 4-byte characters;
   prefer `utf8mb4`.
 - Long scans can hit server timeouts; lower `max_read_rows` while testing.

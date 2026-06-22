@@ -24,14 +24,31 @@ Gmail uses a **user OAuth token JSON** — the `token.json` from Google's OAuth
 flow, containing `refresh_token` / `client_id` / `client_secret`. Service-account
 keys are **not** supported.
 
-1. <https://console.cloud.google.com> → pick or create a project.
+1. <https://console.cloud.google.com> → pick or create a project. If this is
+   the first OAuth client in the project, finish the OAuth consent screen first
+   and add the authorizing Google account as a test user when the app is in
+   testing.
 2. *APIs & Services → Library → Gmail API* → **Enable**.
-3. *Credentials → Create Credentials → OAuth client ID* → *Desktop app* →
-   **Download JSON** (the client credentials, not the token yet).
-4. Run Google's OAuth flow once on a machine with a browser (e.g.
-   `InstalledAppFlow.run_local_server`) requesting scope
-   `https://www.googleapis.com/auth/gmail.readonly`. This writes `token.json`.
-5. Copy `token.json` to the server and reference it from the TOML.
+3. *APIs & Services → Credentials → Create Credentials → OAuth client ID* →
+   choose **Desktop app** → **Create** → **Download JSON**. Save it locally as
+   `client_secret.json`.
+4. On a workstation with a browser, run the consent flow once:
+
+    ```bash
+    uv run --with google-auth-oauthlib python - <<'PY'
+    from pathlib import Path
+    from google_auth_oauthlib.flow import InstalledAppFlow
+
+    scopes = ["https://www.googleapis.com/auth/gmail.readonly"]
+    flow = InstalledAppFlow.from_client_secrets_file("client_secret.json", scopes)
+    creds = flow.run_local_server(port=0)
+    Path("token.json").write_text(creds.to_json())
+    PY
+    ```
+
+5. Copy `token.json` to a path the **server process** can read, for example
+   `/home/x/.mfs/gmail-token.json`, and reference that absolute path from the
+   TOML.
 
 ![Google Cloud Gmail API page](https://github.com/user-attachments/assets/8a2b96ab-8ea6-4442-9e25-f186c879dd14)
 
@@ -55,6 +72,13 @@ max_read_rows = 5000
 bare access-token string or inline token JSON, but the file reference is the
 common form.
 
+Save the file as `gmail.toml`, then probe and index:
+
+```bash
+mfs connector probe gmail://work --config ./gmail.toml
+mfs add gmail://work --config ./gmail.toml
+```
+
 ## Sync and freshness
 
 The connector uses Gmail's `historyId` as its cursor for incremental re-sync.
@@ -63,8 +87,6 @@ Deletion detection is `never` — removed mail isn't retroactively pruned.
 ## Search and browse
 
 ```bash
-mfs add gmail://work --config ./gmail.toml
-
 mfs search "contract renewal" gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl
 mfs cat gmail://work/labels/INBOX__CATEGORY_PERSONAL/messages.jsonl --locator '{"threadId":"THREAD_ID","id":"MESSAGE_ID"}'
 ```

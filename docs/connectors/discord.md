@@ -60,6 +60,13 @@ guild_id = "987654321098765432"
 max_read_rows = 50000
 ```
 
+Save the file as `discord.toml`, then probe and index:
+
+```bash
+mfs connector probe discord://community --config ./discord.toml
+mfs add discord://community --config ./discord.toml
+```
+
 ## Sync and freshness
 
 The connector tracks the latest `message_id` per channel as its cursor;
@@ -68,8 +75,6 @@ re-syncs fetch only newer messages. Deletion detection is `never`.
 ## Search and browse
 
 ```bash
-mfs add discord://community --config ./discord.toml
-
 mfs search "deploy failed" discord://community
 mfs ls discord://community/channels/general__987654321
 mfs cat discord://community/channels/general__987654321/messages.jsonl --locator '{"id":"1234567890123456789"}'

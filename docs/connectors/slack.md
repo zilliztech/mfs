@@ -63,6 +63,13 @@ oldest = "now-30d"                    # optional history floor: ISO date / now-N
 max_read_rows = 50000
 ```
 
+Save the file as `slack.toml`, then probe and index:
+
+```bash
+mfs connector probe slack://acme --config ./slack.toml
+mfs add slack://acme --config ./slack.toml
+```
+
 ## Sync and freshness
 
 The connector tracks each channel's latest message `ts` as its cursor, so
@@ -72,8 +79,6 @@ detection is `never` — edited or deleted messages aren't retroactively pruned.
 ## Search and browse
 
 ```bash
-mfs add slack://acme --config ./slack.toml
-
 mfs search "deploy failed" slack://acme/channels/eng-backend__C012345/messages.jsonl
 mfs search "Alice Wang" slack://acme/users.jsonl
 mfs cat slack://acme/channels/eng-backend__C012345/messages.jsonl --locator '{"thread_ts":"1717123456.001200"}'

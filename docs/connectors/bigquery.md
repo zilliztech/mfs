@@ -23,21 +23,28 @@ BigQuery uses **Application Default Credentials (ADC)** — there is no token in
 TOML; the credentials must be visible to the **server process**. Three common
 paths:
 
-1. **Service account JSON** (production): create a service account with
-   `roles/bigquery.dataViewer` on the target datasets, then point the server at
-   it:
+1. **Service account JSON** (production): in Google Cloud Console, open
+   *IAM & Admin → Service Accounts* → **Create service account**. Name it
+   `mfs-bigquery-reader`, grant `roles/bigquery.dataViewer` on the target
+   datasets or project, then open the service account's *Keys* tab →
+   **Add key → Create new key → JSON**. Store the downloaded JSON outside the
+   repo and point the server at it:
 
     ```bash
     export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json
     mfs-server run
     ```
 
-2. **`gcloud auth application-default login`** (dev / single-user) — writes
-   `~/.config/gcloud/application_default_credentials.json`.
+2. **`gcloud auth application-default login`** (dev / single-user): run it as
+   the same OS user that starts `mfs-server`. It opens a browser consent flow and
+   writes `~/.config/gcloud/application_default_credentials.json`.
 
 3. **Workload Identity** on GKE / Cloud Run — ADC is automatic.
 
-Make sure the **BigQuery API** is enabled on the project.
+Before any of those, open *APIs & Services → Library → BigQuery API* and enable
+it on the project. If the connector can authenticate but cannot list a dataset,
+check the dataset IAM page first; the service account needs read access to every
+dataset listed in `datasets`.
 
 ![Google Cloud BigQuery API page](https://github.com/user-attachments/assets/fd034ea0-4607-4e74-b65a-106460830889)
 
@@ -58,6 +65,13 @@ text_fields = ["title", "body_markdown"]
 locator_fields = ["article_id"]
 ```
 
+Save the file as `bigquery.toml`, then probe before the first index:
+
+```bash
+mfs connector probe bigquery://analytics --config ./bigquery.toml
+mfs add bigquery://analytics --config ./bigquery.toml
+```
+
 ## Sync and freshness
 
 The connector uses the table's `modified` time as its cursor; deletions are caught
@@ -67,8 +81,6 @@ tables.
 ## Search and browse
 
 ```bash
-mfs add bigquery://analytics --config ./bigquery.toml
-
 mfs search "refund event" bigquery://analytics/events/tables/user_events/rows.jsonl
 mfs search "email column" bigquery://analytics --kind schema_summary
 mfs cat bigquery://analytics/kb/tables/articles/rows.jsonl --locator '{"article_id":"a-123"}'
@@ -80,3 +92,5 @@ mfs cat bigquery://analytics/kb/tables/articles/rows.jsonl --locator '{"article_
 - BigQuery has no primary key for most tables — choose stable `locator_fields`
   explicitly.
 - Rows need `text_fields` to be searchable.
+- User ADC from `gcloud` is convenient for local testing; service accounts or
+  workload identity are easier to operate in long-running deployments.

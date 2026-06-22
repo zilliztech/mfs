@@ -27,12 +27,19 @@ mongodb+srv://user:pass@cluster.mongodb.net/?retryWrites=true
 ```
 
 For Atlas, copy the SRV URI from *Database → Connect → Drivers* and substitute
-the real password. A read-only user is enough — the connector only runs `find()`.
-Probe before MFS sees it:
+the real password. Before copying it, open *Database Access → Add New Database
+User*, create a user with the built-in **read** role on the target database, then
+open *Network Access* and allow the egress IP of the machine or container running
+`mfs-server`. A read-only user is enough — the connector only runs `find()`.
+
+Probe from the server host before MFS sees it:
 
 ```bash
 mongosh "$MONGO_URI" --eval "db.adminCommand({ping: 1})"
 ```
+
+If the password contains `@`, `:`, `/`, or other URL characters, percent-encode
+it before putting it in the URI.
 
 ## Configuration
 
@@ -52,6 +59,14 @@ metadata_fields = ["status"]
 `text_fields` supports nested paths like `messages[].body` to pull text out of
 arrays of subdocuments.
 
+Keep the URI in the server environment, then probe and index:
+
+```bash
+export MONGO_URI='mongodb+srv://mfs_reader:<password>@cluster.mongodb.net/'
+mfs connector probe mongo://prod-cluster --config ./mongo.toml
+mfs add mongo://prod-cluster --config ./mongo.toml
+```
+
 ## Sync and freshness
 
 With `cursor_field` set (`updatedAt` or `_id`), re-syncs pull only documents
@@ -60,9 +75,6 @@ changed since the last run; deletions are caught by `full_scan`.
 ## Search and browse
 
 ```bash
-mfs connector probe mongo://prod-cluster --config ./mongo.toml
-mfs add mongo://prod-cluster --config ./mongo.toml
-
 mfs search "refund escalation" mongo://prod-cluster/support_threads/documents.jsonl
 mfs cat mongo://prod-cluster/support_threads/documents.jsonl --locator '{"_id":"65a3..."}'
 ```

@@ -42,6 +42,13 @@ api_key = "env:LINEAR_API_KEY"
 teams = ["ENG"]               # empty = all visible teams
 ```
 
+Save the file as `linear.toml`, then probe and index:
+
+```bash
+mfs connector probe linear://workspace --config ./linear.toml
+mfs add linear://workspace --config ./linear.toml
+```
+
 ## Sync and freshness
 
 The connector uses the issue `updatedAt` field as its cursor for incremental
@@ -50,8 +57,6 @@ re-sync; deletions are caught by `full_scan`.
 ## Search and browse
 
 ```bash
-mfs add linear://workspace --config ./linear.toml
-
 mfs search "billing migration" linear://workspace/teams/ENG/issues.jsonl
 mfs cat linear://workspace/teams/ENG/issues.jsonl --locator '{"identifier":"ENG-42"}'
 ```

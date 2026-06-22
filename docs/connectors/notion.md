@@ -53,6 +53,13 @@ locator_fields = ["id"]
 The `[[objects]]` block is only needed for searchable database records — pages
 work without it.
 
+Save the file as `notion.toml`, then probe and index:
+
+```bash
+mfs connector probe notion://workspace --config ./notion.toml
+mfs add notion://workspace --config ./notion.toml
+```
+
 ## Sync and freshness
 
 The connector uses each page's `last_edited_time` as its cursor for incremental
@@ -61,8 +68,6 @@ re-sync; deletions are caught by `full_scan`.
 ## Search and browse
 
 ```bash
-mfs add notion://workspace --config ./notion.toml
-
 mfs search "launch checklist" notion://workspace/pages
 mfs cat notion://workspace/pages/<page-id>.md --range 1:80
 mfs cat notion://workspace/data_sources/<data-source-id>/records.jsonl --locator '{"id":"<page-id>"}'

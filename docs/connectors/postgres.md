@@ -37,8 +37,20 @@ postgresql://user:pass@host:5432/dbname
 - **Self-hosted**: run `\conninfo` in `psql` to read host/port/db/user.
 
 A read-only role is enough — `USAGE` on each in-scope schema plus `SELECT` on its
-tables. Confirm connectivity from the machine that runs the server before handing
-the DSN to MFS:
+tables. If you are creating a role for MFS, start with the narrowest database and
+schema grants you can:
+
+```sql
+CREATE USER mfs_reader WITH PASSWORD '<password>';
+GRANT CONNECT ON DATABASE prod TO mfs_reader;
+GRANT USAGE ON SCHEMA public TO mfs_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO mfs_reader;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA public TO mfs_reader;
+```
+
+For managed Postgres, also allow the server's egress IP in the database firewall
+or security group. Confirm connectivity from the machine that runs the server
+before handing the DSN to MFS:
 
 ```bash
 psql "$DSN" -c "SELECT 1"
@@ -65,6 +77,14 @@ covers its `rows.jsonl`. `text_fields` become the embedded text; `locator_fields
 let you reopen an exact row with `cat --locator`; `metadata_fields` are returned
 alongside hits for filtering and display.
 
+Keep the DSN in the server environment, then probe and index:
+
+```bash
+export PG_DSN='postgresql://mfs_reader:<password>@db.example.com:5432/prod'
+mfs connector probe postgres://prod-db --config ./postgres.toml
+mfs add postgres://prod-db --config ./postgres.toml
+```
+
 ## Sync and freshness
 
 When you set `cursor_column` (typically `updated_at`), the connector tracks the
@@ -75,9 +95,6 @@ rather than the index.
 ## Search and browse
 
 ```bash
-mfs connector probe postgres://prod-db --config ./postgres.toml
-mfs add postgres://prod-db --config ./postgres.toml
-
 mfs search "SSO migration" postgres://prod-db/public/tickets/rows.jsonl
 mfs search "email column" postgres://prod-db --kind schema_summary
 mfs cat postgres://prod-db/public/tickets/rows.jsonl --locator '{"id":12345}'
@@ -87,4 +104,6 @@ mfs cat postgres://prod-db/public/tickets/rows.jsonl --locator '{"id":12345}'
 
 - No `text_fields` → rows enumerate but produce no searchable chunks.
 - Use read-only credentials; the connector only needs `SELECT`.
+- If the DSN works locally but probe fails, check the server host, container, or
+  pod network path rather than the client shell.
 - `max_read_rows` caps large tables and can mark recall partial.

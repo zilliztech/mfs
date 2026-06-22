@@ -40,6 +40,13 @@ api_token = "env:ZENDESK_API_TOKEN"
 max_read_rows = 50000
 ```
 
+Save the file as `zendesk.toml`, then probe and index:
+
+```bash
+mfs connector probe zendesk://acme --config ./zendesk.toml
+mfs add zendesk://acme --config ./zendesk.toml
+```
+
 ## Sync and freshness
 
 The connector uses each resource's `updated_at` field as its cursor for
@@ -48,8 +55,6 @@ incremental re-sync; deletions are caught by `full_scan`.
 ## Search and browse
 
 ```bash
-mfs add zendesk://acme --config ./zendesk.toml
-
 mfs search "billing dispute" zendesk://acme/tickets/records.jsonl
 mfs search "refund policy" zendesk://acme/tickets/comments.jsonl
 mfs cat zendesk://acme/tickets/records.jsonl --locator '{"id":12345}'

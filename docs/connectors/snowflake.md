@@ -25,6 +25,20 @@ Rows are chunked per-row and need `[[objects]].text_fields` to become searchable
 Three auth modes, selected with `auth_mode`. **Key-pair is the default and the
 recommended production path.**
 
+Start with a dedicated read-only user and role. In Snowsight, open
+*Admin → Users & Roles* to create the user/role, or run the equivalent SQL:
+
+```sql
+CREATE ROLE IF NOT EXISTS mfs_reader_role;
+CREATE USER IF NOT EXISTS mfs_reader DEFAULT_ROLE = mfs_reader_role;
+GRANT ROLE mfs_reader_role TO USER mfs_reader;
+GRANT USAGE ON WAREHOUSE mfs_wh TO ROLE mfs_reader_role;
+GRANT USAGE ON DATABASE PROD TO ROLE mfs_reader_role;
+GRANT USAGE ON SCHEMA PROD.PUBLIC TO ROLE mfs_reader_role;
+GRANT SELECT ON ALL TABLES IN SCHEMA PROD.PUBLIC TO ROLE mfs_reader_role;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA PROD.PUBLIC TO ROLE mfs_reader_role;
+```
+
 **Key-pair** (`auth_mode = "key-pair"`):
 
 ```bash
@@ -40,7 +54,8 @@ ALTER USER mfs_reader SET RSA_PUBLIC_KEY='<rsa_key.pub minus header/footer>';
 ```
 
 `credential_ref` must resolve to a PEM PKCS#8 RSA private key. If it has a
-passphrase, set `private_key_passphrase_ref` too.
+passphrase, set `private_key_passphrase_ref` too. Copy `rsa_key.p8` to a path the
+server can read, keep it outside the repo, and restrict its permissions.
 
 **Password** (`auth_mode = "password"`): `credential_ref` carries the password
 (prefer an `env:`/`file:` ref). Snowflake is tightening password login — check your
@@ -76,6 +91,13 @@ text_fields = ["TITLE", "DESCRIPTION"]
 locator_fields = ["ID"]
 ```
 
+Save the file as `snowflake.toml`, then probe before the first index:
+
+```bash
+mfs connector probe snowflake://analytics --config ./snowflake.toml
+mfs add snowflake://analytics --config ./snowflake.toml
+```
+
 ## Sync and freshness
 
 The connector uses table `row_count` as its change signal; deletions are caught by
@@ -85,8 +107,6 @@ latency.
 ## Search and browse
 
 ```bash
-mfs add snowflake://analytics --config ./snowflake.toml
-
 mfs search "billing event" snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
 mfs search "EMAIL column" snowflake://analytics --kind schema_summary
 mfs cat snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl --locator '{"ID":12345}'
@@ -97,5 +117,7 @@ mfs cat snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl --locator '{
 - Identifiers fold to uppercase — paths and locators must match the returned
   casing.
 - Rows need `text_fields` to be searchable.
+- The warehouse must be usable by the connector role; a valid key with no
+  warehouse `USAGE` grant still fails at probe time.
 - Password auth is subject to Snowflake's tightening login policies; prefer
   key-pair.

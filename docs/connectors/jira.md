@@ -48,6 +48,13 @@ projects = ["ENG", "OPS"]      # empty = all visible projects
 max_read_rows = 50000
 ```
 
+Save the file as `jira.toml`, then probe and index:
+
+```bash
+mfs connector probe jira://acme --config ./jira.toml
+mfs add jira://acme --config ./jira.toml
+```
+
 ## Sync and freshness
 
 The connector uses the issue `updated` timestamp as its cursor; Cloud retrieval
@@ -56,8 +63,6 @@ pages through `enhanced_jql`. Deletions are caught by `full_scan`.
 ## Search and browse
 
 ```bash
-mfs add jira://acme --config ./jira.toml
-
 mfs search "SSO regression" jira://acme/projects/ENG/issues.jsonl
 mfs cat jira://acme/projects/ENG/issues.jsonl --locator '{"key":"ENG-1234"}'
 ```

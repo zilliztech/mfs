@@ -21,13 +21,31 @@ Google Drive uses a **user OAuth token JSON** — the `token.json` from Google's
 OAuth flow, containing `refresh_token` / `client_id` / `client_secret`.
 Service-account keys are **not** supported.
 
-1. GCP Console → *APIs & Services → Library* → enable **Google Drive API**.
-2. *Credentials → Create Credentials → OAuth client ID* → *Desktop app* →
-   **Download JSON** (the client credentials).
-3. Run Google's OAuth flow once on a machine with a browser (e.g.
-   `InstalledAppFlow.run_local_server`) requesting scope
-   `https://www.googleapis.com/auth/drive.readonly`. This writes `token.json`.
-4. Copy `token.json` to the server and reference it from the TOML.
+1. <https://console.cloud.google.com> → pick or create a project. If this is
+   the first OAuth client in the project, finish the OAuth consent screen first
+   and add the authorizing Google account as a test user when the app is in
+   testing.
+2. *APIs & Services → Library → Google Drive API* → **Enable**.
+3. *APIs & Services → Credentials → Create Credentials → OAuth client ID* →
+   choose **Desktop app** → **Create** → **Download JSON**. Save it locally as
+   `client_secret.json`.
+4. On a workstation with a browser, run the consent flow once:
+
+    ```bash
+    uv run --with google-auth-oauthlib python - <<'PY'
+    from pathlib import Path
+    from google_auth_oauthlib.flow import InstalledAppFlow
+
+    scopes = ["https://www.googleapis.com/auth/drive.readonly"]
+    flow = InstalledAppFlow.from_client_secrets_file("client_secret.json", scopes)
+    creds = flow.run_local_server(port=0)
+    Path("token.json").write_text(creds.to_json())
+    PY
+    ```
+
+5. Copy `token.json` to a path the **server process** can read, for example
+   `/home/x/.mfs/gdrive-token.json`, and reference that absolute path from the
+   TOML.
 
 ![Google Cloud Drive API page](https://github.com/user-attachments/assets/523b9021-f809-4b1f-a1ad-16703739c409)
 
@@ -45,6 +63,14 @@ anything explicitly shared with them. If you also use [`gmail`](gmail.md), reque
 token = "file:/home/x/.mfs/gdrive-token.json"
 ```
 
+Save the file as `gdrive.toml`, then probe from the same environment that can
+reach the MFS server:
+
+```bash
+mfs connector probe gdrive://engineering --config ./gdrive.toml
+mfs add gdrive://engineering --config ./gdrive.toml
+```
+
 ## Sync and freshness
 
 The connector uses each file's `modifiedTime` as its cursor; deletions are caught
@@ -60,8 +86,6 @@ indexes only files modified on or after that date. Older files are left untouche
 ## Search and browse
 
 ```bash
-mfs add gdrive://engineering --config ./gdrive.toml
-
 mfs search "roadmap" gdrive://engineering/Product/
 mfs cat gdrive://engineering/Product/Roadmap.txt --range 1:80
 mfs export gdrive://engineering/Product/Design.pdf /tmp/design.pdf

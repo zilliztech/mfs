@@ -54,6 +54,13 @@ locator_fields = ["id"]
 If `object_types` is omitted, the connector probes the common objects and silently
 drops the ones the portal rejects (a 403 on Service Hub tickets, say).
 
+Save the file as `hubspot.toml`, then probe and index:
+
+```bash
+mfs connector probe hubspot://acme --config ./hubspot.toml
+mfs add hubspot://acme --config ./hubspot.toml
+```
+
 ## Sync and freshness
 
 The connector uses each object's `hs_lastmodifieddate` as its cursor for
@@ -62,8 +69,6 @@ incremental re-sync; deletions are caught by `full_scan`.
 ## Search and browse
 
 ```bash
-mfs add hubspot://acme --config ./hubspot.toml
-
 mfs search "customer health" hubspot://acme/contacts/records.jsonl
 mfs cat hubspot://acme/contacts/records.jsonl --locator '{"id":"12345"}'
 ```
