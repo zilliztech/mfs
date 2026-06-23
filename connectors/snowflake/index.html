@@ -2315,8 +2315,9 @@
 
 
 <h1 id="snowflake-snowflake">Snowflake (<code>snowflake</code>)<a class="headerlink" href="#snowflake-snowflake" title="Permanent link">&para;</a></h1>
-<p>The <code>snowflake</code> connector indexes Snowflake table rows as searchable records, with
-a schema summary per table.</p>
+<p>The <code>snowflake</code> connector indexes Snowflake table rows as searchable records.
+Each table also exposes <code>schema.json</code>; when <code>[summary].enabled</code> is on, that
+schema produces a searchable <code>schema_summary</code>.</p>
 <h2 id="how-mfs-sees-it">How MFS sees it<a class="headerlink" href="#how-mfs-sees-it" title="Permanent link">&para;</a></h2>
 <p>Snowflake folds unquoted identifiers to uppercase, so paths and locators are
 uppercase too:</p>
@@ -2326,7 +2327,7 @@ uppercase too:</p>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>        └── tables/
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>            └── TICKETS/
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                ├── rows.jsonl     table_rows    → one searchable chunk per row
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                └── schema.json    table_schema  → searchable column summary
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                └── schema.json    table_schema  → browsable schema; searchable with summary enabled
 </code></pre></div>
 <p>Rows are chunked per-row and need <code>[[objects]].text_fields</code> to become searchable.</p>
 <h2 id="credentials">Credentials<a class="headerlink" href="#credentials" title="Permanent link">&para;</a></h2>
@@ -2384,13 +2385,16 @@ on the in-scope tables.</p>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>snowflake://analytics<span class="w"> </span>--config<span class="w"> </span>./snowflake.toml
 </code></pre></div>
 <h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
-<p>The connector uses table <code>row_count</code> as its change signal; deletions are caught by
-<code>full_scan</code>. Warehouses may auto-resume on the first query, adding startup
-latency.</p>
+<p>The connector uses table row count, plus <code>max(cursor_column)</code> when a configured
+or common timestamp column exists, as the table object's fingerprint. If that
+fingerprint changes, MFS re-reads and re-indexes the table's <code>rows.jsonl</code> object.
+Deletions are caught by <code>full_scan</code>. Warehouses may auto-resume on the first
+query, adding startup latency.</p>
 <h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing event&quot;</span><span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;EMAIL column&quot;</span><span class="w"> </span>snowflake://analytics<span class="w"> </span>--kind<span class="w"> </span>schema_summary
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;ID&quot;:12345}&#39;</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>mfs<span class="w"> </span>cat<span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/schema.json
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;ID&quot;:12345}&#39;</span>
 </code></pre></div>
 <h2 id="pitfalls">Pitfalls<a class="headerlink" href="#pitfalls" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2401,6 +2405,8 @@ latency.</p>
   warehouse <code>USAGE</code> grant still fails at probe time.</li>
 <li>Password auth is subject to Snowflake's tightening login policies; prefer
   key-pair.</li>
+<li><code>schema_summary</code> search requires <code>[summary].enabled</code>; <code>schema.json</code> is still
+  browsable without it.</li>
 </ul>
 
 

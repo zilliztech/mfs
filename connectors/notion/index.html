@@ -2359,8 +2359,9 @@ work without it.</p>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mfs<span class="w"> </span>add<span class="w"> </span>notion://workspace<span class="w"> </span>--config<span class="w"> </span>./notion.toml
 </code></pre></div>
 <h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
-<p>The connector uses each page's <code>last_edited_time</code> as its cursor for incremental
-re-sync; deletions are caught by <code>full_scan</code>.</p>
+<p>The connector uses each page or data source's <code>last_edited_time</code> as the object
+fingerprint. If it changes, MFS re-reads and re-indexes that page or
+<code>records.jsonl</code> object. Deletions are caught by <code>full_scan</code>.</p>
 <h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;launch checklist&quot;</span><span class="w"> </span>notion://workspace/pages
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>notion://workspace/pages/&lt;page-id&gt;.md<span class="w"> </span>--range<span class="w"> </span><span class="m">1</span>:80

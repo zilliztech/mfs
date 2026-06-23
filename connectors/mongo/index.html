@@ -2316,8 +2316,9 @@
 
 <h1 id="mongodb-mongo">MongoDB (<code>mongo</code>)<a class="headerlink" href="#mongodb-mongo" title="Permanent link">&para;</a></h1>
 <p>The <code>mongo</code> connector indexes documents from a single MongoDB database. Each
-document becomes a searchable record, and each collection gets a sampled schema
-preview (Mongo has no fixed schema, so it's inferred from a sample).</p>
+document becomes a searchable record, and each collection exposes a sampled
+<code>schema.json</code> preview (Mongo has no fixed schema, so it's inferred from a
+sample).</p>
 <h2 id="how-mfs-sees-it">How MFS sees it<a class="headerlink" href="#how-mfs-sees-it" title="Permanent link">&para;</a></h2>
 <p>Collections sit under the alias; each exposes its documents and a sampled schema:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mongo://prod-cluster/
@@ -2344,7 +2345,7 @@ it before putting it in the URI.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">uri</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:MONGO_URI&quot;</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">database</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;prod&quot;</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">cursor_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;updatedAt&quot;</span><span class="w">     </span><span class="c1"># or _id; enables incremental re-sync</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">cursor_field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;updatedAt&quot;</span><span class="w">     </span><span class="c1"># or _id; strengthens the collection fingerprint</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">max_read_docs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">100000</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="k">[[objects]]</span>
@@ -2361,8 +2362,10 @@ arrays of subdocuments.</p>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mfs<span class="w"> </span>add<span class="w"> </span>mongo://prod-cluster<span class="w"> </span>--config<span class="w"> </span>./mongo.toml
 </code></pre></div>
 <h2 id="sync-and-freshness">Sync and freshness<a class="headerlink" href="#sync-and-freshness" title="Permanent link">&para;</a></h2>
-<p>With <code>cursor_field</code> set (<code>updatedAt</code> or <code>_id</code>), re-syncs pull only documents
-changed since the last run; deletions are caught by <code>full_scan</code>.</p>
+<p>With <code>cursor_field</code> set (<code>updatedAt</code> or <code>_id</code>), the connector includes the
+collection's max cursor value in the object fingerprint. If the document count or
+cursor maximum changes, MFS re-reads and re-indexes that collection's
+<code>documents.jsonl</code> object. Dropped collections are caught by <code>full_scan</code>.</p>
 <h2 id="search-and-browse">Search and browse<a class="headerlink" href="#search-and-browse" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;refund escalation&quot;</span><span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mfs<span class="w"> </span>cat<span class="w"> </span>mongo://prod-cluster/support_threads/documents.jsonl<span class="w"> </span>--locator<span class="w"> </span><span class="s1">&#39;{&quot;_id&quot;:&quot;65a3...&quot;}&#39;</span>
