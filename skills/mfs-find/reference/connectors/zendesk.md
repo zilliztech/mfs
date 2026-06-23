@@ -4,13 +4,14 @@
 
 ```
 zendesk://<alias>/
-├── tickets.jsonl                ← tickets
-├── tickets_comments.jsonl       ← all ticket comments (joined with ticket_id)
-├── users.jsonl                  ← agents + end-users
-└── organizations.jsonl
+├── tickets/
+│   ├── records.jsonl            ← tickets
+│   └── comments.jsonl           ← all ticket comments (joined with ticket_id)
+├── users/records.jsonl          ← agents + end-users
+└── organizations/records.jsonl
 ```
 
-`tickets_comments.jsonl` is a virtual join — comments tagged with
+`tickets/comments.jsonl` is a virtual join — comments tagged with
 their parent `ticket_id` so a search like "what did support say about
 billing" finds the conversation, not just the ticket subject.
 
@@ -47,21 +48,21 @@ billing" finds the conversation, not just the ticket subject.
 ## Locator
 
 ```bash
-mfs cat zendesk://<alias>/tickets.jsonl --locator '{"id": 12345}'
-mfs cat zendesk://<alias>/tickets_comments.jsonl --locator '{"id": 9876}'
+mfs cat zendesk://<alias>/tickets/records.jsonl --locator '{"id": 12345}'
+mfs cat zendesk://<alias>/tickets/comments.jsonl --locator '{"id": 9876}'
 ```
 
 ## Search strategy
 
 | Intent | Use |
 |---|---|
-| Find tickets about X | `mfs search "X" zendesk://<alias>/tickets.jsonl` |
-| What did support say | `mfs search "X" zendesk://<alias>/tickets_comments.jsonl` (richer recall) |
-| Find a user | `mfs search "X" zendesk://<alias>/users.jsonl` |
+| Find tickets about X | `mfs search "X" zendesk://<alias>/tickets/records.jsonl` |
+| What did support say | `mfs search "X" zendesk://<alias>/tickets/comments.jsonl` (richer recall) |
+| Find a user | `mfs search "X" zendesk://<alias>/users/records.jsonl` |
 
 ## Pitfalls
 
-- **`tickets_comments` is a join, not paginated raw**: ingest fetches
+- **`tickets/comments.jsonl` is a join, not paginated raw**: ingest fetches
   comments per ticket → expensive on big tenants. Default
   `max_read_rows` caps total comments.
 - **Suspended tickets**: filtered out at the source by Zendesk.
@@ -70,4 +71,4 @@ mfs cat zendesk://<alias>/tickets_comments.jsonl --locator '{"id": 9876}'
   return internal comms.
 - **Side-loaded relations**: org of a user, brand of a ticket — only
   the IDs are in the record. Names require cross-lookup against
-  `organizations.jsonl` / `users.jsonl`.
+  `organizations/records.jsonl` / `users/records.jsonl`.

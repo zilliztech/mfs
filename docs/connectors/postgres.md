@@ -1,9 +1,10 @@
 # Postgres (`postgres`)
 
 The `postgres` connector indexes table rows as searchable records. Each row
-becomes an object you can search by meaning, and each table also gets a schema
-summary so you can search the *structure* ("which table has an email column?")
-not just the data.
+becomes an object you can search by meaning, and each table exposes a
+`schema.json` file for structure. When `[summary].enabled` is on, that schema also
+gets a searchable `schema_summary` chunk so you can search questions like "which
+table has an email column?".
 
 ## How MFS sees it
 
@@ -14,7 +15,7 @@ postgres://prod-db/
 └── public/
     ├── tickets/
     │   ├── rows.jsonl     table_rows    → one searchable chunk per row
-    │   └── schema.json    table_schema  → searchable column summary
+    │   └── schema.json    table_schema  → browsable schema; searchable with summary enabled
     └── users/
         ├── rows.jsonl
         └── schema.json
@@ -62,7 +63,7 @@ psql "$DSN" -c "\dt"
 ```toml
 dsn = "env:PG_DSN"
 schemas = ["public"]
-cursor_column = "updated_at"   # enables incremental re-sync
+cursor_column = "updated_at"   # strengthens the object fingerprint
 max_read_rows = 100000
 
 [[objects]]
@@ -87,16 +88,18 @@ mfs add postgres://prod-db --config ./postgres.toml
 
 ## Sync and freshness
 
-When you set `cursor_column` (typically `updated_at`), the connector tracks the
-high-water mark and re-syncs only rows changed since the last run. Deletions are
-caught by `full_scan`. `grep` runs as a pushdown — it queries Postgres directly
-rather than the index.
+When you set `cursor_column` (typically `updated_at`), the connector includes
+`max(cursor_column)` in the table object's fingerprint. If the row count or cursor
+maximum changes, MFS re-reads and re-indexes that table's `rows.jsonl` object.
+Deletions are caught by `full_scan`. `grep` runs as a pushdown — it queries
+Postgres directly rather than the index.
 
 ## Search and browse
 
 ```bash
 mfs search "SSO migration" postgres://prod-db/public/tickets/rows.jsonl
 mfs search "email column" postgres://prod-db --kind schema_summary
+mfs cat postgres://prod-db/public/tickets/schema.json
 mfs cat postgres://prod-db/public/tickets/rows.jsonl --locator '{"id":12345}'
 ```
 
@@ -107,3 +110,5 @@ mfs cat postgres://prod-db/public/tickets/rows.jsonl --locator '{"id":12345}'
 - If the DSN works locally but probe fails, check the server host, container, or
   pod network path rather than the client shell.
 - `max_read_rows` caps large tables and can mark recall partial.
+- `schema_summary` search requires `[summary].enabled`; `schema.json` is still
+  browsable without it.

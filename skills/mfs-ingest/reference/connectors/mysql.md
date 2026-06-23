@@ -36,7 +36,7 @@ FLUSH PRIVILEGES;
 | key | default | meaning |
 |---|---|---|
 | `port` | 3306 | server port |
-| `cursor_column` | _none_ | incremental sync column, typically `updated_at` |
+| `cursor_column` | _none_ | column used to strengthen the table fingerprint, typically `updated_at` |
 | `max_read_rows` | 100000 | per-table cap |
 
 ## `[[objects]]` blocks
@@ -45,13 +45,14 @@ Same shape as Postgres — each table needs `text_fields` declared:
 
 ```toml
 [[objects]]
-match = "tickets"
+match = "/tickets"
 text_fields = ["title", "description"]
 locator_fields = ["id"]
 ```
 
 MySQL uses backtick identifiers internally; the wizard's safe_ident
-helper handles this. Don't include backticks in `match`.
+helper handles this. Don't include backticks in `match`; use the
+connector-relative table path.
 
 ## env: example
 
@@ -64,7 +65,7 @@ password = "env:MYSQL_PROD_PASSWORD"
 cursor_column = "updated_at"
 
 [[objects]]
-match = "tickets"
+match = "/tickets"
 text_fields = ["title", "description"]
 locator_fields = ["id"]
 ```
@@ -77,5 +78,8 @@ locator_fields = ["id"]
 - **`SET GLOBAL net_read_timeout`**: long table scans on slow networks
   can hit the server's `net_read_timeout`. Either fix server config or
   lower `max_read_rows`.
-- **No `cursor_column` configured**: every sync rescans the whole
-  table. Pick `updated_at` if it exists.
+- **`cursor_column` is object-level today**: it helps MFS notice
+  in-place row updates by including `max(cursor_column)` in the table
+  fingerprint. When the fingerprint changes, the table's `rows.jsonl`
+  object is re-read and re-indexed; MFS does not patch individual rows
+  yet.

@@ -16,14 +16,15 @@ deep.
 ## Record / locator / chunk kinds
 
 Same shape as postgres (see `postgres.md`). One row → one `row_text`
-chunk; per-table `schema.json` → one `schema_summary` chunk.
+chunk. Per-table `schema.json` is always browsable; it produces a
+searchable `schema_summary` chunk only when `[summary].enabled` is on.
 
 ## Search strategy
 
 | Intent | Use |
 |---|---|
 | "find rows about X" | `mfs search "X" mysql://<alias>/<table>/rows.jsonl` |
-| "which table has Y column" | `mfs search "Y" mysql://<alias> --kind schema_summary` |
+| "which table has Y column" | `mfs search "Y" mysql://<alias> --kind schema_summary` if summaries are enabled; otherwise `mfs cat mysql://<alias>/<table>/schema.json` |
 | ID lookup | `mfs cat <table>/rows.jsonl --locator '{"id": N}'` |
 
 ## Pitfalls

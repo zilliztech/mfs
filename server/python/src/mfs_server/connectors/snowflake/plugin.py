@@ -229,7 +229,23 @@ class SnowflakePlugin(ConnectorPlugin):
         if len(parts) == 5 and parts[2] == "tables" and parts[4] == "rows.jsonl":
             db, schema, table = safe_ident(parts[0]), safe_ident(parts[1]), safe_ident(parts[3])
             lim = self._cfg("max_read_rows", 100000)
-            rows = await self._query(f'SELECT * FROM "{db}"."{schema}"."{table}" LIMIT {lim}')
+            if range is not None:
+                off = max(0, int(range.start))
+                cnt = max(0, int(range.end) - off)
+                rows = await self._query(
+                    f'SELECT * FROM "{db}"."{schema}"."{table}" ORDER BY 1 LIMIT {cnt} OFFSET {off}'
+                )
+            else:
+                count_rows = await self._query(
+                    f'SELECT count(*) AS n FROM "{db}"."{schema}"."{table}"'
+                )
+                total_row = count_rows[0] if count_rows else {}
+                total = total_row.get("N", total_row.get("n", 0))
+                if total > lim:
+                    self.ctx.declare_partial(path)  # capped -> search_status=partial
+                rows = await self._query(
+                    f'SELECT * FROM "{db}"."{schema}"."{table}" ORDER BY 1 LIMIT {lim}'
+                )
             for r in rows:
                 yield r
         elif len(parts) == 5 and parts[2] == "tables" and parts[4] == "schema.json":

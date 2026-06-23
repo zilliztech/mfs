@@ -63,8 +63,9 @@ mfs add hubspot://acme --config ./hubspot.toml
 
 ## Sync and freshness
 
-The connector uses each object's `hs_lastmodifieddate` as its cursor for
-incremental re-sync; deletions are caught by `full_scan`.
+The connector re-reads each selected CRM object collection on sync. Deletions are
+caught by `full_scan`, and `max_read_rows` caps very large portals and marks
+recall partial when the cap is hit.
 
 ## Search and browse
 

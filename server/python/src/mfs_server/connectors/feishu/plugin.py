@@ -619,6 +619,8 @@ class FeishuPlugin(ConnectorPlugin):
                 if not data.has_more:
                     break
                 page_token = data.page_token
+            if n >= limit:
+                self.ctx.declare_partial(path)  # hit max_read_rows -> partial recall
 
     async def fingerprint(self, path: str) -> Optional[str]:
         # Docs: modified_time from Drive listing already in sync's `seen` map; the

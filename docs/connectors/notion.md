@@ -62,8 +62,9 @@ mfs add notion://workspace --config ./notion.toml
 
 ## Sync and freshness
 
-The connector uses each page's `last_edited_time` as its cursor for incremental
-re-sync; deletions are caught by `full_scan`.
+The connector uses each page or data source's `last_edited_time` as the object
+fingerprint. If it changes, MFS re-reads and re-indexes that page or
+`records.jsonl` object. Deletions are caught by `full_scan`.
 
 ## Search and browse
 

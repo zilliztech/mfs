@@ -28,6 +28,7 @@ HubSpot uses a **Private App access token**:
 | key | default | meaning |
 |---|---|---|
 | `object_types` | `probe-and-skip` | which object kinds to index; default tries `contacts`, `companies`, `deals`, `tickets` and silently drops the ones the portal returns 403 on (e.g. tickets without Service Hub) |
+| `max_read_rows` | 100000 | per-object cap; capped reads are marked partial |
 
 To force specific objects:
 ```toml
@@ -46,11 +47,10 @@ visible in the developer settings.)
 
 ```
 hubspot://<alias>/
-└── objects/
-    ├── contacts/records.jsonl
-    ├── companies/records.jsonl
-    ├── deals/records.jsonl
-    └── tickets/records.jsonl       ← only if Service Hub + scope
+├── contacts/records.jsonl
+├── companies/records.jsonl
+├── deals/records.jsonl
+└── tickets/records.jsonl       ← only if Service Hub + scope
 ```
 
 ## env: example

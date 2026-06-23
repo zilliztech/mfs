@@ -1,8 +1,10 @@
 # MySQL (`mysql`)
 
 The `mysql` connector indexes table rows from a single MySQL database as
-searchable records, with a schema summary per table. One connector covers one
-database; register another connector for another database.
+searchable records. Each table also exposes `schema.json`; when
+`[summary].enabled` is on, that schema produces a searchable `schema_summary`.
+One connector covers one database; register another connector for another
+database.
 
 ## How MFS sees it
 
@@ -13,7 +15,7 @@ alias:
 mysql://prod-db/
 ├── tickets/
 │   ├── rows.jsonl     table_rows    → one searchable chunk per row
-│   └── schema.json    table_schema  → searchable column summary
+│   └── schema.json    table_schema  → browsable schema; searchable with summary enabled
 └── orders/
     ├── rows.jsonl
     └── schema.json
@@ -49,7 +51,7 @@ port = 3306
 database = "prod"
 user = "mfs_reader"
 password = "env:MYSQL_PASSWORD"
-cursor_column = "updated_at"   # enables incremental re-sync
+cursor_column = "updated_at"   # strengthens the object fingerprint
 max_read_rows = 100000
 
 [[objects]]
@@ -68,15 +70,17 @@ mfs add mysql://prod-db --config ./mysql.toml
 
 ## Sync and freshness
 
-With `cursor_column` set (usually `updated_at`), re-syncs pull only rows changed
-since the last run; deletions are caught by `full_scan`. `grep` is a pushdown
-straight to MySQL.
+With `cursor_column` set (usually `updated_at`), the connector includes
+`max(cursor_column)` in the table object's fingerprint. If the row count or cursor
+maximum changes, MFS re-reads and re-indexes that table's `rows.jsonl` object.
+Deletions are caught by `full_scan`. `grep` is a pushdown straight to MySQL.
 
 ## Search and browse
 
 ```bash
 mfs search "billing bug" mysql://prod-db/tickets/rows.jsonl
 mfs search "email column" mysql://prod-db --kind schema_summary
+mfs cat mysql://prod-db/tickets/schema.json
 mfs cat mysql://prod-db/tickets/rows.jsonl --locator '{"id":12345}'
 ```
 
@@ -89,3 +93,5 @@ mfs cat mysql://prod-db/tickets/rows.jsonl --locator '{"id":12345}'
 - Legacy `utf8` (3-byte) collations can return mojibake for 4-byte characters;
   prefer `utf8mb4`.
 - Long scans can hit server timeouts; lower `max_read_rows` while testing.
+- `schema_summary` search requires `[summary].enabled`; `schema.json` is still
+  browsable without it.

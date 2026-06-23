@@ -1,8 +1,9 @@
 # MongoDB (`mongo`)
 
 The `mongo` connector indexes documents from a single MongoDB database. Each
-document becomes a searchable record, and each collection gets a sampled schema
-preview (Mongo has no fixed schema, so it's inferred from a sample).
+document becomes a searchable record, and each collection exposes a sampled
+`schema.json` preview (Mongo has no fixed schema, so it's inferred from a
+sample).
 
 ## How MFS sees it
 
@@ -46,7 +47,7 @@ it before putting it in the URI.
 ```toml
 uri = "env:MONGO_URI"
 database = "prod"
-cursor_field = "updatedAt"     # or _id; enables incremental re-sync
+cursor_field = "updatedAt"     # or _id; strengthens the collection fingerprint
 max_read_docs = 100000
 
 [[objects]]
@@ -69,8 +70,10 @@ mfs add mongo://prod-cluster --config ./mongo.toml
 
 ## Sync and freshness
 
-With `cursor_field` set (`updatedAt` or `_id`), re-syncs pull only documents
-changed since the last run; deletions are caught by `full_scan`.
+With `cursor_field` set (`updatedAt` or `_id`), the connector includes the
+collection's max cursor value in the object fingerprint. If the document count or
+cursor maximum changes, MFS re-reads and re-indexes that collection's
+`documents.jsonl` object. Dropped collections are caught by `full_scan`.
 
 ## Search and browse
 

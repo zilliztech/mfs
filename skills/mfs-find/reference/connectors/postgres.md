@@ -10,9 +10,10 @@ postgres://<alias>/
         └── schema.json             ← one-shot table schema (columns + types)
 ```
 
-`schema.json` is its own indexed chunk (`schema_summary` kind) — useful
-for finding "which table has a column named X". `rows.jsonl` is the
-lazy stream of per-row records.
+`schema.json` is always browsable with `mfs cat`. When `[summary].enabled`
+is on, it also produces a searchable `schema_summary` chunk — useful for
+finding "which table has a column named X". `rows.jsonl` is the lazy stream
+of per-row records.
 
 ## Record shape
 
@@ -39,15 +40,16 @@ For composite PKs the locator is the full key:
 
 - **`row_text`** (per row, from `[[objects]] text_fields`): the
   main searchable content. One chunk per row.
-- **`schema_summary`** (per table): table name + column list + types.
-  Helps `mfs search "where is the email column"` etc.
+- **`schema_summary`** (per table, only when `[summary].enabled` is on):
+  table name + column list + types. Helps `mfs search "where is the email
+  column"` etc.
 
 ## Search strategy
 
 | Query intent | Recommended |
 |---|---|
 | "find rows about X" | `mfs search "X" postgres://<alias>/<schema>/<table>/rows.jsonl` |
-| "which table contains Y" | `mfs search "Y" postgres://<alias> --kind schema_summary` |
+| "which table contains Y" | `mfs search "Y" postgres://<alias> --kind schema_summary` if summaries are enabled; otherwise `mfs cat postgres://<alias>/<schema>/<table>/schema.json` |
 | Exact ID lookup | `mfs cat <table>/rows.jsonl --locator '{"id": N}'` — skip search |
 | Regex over a column | `mfs grep` does NOT regex on postgres; use SQL pushdown via the connector's grep impl OR `mfs export` + local `grep` |
 | Big table sampling | `mfs head <uri>/<schema>/<table>/rows.jsonl -n 20` |

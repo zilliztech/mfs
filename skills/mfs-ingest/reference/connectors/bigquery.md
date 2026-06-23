@@ -25,7 +25,6 @@ The connector toml carries the project + dataset list only.
 
 Grant the service account (or user) these roles on the project:
 - `roles/bigquery.dataViewer` — read tables
-- `roles/bigquery.jobUser` — required for `list_rows` API calls
 
 For specific datasets only, you can grant `dataViewer` per dataset
 instead of project-wide.
@@ -48,7 +47,7 @@ instead of project-wide.
 
 ```toml
 [[objects]]
-match = "events.user_events"
+match = "/events/tables/user_events"
 text_fields = ["event_name", "event_properties_json"]
 locator_fields = ["event_id"]
 ```
@@ -61,7 +60,7 @@ datasets = ["events", "kb"]
 max_read_rows = 1000000
 
 [[objects]]
-match = "kb.articles"
+match = "/kb/tables/articles"
 text_fields = ["title", "body_markdown"]
 locator_fields = ["article_id"]
 ```
@@ -79,6 +78,7 @@ mfs add bigquery://analytics --config /tmp/mfs-bq.toml
   `mfs add` runs.
 - **`list_rows` quota**: BigQuery rate-limits the tabledata.list API.
   Big tables (>1M rows) ingest slowly; consider `max_read_rows` cap.
-- **No `cursor_column` support**: this connector full-scans on every
-  sync (no incremental cursor). For large datasets, expect re-syncs
-  to take a while.
+- **No row-level cursor support**: the connector uses table metadata
+  (`num_rows` + `modified`) as the object fingerprint. When that changes,
+  the table's `rows.jsonl` object is re-read and re-indexed; MFS does
+  not patch individual BigQuery rows yet.

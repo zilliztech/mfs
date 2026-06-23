@@ -49,8 +49,9 @@ mfs add zendesk://acme --config ./zendesk.toml
 
 ## Sync and freshness
 
-The connector uses each resource's `updated_at` field as its cursor for
-incremental re-sync; deletions are caught by `full_scan`.
+The connector re-reads the ticket, comment, user, and organization collections on
+sync. Deletions are caught by `full_scan`, and `max_read_rows` caps each resource
+path and marks recall partial when the cap is hit.
 
 ## Search and browse
 

@@ -2897,6 +2897,8 @@ class Engine:
         cid, curi, rel, plugin = await self._open_path(path)
         try:
             okind = plugin.object_kind_of(rel)
+            if okind in ("table_rows", "record_collection", "message_stream"):
+                raise ValueError("tail_unsupported")
             ext = os.path.splitext(rel)[1].lower()
             plain_local = (
                 curi.startswith("file://local")

@@ -171,6 +171,10 @@ class ZendeskPlugin(ConnectorPlugin):
                 if not meta.get("has_more"):
                     break
                 after = meta.get("after_cursor")
+            if n >= limit:
+                self.ctx.declare_partial(
+                    "/tickets/comments.jsonl"
+                )  # hit max_read_rows -> partial recall
 
     async def fingerprint(self, path: str) -> Optional[str]:
         # count-based change detection: Zendesk exposes /<resource>/count.json,

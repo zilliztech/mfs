@@ -5,10 +5,12 @@
 ```
 mongo://<alias>/
 └── <collection>/
-    └── docs.jsonl                  ← one document per line
+    ├── documents.jsonl             ← one document per line
+    └── schema.json                 ← sampled field preview
 ```
 
-No `schema.json` — Mongo collections are schemaless.
+Mongo collections are schemaless, so `schema.json` is inferred from a sample
+document and should be treated as a preview.
 
 ## Record shape
 
@@ -23,7 +25,7 @@ Each document is the BSON converted to JSON. ObjectId becomes a
 ## Locator
 
 ```bash
-mfs cat mongo://<alias>/<collection>/docs.jsonl --locator '{"_id": "65a3..."}'
+mfs cat mongo://<alias>/<collection>/documents.jsonl --locator '{"_id": "65a3..."}'
 ```
 
 For custom PKs configured at ingest time (e.g. `locator_fields = ["uuid"]`),
@@ -39,8 +41,8 @@ last form flattens arrays.
 
 | Intent | Use |
 |---|---|
-| "find documents about X" | `mfs search "X" mongo://<alias>/<collection>/docs.jsonl` |
-| Doc by `_id` | `mfs cat --locator '{"_id": "..."}'` |
+| "find documents about X" | `mfs search "X" mongo://<alias>/<collection>/documents.jsonl` |
+| Doc by `_id` | `mfs cat mongo://<alias>/<collection>/documents.jsonl --locator '{"_id": "..."}'` |
 | Nested field search | depends on `text_fields` — if `comments[].body` was indexed, search hits the array values; if not, only top-level fields |
 
 ## Pitfalls
@@ -52,4 +54,5 @@ last form flattens arrays.
 - **`_id` rendering**: ObjectIds in `--locator` JSON must be the
   string form, not the BSON ObjectId() constructor.
 - **TTL collections**: documents disappear over time without warning.
-  Stale chunks in Milvus until `mfs add --full`.
+  Re-sync so the collection object is re-read and stale chunks are
+  replaced.

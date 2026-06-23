@@ -4,12 +4,11 @@
 
 ```
 hubspot://<alias>/
-└── objects/
-    ├── contacts/records.jsonl
-    ├── companies/records.jsonl
-    ├── deals/records.jsonl
-    ├── tickets/records.jsonl    ← only if Service Hub + scope
-    └── <p_custom>/records.jsonl ← custom objects
+├── contacts/records.jsonl
+├── companies/records.jsonl
+├── deals/records.jsonl
+├── tickets/records.jsonl    ← only if Service Hub + scope
+└── <p_custom>/records.jsonl ← custom objects
 ```
 
 ## Record shape
@@ -38,7 +37,7 @@ properties appear at the top level:
 ## Locator
 
 ```bash
-mfs cat hubspot://<alias>/objects/contacts/records.jsonl \
+mfs cat hubspot://<alias>/contacts/records.jsonl \
   --locator '{"id": "12345"}'
 ```
 
@@ -46,8 +45,8 @@ mfs cat hubspot://<alias>/objects/contacts/records.jsonl \
 
 | Intent | Use |
 |---|---|
-| Find contacts about X | `mfs search "X" hubspot://<alias>/objects/contacts/records.jsonl` |
-| Find deals by topic | `mfs search "X" hubspot://<alias>/objects/deals/records.jsonl` |
+| Find contacts about X | `mfs search "X" hubspot://<alias>/contacts/records.jsonl` |
+| Find deals by topic | `mfs search "X" hubspot://<alias>/deals/records.jsonl` |
 | Cross-object search | `mfs search "X" hubspot://<alias>` |
 
 ## Pitfalls

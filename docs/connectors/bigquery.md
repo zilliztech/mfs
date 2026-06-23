@@ -1,8 +1,9 @@
 # BigQuery (`bigquery`)
 
-The `bigquery` connector indexes BigQuery table rows as searchable records, with a
-schema summary per table. Use it to search large analytical tables — a knowledge
-base, an events table — by meaning.
+The `bigquery` connector indexes BigQuery table rows as searchable records. Each
+table also exposes `schema.json`; when `[summary].enabled` is on, that schema
+produces a searchable `schema_summary`. Use it to search large analytical tables
+— a knowledge base, an events table — by meaning.
 
 ## How MFS sees it
 
@@ -12,7 +13,7 @@ bigquery://analytics/
     └── tables/
         └── user_events/
             ├── rows.jsonl     table_rows    → one searchable chunk per row
-            └── schema.json    table_schema  → searchable column summary
+            └── schema.json    table_schema  → browsable schema; searchable with summary enabled
 ```
 
 Rows are chunked per-row and need `[[objects]].text_fields` to become searchable.
@@ -74,15 +75,17 @@ mfs add bigquery://analytics --config ./bigquery.toml
 
 ## Sync and freshness
 
-The connector uses the table's `modified` time as its cursor; deletions are caught
-by `full_scan`. It reads rows via `list_rows`, so `max_read_rows` caps large
-tables.
+The connector uses table metadata (`num_rows` + `modified`) as the table object's
+fingerprint. If that fingerprint changes, MFS re-reads and re-indexes the table's
+`rows.jsonl` object. Deletions are caught by `full_scan`. It reads rows via
+`list_rows`, so `max_read_rows` caps large tables.
 
 ## Search and browse
 
 ```bash
 mfs search "refund event" bigquery://analytics/events/tables/user_events/rows.jsonl
 mfs search "email column" bigquery://analytics --kind schema_summary
+mfs cat bigquery://analytics/events/tables/user_events/schema.json
 mfs cat bigquery://analytics/kb/tables/articles/rows.jsonl --locator '{"article_id":"a-123"}'
 ```
 
@@ -94,3 +97,5 @@ mfs cat bigquery://analytics/kb/tables/articles/rows.jsonl --locator '{"article_
 - Rows need `text_fields` to be searchable.
 - User ADC from `gcloud` is convenient for local testing; service accounts or
   workload identity are easier to operate in long-running deployments.
+- `schema_summary` search requires `[summary].enabled`; `schema.json` is still
+  browsable without it.

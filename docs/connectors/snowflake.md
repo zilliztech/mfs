@@ -1,7 +1,8 @@
 # Snowflake (`snowflake`)
 
-The `snowflake` connector indexes Snowflake table rows as searchable records, with
-a schema summary per table.
+The `snowflake` connector indexes Snowflake table rows as searchable records.
+Each table also exposes `schema.json`; when `[summary].enabled` is on, that
+schema produces a searchable `schema_summary`.
 
 ## How MFS sees it
 
@@ -15,7 +16,7 @@ snowflake://analytics/
         └── tables/
             └── TICKETS/
                 ├── rows.jsonl     table_rows    → one searchable chunk per row
-                └── schema.json    table_schema  → searchable column summary
+                └── schema.json    table_schema  → browsable schema; searchable with summary enabled
 ```
 
 Rows are chunked per-row and need `[[objects]].text_fields` to become searchable.
@@ -100,15 +101,18 @@ mfs add snowflake://analytics --config ./snowflake.toml
 
 ## Sync and freshness
 
-The connector uses table `row_count` as its change signal; deletions are caught by
-`full_scan`. Warehouses may auto-resume on the first query, adding startup
-latency.
+The connector uses table row count, plus `max(cursor_column)` when a configured
+or common timestamp column exists, as the table object's fingerprint. If that
+fingerprint changes, MFS re-reads and re-indexes the table's `rows.jsonl` object.
+Deletions are caught by `full_scan`. Warehouses may auto-resume on the first
+query, adding startup latency.
 
 ## Search and browse
 
 ```bash
 mfs search "billing event" snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl
 mfs search "EMAIL column" snowflake://analytics --kind schema_summary
+mfs cat snowflake://analytics/PROD/PUBLIC/tables/TICKETS/schema.json
 mfs cat snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl --locator '{"ID":12345}'
 ```
 
@@ -121,3 +125,5 @@ mfs cat snowflake://analytics/PROD/PUBLIC/tables/TICKETS/rows.jsonl --locator '{
   warehouse `USAGE` grant still fails at probe time.
 - Password auth is subject to Snowflake's tightening login policies; prefer
   key-pair.
+- `schema_summary` search requires `[summary].enabled`; `schema.json` is still
+  browsable without it.

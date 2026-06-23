@@ -4,11 +4,12 @@
 
 ```
 notion://<alias>/
-├── databases/
-│   ├── <db-title>__<db-id>/rows.jsonl
-│   └── ...
+├── data_sources/
+│   └── <data-source-id>/
+│       ├── records.jsonl
+│       └── schema.json
 └── pages/
-    ├── <page-title>__<page-id>.md
+    ├── <page-id>.md
     └── ...
 ```
 
@@ -17,7 +18,7 @@ page or database sharing requires a re-sync to appear.
 
 ## Record / page shape
 
-**Database row** (`<db>/rows.jsonl`):
+**Data source record** (`data_sources/<id>/records.jsonl`):
 ```json
 {"id": "<page-id>",
  "title": "...",
@@ -49,19 +50,19 @@ lists, code blocks preserved; mentions and inline DBs flatten.
 
 | Intent | Use |
 |---|---|
-| Find DB row | `mfs search "X" notion://<alias>/databases/` |
+| Find DB row | `mfs search "X" notion://<alias>/data_sources/` |
 | Find page content | `mfs search "X" notion://<alias>/pages/` |
 | Workspace-wide | `mfs search "X" notion://<alias>` |
 
 ## Pitfalls
 
 - **Empty tree**: integration not shared with anything. The
-  `databases/` and `pages/` dirs only show what the integration can
+  `data_sources/` and `pages/` dirs only show what the integration can
   access.
 - **Property flattening loses type**: a `select` property of value
   "High" appears as the string `"High"` in chunk content; no way to
   distinguish from a `rich_text` field with the same content.
 - **Linked databases**: Notion's "Linked DB" blocks render as
   references in the page markdown but the linked DB itself appears
-  separately under `databases/` if shared.
+  separately under `data_sources/` if shared.
 - **Stale content**: page edits show up after the next sync.

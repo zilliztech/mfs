@@ -38,7 +38,7 @@ db.createUser({
 
 | key | default | meaning |
 |---|---|---|
-| `cursor_field` | _none_ | incremental sync, often `updatedAt` or `_id` (Mongo `_id` is ObjectId which encodes time) |
+| `cursor_field` | _none_ | field used to strengthen the collection fingerprint, often `updatedAt` or `_id` (Mongo `_id` is ObjectId which encodes time) |
 | `max_read_docs` | 100000 | per-collection cap |
 
 ## `[[objects]]` blocks
@@ -48,7 +48,7 @@ Mongo documents are heterogeneous — each collection needs explicit
 
 ```toml
 [[objects]]
-match = "support_threads"
+match = "/support_threads"
 text_fields = ["title", "messages[].body"]
 locator_fields = ["_id"]
 metadata_fields = ["status", "created_at"]
@@ -67,12 +67,12 @@ database = "prod"
 cursor_field = "updatedAt"
 
 [[objects]]
-match = "tickets"
+match = "/tickets"
 text_fields = ["title", "description"]
 locator_fields = ["_id"]
 
 [[objects]]
-match = "kb_articles"
+match = "/kb_articles"
 text_fields = ["title", "body"]
 locator_fields = ["_id"]
 ```
@@ -83,7 +83,8 @@ locator_fields = ["_id"]
   `mfs cat --locator '{"_id": "65a3..."}'` works.
 - **Sharded clusters**: use `mongodb+srv://` to let the driver find
   shards. Specifying a single shard's host in the URI is brittle.
-- **TTL'd collections**: docs disappear over time. The connector's
-  delete-detection is `never` for mongo (capped collections / TTL would
-  thrash a full-scan strategy). Stale chunks stay in Milvus until a
-  `--full` re-sync.
+- **`cursor_field` is object-level today**: it helps MFS notice
+  in-place document edits by including the collection's max cursor value
+  in the fingerprint. When the fingerprint changes, the collection's
+  `documents.jsonl` object is re-read and re-indexed; MFS does not patch
+  individual documents yet.

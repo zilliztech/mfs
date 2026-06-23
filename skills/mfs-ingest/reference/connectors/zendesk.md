@@ -34,13 +34,14 @@ permissions.
 
 ```
 zendesk://<alias>/
-├── tickets.jsonl                      ← tickets
-├── users.jsonl                        ← agents + end-users
-├── organizations.jsonl                ← orgs
-└── tickets_comments.jsonl             ← all comments (joined with ticket_id)
+├── tickets/
+│   ├── records.jsonl                  ← tickets
+│   └── comments.jsonl                 ← all comments (joined with ticket_id)
+├── users/records.jsonl                ← agents + end-users
+└── organizations/records.jsonl        ← orgs
 ```
 
-The `tickets_comments` virtual collection joins comments to their
+The `tickets/comments.jsonl` virtual collection joins comments to their
 parent tickets, so a search for "what did agent X say about this" finds
 the conversation surface.
 

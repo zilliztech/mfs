@@ -18,15 +18,16 @@ there.
 
 ## Record / locator / chunk kinds
 
-Same as postgres — `row_text` per row, `schema_summary` per table.
-Column names in `metadata` will be UPPERCASE.
+Same as postgres — `row_text` per row. `schema.json` is always
+browsable; `schema_summary` is searchable only when `[summary].enabled`
+is on. Column names in `metadata` will be UPPERCASE.
 
 ## Search strategy
 
 | Intent | Use |
 |---|---|
 | Find row content | `mfs search "X" snowflake://<alias>/<DB>/<SCHEMA>/tables/<TABLE>/rows.jsonl` |
-| Schema discovery | `mfs search "Y" snowflake://<alias> --kind schema_summary` |
+| Schema discovery | `mfs search "Y" snowflake://<alias> --kind schema_summary` if summaries are enabled; otherwise `mfs cat snowflake://<alias>/<DB>/<SCHEMA>/tables/<TABLE>/schema.json` |
 | Per-row lookup | `mfs cat --locator '{"ID": 12345}'` (column names UPPERCASE) |
 
 ## Pitfalls

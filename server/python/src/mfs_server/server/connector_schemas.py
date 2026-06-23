@@ -105,7 +105,7 @@ SCHEMAS: dict[str, ConnectorSchema] = {
     ),
     "postgres": ConnectorSchema(
         scheme="postgres",
-        summary="Postgres tables — per-row index with cursor-based incremental sync.",
+        summary="Postgres tables — per-row index with object-level change detection.",
         uri_hint="postgres://prod-db",
         extras_hint=(
             "After the wizard you'll need [[objects]] blocks in the generated TOML to "
@@ -122,7 +122,7 @@ SCHEMAS: dict[str, ConnectorSchema] = {
             ),
             ConnectorField(
                 "cursor_column",
-                "Cursor column for incremental sync (often updated_at)",
+                "Cursor column for table fingerprinting (often updated_at)",
                 required=False,
             ),
             ConnectorField(
@@ -132,7 +132,7 @@ SCHEMAS: dict[str, ConnectorSchema] = {
     ),
     "mysql": ConnectorSchema(
         scheme="mysql",
-        summary="MySQL tables — per-row index with cursor-based incremental sync.",
+        summary="MySQL tables — per-row index with object-level change detection.",
         uri_hint="mysql://prod-db",
         extras_hint=(
             "After the wizard you'll need [[objects]] blocks for text_fields/locator_fields. "
@@ -144,7 +144,11 @@ SCHEMAS: dict[str, ConnectorSchema] = {
             ConnectorField("database", "Database name"),
             ConnectorField("user", "User"),
             ConnectorField("password", "Password", secret=True),
-            ConnectorField("cursor_column", "Cursor column (often updated_at)", required=False),
+            ConnectorField(
+                "cursor_column",
+                "Cursor column for table fingerprinting (often updated_at)",
+                required=False,
+            ),
             ConnectorField(
                 "max_read_rows", "Max rows per table", type="int", default="100000", required=False
             ),
@@ -161,7 +165,11 @@ SCHEMAS: dict[str, ConnectorSchema] = {
         fields=[
             ConnectorField("uri", "URI (mongodb://user:pass@host:27017)", secret=True),
             ConnectorField("database", "Database"),
-            ConnectorField("cursor_field", "Cursor field (often updatedAt or _id)", required=False),
+            ConnectorField(
+                "cursor_field",
+                "Cursor field for collection fingerprinting (often updatedAt or _id)",
+                required=False,
+            ),
             ConnectorField(
                 "max_read_docs",
                 "Max docs per collection",

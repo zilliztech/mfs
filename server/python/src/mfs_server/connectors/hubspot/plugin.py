@@ -164,6 +164,8 @@ class HubSpotPlugin(ConnectorPlugin):
                 after = nxt.next.after if (nxt and nxt.next) else None
                 if not after:
                     break
+            if n >= limit:
+                self.ctx.declare_partial(path)  # hit max_read_rows -> partial recall
 
     async def fingerprint(self, path: str) -> Optional[str]:
         return None

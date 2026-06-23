@@ -47,7 +47,7 @@ The DSN should use this role, not your admin user.
 | key | default | meaning |
 |---|---|---|
 | `schemas` | `["public"]` | which schemas to enumerate |
-| `cursor_column` | _none_ | column used for incremental sync (typically `updated_at`); if set, re-syncs only pull rows with `cursor > last_seen` |
+| `cursor_column` | _none_ | column used to strengthen the table fingerprint (typically `updated_at`); a changed fingerprint re-indexes the table object |
 | `max_read_rows` | 100000 | per-table cap (honoured mid-page) |
 
 ## `[[objects]]` blocks — per-table config
@@ -58,14 +58,14 @@ columns become content.
 
 ```toml
 [[objects]]
-match = "public.tickets"
+match = "/public/tickets"
 text_fields = ["title", "description", "tags"]
 locator_fields = ["id"]
 metadata_fields = ["status", "priority", "assignee", "updated_at"]
 ```
 
-- `match`: `<schema>.<table>` or `<schema>.<table>:<filter>` to limit
-  rows. Use double-quoted identifiers if any contain special chars.
+- `match`: connector-relative table path (`/<schema>/<table>`). It
+  matches that table's `rows.jsonl`.
 - `text_fields`: which columns get joined into the embedded text. Pick
   the prose-like columns — `description`, `body`, `notes`, `title`.
   Don't include `id`, timestamps, or enum-like short codes.
@@ -79,12 +79,12 @@ Multiple `[[objects]]` blocks for multiple tables:
 
 ```toml
 [[objects]]
-match = "public.tickets"
+match = "/public/tickets"
 text_fields = ["description"]
 locator_fields = ["id"]
 
 [[objects]]
-match = "public.kb_articles"
+match = "/public/kb_articles"
 text_fields = ["title", "body_markdown"]
 locator_fields = ["id"]
 ```
@@ -99,7 +99,7 @@ cursor_column = "updated_at"
 max_read_rows = 500000
 
 [[objects]]
-match = "public.tickets"
+match = "/public/tickets"
 text_fields = ["title", "description"]
 locator_fields = ["id"]
 ```
@@ -122,6 +122,7 @@ mfs add postgres://prod --config /tmp/mfs-pg-prod.toml
 - **pg_hba.conf blocking the source IP**: connection refused even though
   the DSN is correct. Tell user to check pg_hba on the DB host.
 - **SSL required**: append `?sslmode=require` to the DSN.
-- **High-cardinality `cursor_column`**: works fine. Low-cardinality
-  cursors (rounded-to-day timestamps) can leave gaps; pick a per-row
-  unique column.
+- **`cursor_column` is object-level today**: it helps MFS notice in-place
+  row updates by including `max(cursor_column)` in the table fingerprint.
+  When the fingerprint changes, the table's `rows.jsonl` object is
+  re-read and re-indexed; MFS does not patch individual rows yet.

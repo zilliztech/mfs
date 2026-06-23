@@ -80,7 +80,7 @@ warehouses, the connector will fail if the role can't resume.
 
 ```toml
 [[objects]]
-match = "PROD.PUBLIC.TICKETS"            # Snowflake folds to UPPERCASE
+match = "/PROD/PUBLIC/tables/TICKETS"    # Snowflake folds to UPPERCASE
 text_fields = ["TITLE", "DESCRIPTION"]   # column names UPPERCASE too
 locator_fields = ["ID"]
 ```
@@ -98,7 +98,7 @@ credential_ref = "file:/etc/mfs/snowflake/rsa_key.p8"
 # private_key_passphrase_ref = "env:SNOWFLAKE_KEY_PASSPHRASE"
 
 [[objects]]
-match = "PROD.PUBLIC.TICKETS"
+match = "/PROD/PUBLIC/tables/TICKETS"
 text_fields = ["TITLE", "DESCRIPTION"]
 locator_fields = ["ID"]
 ```
@@ -106,9 +106,10 @@ locator_fields = ["ID"]
 ## Pitfalls
 
 - **Identifier case-folding**: Snowflake stores unquoted identifiers as
-  uppercase. If you typed `tickets` in `match`, the connector folds it.
-  If your table is actually `"tickets"` (quoted-lowercase), MFS won't
-  find it.
+  uppercase. Confirm the exact path with `mfs tree snowflake://<alias>
+  -L 4`, then use that connector-relative path in `match`. If your
+  table is actually `"tickets"` (quoted-lowercase), match the returned
+  casing exactly.
 - **Warehouse auto-suspend → first query slow**: the connector waits
   for the warehouse to resume, can take 10-30s.
 - **`credential_ref` resolution**: must be `file:/abs/path` or

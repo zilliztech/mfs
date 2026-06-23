@@ -27,18 +27,21 @@ scoped visibility, share just the docs/section you want indexed.
 |---|---|
 | `token` | the `secret_…` token (`env:NOTION_TOKEN` recommended) |
 
-No `[[objects]]` needed — Notion pages auto-render to text via the
-connector's block walker.
+No `[[objects]]` needed for pages — Notion pages auto-render to text
+via the connector's block walker. Data source records need
+`[[objects]].text_fields` if the user wants those records to be
+searchable.
 
 ## URI tree
 
 ```
 notion://<alias>/
-├── databases/
-│   ├── <db-title>__<db-id>/rows.jsonl     ← each DB row as a record
-│   └── ...
+├── data_sources/
+│   └── <data-source-id>/
+│       ├── records.jsonl                  ← each row as a record
+│       └── schema.json
 └── pages/
-    ├── <page-title>__<page-id>.md         ← each top-level shared page
+    ├── <page-id>.md                       ← each shared page
     └── ...
 ```
 
@@ -48,6 +51,11 @@ The exact subtree depends on what's been shared with the integration.
 
 ```toml
 token = "env:NOTION_TOKEN"
+
+[[objects]]
+match = "/data_sources/<data-source-id>"
+text_fields = ["Name", "Description"]
+locator_fields = ["id"]
 ```
 
 ```bash
