@@ -32,6 +32,7 @@ from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW, MilvusStore
 from ..storage.artifact_cache import make_artifact_cache
 from ..storage.transformation_cache import make_transformation_cache
 from .adapters import ArtifactStoreAdapter, EmbedderAdapter, MilvusSinkAdapter, TxCacheAdapter
+from .components.object_repository import ObjectRepository, TaskStatus
 from .pipeline import EmbedConsumer, TaskEnvelope, _EMBED_FLUSH_IDLE_MS, make_chunks_q
 from .producers import select_producer
 from .producers.base import (
@@ -188,6 +189,10 @@ class Engine:
         self.cfg = cfg
         self.ns = cfg.namespace
         self.meta = make_metadata_store(cfg)
+        # ObjectRepository owns all SQL for the objects/object_tasks/connector_jobs/
+        # connectors tables plus the task/job state machine (advance_task guard).
+        # Built after self.meta / self.ns are ready.
+        self.objects = ObjectRepository(self)
         self.milvus = MilvusStore(cfg)
         self.artifact_cache = make_artifact_cache(cfg)
         self.tx_cache = make_transformation_cache(cfg)
@@ -255,18 +260,11 @@ class Engine:
             total = await asyncio.to_thread(self.milvus.count, self.ns, self.milvus.GC_SCOPE_EXPR)
             if total == 0:
                 return 0
-            conns = await self.meta.fetchall(
-                "SELECT id, root_uri FROM connectors WHERE namespace_id=?", (self.ns,)
-            )
+            conns = await self.objects.list_connectors_summary()
             expected = 0
             valid: set[str] = set()
             for c in conns:
-                rows = await self.meta.fetchall(
-                    "SELECT object_uri, chunk_count FROM objects "
-                    "WHERE connector_id=? AND chunk_count>0",
-                    (c["id"],),
-                )
-                for r in rows:
+                for r in await self.objects.list_objects_with_chunks(c["id"]):
                     expected += int(r["chunk_count"])
                     valid.add(c["root_uri"] + r["object_uri"])
             if total <= expected:
@@ -408,28 +406,20 @@ class Engine:
         import json as _json
 
         try:
-            jobs = await self.meta.fetchall(
-                "SELECT id, connector_id FROM connector_jobs WHERE status='running'"
-            )
+            jobs = await self.objects.list_running_jobs()
         except Exception:  # noqa: BLE001 — recovery must never wedge startup
             return
         for job in jobs:
             job_id, cid = job["id"], job["connector_id"]
             try:
-                crow = await self.meta.fetchone(
-                    "SELECT root_uri, type, config_json FROM connectors WHERE id=?", (cid,)
-                )
+                crow = await self.objects.get_connector_root_type_config(cid)
                 if not crow:
                     continue
                 connector_uri, ctype = crow["root_uri"], crow["type"]
                 stored_cfg = _json.loads(crow["config_json"]) if crow["config_json"] else {}
                 plugin, _ = self._build_plugin(ctype, stored_cfg, cid)
                 await asyncio.wait_for(plugin.connect(), timeout=_WORKER_CONNECT_TIMEOUT_S)
-                rows = await self.meta.fetchall(
-                    "SELECT object_uri, status FROM object_tasks "
-                    "WHERE connector_job_id=? AND change_kind != 'dir_summary'",
-                    (job_id,),
-                )
+                rows = await self.objects.list_job_tasks_excluding_dir_summary(job_id)
                 objects = [
                     (r["object_uri"], plugin.object_kind_of(r["object_uri"]), r["status"])
                     for r in rows
@@ -463,10 +453,8 @@ class Engine:
             # Embed/upsert failed for this object. Record it failed and leave the cursor where
             # it was (on_object_indexed not called) so the object isn't treated as committed.
             await self._write_object_row(cid, relpath, st, indexable, "failed", chunk_count)
-            await self.meta.execute(
-                "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? "
-                "WHERE id=? AND status='running'",
-                (_now(), str(error)[:300], task_id),
+            await self.objects.advance_task(
+                task_id, TaskStatus.FAILED, from_status=TaskStatus.RUNNING, error=str(error)
             )
             return
         if chunk_count == 0:
@@ -478,9 +466,8 @@ class Engine:
         # Claim completion FIRST, guarded on status='running'. Completion lives here, not in
         # the worker loop: the pump enqueues chunks without blocking, so only the consumer
         # knows when they have landed.
-        won = await self.meta.execute_rowcount(
-            "UPDATE object_tasks SET status='succeeded', finished_at=? WHERE id=? AND status='running'",
-            (_now(), task_id),
+        won = await self.objects.advance_task(
+            task_id, TaskStatus.SUCCEEDED, from_status=TaskStatus.RUNNING
         )
         if won == 0:
             # The task was cancelled out from under us while its chunks were embedding (an
@@ -499,30 +486,9 @@ class Engine:
         self, cid: str, relpath: str, st, indexable: bool, search_status: str, chunk_count: int
     ) -> None:
         """UPSERT the `objects` registry row (type/media/size/fingerprint + search_status +
-        chunk_count). Shared by the inline _index_object tail and the pipeline success hook."""
-        await self.meta.execute(
-            "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
-            " fingerprint, indexable, last_seen, search_status, chunk_count, indexed_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(connector_id, object_uri) DO UPDATE SET "
-            " type=excluded.type, media_type=excluded.media_type, size_hint=excluded.size_hint, "
-            " fingerprint=excluded.fingerprint, indexable=excluded.indexable, last_seen=excluded.last_seen, "
-            " search_status=excluded.search_status, chunk_count=excluded.chunk_count, indexed_at=excluded.indexed_at",
-            (
-                cid,
-                relpath,
-                os.path.dirname(relpath) or "/",
-                st.type,
-                st.media_type,
-                st.size_hint,
-                st.fingerprint,
-                1 if indexable else 0,
-                _now(),
-                search_status,
-                chunk_count,
-                _now(),
-            ),
-        )
+        chunk_count). Thin delegate to ObjectRepository; shared by the inline _index_object
+        tail and the pipeline success hook."""
+        await self.objects.write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
 
     async def _index_via_pipeline(
         self, plugin, connector_uri: str, relpath: str, full_uri: str, okind: str, task: dict
@@ -576,7 +542,7 @@ class Engine:
                 except Exception:  # noqa: BLE001 — GC of a temp artifact must never fail the task
                     pass
 
-    # --- target resolution (Phase 2: file only) ---
+    # --- target resolution (file-only path) ---
     def _resolve_target(self, target: str) -> tuple[str, str, str, dict]:
         m = _SCHEME_RE.match(target)
         if m:
@@ -710,10 +676,7 @@ class Engine:
         import json
 
         stored = self._redact_config(config)
-        row = await self.meta.fetchone(
-            "SELECT id, config_json FROM connectors WHERE namespace_id=? AND root_uri=?",
-            (self.ns, connector_uri),
-        )
+        row = await self.objects.get_connector_id_and_config_by_uri(connector_uri)
         if row:
             # `mfs connector update --config` re-registers an existing connector: refresh
             # its stored config so changed text_fields / scope / credential_ref take effect.
@@ -727,19 +690,11 @@ class Engine:
             old_json = row["config_json"] or "{}"
             drift = _normalize_json(new_json) != _normalize_json(old_json)
             if overwrite_config or drift:
-                await self.meta.execute(
-                    "UPDATE connectors SET config_json=? WHERE id=?",
-                    (json.dumps(stored), row["id"]),
-                )
+                await self.objects.update_connector_config(row["id"], json.dumps(stored))
                 if drift and not overwrite_config:
                     # Count what's actually at risk so the warning is concrete
                     # rather than scary boilerplate.
-                    n = await self.meta.fetchone(
-                        "SELECT count(*) AS n FROM objects "
-                        "WHERE connector_id=? AND search_status='indexed'",
-                        (row["id"],),
-                    )
-                    indexed = (n or {}).get("n", 0)
+                    indexed = await self.objects.count_indexed_objects(row["id"])
                     print(
                         f"mfs-server: WARNING --config differs from stored config for "
                         f"{connector_uri}; persisted, but {indexed} existing indexed "
@@ -749,11 +704,7 @@ class Engine:
                     )
             return row["id"]
         cid = uuid.uuid4().hex
-        await self.meta.execute(
-            "INSERT INTO connectors (id, namespace_id, root_uri, type, status, config_json, registered_at) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (cid, self.ns, connector_uri, ctype, "active", json.dumps(stored), _now()),
-        )
+        await self.objects.insert_connector(cid, connector_uri, ctype, json.dumps(stored))
         return cid
 
     @staticmethod
@@ -879,16 +830,11 @@ class Engine:
         # merge user config OVER the resolved defaults so a local path keeps its
         # auto {root, client_id} while still accepting [[objects]]/schemas/credential_ref.
         cfg_dict = {**default_config, **config} if config is not None else default_config
-        existing_connector = await self.meta.fetchone(
-            "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=?",
-            (self.ns, connector_uri),
-        )
+        existing_connector = await self.objects.get_connector_id_by_uri(connector_uri)
         cid = await self.register_or_get_connector(
             connector_uri, ctype, cfg_dict, overwrite_config=update_config
         )
-        row0 = await self.meta.fetchone(
-            "SELECT config_json, status FROM connectors WHERE id=?", (cid,)
-        )
+        row0 = await self.objects.get_connector_config_and_status(cid)
         if row0 and row0["status"] == "removing":
             raise ValueError("connector_removing")
         # this session uses the caller's full config (raw secrets intact); the persisted copy
@@ -915,37 +861,10 @@ class Engine:
         """Reserve the one-in-flight-sync slot for a connector and inherit
         its leftover tasks. Raises connector_removing / sync_already_running. Callers that
         mutate state (e.g. upload) MUST call this BEFORE mutating, so a rejected sync leaves
-        nothing half-applied."""
-        row = await self.meta.fetchone("SELECT status FROM connectors WHERE id=?", (cid,))
-        if row and row["status"] == "removing":
-            raise ValueError("connector_removing")
-        job_id = uuid.uuid4().hex
-        try:
-            await self.meta.execute(
-                "INSERT INTO connector_jobs (id, namespace_id, connector_id, op_kind, trigger, status, "
-                " started_at, heartbeat) VALUES (?,?,?,?,?,?,?,?)",
-                (
-                    job_id,
-                    self.ns,
-                    cid,
-                    "sync",
-                    "manual",
-                    "running" if process else "preparing",
-                    _now(),
-                    _now(),
-                ),
-            )
-        except Exception as e:  # noqa: BLE001 - unique-violation: one running/queued per connector
-            if "unique" in str(e).lower() or "constraint" in str(e).lower():
-                raise ValueError("sync_already_running") from e
-            raise
-        await self.meta.execute(
-            "UPDATE object_tasks SET connector_job_id=?, status='pending' "
-            "WHERE connector_id=? AND status IN ('pending','failed') AND attempts < ? "
-            "AND change_kind != 'dir_summary'",
-            (job_id, cid, self.cfg.object_task.max_retries),
-        )
-        return job_id
+        nothing half-applied. Thin delegate to ObjectRepository.open_sync_job (which owns the
+        connector_removing guard, the unique-constraint -> sync_already_running mapping, and
+        the leftover-task reopen)."""
+        return await self.objects.open_sync_job(cid, process)
 
     async def _drain_job(
         self,
@@ -988,19 +907,14 @@ class Engine:
                         # 'explicit_only' (yielded events, e.g. upload) honor them
                         continue  # never-delete connectors (slack/gmail) keep the index
                     tid = uuid.uuid4().hex
-                    await self.meta.execute(
-                        "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
-                        " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
-                        (
-                            tid,
-                            job_id,
-                            cid,
-                            ch.uri,
-                            ch.old_uri,
-                            ch.kind,
-                            "pending",
-                            plugin.task_priority(ch),
-                        ),
+                    await self.objects.insert_task(
+                        tid,
+                        job_id,
+                        cid,
+                        ch.uri,
+                        ch.old_uri,
+                        ch.kind,
+                        plugin.task_priority(ch),
                     )
                     if ch.kind != "deleted":
                         # Accumulate the dir tree (okind passed in — no extra DB hit, §6.4.1).
@@ -1027,27 +941,17 @@ class Engine:
                 # enqueue model: stash staged state on the job; the worker commits it only
                 # after the job succeeds, so a failed background job doesn't
                 # advance the cursor past objects that never got indexed.
-                await self.meta.execute(
-                    "UPDATE connector_jobs SET state_snapshot=? WHERE id=?",
-                    (json.dumps(ctx.state.snapshot()), job_id),
-                )
+                await self.objects.set_job_state_snapshot(job_id, json.dumps(ctx.state.snapshot()))
                 # ONLY NOW expose the job to workers: it was 'preparing' (unclaimable) during
                 # enumeration, so a worker couldn't claim it, find zero tasks, and finalize it
                 # 'succeeded' before the tasks above were inserted (lost-task race).
-                await self.meta.execute(
-                    "UPDATE connector_jobs SET status='queued' WHERE id=? AND status='preparing'",
-                    (job_id,),
-                )
+                await self.objects.queue_preparing_job(job_id)
                 return job_id
             aborted = await self._run_job(job_id, cid, connector_uri, plugin)
         except Exception as e:  # noqa: BLE001
             # drop the half-enqueued (incomplete enumeration) tasks and finalize the job
             # 'failed' so the in-flight slot is freed, then re-raise for the caller/API.
-            await self.meta.execute(
-                "UPDATE object_tasks SET status='cancelled' "
-                "WHERE connector_job_id=? AND status='pending'",
-                (job_id,),
-            )
+            await self.objects.cancel_pending_tasks_for_job(job_id)
             await self._finalize_job(job_id, f"sync_error: {e}")
             raise
         finally:
@@ -1116,7 +1020,7 @@ class Engine:
                 await fs.upsert(
                     _norm_rel(m.name), st.st_size, st.st_mtime_ns, st.st_ino, sha1, status="staged"
                 )
-        crow = await self.meta.fetchone("SELECT config_json FROM connectors WHERE id=?", (cid,))
+        crow = await self.objects.get_connector_config(cid)
         stored_cfg = json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
         await self._drain_job(job_id, cid, connector_uri, "file", stored_cfg, False, None, process)
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
@@ -1298,7 +1202,7 @@ class Engine:
                     )
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-        crow = await self.meta.fetchone("SELECT config_json FROM connectors WHERE id=?", (cid,))
+        crow = await self.objects.get_connector_config(cid)
         stored_cfg = _json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
         # full=True (--force-index / --force-upload): upload-mode sync also re-yields the
         # already-indexed staging rows so a forced rebuild re-embeds the whole tree.
@@ -1306,33 +1210,11 @@ class Engine:
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
 
     async def _finalize_job(self, job_id: str, aborted: str | None) -> None:
-        """Set terminal job status + per-status object counts."""
-        counts = await self.meta.fetchall(
-            "SELECT status, count(*) AS n FROM object_tasks WHERE connector_job_id=? GROUP BY status",
-            (job_id,),
-        )
-        cmap = {r["status"]: r["n"] for r in counts}
-        jrow = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (job_id,))
-        if jrow and jrow["status"] == "cancelled":
-            status = "cancelled"
-        elif aborted:
-            status = "failed"
-        else:
-            status = "succeeded"
-        await self.meta.execute(
-            "UPDATE connector_jobs SET status=?, finished_at=?, error=?, "
-            " total_objects=?, succeeded_objects=?, failed_objects=?, cancelled_objects=? WHERE id=?",
-            (
-                status,
-                _now(),
-                aborted,
-                sum(cmap.values()),
-                cmap.get("succeeded", 0),
-                cmap.get("failed", 0),
-                cmap.get("cancelled", 0),
-                job_id,
-            ),
-        )
+        """Set terminal job status + per-status object counts. Thin delegate to
+        ObjectRepository.finalize_job (which owns the cancelled > failed > succeeded
+        terminal selection + the counts UPDATE); the Job Lane dir tree is evicted
+        unconditionally afterward (§6.4.6)."""
+        await self.objects.finalize_job(job_id, aborted)
         # job reached a terminal state: free the Job Lane's in-memory dir tree (§6.4.6)
         if self._job_lane is not None:
             self._job_lane.evict_job(job_id)
@@ -1341,36 +1223,20 @@ class Engine:
     async def cancel_job(self, job_id: str) -> bool:
         """Cancel a job: mark it + its pending/running tasks cancelled. A running
         worker stops at the next per-object boundary (checked in _run_job)."""
-        row = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (job_id,))
-        if not row or row["status"] in ("succeeded", "failed", "cancelled"):
+        status = await self.objects.get_job_status(job_id)
+        if not status or status in ("succeeded", "failed", "cancelled"):
             return False
-        await self.meta.execute(
-            "UPDATE object_tasks SET status='cancelled' "
-            "WHERE connector_job_id=? AND status IN ('pending','running')",
-            (job_id,),
-        )
-        await self.meta.execute(
-            "UPDATE connector_jobs SET status='cancelled', finished_at=? WHERE id=?",
-            (_now(), job_id),
-        )
+        await self.objects.cancel_pending_running_tasks_for_job(job_id)
+        await self.objects.cancel_job_row(job_id)
         return True
 
     async def _claim_queued_job(self) -> dict | None:
         """Atomically claim the oldest queued job. Multi-worker safe: the claim is a
         conditional UPDATE guarded on status='queued', and we take the job only when
         *this* worker's UPDATE flipped the row (rowcount == 1). Two workers racing the
-        same job -> only one's UPDATE matches; the loser tries the next candidate."""
-        candidates = await self.meta.fetchall(
-            "SELECT * FROM connector_jobs WHERE status='queued' ORDER BY started_at LIMIT 8"
-        )
-        for row in candidates:
-            won = await self.meta.execute_rowcount(
-                "UPDATE connector_jobs SET status='running', heartbeat=? WHERE id=? AND status='queued'",
-                (_now(), row["id"]),
-            )
-            if won == 1:
-                return row
-        return None
+        same job -> only one's UPDATE matches; the loser tries the next candidate.
+        Thin delegate to ObjectRepository.claim_queued_job."""
+        return await self.objects.claim_queued_job()
 
     async def run_worker_once(self) -> str | None:
         """Claim + process one queued job. Returns its id, or None if queue empty."""
@@ -1380,9 +1246,7 @@ class Engine:
         if not job:
             return None
         cid = job["connector_id"]
-        crow = await self.meta.fetchone(
-            "SELECT root_uri, type, config_json FROM connectors WHERE id=?", (cid,)
-        )
+        crow = await self.objects.get_connector_root_type_config(cid)
         connector_uri, ctype = crow["root_uri"], crow["type"]
         stored_cfg = json.loads(crow["config_json"]) if crow["config_json"] else {}
         plugin = None
@@ -1397,9 +1261,7 @@ class Engine:
             # commit the deferred connector state only now that the job succeeded:
             # a failed/cancelled background job leaves the cursor where it was.
             if aborted is None:
-                jrow = await self.meta.fetchone(
-                    "SELECT state_snapshot, status FROM connector_jobs WHERE id=?", (job["id"],)
-                )
+                jrow = await self.objects.get_job_state_and_status(job["id"])
                 if jrow and jrow["status"] == "succeeded" and jrow["state_snapshot"]:
                     await ConnectorStateStore(self.meta, cid).apply(
                         json.loads(jrow["state_snapshot"])
@@ -1413,16 +1275,8 @@ class Engine:
                 if isinstance(e, asyncio.TimeoutError)
                 else f"sync_error: {e}"
             )
-            await self.meta.execute(
-                "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? "
-                "WHERE connector_job_id=? AND status='running'",
-                (_now(), str(reason)[:300], job["id"]),
-            )
-            await self.meta.execute(
-                "UPDATE connector_jobs SET status='failed', finished_at=?, error=? "
-                "WHERE id=? AND status IN ('running', 'queued')",
-                (_now(), str(reason)[:300], job["id"]),
-            )
+            await self.objects.fail_running_tasks_for_job(job["id"], str(reason))
+            await self.objects.fail_inflight_job(job["id"], str(reason))
             print(
                 f"mfs-server: WARNING sync job {job['id']} for {connector_uri} failed: {reason}",
                 flush=True,
@@ -1457,11 +1311,7 @@ class Engine:
         # started running, and while it lingers it holds the connector's ux_jobs_one_pending
         # slot — which would make the running->queued reset below raise a UNIQUE violation.
         try:
-            stale_prep = await self.meta.fetchall(
-                "SELECT id FROM connector_jobs WHERE status='preparing' "
-                "AND heartbeat IS NOT NULL AND heartbeat < ?",
-                (cutoff,),
-            )
+            stale_prep = await self.objects.list_stale_preparing_jobs(cutoff)
         except Exception as e:  # noqa: BLE001
             print(
                 f"mfs-server: WARNING reclaim: listing stale preparing jobs failed: {e}", flush=True
@@ -1469,11 +1319,7 @@ class Engine:
             stale_prep = []
         for j in stale_prep:
             try:
-                await self.meta.execute(
-                    "UPDATE connector_jobs SET status='failed', finished_at=?, "
-                    "error='reclaimed: enumeration abandoned' WHERE id=? AND status='preparing'",
-                    (_now(), j["id"]),
-                )
+                await self.objects.fail_stale_preparing_job(j["id"])
             except Exception as e:  # noqa: BLE001
                 print(
                     f"mfs-server: WARNING reclaim: failing stale preparing job {j['id']}: {e}",
@@ -1481,11 +1327,7 @@ class Engine:
                 )
 
         try:
-            stale = await self.meta.fetchall(
-                "SELECT id, connector_id FROM connector_jobs WHERE status='running' "
-                "AND heartbeat IS NOT NULL AND heartbeat < ?",
-                (cutoff,),
-            )
+            stale = await self.objects.list_stale_running_jobs(cutoff)
         except Exception as e:  # noqa: BLE001
             print(
                 f"mfs-server: WARNING reclaim: listing stale running jobs failed: {e}", flush=True
@@ -1498,35 +1340,16 @@ class Engine:
                 # ux_jobs_one_pending. Hand its in-flight tasks to that job and fail the orphan
                 # instead. The 'preparing' case matters: a preparing sibling holds the pending
                 # slot too, so without it the reclaim would raise UNIQUE and silently abort.
-                sibling = await self.meta.fetchone(
-                    "SELECT id FROM connector_jobs WHERE connector_id=? "
-                    "AND status IN ('queued', 'preparing') AND id<>? LIMIT 1",
-                    (j["connector_id"], j["id"]),
-                )
+                sibling = await self.objects.find_inflight_sibling(j["connector_id"], j["id"])
                 if sibling:
-                    await self.meta.execute(
-                        "UPDATE object_tasks SET status='pending', connector_job_id=? "
-                        "WHERE connector_job_id=? AND status='running'",
-                        (sibling["id"], j["id"]),
-                    )
-                    await self.meta.execute(
-                        "UPDATE connector_jobs SET status='failed', finished_at=?, "
-                        "error='reclaimed: superseded by in-flight job' WHERE id=? AND status='running'",
-                        (_now(), j["id"]),
-                    )
+                    await self.objects.reassign_running_tasks(sibling["id"], j["id"])
+                    await self.objects.fail_superseded_job(j["id"])
                     continue
                 # reset the dead worker's in-flight tasks back to pending FIRST, else the
                 # re-claiming worker sees only 'pending', finds none, and finalizes the job
                 # 'succeeded' while a task is still stuck 'running' (P1 crash-recovery gap).
-                await self.meta.execute(
-                    "UPDATE object_tasks SET status='pending' "
-                    "WHERE connector_job_id=? AND status='running'",
-                    (j["id"],),
-                )
-                await self.meta.execute(
-                    "UPDATE connector_jobs SET status='queued' WHERE id=? AND status='running'",
-                    (j["id"],),
-                )
+                await self.objects.reset_running_tasks_to_pending(j["id"])
+                await self.objects.requeue_stale_running_job(j["id"])
             except Exception as e:  # noqa: BLE001 — one un-recoverable orphan must not starve the rest
                 print(
                     f"mfs-server: WARNING reclaim: recovering stale running job {j['id']}: {e}",
@@ -1565,29 +1388,12 @@ class Engine:
         plugin bound to THIS connector. A global claim would hand another connector's task to
         the wrong plugin, reading the wrong source; a true cross-connector worker pool needs
         per-task plugin resolution, which is a separate change. Per-connector parallelism is
-        preserved: each connector's drain runs its own loop(s)."""
-        rows = await self.meta.fetchall(
-            "SELECT * FROM object_tasks WHERE status='pending' AND connector_id=? "
-            "AND change_kind != 'dir_summary' "
-            "ORDER BY priority ASC, started_at ASC LIMIT ?",
-            (connector_id, limit),
-        )
-        return await self._claim_rows(rows)
+        preserved: each connector's drain runs its own loop(s).
 
-    async def _claim_rows(self, rows: list[dict]) -> list[dict]:
-        """Take each candidate row with a conditional UPDATE guarded on status='pending';
-        return only the rows this worker actually flipped (rowcount == 1), so concurrent
-        workers never double-process a task."""
-        claimed = []
-        for r in rows:
-            won = await self.meta.execute_rowcount(
-                "UPDATE object_tasks SET status='running', started_at=?, attempts=attempts+1 "
-                "WHERE id=? AND status='pending'",
-                (_now(), r["id"]),
-            )
-            if won == 1:
-                claimed.append(r)
-        return claimed
+        Thin delegate to ObjectRepository.claim_tasks (conditional UPDATE guarded on
+        status='pending'; returns only rows this worker flipped, so concurrent workers never
+        double-process a task)."""
+        return await self.objects.claim_tasks(connector_id, limit)
 
     @staticmethod
     def _classify_error(e: Exception) -> str:
@@ -1635,10 +1441,8 @@ class Engine:
                 # would let a `git checkout` / cleanup of 5+ files nuke a 500-file job
                 # (D53). Record as 'skipped' so it's visible in object_tasks without
                 # inflating failed_objects.
-                await self.meta.execute(
-                    "UPDATE object_tasks SET status='skipped', finished_at=?, last_error=? "
-                    "WHERE id=?",
-                    (_now(), f"{type(e).__name__}: source disappeared mid-sync", task["id"]),
+                await self.objects.mark_task_skipped(
+                    task["id"], f"{type(e).__name__}: source disappeared mid-sync"
                 )
                 uri = f"{connector_uri}{task.get('object_uri', '')}"
                 print(
@@ -1653,20 +1457,14 @@ class Engine:
                     # _run_job_loop aborts the whole job (status=failed, error=<code>) on the
                     # first occurrence rather than retrying or marking the run 'succeeded'.
                     code = "embedding_auth_failed" if kind == "auth" else "embedding_quota_exceeded"
-                    await self.meta.execute(
-                        "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
-                        (_now(), f"{code}: {e}", task["id"]),
-                    )
+                    await self.objects.mark_task_failed(task["id"], f"{code}: {e}")
                     self._warn_object_failed(connector_uri, task, e)
                     return code
                 if str(e).startswith("field_missing"):
                     # Deterministic [[objects]] config error (text_field key absent from the
                     # records) — retrying re-reads the same records to no avail. Fail this
                     # object immediately with the documented code so the user fixes the config.
-                    await self.meta.execute(
-                        "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
-                        (_now(), str(e), task["id"]),
-                    )
+                    await self.objects.mark_task_failed(task["id"], str(e))
                     self._warn_object_failed(connector_uri, task, e)
                     return "retryable_exhausted"
                 if attempt < max_r:
@@ -1685,10 +1483,7 @@ class Engine:
                     )
                     await _a.sleep(delay_ms / 1000)
                     continue
-                await self.meta.execute(
-                    "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? WHERE id=?",
-                    (_now(), str(e), task["id"]),
-                )
+                await self.objects.mark_task_failed(task["id"], str(e))
                 self._warn_object_failed(connector_uri, task, e)
                 return "retryable_exhausted"
         return "retryable_exhausted"
@@ -1708,11 +1503,9 @@ class Engine:
     async def _should_stop(self, job_id: str, cid: str) -> bool:
         """A task boundary must stop the job if it was cancelled OR its connector is being
         removed — so no _index_object runs (writing Milvus) after teardown begins."""
-        jr = await self.meta.fetchone("SELECT status FROM connector_jobs WHERE id=?", (job_id,))
-        if jr and jr["status"] == "cancelled":
+        if await self.objects.get_job_status(job_id) == "cancelled":
             return True
-        cr = await self.meta.fetchone("SELECT status FROM connectors WHERE id=?", (cid,))
-        return bool(cr and cr["status"] == "removing")
+        return await self.objects.get_connector_status(cid) == "removing"
 
     async def _heartbeat_loop(self, job_id: str, stop: asyncio.Event) -> None:
         """Keep a job's heartbeat fresh for the WHOLE time a worker holds it, on a fixed
@@ -1723,9 +1516,7 @@ class Engine:
         liveness makes 'fresh heartbeat' mean exactly 'worker process alive': if the worker
         dies the loop stops with it and the heartbeat goes stale (the intended signal)."""
         while not stop.is_set():
-            await self.meta.execute(
-                "UPDATE connector_jobs SET heartbeat=? WHERE id=?", (_now(), job_id)
-            )
+            await self.objects.refresh_heartbeat(job_id)
             try:
                 await asyncio.wait_for(stop.wait(), timeout=_HEARTBEAT_INTERVAL_S)
             except asyncio.TimeoutError:
@@ -1769,12 +1560,7 @@ class Engine:
         status. The heartbeat (held by _run_job) stays warm meanwhile; the consumer's idle
         flush guarantees forward progress so this can't wedge while the consumer is alive."""
         while True:
-            row = await self.meta.fetchone(
-                "SELECT count(*) AS n FROM object_tasks "
-                "WHERE connector_job_id=? AND status='running'",
-                (job_id,),
-            )
-            if (row["n"] if row else 0) == 0:
+            if await self.objects.count_running_tasks(job_id) == 0:
                 return
             await asyncio.sleep(0.05)
 
@@ -1802,10 +1588,8 @@ class Engine:
                     # inline okind (deleted/renamed/binary/metadata-only) done synchronously.
                     # only flip a task we still own: a conditional UPDATE means a task that
                     # was cancelled out from under us (remove/cancel) is NOT revived to succeeded.
-                    await self.meta.execute(
-                        "UPDATE object_tasks SET status='succeeded', finished_at=? "
-                        "WHERE id=? AND status='running'",
-                        (_now(), t["id"]),
+                    await self.objects.advance_task(
+                        t["id"], TaskStatus.SUCCEEDED, from_status=TaskStatus.RUNNING
                     )
                     consec_fail = 0
                 elif r == "deferred":
@@ -1823,11 +1607,7 @@ class Engine:
                     # Global, non-retryable failure (bad key / no quota): abort the whole job
                     # at once with the documented code — every object would fail identically,
                     # so grinding them (or finishing 'succeeded' with 0 indexed) just hides it.
-                    await self.meta.execute(
-                        "UPDATE object_tasks SET status='cancelled' "
-                        "WHERE connector_job_id=? AND status IN ('pending','running')",
-                        (job_id,),
-                    )
+                    await self.objects.cancel_pending_running_tasks_for_job(job_id)
                     return r
                 else:
                     # retryable_exhausted counts toward the breaker: a provider that rate-limits
@@ -1836,11 +1616,7 @@ class Engine:
                     # (max_retries+1) calls per object.
                     consec_fail += 1
                     if consec_fail >= threshold:
-                        await self.meta.execute(
-                            "UPDATE object_tasks SET status='cancelled' "
-                            "WHERE connector_job_id=? AND status IN ('pending','running')",
-                            (job_id,),
-                        )
+                        await self.objects.cancel_pending_running_tasks_for_job(job_id)
                         return "circuit_breaker_tripped"
         return None
 
@@ -1912,11 +1688,7 @@ class Engine:
         deferred snapshot/recheck path for those is TODO §10.9)."""
         if not live_fp:
             return False
-        row = await self.meta.fetchone(
-            "SELECT fingerprint FROM objects WHERE connector_id=? AND object_uri=?",
-            (cid, object_uri),
-        )
-        stored = row["fingerprint"] if row else None
+        stored = await self.objects.get_object_fingerprint(cid, object_uri)
         return bool(stored) and stored != live_fp
 
     async def _read_artifact_fresh(
@@ -1980,9 +1752,7 @@ class Engine:
         full_uri = connector_uri + relpath
 
         if kind == "deleted":
-            await self.meta.execute(
-                "DELETE FROM objects WHERE connector_id=? AND object_uri=?", (cid, relpath)
-            )
+            await self.objects.delete_object_row(cid, relpath)
             await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
             await self._drop_artifacts(ns, full_uri)  # purge cached artifact bytes too
             await plugin.on_object_deleted(relpath)
@@ -2035,39 +1805,13 @@ class Engine:
                         (full_uri, new_storage, ns, old_full, ar["artifact_kind"]),
                     )
                 st = await plugin.stat(relpath)
-                await self.meta.execute(
-                    "DELETE FROM objects WHERE connector_id=? AND object_uri=?",
-                    (cid, task["old_uri"]),
-                )
-                await self.meta.execute(
-                    "INSERT INTO objects (connector_id, object_uri, parent_path, type, media_type, size_hint, "
-                    " fingerprint, indexable, last_seen, search_status, chunk_count, indexed_at) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(connector_id, object_uri) DO UPDATE SET "
-                    " type=excluded.type, media_type=excluded.media_type, size_hint=excluded.size_hint, "
-                    " fingerprint=excluded.fingerprint, indexable=excluded.indexable, last_seen=excluded.last_seen, "
-                    " search_status=excluded.search_status, chunk_count=excluded.chunk_count, indexed_at=excluded.indexed_at",
-                    (
-                        cid,
-                        relpath,
-                        os.path.dirname(relpath) or "/",
-                        st.type,
-                        st.media_type,
-                        st.size_hint,
-                        st.fingerprint,
-                        1,
-                        _now(),
-                        "indexed",
-                        len(rows),
-                        _now(),
-                    ),
-                )
+                await self.objects.delete_object_row(cid, task["old_uri"])
+                await self.objects.write_object_row(cid, relpath, st, True, "indexed", len(rows))
                 await plugin.on_object_indexed(relpath)
                 return  # reused vectors — no chunk/embed
             # fallback (old had no chunks): drop refs, index new normally below
             await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, old_full)
-            await self.meta.execute(
-                "DELETE FROM objects WHERE connector_id=? AND object_uri=?", (cid, task["old_uri"])
-            )
+            await self.objects.delete_object_row(cid, task["old_uri"])
 
         st = await plugin.stat(relpath)
         okind = plugin.object_kind_of(relpath)
@@ -2126,15 +1870,8 @@ class Engine:
         embedder for a guaranteed-empty result.
         """
         if connector_uri is None:
-            row = await self.meta.fetchone(
-                "SELECT id FROM connectors WHERE namespace_id=? LIMIT 1", (self.ns,)
-            )
-        else:
-            row = await self.meta.fetchone(
-                "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=? LIMIT 1",
-                (self.ns, connector_uri),
-            )
-        return row is not None
+            return await self.objects.has_any_connector()
+        return await self.objects.has_connector_uri(connector_uri)
 
     async def search(
         self,
@@ -2350,32 +2087,16 @@ class Engine:
         match = await self._match_connector(target)
         if match is not None:
             matched, _ = match
-            row = await self.meta.fetchone(
-                "SELECT id, root_uri, type, status, registered_at FROM connectors WHERE id=?",
-                (matched["id"],),
-            )
+            row = await self.objects.get_connector_row(matched["id"])
         else:
             _, connector_uri, _, _ = self._resolve_target(target)
-            row = await self.meta.fetchone(
-                "SELECT id, root_uri, type, status, registered_at FROM connectors "
-                "WHERE namespace_id=? AND root_uri=?",
-                (self.ns, connector_uri),
-            )
+            row = await self.objects.get_connector_row_by_uri(connector_uri)
         if not row:
             return None
         cid = row["id"]
-        objs = await self.meta.fetchall(
-            "SELECT search_status, count(*) AS n FROM objects WHERE connector_id=? GROUP BY search_status",
-            (cid,),
-        )
-        jobs = await self.meta.fetchall(
-            "SELECT status, count(*) AS n FROM connector_jobs WHERE connector_id=? GROUP BY status",
-            (cid,),
-        )
-        total = await self.meta.fetchone(
-            "SELECT count(*) AS n, sum(chunk_count) AS chunks FROM objects WHERE connector_id=?",
-            (cid,),
-        )
+        objs = await self.objects.summarize_objects_by_search_status(cid)
+        jobs = await self.objects.summarize_jobs_by_status(cid)
+        total = await self.objects.summarize_objects_totals(cid)
         return {
             **dict(row),
             "objects": {o["search_status"]: o["n"] for o in objs},
@@ -2388,36 +2109,25 @@ class Engine:
         """Remove a connector and everything it owns: Milvus chunks, artifacts, and all
         metadata rows (objects / tasks / jobs / state / file_state)."""
         _, connector_uri, _, _ = self._resolve_target(target)
-        row = await self.meta.fetchone(
-            "SELECT id FROM connectors WHERE namespace_id=? AND root_uri=?",
-            (self.ns, connector_uri),
-        )
-        if not row:
+        cid = await self.objects.get_connector_id_by_uri(connector_uri)
+        if not cid:
             match = await self._match_connector(target)
             if match is None:
                 raise ValueError("remove_requires_connector_root")
             matched, rel = match
             if rel != "/":
                 raise ValueError("remove_requires_connector_root")
-            row = matched
+            cid = matched["id"]
             connector_uri = matched["root_uri"]
-        cid = row["id"]
         # preempt any in-flight sync. Mark 'removing' (new syncs ->
         # connector_removing; a running worker observes it at its next task boundary via
         # _should_stop and exits). Cancel only the not-yet-started work (queued job +
         # pending tasks). Crucially DON'T flip the running job ourselves — its status
         # leaving 'running' is the signal that the worker has exited _run_job and no
         # _index_object is mid-write; only then is it safe to delete the data.
-        await self.meta.execute("UPDATE connectors SET status='removing' WHERE id=?", (cid,))
-        await self.meta.execute(
-            "UPDATE object_tasks SET status='cancelled' WHERE connector_id=? AND status='pending'",
-            (cid,),
-        )
-        await self.meta.execute(
-            "UPDATE connector_jobs SET status='cancelled', finished_at=? "
-            "WHERE connector_id=? AND status IN ('queued','preparing')",
-            (_now(), cid),
-        )
+        await self.objects.set_connector_removing(cid)
+        await self.objects.cancel_pending_tasks_for_connector(cid)
+        await self.objects.cancel_queued_preparing_jobs(cid)
         # Wait for the worker to leave 'running' — that transition (set in _finalize_job
         # after _run_job's loop exits) is the proof the last _index_object's Milvus upsert
         # has completed, so it's the only safe moment to delete. Don't bound this by wall
@@ -2427,46 +2137,32 @@ class Engine:
         # worker died/stuck, in which case WE take the job over and then delete.
         stale_after_s = _JOB_STALE_AFTER_S
         while True:
-            running = await self.meta.fetchone(
-                "SELECT id, heartbeat FROM connector_jobs WHERE connector_id=? AND status='running'",
-                (cid,),
-            )
+            running = await self.objects.get_running_job_heartbeat(cid)
             if not running:
                 break
             cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
             if not running["heartbeat"] or running["heartbeat"] < cutoff:
                 # worker is dead or wedged — reclaim: cancel its in-flight tasks + the job
                 # so the 'running' row clears and no later write can resurrect it.
-                await self.meta.execute(
-                    "UPDATE object_tasks SET status='cancelled' "
-                    "WHERE connector_job_id=? AND status IN ('pending','running')",
-                    (running["id"],),
-                )
-                await self.meta.execute(
-                    "UPDATE connector_jobs SET status='cancelled', finished_at=? "
-                    "WHERE id=? AND status='running'",
-                    (_now(), running["id"]),
-                )
+                await self.objects.cancel_pending_running_tasks_for_job(running["id"])
+                await self.objects.cancel_running_job(running["id"])
                 break
             await asyncio.sleep(0.1)
         # 1. Milvus chunks for this connector partition (worker has now stopped writing)
         await asyncio.to_thread(self.milvus.delete_by_connector, self.ns, connector_uri)
         # 2. best-effort artifact bytes per object
-        objs = await self.meta.fetchall(
-            "SELECT object_uri FROM objects WHERE connector_id=?", (cid,)
-        )
+        objs = await self.objects.list_object_uris_for_connector(cid)
         for o in objs:
             await self._drop_artifacts(self.ns, connector_uri + o["object_uri"])
-        # 3. metadata rows
+        # 3. metadata rows — the three target tables via the repo; connector_state / file_state
+        # are out of this repo's four-table scope and stay here.
+        await self.objects.delete_object_task_job_rows_for_connector(cid)
         for tbl, col in (
-            ("object_tasks", "connector_id"),
-            ("connector_jobs", "connector_id"),
-            ("objects", "connector_id"),
             ("connector_state", "connector_id"),
             ("file_state", "connector_id"),
         ):
             await self.meta.execute(f"DELETE FROM {tbl} WHERE {col}=?", (cid,))
-        await self.meta.execute("DELETE FROM connectors WHERE id=?", (cid,))
+        await self.objects.delete_connector(cid)
         return True
 
     # --- read commands — any connector ---
@@ -2475,7 +2171,7 @@ class Engine:
         return (connector_row, relpath) or None. Shared by _open_path (read commands)
         and resolve_connector_uri (search/grep scope). Handles local file paths (file
         connector) and scheme URIs (postgres://, github://, ...)."""
-        rows = await self.meta.fetchall("SELECT * FROM connectors WHERE namespace_id=?", (self.ns,))
+        rows = await self.objects.list_connectors_all()
         # Any URI (postgres://, web://, file://<client_id><abs>, file://local<abs>) ->
         # longest registered root_uri prefix. Covers upload connectors registered under
         # their stable file://<client_id> identity.
@@ -2535,10 +2231,7 @@ class Engine:
         base = rel.rstrip("/")
         for e in entries:
             child_rel = f"{base}/{e.name}" if base else "/" + e.name
-            row = await self.meta.fetchone(
-                "SELECT search_status, indexable FROM objects WHERE connector_id=? AND object_uri=?",
-                (cid, child_rel),
-            )
+            row = await self.objects.get_object_search_status(cid, child_rel)
             out.append(
                 {
                     "name": e.name,
@@ -2991,19 +2684,7 @@ class Engine:
             # Path-component boundary, same fix as build_filter: scope `/src` must match the
             # object itself OR `/src/...`, NOT a sibling `/src-old`. Escape SQL LIKE wildcards
             # ('_'/'%') in the literal prefix so a path with '_' doesn't over-match either.
-            if rel == "/":
-                not_idx = await self.meta.fetchall(
-                    "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed'",
-                    (cid,),
-                )
-            else:
-                base = rel.rstrip("/")
-                esc = base.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-                not_idx = await self.meta.fetchall(
-                    "SELECT object_uri FROM objects WHERE connector_id=? AND search_status='not_indexed' "
-                    "AND (object_uri = ? OR object_uri LIKE ? ESCAPE '\\')",
-                    (cid, base, esc + "/%"),
-                )
+            not_idx = await self.objects.list_not_indexed_in_scope(cid, rel)
             if len(not_idx) > _GREP_LINEAR_SCAN_MAX:
                 # don't silently scan a subset and imply it was exhaustive — tell the agent
                 # so it can narrow the path or index first.
