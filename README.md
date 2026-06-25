@@ -739,6 +739,17 @@ at MFS and focus on the app on top.
 - **CLI** — call the `mfs` command to build your own **skills**, **MCP servers**,
   or **plugins** on top of the same surface.
 
+One example is [`OpenTag`](examples/open-tag-skill/), a small open-source demo of
+a **Claude Code Tag-style** / **Code Tag-style** Slack workflow. It is not an
+official implementation or a production security boundary, but it demonstrates
+the important mechanics: Slack mention as the trigger, MFS as authorized
+**Memory** over Slack/repos/docs/issues/databases, MFS connectors as **Tools**,
+and a CLI agent backend as the **Brain** that can execute the delegated task.
+
+The current OpenTag example deliberately stays lightweight: no hardened sandbox,
+no enterprise policy engine, and no multi-user approval layer. It is a reference
+pattern for building tag-in agent applications on top of MFS.
+
 ## 🗺️ Roadmap
 
 - **Multiple processing profiles** — run different sources through different

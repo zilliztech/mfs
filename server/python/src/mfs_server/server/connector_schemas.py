@@ -356,6 +356,20 @@ SCHEMAS: dict[str, ConnectorSchema] = {
                 help="comma-separated: public_channel, private_channel, mpim, im",
             ),
             ConnectorField(
+                "channel_ids",
+                "Only these Slack channel IDs",
+                multi=True,
+                required=False,
+                help="optional allowlist, comma-separated Slack channel IDs",
+            ),
+            ConnectorField(
+                "channel_names",
+                "Only these Slack channel names",
+                multi=True,
+                required=False,
+                help="optional allowlist, comma-separated names without #",
+            ),
+            ConnectorField(
                 "oldest", "Oldest history boundary (ISO date, now-30d, or unix ts)", required=False
             ),
             ConnectorField(
