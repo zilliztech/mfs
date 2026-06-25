@@ -180,7 +180,7 @@ def check_backend() -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Preflight an OpenTag Slack + MFS setup.")
+    parser = argparse.ArgumentParser(description="Preflight an Open Tag Slack + MFS setup.")
     parser.add_argument("--channel-id", help="Optional Slack channel ID to verify bot access.")
     args = parser.parse_args()
 

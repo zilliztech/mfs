@@ -1,9 +1,9 @@
-# OpenTag Example
+# Open Tag Example
 
-OpenTag is a small open-source demo of a Claude Tag-style Slack workflow built on
+Open Tag is a small open-source demo of a Claude Tag-style Slack workflow built on
 top of MFS: you mention a bot in Slack, the bot gathers authorized context, and a
 CLI agent backend does the work. The official tag bot answers to `@Claude` — by
-convention OpenTag answers to **`@OpenClaude`** (Claude backend) or
+convention Open Tag answers to **`@OpenClaude`** (Claude backend) or
 **`@OpenCodex`** (Codex backend), so it reads the same way.
 
 The example maps the core concepts onto MFS:
@@ -17,7 +17,7 @@ The example maps the core concepts onto MFS:
 
 ## Install the skill
 
-OpenTag ships as the `open-tag-admin` skill. It lives under `examples/`, so
+Open Tag ships as the `open-tag-admin` skill. It lives under `examples/`, so
 install it with `--full-depth` (the default scan only covers top-level skills):
 
 ```bash
@@ -28,7 +28,7 @@ Claude Code and Codex are both supported.
 
 ## Where it stands vs. a hosted tag bot
 
-What OpenTag leans on — and where its edge is — is **Memory breadth**: MFS exposes
+What Open Tag leans on — and where its edge is — is **Memory breadth**: MFS exposes
 20+ connectors, including raw data layers (Postgres / Mongo / BigQuery / S3),
 trackers (GitHub / Jira / Linear), chat, and local files, all **self-hosted**, so
 your data and credentials never leave your machines. A hosted tag bot wins on the
@@ -51,11 +51,11 @@ This example is intentionally generic:
 
 ## Prerequisites
 
-OpenTag sits on top of a running MFS server with at least one indexed source:
+Open Tag sits on top of a running MFS server with at least one indexed source:
 
 1. **Install & run MFS** — `uv tool install mfs-server`, then `mfs-server run`
    (binds `127.0.0.1:13619`).
-2. **Index a source** — OpenTag only consumes already-indexed scopes; it does not
+2. **Index a source** — Open Tag only consumes already-indexed scopes; it does not
    configure connectors. Use the **mfs-ingest** skill to add one (a local repo is
    the quickest start). MFS supports 20+ connectors — see `docs/connectors/`.
 

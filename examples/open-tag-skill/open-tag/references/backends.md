@@ -1,6 +1,6 @@
 # CLI Backends
 
-OpenTag treats the backend as the Brain: a non-interactive CLI process that can
+Open Tag treats the backend as the Brain: a non-interactive CLI process that can
 read the prompt, use the workspace, call MFS helpers, and return a Slack-ready
 answer. Choose the backend explicitly for each deployment.
 

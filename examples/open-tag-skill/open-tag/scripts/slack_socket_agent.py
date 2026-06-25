@@ -80,10 +80,10 @@ def run_backend(backend: str, channel: str, question: str, thread_text: str, tim
         )
         output = result.stdout.strip()
         if result.returncode != 0:
-            return f"OpenTag backend failed with exit code {result.returncode}:\n```text\n{output[-3000:]}\n```"
+            return f"Open Tag backend failed with exit code {result.returncode}:\n```text\n{output[-3000:]}\n```"
         if len(output) > 12000:
             output = output[-12000:]
-        return output or "OpenTag finished without output."
+        return output or "Open Tag finished without output."
     finally:
         try:
             thread_file.unlink()
@@ -107,7 +107,7 @@ def print_live_summary(backend: str) -> None:
     }[backend]
 
     print("=" * 64)
-    print(f"OpenTag is live as @{bot}")
+    print(f"Open Tag is live as @{bot}")
     print(f"  Brain   : {backend}  ->  {invoke}")
     print(f"  Memory  : {len(scopes)} permitted MFS scope(s):")
     for scope in scopes or ["(none — set MFS_ALLOWED_SCOPES)"]:
@@ -134,7 +134,7 @@ def create_app(backend: str, timeout: int) -> App:
         status = client.chat_postMessage(
             channel=channel,
             thread_ts=thread_ts,
-            text=f"OpenTag is working on this with `{backend}`.",
+            text=f"Open Tag is working on this with `{backend}`.",
         )
 
         try:
@@ -146,15 +146,15 @@ def create_app(backend: str, timeout: int) -> App:
                 text=answer,
             )
         except Exception as exc:  # noqa: BLE001
-            logger.exception("OpenTag failed")
-            answer = f"OpenTag failed: `{type(exc).__name__}: {exc}`"
+            logger.exception("Open Tag failed")
+            answer = f"Open Tag failed: `{type(exc).__name__}: {exc}`"
             client.chat_update(channel=channel, ts=status["ts"], text=answer)
 
     return app
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run OpenTag Slack Socket Mode bridge.")
+    parser = argparse.ArgumentParser(description="Run Open Tag Slack Socket Mode bridge.")
     parser.add_argument(
         "--backend",
         choices=["claude", "codex"],

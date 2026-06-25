@@ -47,7 +47,7 @@ def is_path_allowed(path: str, allowed_scopes: list[str]) -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Read an MFS object or locator for OpenTag.")
+    parser = argparse.ArgumentParser(description="Read an MFS object or locator for Open Tag.")
     parser.add_argument("path")
     parser.add_argument("--locator", help="JSON locator from an MFS search hit.")
     args = parser.parse_args()

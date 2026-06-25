@@ -37,7 +37,7 @@ def build_prompt(
     allowed_scopes: str,
 ) -> str:
     return f"""
-You are being invoked by an OpenTag Slack bridge.
+You are being invoked by an Open Tag Slack bridge.
 
 First read and follow the runtime instructions at:
 {skill_dir / "references" / "runtime-agent.md"}
@@ -149,6 +149,8 @@ def run_claude(
     prompt: str, *, skill_dir: Path, workdir: Path, memory_root: Path, timeout: int
 ) -> int:
     memory_root.mkdir(parents=True, exist_ok=True)
+    # Pass the prompt on stdin, not as a trailing positional: `claude --add-dir`
+    # is variadic and would otherwise swallow the prompt as another directory.
     cmd = [
         "claude",
         "-p",
@@ -159,10 +161,10 @@ def run_claude(
         str(skill_dir),
         "--add-dir",
         str(memory_root),
-        prompt,
     ]
     result = subprocess.run(
         cmd,
+        input=prompt,
         check=False,
         timeout=timeout,
         text=True,
@@ -175,7 +177,7 @@ def run_claude(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run OpenTag through a CLI agent backend.")
+    parser = argparse.ArgumentParser(description="Run Open Tag through a CLI agent backend.")
     parser.add_argument(
         "--backend",
         choices=["claude", "codex"],
@@ -229,7 +231,7 @@ def main() -> int:
             timeout=args.timeout,
         )
     except subprocess.TimeoutExpired:
-        print(f"OpenTag backend timed out after {args.timeout}s", file=sys.stderr)
+        print(f"Open Tag backend timed out after {args.timeout}s", file=sys.stderr)
         return 124
 
 

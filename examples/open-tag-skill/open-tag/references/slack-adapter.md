@@ -1,6 +1,6 @@
 # Slack Adapter
 
-Use this reference when setting up the Slack-facing side of OpenTag from
+Use this reference when setting up the Slack-facing side of Open Tag from
 scratch. The bridge is intentionally thin. It only:
 
 1. Receives `app_mention` events through Socket Mode.
@@ -25,7 +25,7 @@ Relevant Slack docs:
 ## Prerequisites
 
 Before any Slack work, MFS must be running with at least one indexed source —
-OpenTag only consumes already-indexed scopes:
+Open Tag only consumes already-indexed scopes:
 
 1. `uv tool install mfs-server` → `mfs-server run` (binds `127.0.0.1:13619`;
    verify with `curl -s 127.0.0.1:13619/healthz`).
@@ -59,7 +59,7 @@ Create or reuse a Slack app:
 1. Go to <https://api.slack.com/apps>.
 2. Create a new app from scratch in the target workspace. Name it for the chosen
    backend so the mention reads like the official `@Claude` tag: **OpenClaude**
-   (`claude`) or **OpenCodex** (`codex`). The name is cosmetic — OpenTag strips
+   (`claude`) or **OpenCodex** (`codex`). The name is cosmetic — Open Tag strips
    the mention regardless.
 3. Open **Socket Mode**, enable it, and create an app-level token with:
    - `connections:write`
@@ -113,7 +113,7 @@ export MFS_ALLOWED_SCOPES="slack://team-memory,file://local/path/to/workspace"
 
 ### More sources
 
-OpenTag's reach is whatever MFS has indexed plus what you list in
+Open Tag's reach is whatever MFS has indexed plus what you list in
 `MFS_ALLOWED_SCOPES`. Add each once with **mfs-ingest** (it handles credentials),
 then append its root to the scope list:
 
@@ -124,7 +124,7 @@ mfs add postgres://prod             --config ./pg.toml        # rows as objects
 export MFS_ALLOWED_SCOPES="slack://team-memory,github://your-org/your-repo,linear://your-workspace,file://local/path/to/workspace"
 ```
 
-Do not hand-write connector TOML here — OpenTag is only the consumer. For the
+Do not hand-write connector TOML here — Open Tag is only the consumer. For the
 full connector list and per-connector credentials, use the **mfs-ingest** skill
 and `docs/connectors/`.
 

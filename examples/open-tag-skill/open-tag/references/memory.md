@@ -1,6 +1,6 @@
 # Memory And Optional Seed Notes
 
-OpenTag's Memory is MFS retrieval from sources the operator has indexed and
+Open Tag's Memory is MFS retrieval from sources the operator has indexed and
 authorized, such as Slack history, repositories, docs, issues, databases, object
 stores, or web crawls.
 
@@ -24,7 +24,7 @@ Per-channel file:
 Recommended shape:
 
 ```markdown
-# OpenTag Memory: <channel-id>
+# Open Tag Memory: <channel-id>
 
 ## Preferences
 - Answers should be concise.
@@ -33,7 +33,7 @@ Recommended shape:
 - 2026-06-24: Use the engineering repo as one permitted demo source.
 
 ## Facts
-- The current Slack channel is isolated for OpenTag validation.
+- The current Slack channel is isolated for Open Tag validation.
 ```
 
 Rules:

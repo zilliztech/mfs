@@ -192,7 +192,7 @@ range for the code file, a structured locator for the ticket.
 ## Build on top: a Slack tag-in bot
 
 The same searchable namespace can back an agent that lives where your team works.
-[`OpenTag`](https://github.com/zilliztech/mfs/tree/main/examples/open-tag-skill)
+[`Open Tag`](https://github.com/zilliztech/mfs/tree/main/examples/open-tag-skill)
 is a small open-source demo of a **Claude Tag-style** Slack workflow built on MFS:
 mention `@OpenClaude` (Claude backend) or `@OpenCodex` (Codex backend) in a
 channel, and a CLI agent gathers authorized context and does the work.

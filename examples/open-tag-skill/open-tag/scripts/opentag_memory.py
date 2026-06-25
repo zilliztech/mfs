@@ -24,7 +24,7 @@ def ensure_memory_file(channel_id: str) -> Path:
         path.write_text(
             "\n".join(
                 [
-                    f"# OpenTag Memory: {channel_id}",
+                    f"# Open Tag Memory: {channel_id}",
                     "",
                     "## Preferences",
                     "- Answers should be concise.",
@@ -63,7 +63,7 @@ def sync_memory_root() -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Manage optional OpenTag demo memory.")
+    parser = argparse.ArgumentParser(description="Manage optional Open Tag demo memory.")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     show = sub.add_parser("show")

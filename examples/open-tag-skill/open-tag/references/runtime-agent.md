@@ -54,7 +54,7 @@ the behavior contract for the fresh CLI agent launched by the bridge.
 
 ## Boundary Model
 
-OpenTag relies on the selected backend process boundary and the workspace
+Open Tag relies on the selected backend process boundary and the workspace
 permissions granted by the operator. Production deployments should add a real
 sandbox, explicit tool allowlists, and auditable data-source policies.
 

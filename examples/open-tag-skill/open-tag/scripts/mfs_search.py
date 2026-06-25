@@ -47,7 +47,7 @@ def is_scope_allowed(target: str, allowed_scopes: list[str]) -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Search MFS scopes for OpenTag.")
+    parser = argparse.ArgumentParser(description="Search MFS scopes for Open Tag.")
     parser.add_argument("query")
     parser.add_argument("--scope", action="append", default=[])
     parser.add_argument("--mode", choices=["hybrid", "semantic", "keyword"], default="hybrid")

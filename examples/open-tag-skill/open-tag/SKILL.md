@@ -1,11 +1,11 @@
 ---
 name: open-tag-admin
-description: Admin/control console for an OpenTag Slack tag-in workflow backed by MFS. Use to set up a new OpenTag bot from scratch, check what is currently running (backend, permitted MFS scopes, Slack channel), change settings, add or remove data sources, switch the CLI agent backend (claude -p / codex exec), invite or move the bot in Slack, run preflight checks, and troubleshoot thread context, retrieval, or task execution.
+description: Admin/control console for an Open Tag Slack tag-in workflow backed by MFS. Use to set up a new Open Tag bot from scratch, check what is currently running (backend, permitted MFS scopes, Slack channel), change settings, add or remove data sources, switch the CLI agent backend (claude -p / codex exec), invite or move the bot in Slack, run preflight checks, and troubleshoot thread context, retrieval, or task execution.
 ---
 
-# OpenTag (admin)
+# Open Tag (admin)
 
-This skill is the **control console** for an OpenTag deployment. Use it for the
+This skill is the **control console** for an Open Tag deployment. Use it for the
 first-time setup and for ongoing operation alike: inspect the live bot, change
 the backend or permitted scopes, add a new data source, move the bot to another
 Slack channel, or debug a run.
@@ -23,7 +23,7 @@ The user-facing flow is:
 
 1. Configure MFS sources and allowed scopes.
 2. Configure a Slack app with Socket Mode and invite it to a sandbox channel.
-3. Start the OpenTag bridge.
+3. Start the Open Tag bridge.
 4. Move to Slack and tag the bot in a thread.
 5. Let the bridge invoke the selected backend with thread context and scoped MFS
    helper scripts for permitted external context.
@@ -33,13 +33,13 @@ write permissions come from the selected CLI agent backend.
 
 ## Prerequisites
 
-OpenTag is a thin layer on top of a **running MFS server with at least one
+Open Tag is a thin layer on top of a **running MFS server with at least one
 indexed source**. Confirm these before any Slack work:
 
 1. **MFS server installed and running.** `uv tool install mfs-server`, then
    `mfs-server run` (binds `127.0.0.1:13619`). Check with
    `curl -s 127.0.0.1:13619/healthz`.
-2. **At least one data source indexed.** OpenTag only *consumes* already-indexed
+2. **At least one data source indexed.** Open Tag only *consumes* already-indexed
    scopes as Memory — it does not configure connectors itself. Use the
    **mfs-ingest** skill (Codex: `$mfs-ingest`) to add a source; see
    "Adding data sources" below.
@@ -48,7 +48,7 @@ indexed source**. Confirm these before any Slack work:
 
 ## Bot name convention
 
-The Slack display name is whatever you call the Slack app — OpenTag's code
+The Slack display name is whatever you call the Slack app — Open Tag's code
 strips the mention regardless. Recommended convention, so it reads like the
 official `@Claude` tag:
 
@@ -80,9 +80,9 @@ Name the Slack app accordingly when you create it (step 3). Set
 
 ## Adding data sources
 
-OpenTag's reach is exactly what MFS has indexed and what you list in
+Open Tag's reach is exactly what MFS has indexed and what you list in
 `MFS_ALLOWED_SCOPES`. To add a source, use the **mfs-ingest** skill — it handles
-credentials and writes the connector config; OpenTag never duplicates that.
+credentials and writes the connector config; Open Tag never duplicates that.
 
 Representative sources (each is `mfs add <uri> --config <toml>` once, then add
 its root to `MFS_ALLOWED_SCOPES`):
@@ -96,7 +96,7 @@ its root to `MFS_ALLOWED_SCOPES`):
 MFS supports 20+ connectors (databases, object stores, trackers, chat, web).
 For the full list and per-connector credentials, point users at the
 **mfs-ingest** skill and `docs/connectors/`. This breadth of Memory — including
-raw data layers, all self-hosted — is OpenTag's main edge over a hosted tag bot;
+raw data layers, all self-hosted — is Open Tag's main edge over a hosted tag bot;
 it does **not** add hosted governance, audit, or approval flows.
 
 ## What The Python Scripts Do

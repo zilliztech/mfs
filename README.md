@@ -739,10 +739,10 @@ at MFS and focus on the app on top.
 - **CLI** — call the `mfs` command to build your own **skills**, **MCP servers**,
   or **plugins** on top of the same surface.
 
-One example is [`OpenTag`](examples/open-tag-skill/), a small open-source demo of
+One example is [`Open Tag`](examples/open-tag-skill/), a small open-source demo of
 a **Claude Tag-style** Slack workflow. You mention a bot in a channel, it gathers
 authorized context, and a CLI agent backend does the work. Where the official tag
-answers to `@Claude`, OpenTag answers to **`@OpenClaude`** (Claude backend) or
+answers to `@Claude`, Open Tag answers to **`@OpenClaude`** (Claude backend) or
 **`@OpenCodex`** (Codex backend), so it reads the same. It maps the same three
 parts onto MFS: MFS as authorized **Memory** over Slack/repos/docs/issues/
 databases, MFS connectors as **Tools**, and a CLI agent backend as the **Brain**
