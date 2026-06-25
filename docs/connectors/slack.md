@@ -59,9 +59,15 @@ the user revokes access.
 ```toml
 token = "env:SLACK_BOT_TOKEN"
 channel_types = ["public_channel"]   # + private_channel, mpim, im
+channel_names = ["eng-backend"]       # optional allowlist; or use channel_ids
 oldest = "now-30d"                    # optional history floor: ISO date / now-Nd / unix ts
 max_read_rows = 50000
 ```
+
+Use `channel_ids` or `channel_names` to keep a user-token sync bounded to the
+specific channels the agent should be allowed to recall. When both are set, a
+channel is included if either its Slack ID or name matches. The channel's type
+must still be present in `channel_types`.
 
 Save the file as `slack.toml`, then probe and index:
 
@@ -87,5 +93,9 @@ mfs cat slack://acme/channels/eng-backend__C012345/messages.jsonl --locator '{"t
 ## Pitfalls
 
 - Private channels need both the scopes **and** bot membership.
+- User-token demos should normally set `include_unjoined = true` plus
+  `channel_ids` or `channel_names`; otherwise the connector may skip public
+  channels where the user token can read history but Slack does not mark the app
+  as a member.
 - Hits are thread aggregates, so a short query can reopen a long thread.
 - `max_read_rows` applies per channel and can mark recall partial.

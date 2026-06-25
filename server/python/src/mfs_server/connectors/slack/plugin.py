@@ -79,6 +79,14 @@ class SlackPlugin(ConnectorPlugin):
             self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
         )
 
+    def _cfg_set(self, k: str) -> set[str]:
+        value = self._cfg(k)
+        if not value:
+            return set()
+        if isinstance(value, str):
+            return {item.strip() for item in value.split(",") if item.strip()}
+        return {str(item).strip() for item in value if str(item).strip()}
+
     async def connect(self) -> None:
         self._client = AsyncWebClient(token=self._cfg("token") or self.credential)
 
@@ -105,9 +113,14 @@ class SlackPlugin(ConnectorPlugin):
         # to bypass the filter (e.g. when running with a user token that
         # already has the visibility — `is_member` is bot-centric).
         include_unjoined = bool(self._cfg("include_unjoined", False))
+        channel_ids = self._cfg_set("channel_ids")
+        channel_names = self._cfg_set("channel_names")
         while True:
             resp = await self._client.conversations_list(types=types, cursor=cursor, limit=200)
             for ch in resp["channels"]:
+                if channel_ids or channel_names:
+                    if ch.get("id") not in channel_ids and ch.get("name") not in channel_names:
+                        continue
                 if include_unjoined or ch.get("is_member"):
                     out.append(ch)
             cursor = (resp.get("response_metadata") or {}).get("next_cursor")

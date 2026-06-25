@@ -44,7 +44,7 @@ both connectors. See [[gdrive]].
 ## env: example
 
 ```toml
-token = "file:/home/zhangchen/.mfs/gmail-token.json"
+token = "file:/home/alice/.mfs/gmail-token.json"
 labels = ["INBOX", "Engineering"]
 max_read_rows = 5000
 ```

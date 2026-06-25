@@ -2407,6 +2407,7 @@ s3 = [
     { name = "aioboto3" },
 ]
 slack = [
+    { name = "aiohttp" },
     { name = "slack-sdk" },
 ]
 snowflake = [
@@ -2431,6 +2432,7 @@ requires-dist = [
     { name = "aioboto3", marker = "extra == 'all-connectors'", specifier = ">=13.0" },
     { name = "aioboto3", marker = "extra == 's3'", specifier = ">=13.0" },
     { name = "aiohttp", marker = "extra == 'all-connectors'", specifier = ">=3.9" },
+    { name = "aiohttp", marker = "extra == 'slack'", specifier = ">=3.9" },
     { name = "aiohttp", marker = "extra == 'web'", specifier = ">=3.9" },
     { name = "aiomysql", specifier = ">=0.3.2" },
     { name = "aiosqlite", specifier = ">=0.20" },

@@ -40,13 +40,16 @@ respects the user's per-message visibility.
 | key | default | meaning |
 |---|---|---|
 | `channel_types` | `["public_channel"]` | which channel kinds; values: `public_channel`, `private_channel`, `mpim`, `im` |
+| `channel_ids` | _none_ | optional allowlist of Slack channel IDs |
+| `channel_names` | _none_ | optional allowlist of channel names without `#` |
+| `include_unjoined` | `false` | include channels even when Slack does not mark the app/bot as a member; useful with user tokens |
 | `oldest` | _none_ | history floor: ISO date (`2026-05-01`), relative (`now-30d`), or a unix ts |
 | `max_read_rows` | 50000 | per-channel message cap |
 
 For a large workspace (many channels × deep history), scope the sync to the
-channels you need (`channel_types`, or fewer channels) and bound the volume with
-`max_read_rows` or `oldest`. That keeps each sync's size — and the
-server work it takes — in hand.
+channels you need (`channel_ids` / `channel_names`, plus the matching
+`channel_types`) and bound the volume with `max_read_rows` or `oldest`. That keeps
+each sync's size — and the server work it takes — in hand.
 
 No `[[objects]]` block is needed — the `slack.messages` preset
 auto-applies (`text_fields=["text"]`, `group_by="thread_ts"`,
@@ -59,6 +62,7 @@ profile.title / profile.email).
 ```toml
 token = "env:SLACK_BOT_TOKEN"
 channel_types = ["public_channel", "private_channel"]
+channel_names = ["general", "eng-backend"]
 oldest = "now-90d"      # ISO date / now-Nd / unix ts; messages before this are skipped
 max_read_rows = 50000
 ```

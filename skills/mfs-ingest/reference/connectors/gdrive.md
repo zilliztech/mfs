@@ -43,7 +43,7 @@ files explicitly shared with them).
 ## env: example
 
 ```toml
-token = "file:/home/zhangchen/.mfs/gdrive-token.json"
+token = "file:/home/alice/.mfs/gdrive-token.json"
 ```
 
 ```bash
