@@ -91,6 +91,37 @@ def run_backend(backend: str, channel: str, question: str, thread_text: str, tim
             pass
 
 
+def suggested_bot_name(backend: str) -> str:
+    if os.getenv("OPENTAG_BOT_NAME"):
+        return os.environ["OPENTAG_BOT_NAME"]
+    return {"claude": "OpenClaude", "codex": "OpenCodex"}.get(backend, "OpenTag")
+
+
+def print_live_summary(backend: str) -> None:
+    bot = suggested_bot_name(backend)
+    scopes = [s.strip() for s in os.getenv("MFS_ALLOWED_SCOPES", "").split(",") if s.strip()]
+    channel = os.getenv("SLACK_CHANNEL_ID", "(not set)")
+    invoke = {
+        "claude": "claude -p --dangerously-skip-permissions",
+        "codex": "codex exec --dangerously-bypass-approvals-and-sandbox",
+    }[backend]
+
+    print("=" * 64)
+    print(f"OpenTag is live as @{bot}")
+    print(f"  Brain   : {backend}  ->  {invoke}")
+    print(f"  Memory  : {len(scopes)} permitted MFS scope(s):")
+    for scope in scopes or ["(none — set MFS_ALLOWED_SCOPES)"]:
+        print(f"            - {scope}")
+    print(f"  Slack   : listening for @mentions in channel {channel}")
+    print("")
+    print("  Anyone who can @mention the bot in that channel can drive the")
+    print("  backend, which runs with your shell and inherited environment.")
+    print("  Slack text flows into the prompt, so treat every mention as")
+    print("  untrusted input: use an isolated channel on a non-production host.")
+    print(f"  Invite the bot only where it should respond: /invite @{bot}")
+    print("=" * 64)
+
+
 def create_app(backend: str, timeout: int) -> App:
     app = App(token=require_env("SLACK_BOT_TOKEN"))
 
@@ -126,15 +157,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run OpenTag Slack Socket Mode bridge.")
     parser.add_argument(
         "--backend",
-        choices=["codex", "claude", "custom"],
+        choices=["claude", "codex"],
         default=os.getenv("OPENTAG_BACKEND"),
     )
-    parser.add_argument("--timeout", type=int, default=int(os.getenv("OPENTAG_TIMEOUT_SECONDS", "420")))
+    parser.add_argument(
+        "--timeout", type=int, default=int(os.getenv("OPENTAG_TIMEOUT_SECONDS", "420"))
+    )
     args = parser.parse_args()
     if not args.backend:
         parser.error("--backend or OPENTAG_BACKEND is required")
 
     app = create_app(args.backend, args.timeout)
+    print_live_summary(args.backend)
     SocketModeHandler(app, require_env("SLACK_APP_TOKEN")).start()
 
 

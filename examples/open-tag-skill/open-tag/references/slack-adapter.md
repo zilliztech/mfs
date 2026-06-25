@@ -22,10 +22,21 @@ Relevant Slack docs:
 - App mentions: <https://docs.slack.dev/reference/events/app_mention/>
 - OAuth scopes: <https://docs.slack.dev/reference/scopes/>
 
+## Prerequisites
+
+Before any Slack work, MFS must be running with at least one indexed source —
+OpenTag only consumes already-indexed scopes:
+
+1. `uv tool install mfs-server` → `mfs-server run` (binds `127.0.0.1:13619`;
+   verify with `curl -s 127.0.0.1:13619/healthz`).
+2. Index at least one source with the **mfs-ingest** skill (a local repo is the
+   quickest start). See "MFS Memory Setup" below and `docs/connectors/`.
+
 ## End-To-End Checklist
 
 1. Pick an isolated Slack channel, preferably private, for the first run.
-2. Create a Slack app in the target workspace.
+2. Create a Slack app in the target workspace, named for the backend
+   (**OpenClaude** for `claude`, **OpenCodex** for `codex`).
 3. Enable Socket Mode and create an app-level token with `connections:write`.
    Save it as `SLACK_APP_TOKEN` (`xapp-...`).
 4. Add bot scopes, install the app, and save the bot token as
@@ -46,7 +57,10 @@ diagnose failures, but it cannot bypass workspace policy.
 Create or reuse a Slack app:
 
 1. Go to <https://api.slack.com/apps>.
-2. Create a new app from scratch in the target workspace.
+2. Create a new app from scratch in the target workspace. Name it for the chosen
+   backend so the mention reads like the official `@Claude` tag: **OpenClaude**
+   (`claude`) or **OpenCodex** (`codex`). The name is cosmetic — OpenTag strips
+   the mention regardless.
 3. Open **Socket Mode**, enable it, and create an app-level token with:
    - `connections:write`
 4. Open **OAuth & Permissions** and add Bot Token Scopes:
@@ -97,6 +111,23 @@ mfs add slack://team-memory --config /tmp/opentag-slack.toml
 export MFS_ALLOWED_SCOPES="slack://team-memory,file://local/path/to/workspace"
 ```
 
+### More sources
+
+OpenTag's reach is whatever MFS has indexed plus what you list in
+`MFS_ALLOWED_SCOPES`. Add each once with **mfs-ingest** (it handles credentials),
+then append its root to the scope list:
+
+```bash
+mfs add github://your-org/your-repo --config ./github.toml   # code + issues
+mfs add linear://your-workspace     --config ./linear.toml   # issues
+mfs add postgres://prod             --config ./pg.toml        # rows as objects
+export MFS_ALLOWED_SCOPES="slack://team-memory,github://your-org/your-repo,linear://your-workspace,file://local/path/to/workspace"
+```
+
+Do not hand-write connector TOML here — OpenTag is only the consumer. For the
+full connector list and per-connector credentials, use the **mfs-ingest** skill
+and `docs/connectors/`.
+
 Use a bot token for channels the bot can join. Use a user token only when the
 demo intentionally needs the user's own visible Slack context, and always pair it
 with `channel_ids` or `channel_names` to avoid indexing the entire workspace.
@@ -111,7 +142,7 @@ export SLACK_BOT_TOKEN="xoxb-..."
 export MFS_URL="http://127.0.0.1:13619"
 export MFS_TOKEN="$(cat ~/.mfs/server.token)"
 export MFS_ALLOWED_SCOPES="slack://team-memory,github://owner/repo,file://local/path/to/workspace"
-export OPENTAG_BACKEND="<backend>"   # codex | claude | custom
+export OPENTAG_BACKEND="<backend>"   # claude | codex
 export OPENTAG_WORKDIR="/path/to/workspace"
 export SLACK_CHANNEL_ID="<channel-id>"
 ```
@@ -124,9 +155,7 @@ Optional:
 ```bash
 export OPENTAG_MEMORY_ROOT="$HOME/.mfs/opentag-memory"
 export OPENTAG_TIMEOUT_SECONDS=420
-export OPENTAG_BACKEND_ATTEMPTS=3
-# Required only for OPENTAG_BACKEND=custom.
-export OPENTAG_BACKEND_COMMAND='agent-cli run --cwd {workdir} --prompt-file {prompt_file}'
+export OPENTAG_BACKEND_ATTEMPTS=3   # codex backend: retries on capacity/rate-limit
 ```
 
 ## Preflight

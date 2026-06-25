@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -119,7 +118,9 @@ def retryable_backend_failure(output: str) -> bool:
     return "selected model is at capacity" in lowered or "rate limit" in lowered
 
 
-def run_codex(prompt: str, *, skill_dir: Path, workdir: Path, memory_root: Path, timeout: int) -> int:
+def run_codex(
+    prompt: str, *, skill_dir: Path, workdir: Path, memory_root: Path, timeout: int
+) -> int:
     attempts = max(1, int(os.getenv("OPENTAG_BACKEND_ATTEMPTS", "3")))
     last_code = 1
     last_output = ""
@@ -144,7 +145,9 @@ def run_codex(prompt: str, *, skill_dir: Path, workdir: Path, memory_root: Path,
     return last_code
 
 
-def run_claude(prompt: str, *, skill_dir: Path, workdir: Path, memory_root: Path, timeout: int) -> int:
+def run_claude(
+    prompt: str, *, skill_dir: Path, workdir: Path, memory_root: Path, timeout: int
+) -> int:
     memory_root.mkdir(parents=True, exist_ok=True)
     cmd = [
         "claude",
@@ -171,75 +174,26 @@ def run_claude(prompt: str, *, skill_dir: Path, workdir: Path, memory_root: Path
     return result.returncode
 
 
-def run_custom(prompt: str, *, skill_dir: Path, workdir: Path, memory_root: Path, timeout: int) -> int:
-    command_template = os.getenv("OPENTAG_BACKEND_COMMAND")
-    if not command_template:
-        print("OPENTAG_BACKEND_COMMAND is required for the custom backend.", file=sys.stderr)
-        return 2
-
-    memory_root.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", suffix=".txt", encoding="utf-8", delete=False) as prompt_file:
-        prompt_file.write(prompt)
-        prompt_path = Path(prompt_file.name)
-    with tempfile.NamedTemporaryFile("r", suffix=".txt", encoding="utf-8", delete=False) as output_file:
-        output_path = Path(output_file.name)
-
-    values = {
-        "prompt_file": shlex.quote(str(prompt_path)),
-        "output_file": shlex.quote(str(output_path)),
-        "workdir": shlex.quote(str(workdir)),
-        "skill_dir": shlex.quote(str(skill_dir)),
-        "memory_root": shlex.quote(str(memory_root)),
-    }
-    env = os.environ.copy()
-    env.update(
-        {
-            "OPENTAG_PROMPT_FILE": str(prompt_path),
-            "OPENTAG_OUTPUT_FILE": str(output_path),
-            "OPENTAG_WORKDIR": str(workdir),
-            "OPENTAG_SKILL_DIR": str(skill_dir),
-            "OPENTAG_MEMORY_ROOT": str(memory_root),
-        }
-    )
-
-    try:
-        cmd = shlex.split(command_template.format(**values))
-        result = subprocess.run(
-            cmd,
-            check=False,
-            timeout=timeout,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            env=env,
-        )
-        if output_path.exists() and output_path.read_text(encoding="utf-8").strip():
-            print(output_path.read_text(encoding="utf-8").strip())
-        elif result.stdout:
-            print(result.stdout.strip())
-        return result.returncode
-    finally:
-        for path in (prompt_path, output_path):
-            try:
-                path.unlink()
-            except OSError:
-                pass
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run OpenTag through a CLI agent backend.")
     parser.add_argument(
         "--backend",
-        choices=["codex", "claude", "custom"],
+        choices=["claude", "codex"],
         default=os.getenv("OPENTAG_BACKEND"),
     )
     parser.add_argument("--question", required=True)
     parser.add_argument("--channel-id", required=True)
     parser.add_argument("--thread-file", type=Path, required=True)
     parser.add_argument("--skill-dir", type=Path, default=default_skill_dir())
-    parser.add_argument("--workdir", type=Path, default=Path(os.getenv("OPENTAG_WORKDIR", default_workdir())))
+    parser.add_argument(
+        "--workdir",
+        type=Path,
+        default=Path(os.getenv("OPENTAG_WORKDIR", default_workdir())),
+    )
     parser.add_argument("--memory-root", type=Path, default=default_memory_root())
-    parser.add_argument("--timeout", type=int, default=int(os.getenv("OPENTAG_TIMEOUT_SECONDS", "420")))
+    parser.add_argument(
+        "--timeout", type=int, default=int(os.getenv("OPENTAG_TIMEOUT_SECONDS", "420"))
+    )
     args = parser.parse_args()
     if not args.backend:
         parser.error("--backend or OPENTAG_BACKEND is required")
@@ -261,14 +215,6 @@ def main() -> int:
     try:
         if args.backend == "codex":
             return run_codex(
-                prompt,
-                skill_dir=args.skill_dir.resolve(),
-                workdir=args.workdir.resolve(),
-                memory_root=args.memory_root.expanduser().resolve(),
-                timeout=args.timeout,
-            )
-        if args.backend == "custom":
-            return run_custom(
                 prompt,
                 skill_dir=args.skill_dir.resolve(),
                 workdir=args.workdir.resolve(),

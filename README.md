@@ -740,15 +740,27 @@ at MFS and focus on the app on top.
   or **plugins** on top of the same surface.
 
 One example is [`OpenTag`](examples/open-tag-skill/), a small open-source demo of
-a **Claude Code Tag-style** / **Code Tag-style** Slack workflow. It is not an
-official implementation or a production security boundary, but it demonstrates
-the important mechanics: Slack mention as the trigger, MFS as authorized
-**Memory** over Slack/repos/docs/issues/databases, MFS connectors as **Tools**,
-and a CLI agent backend as the **Brain** that can execute the delegated task.
+a **Claude Tag-style** Slack workflow. You mention a bot in a channel, it gathers
+authorized context, and a CLI agent backend does the work. Where the official tag
+answers to `@Claude`, OpenTag answers to **`@OpenClaude`** (Claude backend) or
+**`@OpenCodex`** (Codex backend), so it reads the same. It maps the same three
+parts onto MFS: MFS as authorized **Memory** over Slack/repos/docs/issues/
+databases, MFS connectors as **Tools**, and a CLI agent backend as the **Brain**
+that executes the delegated task.
 
-The current OpenTag example deliberately stays lightweight: no hardened sandbox,
-no enterprise policy engine, and no multi-user approval layer. It is a reference
-pattern for building tag-in agent applications on top of MFS.
+Its edge is **Memory breadth**: 20+ connectors including raw data layers
+(Postgres / Mongo / BigQuery / S3), trackers (GitHub / Jira / Linear), chat, and
+local files — all **self-hosted**, so your data and credentials stay on your
+machines. It deliberately skips what a hosted tag bot provides: managed zero-ops,
+enterprise governance (approvals, audit, spend limits), an ambient proactive
+mode, and an org-level identity model.
+
+So it is a reference pattern, **not a production security boundary** — no hardened
+sandbox, no policy engine, no approval layer. Anyone who can mention the bot can
+drive a backend that runs with your shell and environment, so run it in an
+isolated Slack channel on a non-production host. It builds on a running MFS server
+with at least one indexed source; the [`open-tag-admin`](examples/open-tag-skill/open-tag/)
+skill walks through setup, status, and adding sources.
 
 ## 🗺️ Roadmap
 

@@ -63,7 +63,10 @@ def main() -> int:
 
     scopes = args.scope or allowed_scopes
     if not scopes:
-        print("No scopes supplied. Set MFS_ALLOWED_SCOPES or pass --scope.", file=sys.stderr)
+        print(
+            "No scopes supplied. Set MFS_ALLOWED_SCOPES or pass --scope.",
+            file=sys.stderr,
+        )
         return 2
 
     all_results: list[dict[str, Any]] = []

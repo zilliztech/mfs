@@ -188,3 +188,23 @@ file://local/repo/src/throttle.go  score=0.71
 
 The locators are uniform, so the same `mfs cat` reopens any of them — a line
 range for the code file, a structured locator for the ticket.
+
+## Build on top: a Slack tag-in bot
+
+The same searchable namespace can back an agent that lives where your team works.
+[`OpenTag`](https://github.com/zilliztech/mfs/tree/main/examples/open-tag-skill)
+is a small open-source demo of a **Claude Tag-style** Slack workflow built on MFS:
+mention `@OpenClaude` (Claude backend) or `@OpenCodex` (Codex backend) in a
+channel, and a CLI agent gathers authorized context and does the work.
+
+It wires the three parts onto MFS — **Memory** (the scopes you've indexed and
+allow), **Tools** (MFS connectors plus the backend's workspace tools), and
+**Brain** (`claude -p` for Claude Code or `codex exec` for Codex). Its edge over a hosted tag
+bot is Memory breadth: every connector above — databases, object stores, trackers,
+chat, local files — can be permitted context, all self-hosted.
+
+It is a reference pattern, not a production security boundary: the backend runs
+with your shell and environment, so use an isolated channel on a non-production
+host. The `open-tag-admin` skill walks through setup, live status, and adding
+sources (it consumes indexed scopes; use **mfs-ingest** to add the sources
+themselves).

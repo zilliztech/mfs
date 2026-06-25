@@ -1,15 +1,19 @@
 ---
-name: open-tag
-description: Create, run, test, and maintain an OpenTag Slack mention workflow backed by MFS and interchangeable CLI agent backends. Use when setting up a tag-in agent, choosing MFS data-source scopes, configuring Slack Socket Mode tokens, selecting a CLI backend such as codex exec, claude -p, or a custom command, starting or debugging the bridge, managing permitted context, or validating thread context, retrieval, and task execution.
+name: open-tag-admin
+description: Admin/control console for an OpenTag Slack tag-in workflow backed by MFS. Use to set up a new OpenTag bot from scratch, check what is currently running (backend, permitted MFS scopes, Slack channel), change settings, add or remove data sources, switch the CLI agent backend (claude -p / codex exec), invite or move the bot in Slack, run preflight checks, and troubleshoot thread context, retrieval, or task execution.
 ---
 
-# OpenTag
+# OpenTag (admin)
 
-Use this skill to set up and operate an open Slack tag-in assistant. Keep the
-architecture generic:
+This skill is the **control console** for an OpenTag deployment. Use it for the
+first-time setup and for ongoing operation alike: inspect the live bot, change
+the backend or permitted scopes, add a new data source, move the bot to another
+Slack channel, or debug a run.
 
-- **Brain**: the selected CLI agent backend, such as `codex exec`,
-  `claude -p`, or an operator-provided command.
+Keep the architecture generic:
+
+- **Brain**: the selected CLI agent backend — `claude -p` (Claude Code) or
+  `codex exec` (Codex).
 - **Memory**: MFS-indexed, operator-authorized context such as Slack history,
   repositories, docs, issues, databases, or object stores.
 - **Tools**: MFS connectors for external read/search plus any explicit tools the
@@ -27,21 +31,73 @@ The user-facing flow is:
 This skill does not call a model API directly. Model access, tool access, and
 write permissions come from the selected CLI agent backend.
 
+## Prerequisites
+
+OpenTag is a thin layer on top of a **running MFS server with at least one
+indexed source**. Confirm these before any Slack work:
+
+1. **MFS server installed and running.** `uv tool install mfs-server`, then
+   `mfs-server run` (binds `127.0.0.1:13619`). Check with
+   `curl -s 127.0.0.1:13619/healthz`.
+2. **At least one data source indexed.** OpenTag only *consumes* already-indexed
+   scopes as Memory — it does not configure connectors itself. Use the
+   **mfs-ingest** skill (Codex: `$mfs-ingest`) to add a source; see
+   "Adding data sources" below.
+
+`opentag_doctor.py` fails fast with a hint if either is missing.
+
+## Bot name convention
+
+The Slack display name is whatever you call the Slack app — OpenTag's code
+strips the mention regardless. Recommended convention, so it reads like the
+official `@Claude` tag:
+
+| Backend | Suggested Slack app name | In Slack |
+|---|---|---|
+| `claude` | **OpenClaude** | `@OpenClaude <task>` |
+| `codex` | **OpenCodex** | `@OpenCodex <task>` |
+
+Name the Slack app accordingly when you create it (step 3). Set
+`OPENTAG_BOT_NAME` if you want the startup summary to print a different label.
+
 ## Setup Workflow
 
-1. Read `references/slack-adapter.md` and follow its end-to-end checklist.
-2. Confirm or create a private or otherwise isolated Slack channel.
-3. Create or reuse a Slack app, enable Socket Mode, subscribe to `app_mention`,
-   add the required bot scopes, install it, and invite the bot to the channel.
-4. Configure MFS memory sources and set `MFS_ALLOWED_SCOPES` to the exact source
+1. Satisfy **Prerequisites** above (MFS running + at least one indexed source).
+2. Read `references/slack-adapter.md` and follow its end-to-end checklist.
+3. Confirm or create a private or otherwise isolated Slack channel.
+4. Create or reuse a Slack app named per the convention above, enable Socket
+   Mode, subscribe to `app_mention`, add the required bot scopes, install it, and
+   invite the bot to the channel.
+5. Configure MFS memory sources and set `MFS_ALLOWED_SCOPES` to the exact source
    roots the runtime agent may use.
-5. Choose `OPENTAG_BACKEND` explicitly: `codex`, `claude`, or `custom`.
-6. Run `python scripts/opentag_doctor.py --channel-id <channel-id>` and fix any
+6. Choose `OPENTAG_BACKEND` explicitly: `claude` or `codex`.
+7. Run `python scripts/opentag_doctor.py --channel-id <channel-id>` and fix any
    failed check.
-7. Start the bridge with
+8. Start the bridge with
    `uv run --with slack-bolt python scripts/slack_socket_agent.py --backend <backend>`.
-8. Validate thread context, permitted-context retrieval, and task execution with
-   a realistic delegated task.
+   It prints a "what's live now" summary — read it, then validate thread context,
+   permitted-context retrieval, and task execution with a realistic delegated task.
+
+## Adding data sources
+
+OpenTag's reach is exactly what MFS has indexed and what you list in
+`MFS_ALLOWED_SCOPES`. To add a source, use the **mfs-ingest** skill — it handles
+credentials and writes the connector config; OpenTag never duplicates that.
+
+Representative sources (each is `mfs add <uri> --config <toml>` once, then add
+its root to `MFS_ALLOWED_SCOPES`):
+
+- **Local repo / docs**: `mfs add /path/to/repo` → `file://local/path/to/repo`
+- **Slack history**: `slack://team-memory` (own token + channel allowlist)
+- **GitHub (code + issues)**: `github://your-org/your-repo`
+- **Linear (issues)**: `linear://your-workspace`
+- **Postgres rows**: `postgres://prod`
+
+MFS supports 20+ connectors (databases, object stores, trackers, chat, web).
+For the full list and per-connector credentials, point users at the
+**mfs-ingest** skill and `docs/connectors/`. This breadth of Memory — including
+raw data layers, all self-hosted — is OpenTag's main edge over a hosted tag bot;
+it does **not** add hosted governance, audit, or approval flows.
 
 ## What The Python Scripts Do
 
@@ -66,7 +122,7 @@ backend selection.
 
 The Slack bridge invokes a fresh CLI agent per mention. That runtime agent must
 follow `references/runtime-agent.md`. Keep runtime behavior there, not in this
-setup skill.
+admin skill.
 
 Thread context is short-term state. Durable context should come from permitted
 MFS scopes such as indexed Slack history, repos, docs, issues, databases, object
