@@ -15,6 +15,17 @@ The example maps the core concepts onto MFS:
 - **Brain**: a CLI agent backend — `claude -p` (Claude Code) or `codex exec`
   (Codex).
 
+## Install the skill
+
+OpenTag ships as the `open-tag-admin` skill. It lives under `examples/`, so
+install it with `--full-depth` (the default scan only covers top-level skills):
+
+```bash
+npx skills add zilliztech/mfs --full-depth --skill open-tag-admin -a claude-code -a codex -g
+```
+
+Claude Code and Codex are both supported.
+
 ## Where it stands vs. a hosted tag bot
 
 What OpenTag leans on — and where its edge is — is **Memory breadth**: MFS exposes
