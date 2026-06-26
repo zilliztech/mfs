@@ -1091,6 +1091,7 @@ fn scan_tree(root: &std::path::Path) -> Result<Vec<ScanEntry>, String> {
         .git_ignore(true)
         .git_global(false)
         .git_exclude(false)
+        .require_git(false)
         .add_custom_ignore_filename(".mfsignore")
         .filter_entry(|ent| {
             let Some(name) = ent.file_name().to_str() else {
