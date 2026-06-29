@@ -23,7 +23,7 @@ from ..common.retrieval import build_filter, collapse_results, to_envelope
 from ..common.summary import CachingSummaryClient
 from ..common.vlm import CachingVlmClient
 from ..config import ServerConfig
-from ..connectors.base import ConnectorContext, ObjectConfig, SyncOptions
+from ..connectors.base import SyncOptions
 from ..connectors.registry import get_plugin_cls, load_builtin
 from ..storage.file_state import FileStateStore
 from ..storage.ids import chunk_id
@@ -32,6 +32,7 @@ from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW, MilvusStore
 from ..storage.artifact_cache import make_artifact_cache
 from ..storage.transformation_cache import make_transformation_cache
 from .adapters import ArtifactStoreAdapter, EmbedderAdapter, MilvusSinkAdapter, TxCacheAdapter
+from .components import ConnectorFactory, ConnectorLocator, CredentialService
 from .components.object_repository import ObjectRepository, TaskStatus
 from .pipeline import EmbedConsumer, TaskEnvelope, _EMBED_FLUSH_IDLE_MS, make_chunks_q
 from .producers import select_producer
@@ -48,7 +49,6 @@ from .job_watcher import ConnectorJobWatcher
 from .job_lane import build_job_lane
 from .state import ConnectorStateStore
 
-_SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
 _HEAD_CACHE_N = 100  # rows pre-cached per structured object to speed `head`
 _BARE_CAT_MAX_BYTES = 5 * 1024 * 1024  # bare `cat` (no range) rejects objects larger than this
 _GREP_LINEAR_SCAN_MAX = 200  # cap on not-indexed files a single grep scans linearly
@@ -104,19 +104,6 @@ def _validate_upload_member(m) -> None:
         raise ValueError(f"unsafe path in archive: {rel}")
     if _posixpath.normpath(rel) in ("", ".") and not m.isdir():
         raise ValueError(f"unsafe path in archive: {rel}")
-
-
-def _match_object_config(objects_cfg: list, path: str) -> ObjectConfig | None:
-    """Find the user [[objects]] entry whose `match` matches this path,
-    first-match wins; None when nothing matches (caller falls back to a built-in preset)."""
-    import fnmatch
-
-    fields = ObjectConfig.__dataclass_fields__
-    for o in objects_cfg:
-        m = o.get("match", "")
-        if m and (fnmatch.fnmatch(path, m) or fnmatch.fnmatch(path.lstrip("/"), m) or m in path):
-            return ObjectConfig(**{k: v for k, v in o.items() if k != "match" and k in fields})
-    return None
 
 
 _CODE_SYMBOL = re.compile(r"^\s*(def |class |func |fn |public |private |func\(|type )")
@@ -192,6 +179,10 @@ class Engine:
         # ObjectRepository owns all SQL for the four tables + the advance_task guard.
         # Inject the shared meta handle + cfg (namespace derived from cfg).
         self.objects = ObjectRepository(self.meta, cfg)
+        # ConnectorFactory owns target resolution / credential redact+resolve /
+        # plugin build. It never touches the connectors table; ObjectRepository
+        # calls factory.redact(config) before persisting.
+        self.factory = ConnectorFactory(cfg, self.meta)
         self.milvus = MilvusStore(cfg)
         self.artifact_cache = make_artifact_cache(cfg)
         self.tx_cache = make_transformation_cache(cfg)
@@ -543,138 +534,28 @@ class Engine:
 
     # --- target resolution (file-only path) ---
     def _resolve_target(self, target: str) -> tuple[str, str, str, dict]:
-        m = _SCHEME_RE.match(target)
-        if m:
-            sch = m.group(1)
-            if sch == "github":
-                # github://<owner>/<repo> (also tolerate github://github.com/<owner>/<repo>):
-                # derive `repo` from the URI into the connector config so the bare documented
-                # form works without an explicit `--config repo=…`. This mirrors how a local
-                # path injects {root}; the plugin has no access to its own connector URI, so
-                # the identity must be carried in config. Without it the github plugin's
-                # _owner_repo() has no repo and the sync/read path raises a 500.
-                rest = target[len("github://") :].strip("/")
-                if rest.startswith("github.com/"):
-                    rest = rest[len("github.com/") :]
-                parts = [p for p in rest.split("/") if p]
-                cfg = {"repo": f"{parts[0]}/{parts[1]}"} if len(parts) >= 2 else {}
-                return "github", target, "github", cfg
-            if sch in (
-                "web",
-                "github",
-                "postgres",
-                "mysql",
-                "mongo",
-                "slack",
-                "discord",
-                "gmail",
-                "notion",
-                "jira",
-                "linear",
-                "zendesk",
-                "hubspot",
-                "bigquery",
-                "snowflake",
-                "s3",
-                "gdrive",
-                "feishu",
-            ):
-                return sch, target, sch, {}
-            if sch != "file":
-                raise NotImplementedError(f"connector scheme '{sch}' not yet implemented")
-        # file:///abs/path — empty authority — is the canonical URI for a LOCAL path
-        #: treat it as the local path, not an upload identity, so
-        # `mfs add file:///abs/path` registers with a real root instead of failing.
-        if target.startswith("file:///"):
-            abs_path = os.path.abspath(target[len("file://") :])
-            return (
-                "file",
-                f"file://local{abs_path}",
-                "file",
-                {"root": abs_path, "client_id": "local"},
-            )
-        # canonical local URI: file://local<abs_path> — what `mfs connector list` prints.
-        # Map it back to the same (root, connector_uri) a bare path would resolve to,
-        # so inspect/remove/update accept the identifier `connector list` shows.
-        if target.startswith("file://local/"):
-            abs_path = target[len("file://local") :]
-            return (
-                "file",
-                f"file://local{abs_path}",
-                "file",
-                {"root": abs_path, "client_id": "local"},
-            )
-        # logical upload identity file://<client_id><abs> (client_id != local): the real
-        # config (staging root) lives on the already-registered connector, so return bare.
-        if target.startswith("file://") and not target.startswith("file://local"):
-            return "file", target, "file", {}
-        # local path -> file connector
-        abs_path = os.path.abspath(target)
-        connector_uri = f"file://local{abs_path}"
-        return "file", connector_uri, "file", {"root": abs_path, "client_id": "local"}
-
-    # substrings that mark a config key as holding a secret. Matched case-insensitively
-    # anywhere in the key, and recursively (nested OAuth token dicts, lists), so e.g.
-    # secret_access_key / refresh_token / client_secret are all caught.
-    # dsn (postgres) carries credentials but doesn't contain any of the obvious words;
-    # we DON'T add 'uri'/'url' here because those also name benign fields (mongo's
-    # password is caught by the value check below, while the web connector's target
-    # urls must be kept).
-    _SECRET_SUBSTRINGS = (
-        "token",
-        "secret",
-        "password",
-        "passwd",
-        "apikey",
-        "api_key",
-        "access_key",
-        "private_key",
-        "refresh",
-        "credential",
-        "dsn",
-        "session_id",
-    )
-    # credential-reference schemes that are actually resolved (see _resolve_ref). Only these
-    # are treated as safe (kept, not redacted); anything else under a secret key is redacted,
-    # so an unimplemented scheme can't masquerade as a working ref and silently fail auth.
-    _CRED_REF_PREFIXES = ("env:", "file:")
-    # a connection string carrying inline credentials: scheme://user:password@host…
-    # (postgres://u:p@…, mongodb://u:p@…). A plain URL with no userinfo password is NOT
-    # matched, so web targets / instance_url stay intact.
-    _CONN_URI_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9+.\-]*://[^/\s:@]+:[^/\s@]+@")
-    _REDACTED = "<redacted: use credential_ref=env:VAR>"
+        # Thin delegate to ConnectorFactory (TargetResolver strategy table).
+        # Kept on Engine to preserve the original signature / call sites.
+        r = self.factory.resolve_target(target)
+        return r.ctype, r.connector_uri, r.scheme, r.config
 
     @classmethod
     def _is_secret_key(cls, key: str) -> bool:
-        kl = str(key).lower()
-        return any(s in kl for s in cls._SECRET_SUBSTRINGS)
+        # Thin delegate to ConnectorFactory (CredentialService).
+        return CredentialService.is_secret_key(key)
 
     @classmethod
     def _redact_config(cls, value, key_is_secret: bool = False):
-        """Recursively redact raw inline secrets from a config before persistence. A
-        credential_ref (env:/secret:/file:/vault:) is kept; anything else under a
-        secret-looking key is replaced. Recurses into dicts/lists so nested OAuth token
-        dicts don't leak."""
-        if isinstance(value, dict):
-            return {k: cls._redact_config(v, cls._is_secret_key(k)) for k, v in value.items()}
-        if isinstance(value, list):
-            return [cls._redact_config(v, key_is_secret) for v in value]
-        if isinstance(value, str) and value.startswith(cls._CRED_REF_PREFIXES):
-            return value  # a safe credential reference, keep as-is
-        if key_is_secret and value not in (None, "", [], {}):
-            return cls._REDACTED
-        # value-level catch: an inline connection string carrying a password leaks via a
-        # field name (dsn/uri/url/connection) that doesn't look secret — redact by shape.
-        if isinstance(value, str) and cls._CONN_URI_RE.search(value):
-            return cls._REDACTED
-        return value
+        # Thin delegate to ConnectorFactory (CredentialService). Redaction logic now
+        # lives in the single security entry point; this keeps the old call sites.
+        return CredentialService.redact(value, key_is_secret)
 
     async def register_or_get_connector(
         self, connector_uri: str, ctype: str, config: dict, overwrite_config: bool = False
     ) -> str:
         import json
 
-        stored = self._redact_config(config)
+        stored = self.factory.redact(config)
         row = await self.objects.get_connector_id_and_config_by_uri(connector_uri)
         if row:
             # `mfs connector update --config` re-registers an existing connector: refresh
@@ -708,96 +589,16 @@ class Engine:
 
     @staticmethod
     def _resolve_ref(v):
-        """Resolve a credential reference to its actual value: `env:VAR` ->
-        environment, `file:/path` -> the file's contents (k8s/docker secret mounts).
-        Non-ref values pass through unchanged. These are the only schemes _CRED_REF_PREFIXES
-        advertises, so a ref left unresolved (and silently used as a literal token) can't
-        happen."""
-        if isinstance(v, str):
-            if v.startswith("env:"):
-                name = v[4:]
-                if name not in os.environ:
-                    raise ValueError(
-                        f"credential_ref {v!r}: environment variable {name} is not set"
-                    )
-                return os.environ[name]
-            if v.startswith("file:"):
-                try:
-                    with open(v[5:], encoding="utf-8") as f:
-                        return f.read().strip()
-                except OSError as e:
-                    raise ValueError(f"credential_ref {v!r}: cannot read secret file ({e})") from e
-            if v.startswith(("secret:", "vault:")):
-                # advertised-looking but unimplemented schemes must fail loudly, never be
-                # used as a literal credential token.
-                raise ValueError(
-                    f"credential_ref scheme {v.split(':', 1)[0]!r} is not implemented "
-                    f"(use env: or file:)"
-                )
-        return v
+        # Thin delegate to ConnectorFactory (CredentialService.resolve). Kept as a
+        # staticmethod for the original call sites; the single security entry point
+        # does the actual env:/file:/secret:/vault: handling.
+        return CredentialService.resolve(v)
 
     def _build_plugin(self, ctype: str, config: dict, connector_id: str):
-        cls = get_plugin_cls(ctype)
-        if cls is None:
-            raise NotImplementedError(f"no plugin for {ctype}")
-        # Resolve credential references at build time so secrets live in the environment,
-        # not in connectors.config_json. The stored config keeps the `env:VAR`
-        # ref / `_credential_ref`; only this in-memory copy carries resolved values.
-        credential = None
-        if isinstance(config, dict):
-            config = {k: self._resolve_ref(v) for k, v in config.items()}
-            # design name is `credential_ref`; accept `_credential_ref` as a legacy alias
-            cred_a = config.pop("credential_ref", None)
-            cred_b = config.pop("_credential_ref", None)
-            credential = cred_a if cred_a is not None else cred_b
-        objects_cfg = config.get("objects", []) if isinstance(config, dict) else []
-        state = ConnectorStateStore(self.meta, connector_id)
-        ctx = ConnectorContext(state, connector_id, self.ns, object_config_resolver=None)
-        if ctype == "file":
-            from ..connectors.file.plugin import FileConfig
-
-            plugin = cls(
-                FileConfig(
-                    root=config["root"],
-                    client_id=config.get("client_id", "local"),
-                    upload_mode=config.get("upload_mode", False),
-                ),
-                credential,
-                ctx=ctx,
-            )
-            plugin.file_state = FileStateStore(self.meta, self.ns, connector_id)
-        else:
-            plugin = cls(config, credential, ctx=ctx)
-
-        # resolver: user [[objects]] match wins; else the connector's built-in preset
-        # so SaaS sources are searchable with zero config.
-        from dataclasses import replace as _replace
-
-        from ..connectors.base import preset_object_config
-
-        _CHUNK_MAX_DEFAULT = ObjectConfig.__dataclass_fields__["chunk_max"].default
-
-        def _resolve_cfg(p: str) -> ObjectConfig:
-            user = _match_object_config(objects_cfg, p)
-            if user is not None:
-                oc = user
-            else:
-                preset_key = plugin.preset_for(p)
-                oc = (
-                    (preset_object_config(preset_key) or ObjectConfig())
-                    if preset_key
-                    else ObjectConfig()
-                )
-            # framework-level chunk cap applies unless this object config set its own
-            if (
-                oc.chunk_max == _CHUNK_MAX_DEFAULT
-                and self.cfg.chunking.default_chunk_max != _CHUNK_MAX_DEFAULT
-            ):
-                oc = _replace(oc, chunk_max=self.cfg.chunking.default_chunk_max)
-            return oc
-
-        ctx._resolver = _resolve_cfg
-        return plugin, ctx
+        # Thin delegate to ConnectorFactory (PluginBuilder). Returns the original
+        # (plugin, ctx) tuple so all call sites stay unchanged.
+        built = self.factory.build_plugin(ctype, config, connector_id)
+        return built.plugin, built.ctx
 
     # --- add (register + sync + worker) ---
     async def add(
@@ -2168,54 +1969,19 @@ class Engine:
     async def _match_connector(self, path: str) -> tuple[dict, str] | None:
         """Find the registered connector whose root is the longest prefix of `path`;
         return (connector_row, relpath) or None. Shared by _open_path (read commands)
-        and resolve_connector_uri (search/grep scope). Handles local file paths (file
-        connector) and scheme URIs (postgres://, github://, ...)."""
+        and resolve_connector_uri (search/grep scope). Thin delegate to
+        ConnectorLocator.match; rows are fetched from ObjectRepository so the factory
+        stays SQL-free."""
         rows = await self.objects.list_connectors_all()
-        # Any URI (postgres://, web://, file://<client_id><abs>, file://local<abs>) ->
-        # longest registered root_uri prefix. Covers upload connectors registered under
-        # their stable file://<client_id> identity.
-        if "://" in path:
-            best, best_root = None, ""
-            for r in rows:
-                ru = r["root_uri"]
-                if "://" not in ru:
-                    continue
-                if path == ru or path.startswith(ru.rstrip("/") + "/"):
-                    if len(ru) > len(best_root):
-                        best, best_root = r, ru
-            if best is None:
-                return None
-            rel = path[len(best_root) :] or "/"
-            if not rel.startswith("/"):
-                rel = "/" + rel
-            return best, rel
-        # bare local filesystem path -> file://local connector whose root is the longest prefix
-        abs_path = os.path.abspath(path)
-        best, best_root = None, ""
-        for r in rows:
-            if r["type"] != "file":
-                continue
-            root_abs = r["root_uri"].replace("file://local", "", 1)
-            if abs_path == root_abs or abs_path.startswith(root_abs.rstrip("/") + "/"):
-                if len(root_abs) > len(best_root):
-                    best, best_root = r, root_abs
-        if best is None:
-            return None
-        rel = "/" if abs_path == best_root else "/" + os.path.relpath(abs_path, best_root)
-        return best, rel
+        return ConnectorLocator.match(rows, path)
 
     async def _open_path(self, path: str):
         """(connector_id, connector_uri, relpath, plugin) for the registered connector
-        whose root is the longest prefix of `path`."""
-        import json
-
-        match = await self._match_connector(path)
-        if match is None:
-            raise ValueError(f"path not under any registered connector: {path}")
-        row, rel = match
-        plugin, _ = self._build_plugin(row["type"], json.loads(row["config_json"]), row["id"])
-        await plugin.connect()
-        return row["id"], row["root_uri"], rel, plugin
+        whose root is the longest prefix of `path`. Thin delegate to
+        ConnectorFactory.open_path."""
+        rows = await self.objects.list_connectors_all()
+        resolved = await self.factory.open_path(rows, path)
+        return resolved.cid, resolved.connector_uri, resolved.relpath, resolved.built.plugin
 
     async def ls(self, path: str) -> dict:
         """List children, each enriched with its full path + index state from the
