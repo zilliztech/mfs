@@ -1,9 +1,10 @@
 """ConnectorFactory component unit tests.
 
-Covers TargetResolver (scheme registry dispatch), CredentialService (redact +
-resolve — the single security entry point), PluginBuilder (instantiation + ctx
-assembly + object_config resolver), and ConnectorLocator (longest-prefix match).
-Pure unit tests — no Milvus / embedding / full Engine. See
+Covers ConnectorFactory.resolve_target (target URI dispatch via each plugin
+class's derive_target), CredentialService (redact + resolve — the single
+security entry point), PluginBuilder (instantiation + ctx assembly +
+object_config resolver), and ConnectorLocator (longest-prefix match). Pure unit
+tests — no Milvus / embedding / full Engine. See
 ``docs-dev/connector-factory-design.md`` §7.
 """
 
@@ -15,14 +16,15 @@ from pathlib import Path
 import pytest
 
 from mfs_server.config import ServerConfig
-from mfs_server.connectors.base import ObjectConfig
-from mfs_server.connectors.registry import register
+from mfs_server.connectors.base import ConnectorPlugin, ObjectConfig
+from mfs_server.connectors.file.plugin import FilePlugin
+from mfs_server.connectors.github.plugin import GitHubPlugin
+from mfs_server.connectors.registry import load_builtin, register
 from mfs_server.engine.components.connector_factory import (
+    ConnectorFactory,
     ConnectorLocator,
     CredentialService,
     PluginBuilder,
-    TargetResolution,
-    TargetResolver,
     _match_object_config,
 )
 
@@ -32,7 +34,7 @@ from mfs_server.engine.components.connector_factory import (
 
 class _DummyMeta:
     """Meta stand-in: ConnectorStateStore / FileStateStore only store the ref at
-    build time; no DB methods are called during PluginBuilder.build."""
+    build time; no DB methods are called during PluginBuilder.build / resolve_target."""
 
 
 @pytest.fixture
@@ -46,6 +48,11 @@ def cfg(tmp_path: Path) -> ServerConfig:
 @pytest.fixture
 def builder(cfg: ServerConfig) -> PluginBuilder:
     return PluginBuilder(cfg, _DummyMeta(), CredentialService())
+
+
+@pytest.fixture
+def factory(cfg: ServerConfig) -> ConnectorFactory:
+    return ConnectorFactory(cfg, _DummyMeta())
 
 
 # A fake non-file plugin registered under a unique scheme. register() requires only
@@ -65,98 +72,101 @@ class _FakePlugin:
 
 register(_FakePlugin)
 
+# ConnectorFactory.resolve_target dispatches via registry.get_plugin_cls, so the
+# built-in connectors (file/github at minimum) must be registered before the
+# resolve_target tests run. load_builtin() skips connectors whose optional SDK
+# isn't installed.
+load_builtin()
+
 
 # ===========================================================================
-# §7.1 TargetResolver
+# §7.1 resolve_target (target URI dispatch)
 # ===========================================================================
 
 
-class TestTargetResolver:
-    def test_github_derives_repo(self):
-        r = TargetResolver().resolve("github://owner/repo")
+class TestResolveTarget:
+    def test_github_derives_repo(self, factory: ConnectorFactory):
+        r = factory.resolve_target("github://owner/repo")
         assert r.ctype == "github"
         assert r.connector_uri == "github://owner/repo"
         assert r.scheme == "github"
         assert r.config == {"repo": "owner/repo"}
 
-    def test_github_tolerates_github_com_prefix(self):
-        r = TargetResolver().resolve("github://github.com/owner/repo")
+    def test_github_tolerates_github_com_prefix(self, factory: ConnectorFactory):
+        r = factory.resolve_target("github://github.com/owner/repo")
         assert r.config == {"repo": "owner/repo"}
 
-    def test_github_single_segment_no_crash(self):
-        r = TargetResolver().resolve("github://owner")
+    def test_github_single_segment_no_crash(self, factory: ConnectorFactory):
+        r = factory.resolve_target("github://owner")
         assert r.config == {}
 
-    def test_file_triple_slash_local(self):
-        r = TargetResolver().resolve("file:///abs/path")
+    def test_file_triple_slash_local(self, factory: ConnectorFactory):
+        r = factory.resolve_target("file:///abs/path")
         assert r.ctype == "file"
         assert r.connector_uri == f"file://local{os.path.abspath('/abs/path')}"
         assert r.config["root"] == os.path.abspath("/abs/path")
         assert r.config["client_id"] == "local"
 
-    def test_file_local_roundtrip(self):
-        r = TargetResolver().resolve("file://local/abs/path")
+    def test_file_local_roundtrip(self, factory: ConnectorFactory):
+        r = factory.resolve_target("file://local/abs/path")
         assert r.connector_uri == "file://local/abs/path"
         assert r.config == {"root": "/abs/path", "client_id": "local"}
 
-    def test_file_upload_identity_returns_bare(self):
-        r = TargetResolver().resolve("file://client_x/abs")
+    def test_file_upload_identity_returns_bare(self, factory: ConnectorFactory):
+        r = factory.resolve_target("file://client_x/abs")
         assert r.config == {}
         assert r.connector_uri == "file://client_x/abs"
 
-    def test_bare_local_path(self):
-        r = TargetResolver().resolve("/abs/path")
+    def test_bare_local_path(self, factory: ConnectorFactory):
+        r = factory.resolve_target("/abs/path")
         assert r.ctype == "file"
         assert r.config["client_id"] == "local"
         assert r.connector_uri == f"file://local{os.path.abspath('/abs/path')}"
 
-    @pytest.mark.parametrize(
-        "scheme",
-        [
-            "web",
-            "postgres",
-            "mysql",
-            "mongo",
-            "slack",
-            "discord",
-            "gmail",
-            "notion",
-            "jira",
-            "linear",
-            "zendesk",
-            "hubspot",
-            "bigquery",
-            "snowflake",
-            "s3",
-            "gdrive",
-            "feishu",
-        ],
-    )
-    def test_saas_passthrough(self, scheme: str):
-        target = f"{scheme}://resource"
-        r = TargetResolver().resolve(target)
-        assert r.ctype == scheme
-        assert r.connector_uri == target
-        assert r.config == {}
-
-    def test_unknown_scheme_raises(self):
+    def test_unknown_scheme_raises(self, factory: ConnectorFactory):
         with pytest.raises(NotImplementedError, match="not yet implemented"):
-            TargetResolver().resolve("foo://x")
+            factory.resolve_target("foo://x")
 
-    def test_register_new_scheme_zero_code_change(self):
-        # The open/closed proof: registering a new scheme dispatches it without
-        # touching the factory body.
-        TargetResolver.register(
-            "x-test-scheme", lambda raw: TargetResolution("x", raw, "x", {"k": 1})
+    def test_default_passthrough_is_inherited(self):
+        # A connector that only declares URI_SCHEME inherits the base derive_target:
+        # the URI passes through unchanged with an empty config. This is the
+        # open/closed proof — a new SaaS connector needs no factory change and no
+        # per-scheme registration. Tested on the classmethod directly since the
+        # scheme need not be registered to exercise the default.
+        class _Passthrough(ConnectorPlugin):
+            URI_SCHEME = "x-passthrough"
+
+        assert _Passthrough.derive_target("x-passthrough://r") == (
+            "x-passthrough",
+            "x-passthrough://r",
+            "x-passthrough",
+            {},
         )
-        r = TargetResolver().resolve("x-test-scheme://a")
-        assert r.ctype == "x" and r.config == {"k": 1}
 
-    def test_github_not_overwritten_by_saas_loop(self):
-        # The P0 regression: github must keep its repo-derivation resolver and not be
-        # clobbered by the SaaS passthrough registration.
-        r = TargetResolver().resolve("github://owner/repo")
-        assert r.config == {"repo": "owner/repo"}, "github resolver was overwritten by SaaS loop"
+    def test_github_keeps_repo_derivation(self, factory: ConnectorFactory):
+        # github overrides derive_target on the plugin class to derive {repo} from
+        # the URI; target derivation is the plugin's own responsibility, not the
+        # factory's.
+        r = factory.resolve_target("github://owner/repo")
+        assert r.config == {"repo": "owner/repo"}
+
+    def test_file_plugin_derive_target_directly(self):
+        # The four-form normalization lives on FilePlugin.derive_target; spot-check
+        # it directly (independent of factory dispatch).
+        assert FilePlugin.derive_target("file://local/abs/path") == (
+            "file",
+            "file://local/abs/path",
+            "file",
+            {"root": "/abs/path", "client_id": "local"},
+        )
+
+    def test_github_plugin_derive_target_directly(self):
+        assert GitHubPlugin.derive_target("github://owner/repo") == (
+            "github",
+            "github://owner/repo",
+            "github",
+            {"repo": "owner/repo"},
+        )
 
 
 # ===========================================================================

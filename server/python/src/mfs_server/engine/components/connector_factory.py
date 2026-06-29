@@ -10,8 +10,6 @@ resolver injection).
 Boundary: this module NEVER writes the ``connectors`` table. ``ObjectRepository``
 calls ``factory.redact(config)`` to obtain a sanitized config before persisting; the
 factory only ever produces in-memory plugin instances + sanitized config dicts.
-
-See ``docs-dev/connector-factory-design.md``.
 """
 
 from __future__ import annotations
@@ -21,7 +19,7 @@ import os
 import re
 from dataclasses import dataclass
 from dataclasses import replace as _replace
-from typing import Any, Callable, ClassVar
+from typing import Any
 
 from ...config import ServerConfig
 from ...connectors.base import (
@@ -99,124 +97,8 @@ def _match_object_config(objects_cfg: list, path: str) -> ObjectConfig | None:
     return None
 
 
-# --- TargetResolver: strategy table replacing the if-elif chain ---
+# scheme extractor for target URIs; a bare path (no scheme) defaults to file.
 _SCHEME_RE = re.compile(r"^([a-z][a-z0-9+.\-]*)://")
-
-# SaaS passthrough schemes: ctype = connector_uri = scheme, config={}.
-# NOTE: github is NOT here — it has its own repo-derivation resolver and is
-# registered separately so the SaaS loop can't overwrite it.
-_SAAS_SCHEMES = (
-    "web",
-    "postgres",
-    "mysql",
-    "mongo",
-    "slack",
-    "discord",
-    "gmail",
-    "notion",
-    "jira",
-    "linear",
-    "zendesk",
-    "hubspot",
-    "bigquery",
-    "snowflake",
-    "s3",
-    "gdrive",
-    "feishu",
-)
-
-
-class TargetResolver:
-    """scheme -> resolver class-level registry, replacing ``_resolve_target``'s
-    if-elif chain.
-
-    The registry is a ClassVar shared across all Engine instances; adding a scheme
-    is one ``TargetResolver.register(scheme, fn)`` call — no factory code changes.
-    """
-
-    _SCHEMES: ClassVar[dict[str, Callable[[str], TargetResolution]]] = {}
-
-    def __init__(self) -> None:
-        # Register built-ins once; later instances reuse the same table.
-        self._ensure_builtins()
-
-    @classmethod
-    def _ensure_builtins(cls) -> None:
-        if cls._SCHEMES:
-            return
-        # github has special derivation (repo from URI); register first so the
-        # SaaS loop — which excludes github — can never overwrite it.
-        cls.register("github", cls._github)
-        # file has four sub-forms (file:/// / file://local/ / file://<client_id>
-        # / bare path), collapsed into one resolver's internal branches.
-        cls.register("file", cls._file)
-        for s in _SAAS_SCHEMES:
-            cls.register(s, lambda raw, s=s: TargetResolution(s, raw, s, {}))
-
-    @classmethod
-    def register(cls, scheme: str, fn: Callable[[str], TargetResolution]) -> None:
-        """Register a custom scheme resolver. Takes effect globally."""
-        cls._SCHEMES[scheme] = fn
-
-    def resolve(self, target: str) -> TargetResolution:
-        self._ensure_builtins()
-        m = _SCHEME_RE.match(target)
-        if m:
-            sch = m.group(1)
-            if sch not in self._SCHEMES:
-                raise NotImplementedError(f"connector scheme '{sch}' not yet implemented")
-            return self._SCHEMES[sch](target)
-        # bare local path (no scheme) -> file connector
-        return self._SCHEMES["file"](target)
-
-    # --- concrete resolvers ---
-
-    @staticmethod
-    def _github(target: str) -> TargetResolution:
-        """github://<owner>/<repo> (tolerates github://github.com/<owner>/<repo>)
-        -> derive {repo} into config so the documented bare form works without an
-        explicit ``--config repo=…``."""
-        rest = target[len("github://") :].strip("/")
-        if rest.startswith("github.com/"):
-            rest = rest[len("github.com/") :]
-        parts = [p for p in rest.split("/") if p]
-        cfg = {"repo": f"{parts[0]}/{parts[1]}"} if len(parts) >= 2 else {}
-        return TargetResolution("github", target, "github", cfg)
-
-    @staticmethod
-    def _file(target: str) -> TargetResolution:
-        """file's four forms + bare local path, all normalized to
-        (file, file://local<abs>, {root, client_id}) except the upload identity."""
-        # file:///abs/path (empty authority) -> local path
-        if target.startswith("file:///"):
-            abs_path = os.path.abspath(target[len("file://") :])
-            return TargetResolution(
-                "file",
-                f"file://local{abs_path}",
-                "file",
-                {"root": abs_path, "client_id": "local"},
-            )
-        # canonical local URI file://local<abs> (what `connector list` prints)
-        if target.startswith("file://local/"):
-            abs_path = target[len("file://local") :]
-            return TargetResolution(
-                "file",
-                f"file://local{abs_path}",
-                "file",
-                {"root": abs_path, "client_id": "local"},
-            )
-        # logical upload identity file://<client_id><abs> (client_id != local):
-        # the real config (staging root) lives on the registered row; return bare.
-        if target.startswith("file://") and not target.startswith("file://local"):
-            return TargetResolution("file", target, "file", {})
-        # bare local path -> file connector
-        abs_path = os.path.abspath(target)
-        return TargetResolution(
-            "file",
-            f"file://local{abs_path}",
-            "file",
-            {"root": abs_path, "client_id": "local"},
-        )
 
 
 # --- CredentialService: the single redact + resolve entry point ---
@@ -228,17 +110,14 @@ class CredentialService:
     - resolve: turn env:/file: references into real values before plugin build
 
     Security invariants (engine-redesign.md §5):
-    1. Credentials are resolved ONLY through resolve(); business code never reads
-       os.environ[...] directly.
+    1. Credentials are resolved ONLY through resolve(); business code never reads os.environ[...] directly.
     2. config_json is persisted ONLY after redact().
-    3. resolve() raises explicitly on unimplemented schemes (secret:/vault:),
-       never silently using them as literal tokens.
-    4. redact() keeps env:/file: as-is; secret:/vault: under a secret key are
-       redacted so the persisted copy leaves no unimplemented-scheme reference.
+    3. resolve() raises explicitly on unimplemented schemes (secret:/vault:), never silently using them as literal tokens.
+    4. redact() keeps env:/file: as-is; secret:/vault: under a secret key are redacted so the persisted copy leaves no unimplemented-scheme reference.
     """
 
-    # substrings that mark a config key as holding a secret (case-insensitive,
-    # recursive). dsn carries credentials but has no obvious word, so it's listed.
+    # substrings that mark a config key as holding a secret (case-insensitive, recursive).
+    # dsn carries credentials but has no obvious word, so it's listed.
     _SECRET_SUBSTRINGS = (
         "token",
         "secret",
@@ -254,8 +133,7 @@ class CredentialService:
         "session_id",
     )
     # credential-reference schemes that are actually resolved (kept, not redacted).
-    # secret:/vault: are unimplemented; under a secret key they get redacted, and
-    # resolve() raises on them.
+    # secret:/vault: are unimplemented; under a secret key they get redacted, and resolve() raises on them.
     _CRED_REF_PREFIXES = ("env:", "file:")
     # a connection string carrying inline credentials: scheme://user:password@host…
     _CONN_URI_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9+.\-]*://[^/\s:@]+:[^/\s@]+@")
@@ -283,8 +161,7 @@ class CredentialService:
         if key_is_secret and value not in (None, "", [], {}):
             return cls._REDACTED
         # value-level catch: an inline connection string carrying a password leaks
-        # via a field name (dsn/uri/url/connection) that doesn't look secret —
-        # redact by shape.
+        # via a field name (dsn/uri/url/connection) that doesn't look secret — redact by shape.
         if isinstance(value, str) and cls._CONN_URI_RE.search(value):
             return cls._REDACTED
         return value
@@ -342,8 +219,7 @@ class PluginBuilder:
             raise NotImplementedError(f"no plugin for {ctype}")
         # Resolve credential references at build time so secrets live in the
         # environment, not in connectors.config_json. The stored config keeps the
-        # env:VAR ref / _credential_ref; only this in-memory copy carries resolved
-        # values.
+        # env:VAR ref / _credential_ref; only this in-memory copy carries resolved values.
         credential = None
         if isinstance(config, dict):
             config = {k: self._creds.resolve(v) for k, v in config.items()}
@@ -370,9 +246,9 @@ class PluginBuilder:
         else:
             plugin = cls(config, credential, ctx=ctx)
 
-        # resolver: user [[objects]] match wins; else the connector's built-in
-        # preset so SaaS sources are searchable with zero config. Framework-level
-        # chunk cap applies unless this object config set its own.
+        # resolver: user [[objects]] match wins;
+        # else the connector's built-in preset so SaaS sources are searchable with zero config.
+        # Framework-level chunk cap applies unless this object config set its own.
         ctx._resolver = self._build_object_config_resolver(plugin, objects_cfg)
         return BuiltPlugin(plugin, ctx)
 
@@ -416,9 +292,8 @@ class ConnectorLocator:
     @staticmethod
     def match(rows: list[dict], path: str) -> tuple[dict, str] | None:
         """Return (connector_row, relpath) or None."""
-        # Any URI (postgres://, web://, file://<client_id><abs>, file://local<abs>)
-        # -> longest registered root_uri prefix. Covers upload connectors registered
-        # under their stable file://<client_id> identity.
+        # Any URI (postgres://, web://, file://<client_id><abs>) -> the longest registered root_uri prefix.
+        # Covers upload connectors registered under their stable file://<client_id> identity.
         if "://" in path:
             best, best_root = None, ""
             for r in rows:
@@ -467,18 +342,28 @@ class ConnectorFactory:
     def __init__(self, cfg: ServerConfig, meta: MetadataStore):
         self._cfg = cfg
         self._meta = meta
-        # TargetResolver's registry is class-level;
-        # instances share one table to avoid re-registering builtins per Engine.
-        self._resolver = TargetResolver()
         self._creds = CredentialService()
         self._builder = PluginBuilder(cfg, meta, self._creds)
 
     # --- target resolution ---
 
     def resolve_target(self, target: str) -> TargetResolution:
-        """User target -> (ctype, connector_uri, scheme, default_config).
-        Delegates to TargetResolver; the 70-line if-elif is now a registry."""
-        return self._resolver.resolve(target)
+        """User target URI -> (ctype, connector_uri, scheme, default_config).
+
+        Dispatch: extract the scheme (a bare path defaults to ``file``), look up
+        the plugin class via ``registry.get_plugin_cls``, and delegate URI ->
+        identity/config derivation to its ``derive_target`` classmethod (defined
+        in ``connectors/base.py``; SaaS connectors inherit the default passthrough,
+        file/github override). Requires ``registry.load_builtin()`` to have run so
+        schemes are registered; the Engine does this in ``startup()``.
+        """
+        m = _SCHEME_RE.match(target)
+        sch = m.group(1) if m else "file"
+        cls = get_plugin_cls(sch)
+        if cls is None:
+            raise NotImplementedError(f"connector scheme '{sch}' not yet implemented")
+        ctype, connector_uri, scheme, cfg = cls.derive_target(target)
+        return TargetResolution(ctype, connector_uri, scheme, cfg)
 
     # --- credentials (single security entry point) ---
 

@@ -52,6 +52,18 @@ class GitHubPlugin(ConnectorPlugin):
         paged_cat=True,
     )
 
+    @classmethod
+    def derive_target(cls, target: str) -> tuple[str, str, str, dict]:
+        """github://<owner>/<repo> (tolerates github://github.com/<owner>/<repo>)
+        -> derive {repo} into config so the documented bare form works without an
+        explicit ``--config repo=…``."""
+        rest = target[len("github://") :].strip("/")
+        if rest.startswith("github.com/"):
+            rest = rest[len("github.com/") :]
+        parts = [p for p in rest.split("/") if p]
+        cfg = {"repo": f"{parts[0]}/{parts[1]}"} if len(parts) >= 2 else {}
+        return "github", target, "github", cfg
+
     def _cfg(self, key, default=None):
         return (
             self.config.get(key, default)
@@ -61,7 +73,7 @@ class GitHubPlugin(ConnectorPlugin):
 
     def _owner_repo(self) -> tuple[str, str]:
         # `repo` is normally derived from the github://owner/repo URI into config at add
-        # time (see Engine._resolve_target). Guard the genuinely-missing case with a clean
+        # time (see GitHubPlugin.derive_target). Guard the genuinely-missing case with a clean
         # client error instead of an AttributeError 500 on None.split().
         repo = self._cfg("repo")
         if not repo or "/" not in repo:

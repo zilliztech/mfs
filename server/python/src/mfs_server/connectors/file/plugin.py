@@ -224,6 +224,38 @@ class FilePlugin(ConnectorPlugin):
     # engine/tests inject: self.file_state = FileStateStore(...)
     file_state = None
 
+    @classmethod
+    def derive_target(cls, target: str) -> tuple[str, str, str, dict]:
+        """file's four URI forms + bare local path, all normalized to
+        (file, file://local<abs>, {root, client_id}) except the upload identity
+        ``file://<client_id><abs>`` (client_id != local), whose real config lives
+        on the registered row and is returned bare."""
+        # file:///abs/path (empty authority) -> local path
+        if target.startswith("file:///"):
+            abs_path = os.path.abspath(target[len("file://") :])
+            return (
+                "file",
+                f"file://local{abs_path}",
+                "file",
+                {"root": abs_path, "client_id": "local"},
+            )
+        # canonical local URI file://local<abs> (what `connector list` prints)
+        if target.startswith("file://local/"):
+            abs_path = target[len("file://local") :]
+            return (
+                "file",
+                f"file://local{abs_path}",
+                "file",
+                {"root": abs_path, "client_id": "local"},
+            )
+        # logical upload identity file://<client_id><abs> (client_id != local):
+        # the real config (staging root) lives on the registered row; return bare.
+        if target.startswith("file://") and not target.startswith("file://local"):
+            return "file", target, "file", {}
+        # bare local path -> file connector
+        abs_path = os.path.abspath(target)
+        return "file", f"file://local{abs_path}", "file", {"root": abs_path, "client_id": "local"}
+
     @property
     def root(self) -> Path:
         return Path(self.config.root)

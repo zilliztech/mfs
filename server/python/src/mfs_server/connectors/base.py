@@ -451,6 +451,19 @@ class ConnectorPlugin(ABC):
         self.state = ctx.state
         self.ctx = ctx
 
+    # --- target derivation (URI -> connector identity + default config) ---
+    @classmethod
+    def derive_target(cls, target: str) -> tuple[str, str, str, dict]:
+        """Derive ``(ctype, connector_uri, scheme, default_config)`` from a user
+        target URI. The default is SaaS passthrough: the URI is its own
+        ``connector_uri``, ``ctype == scheme == URI_SCHEME``, and the default
+        config is empty — so a connector that takes config only via ``connector.toml``
+        needs no override. Connectors whose URI carries structural info (file's
+        four forms, github's owner/repo) override this. Returns a plain tuple so
+        ``base`` does not import the factory's ``TargetResolution`` dataclass.
+        """
+        return cls.URI_SCHEME, target, cls.URI_SCHEME, {}
+
     # --- lifecycle ---
     async def connect(self) -> None:
         return None

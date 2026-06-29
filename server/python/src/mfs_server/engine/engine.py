@@ -181,8 +181,8 @@ class Engine:
         self.objects = ObjectRepository(self.meta, cfg)
         # ConnectorFactory owns target resolution / credential redact+resolve /
         # plugin build. It never touches the connectors table; ObjectRepository
-        # calls factory.redact(config) before persisting.
-        self.factory = ConnectorFactory(cfg, self.meta)
+        # calls connector_factory.redact(config) before persisting.
+        self.connector_factory = ConnectorFactory(cfg, self.meta)
         self.milvus = MilvusStore(cfg)
         self.artifact_cache = make_artifact_cache(cfg)
         self.tx_cache = make_transformation_cache(cfg)
@@ -534,9 +534,10 @@ class Engine:
 
     # --- target resolution (file-only path) ---
     def _resolve_target(self, target: str) -> tuple[str, str, str, dict]:
-        # Thin delegate to ConnectorFactory (TargetResolver strategy table).
-        # Kept on Engine to preserve the original signature / call sites.
-        r = self.factory.resolve_target(target)
+        # Thin delegate to ConnectorFactory (dispatches to the plugin class's
+        # derive_target). Kept on Engine to preserve the original signature /
+        # call sites.
+        r = self.connector_factory.resolve_target(target)
         return r.ctype, r.connector_uri, r.scheme, r.config
 
     @classmethod
@@ -555,7 +556,7 @@ class Engine:
     ) -> str:
         import json
 
-        stored = self.factory.redact(config)
+        stored = self.connector_factory.redact(config)
         row = await self.objects.get_connector_id_and_config_by_uri(connector_uri)
         if row:
             # `mfs connector update --config` re-registers an existing connector: refresh
@@ -597,7 +598,7 @@ class Engine:
     def _build_plugin(self, ctype: str, config: dict, connector_id: str):
         # Thin delegate to ConnectorFactory (PluginBuilder). Returns the original
         # (plugin, ctx) tuple so all call sites stay unchanged.
-        built = self.factory.build_plugin(ctype, config, connector_id)
+        built = self.connector_factory.build_plugin(ctype, config, connector_id)
         return built.plugin, built.ctx
 
     # --- add (register + sync + worker) ---
@@ -1980,7 +1981,7 @@ class Engine:
         whose root is the longest prefix of `path`. Thin delegate to
         ConnectorFactory.open_path."""
         rows = await self.objects.list_connectors_all()
-        resolved = await self.factory.open_path(rows, path)
+        resolved = await self.connector_factory.open_path(rows, path)
         return resolved.cid, resolved.connector_uri, resolved.relpath, resolved.built.plugin
 
     async def ls(self, path: str) -> dict:

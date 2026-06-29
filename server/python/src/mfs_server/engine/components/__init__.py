@@ -13,7 +13,6 @@ from .connector_factory import (
     PluginBuilder,
     ResolvedConnector,
     TargetResolution,
-    TargetResolver,
 )
 
 __all__ = [
@@ -24,5 +23,4 @@ __all__ = [
     "PluginBuilder",
     "ResolvedConnector",
     "TargetResolution",
-    "TargetResolver",
 ]
