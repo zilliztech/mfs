@@ -2343,14 +2343,12 @@ server, ingest, retrieval, and browse workflows. Use the <a href="../api/">HTTP 
 for the full <code>/v1</code> endpoint contract and runtime behavior.
 Use <a href="../development/#openapi-to-sdks">Development</a> when you are changing the
 OpenAPI spec or regenerating the checked-in SDK sources.</p>
-<div class="admonition warning">
+<div class="admonition note">
 <p class="admonition-title">Generated-client coverage</p>
-<p>The current generated clients expose <code>BrowseApi</code>, <code>IngestApi</code>,
-<code>RetrievalApi</code>, and <code>ServerApi</code>. The OpenAPI spec also contains operations
-that are not present in those generated API classes, including connector
-management, file manifest/upload, <code>head</code>, <code>tail</code>, <code>export</code>, and <code>listJobs</code>.
-Call the HTTP API directly, or regenerate and inspect the SDK sources, before
-relying on generated methods for those operations.</p>
+<p>The generated clients expose <code>BrowseApi</code>, <code>ConnectorsApi</code>, <code>IngestApi</code>,
+<code>RetrievalApi</code>, and <code>ServerApi</code>, covering every operation in the OpenAPI
+spec — including <code>head</code>, <code>tail</code>, <code>export</code>, <code>listJobs</code>, file manifest/upload,
+and connector management (<code>probe</code> / <code>estimate</code> / <code>inspect</code> / <code>remove</code>).</p>
 </div>
 <h2 id="packages">Packages<a class="headerlink" href="#packages" title="Permanent link">&para;</a></h2>
 <table>
@@ -2511,6 +2509,54 @@ checked-in READMEs add a short runtime overlay before the generated examples.</p
 <td><code>GET /v1/cat</code></td>
 <td><code>BrowseApi.cat(path=..., range=..., meta=..., density=...)</code></td>
 <td><code>BrowseApi.cat({ path, range, meta, density })</code></td>
+</tr>
+<tr>
+<td>First N lines/records</td>
+<td><code>GET /v1/head</code></td>
+<td><code>BrowseApi.head(path=..., n=...)</code></td>
+<td><code>BrowseApi.head({ path, n })</code></td>
+</tr>
+<tr>
+<td>Last N lines/records</td>
+<td><code>GET /v1/tail</code></td>
+<td><code>BrowseApi.tail(path=..., n=...)</code></td>
+<td><code>BrowseApi.tail({ path, n })</code></td>
+</tr>
+<tr>
+<td>Export an object</td>
+<td><code>GET /v1/export</code></td>
+<td><code>BrowseApi.export(path=...)</code></td>
+<td><code>BrowseApi._export({ path })</code></td>
+</tr>
+<tr>
+<td>List recent jobs</td>
+<td><code>GET /v1/jobs</code></td>
+<td><code>IngestApi.list_jobs(limit=...)</code></td>
+<td><code>IngestApi.listJobs({ limit })</code></td>
+</tr>
+<tr>
+<td>Probe a connector</td>
+<td><code>POST /v1/connectors/probe</code></td>
+<td><code>ConnectorsApi.probe_connector(probe_request)</code></td>
+<td><code>ConnectorsApi.probeConnector({ probeRequest })</code></td>
+</tr>
+<tr>
+<td>Estimate a connector</td>
+<td><code>POST /v1/connectors/estimate</code></td>
+<td><code>ConnectorsApi.estimate_connector(probe_request)</code></td>
+<td><code>ConnectorsApi.estimateConnector({ probeRequest })</code></td>
+</tr>
+<tr>
+<td>Inspect a connector</td>
+<td><code>GET /v1/connectors/inspect</code></td>
+<td><code>ConnectorsApi.inspect_connector(target=...)</code></td>
+<td><code>ConnectorsApi.inspectConnector({ target })</code></td>
+</tr>
+<tr>
+<td>Remove a connector</td>
+<td><code>DELETE /v1/connectors</code></td>
+<td><code>ConnectorsApi.remove_connector(target=...)</code></td>
+<td><code>ConnectorsApi.removeConnector({ target })</code></td>
 </tr>
 </tbody>
 </table>
