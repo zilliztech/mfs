@@ -65,6 +65,11 @@ nav:
     - s3: connectors/s3.md
     - gdrive: connectors/gdrive.md
     - feishu: connectors/feishu.md
+  - Integrations:
+    - Overview: integrations.md
+    - Open Tag (Slack bot): integrations/open-tag.md
+    - LangChain: integrations/langchain.md
+    - LangGraph: integrations/langgraph.md
   - Operations:
     - Configuration: configuration.md
     - Auth and secrets: auth-and-secrets.md
