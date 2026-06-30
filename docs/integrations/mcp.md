@@ -81,3 +81,12 @@ claude mcp add mfs-context \
 `claude mcp list` should report `mfs-context: ✔ Connected`, after which the agent
 calls the tools on its own — "where is rate limiting implemented? search our
 sources." Any MCP client works; point its stdio server config at the same command.
+
+## Restrict its reach
+
+By default the server can search and read everything the MFS server has indexed.
+Add `--env MFS_ALLOWED_SCOPES=github://org/repo,file://local/abs/path` (a
+comma-separated list of URI / path prefixes) to bound it: `search` only returns
+hits under those prefixes (an empty scope searches all of them, not the whole
+index) and `read` refuses any source outside them. This is enforced by the server,
+unlike the per-query `scope` argument the agent chooses.

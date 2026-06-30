@@ -71,3 +71,21 @@ Any MCP client works; point its stdio server config at the same command. The
 server needs the [`mcp`](https://pypi.org/project/mcp/) package and the MFS Python
 SDK (`mfs_sdk`, under [`sdks/python`](../../sdks/python)) on its path — the
 `uv run --with …` invocation above pulls both in.
+
+## Restrict its reach
+
+By default the server can search and read everything the MFS server has indexed.
+To bound it, set `MFS_ALLOWED_SCOPES` to a comma-separated list of URI / path
+prefixes when you register it:
+
+```bash
+claude mcp add mfs-context \
+  --env MFS_URL=http://127.0.0.1:13619 \
+  --env MFS_ALLOWED_SCOPES=github://your-org/your-repo,file://local/abs/path \
+  -- uv run --with mcp --with /abs/path/to/mfs/sdks/python python /abs/path/to/mfs/examples/mfs-mcp/server.py
+```
+
+`search` then only returns hits under those prefixes — an empty scope searches all
+of them, not the whole index — and `read` refuses any source outside them. Unlike
+the per-query `scope` argument (which the agent chooses), this is enforced by the
+server, so the client can't reach past it.

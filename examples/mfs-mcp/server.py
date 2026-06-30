@@ -27,6 +27,19 @@ from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("mfs-context")
 
+# Optional access boundary: a comma-separated list of URI / path prefixes this
+# server may search and read. Empty = unrestricted (the whole MFS index). Set it
+# on the MCP registration, e.g.
+#   --env MFS_ALLOWED_SCOPES=github://org/repo,file://local/abs/path
+_ALLOWED = [s.strip() for s in os.getenv("MFS_ALLOWED_SCOPES", "").split(",") if s.strip()]
+
+
+def _within(uri: str) -> bool:
+    """True when `uri` is one of, or under, an allowed prefix (or no allowlist is set)."""
+    if not _ALLOWED:
+        return True
+    return any(uri == p or uri.startswith(p.rstrip("/") + "/") for p in _ALLOWED)
+
 
 def _token() -> str | None:
     if os.getenv("MFS_TOKEN"):
@@ -48,15 +61,25 @@ def _api(api_cls):
 @mcp.tool()
 def search(query: str, scope: str = "", top_k: int = 8) -> str:
     """Search MFS-indexed sources (code, docs, issues, chat, databases) by meaning
-    or keyword. Leave ``scope`` empty to search everything, or pass a path / URI
-    prefix to narrow it (e.g. ``github://org/repo`` or a local path). Returns
-    ranked hits, each with a snippet and the ``source`` URI to pass to ``read``.
+    or keyword. Leave ``scope`` empty to search every allowed source, or pass a
+    path / URI prefix to narrow it (e.g. ``github://org/repo`` or a local path).
+    Returns ranked hits, each with a snippet and the ``source`` URI to pass to
+    ``read``.
     """
-    resp = _api(mfs_sdk.RetrievalApi).search(q=query, path=scope or None, top_k=top_k)
-    if not resp.results:
+    if scope and not _within(scope):
+        return f"Refused: scope {scope!r} is outside the allowed scopes ({', '.join(_ALLOWED)})."
+    targets = [scope] if scope else (list(_ALLOWED) or [None])
+
+    api = _api(mfs_sdk.RetrievalApi)
+    hits = []
+    for target in targets:
+        hits.extend(api.search(q=query, path=target, top_k=top_k).results)
+    hits = [h for h in hits if _within(h.source)]  # belt-and-suspenders
+    hits.sort(key=lambda h: h.score if h.score is not None else 0.0, reverse=True)
+    if not hits:
         return "No matches."
     blocks = []
-    for h in resp.results:
+    for h in hits[:top_k]:
         score = f"{h.score:.2f}" if h.score is not None else "n/a"
         blocks.append(f"## {h.source}  (score={score})\n{h.content.strip()}")
     return "\n\n".join(blocks)
@@ -67,6 +90,8 @@ def read(source: str, lines: str = "") -> str:
     """Read a source in full, or a line range like ``"40:80"``. ``source`` is the
     URI from a ``search`` hit. Use this to pull the exact code or text into context
     after ``search`` locates it."""
+    if not _within(source):
+        return f"Refused: {source!r} is outside the allowed scopes ({', '.join(_ALLOWED)})."
     resp = _api(mfs_sdk.BrowseApi).cat(source, range=lines or None)
     return resp.content
 
