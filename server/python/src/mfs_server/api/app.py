@@ -18,6 +18,7 @@ from starlette.datastructures import Headers
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import ClientDisconnect
 
+from .. import __version__
 from ..common.logging import configure_logging
 from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
@@ -227,7 +228,7 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
 
     app = FastAPI(
         title="MFS",
-        version="0.4.0",
+        version=__version__,
         lifespan=lifespan,
         description="Multi-source File-like Search — HTTP /v1 control plane.",
     )
@@ -329,7 +330,9 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
     async def server_info() -> ServerInfo:
         import socket
 
-        return ServerInfo(version="0.4.0", machine_id=socket.gethostname(), namespace=cfg.namespace)
+        return ServerInfo(
+            version=__version__, machine_id=socket.gethostname(), namespace=cfg.namespace
+        )
 
     @app.post("/v1/add", response_model=AddResponse, operation_id="addSource", tags=["ingest"])
     async def add(body: AddRequest) -> AddResponse:
