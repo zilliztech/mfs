@@ -2462,12 +2462,18 @@
 
 
 <h1 id="open-tag-a-slack-tag-in-bot">Open Tag — a Slack tag-in bot<a class="headerlink" href="#open-tag-a-slack-tag-in-bot" title="Permanent link">&para;</a></h1>
-<p><a href="https://github.com/zilliztech/mfs/tree/main/examples/open-tag-skill">Open Tag</a>
-is a small open-source demo of a <strong>Claude Tag-style</strong> Slack workflow built on
-MFS: you <code>@mention</code> a bot in a thread, it gathers authorized context, and a CLI
-agent backend does the work. By convention it answers to <strong><code>@OpenClaude</code></strong>
-(Claude backend) or <strong><code>@OpenCodex</code></strong> (Codex backend), so it reads like the
-official <code>@Claude</code> tag.</p>
+<p><a href="https://www.anthropic.com/news/introducing-claude-tag">Claude Tag</a> is Anthropic's
+way to bring Claude into Slack as a shared teammate: an admin grants it access to
+selected channels, tools, and data, and anyone in the channel can <code>@Claude</code> to
+delegate a task while they get on with other work. It is a hosted product for
+Claude Enterprise and Team.</p>
+<p><a href="https://github.com/zilliztech/mfs/tree/main/examples/open-tag-skill">Open Tag</a> is
+a small open-source homage to that pattern, built on MFS: you <code>@mention</code> a bot in
+a thread, it gathers authorized context, and a CLI agent backend does the work. By
+convention it answers to <strong><code>@OpenClaude</code></strong> (Claude backend) or <strong><code>@OpenCodex</code></strong>
+(Codex backend), so it reads like the official <code>@Claude</code> tag. The difference is
+that the <strong>Memory</strong> and <strong>Tools</strong> are your own self-hosted MFS sources, behind
+whatever CLI agent you run — your data and credentials stay on your machines.</p>
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
 <p>Open Tag is a thin layer of glue; all the retrieval power lives in MFS.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>       ┌──────────────┐
