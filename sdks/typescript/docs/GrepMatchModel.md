@@ -7,7 +7,7 @@
 Name | Type
 ------------ | -------------
 `source` | string
-`locator` | { [key: string]: any; } — text/code line hits: `{"lines":[n,n]}`; structured pushdown: connector PK dict; notice rows: null.
+`locator` | { [key: string]: any; }
 `content` | string
 `via` | string
 

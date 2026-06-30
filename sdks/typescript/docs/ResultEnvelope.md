@@ -1,7 +1,7 @@
 
 # ResultEnvelope
 
-One search/grep hit (design/06 §7). Outer shape is stable across connectors; locator + metadata.fields are per-connector but documented.
+One search/grep hit. Outer shape is stable across connectors; locator + metadata.fields are per-connector but documented.
 
 ## Properties
 
@@ -10,7 +10,7 @@ Name | Type
 `source` | string
 `content` | string
 `score` | number
-`locator` | { [key: string]: any; } — body/code/document: `{"lines":[start,end]}`; structured (DB row, issue, slack thread): connector PK dict; once-per-object: null.
+`locator` | { [key: string]: any; }
 `metadata` | { [key: string]: any; }
 
 ## Example

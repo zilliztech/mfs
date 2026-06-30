@@ -1,6 +1,6 @@
 # ResultEnvelope
 
-One search/grep hit (design/06 §7). Outer shape is stable across connectors; locator + metadata.fields are per-connector but documented.
+One search/grep hit. Outer shape is stable across connectors; locator + metadata.fields are per-connector but documented.
 
 ## Properties
 
@@ -9,7 +9,7 @@ Name | Type | Description | Notes
 **source** | **str** | object URI — feed to cat/head/export | 
 **content** | **str** | snippet to read | [optional] [default to '']
 **score** | **float** | ranking score; &lt;0.5 often unreliable | [optional] 
-**locator** | **Dict[str, object]** | per-chunk identity. body/code/document: `{'lines':[start,end]}`; structured (DB row, issue, slack thread): connector PK dict; once-per-object: null. | [optional] 
+**locator** | **Dict[str, object]** | per-chunk identity. body/code/document chunks: {&#39;lines&#39;:[start,end]}; structured (DB row, issue, slack thread): connector PK dict (e.g. {&#39;id&#39;:1}, {&#39;number&#39;:42}, {&#39;thread_ts&#39;:&#39;...&#39;}); once-per-object kinds: null. | [optional] 
 **metadata** | **Dict[str, object]** | chunk_kind, connector_type, fields, ... | [optional] 
 
 ## Example

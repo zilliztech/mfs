@@ -7,9 +7,11 @@
 Name | Type
 ------------ | -------------
 `target` | string
+`config` | { [key: string]: any; }
 `full` | boolean
 `since` | string
 `process` | boolean
+`update` | boolean
 
 ## Example
 
@@ -19,9 +21,11 @@ import type { AddRequest } from '@mfs/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "target": null,
+  "config": null,
   "full": null,
   "since": null,
   "process": null,
+  "update": null,
 } satisfies AddRequest
 
 console.log(example)

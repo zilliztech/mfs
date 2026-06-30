@@ -6,6 +6,7 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **entries** | [**List[LsEntry]**](LsEntry.md) |  | 
+**capabilities** | **Dict[str, object]** | connector capabilities (sync/object) | [optional] 
 
 ## Example
 

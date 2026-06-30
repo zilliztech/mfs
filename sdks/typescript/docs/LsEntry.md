@@ -10,6 +10,9 @@ Name | Type
 `type` | string
 `mediaType` | string
 `sizeHint` | number
+`path` | string
+`searchStatus` | string
+`indexable` | boolean
 
 ## Example
 
@@ -22,6 +25,9 @@ const example = {
   "type": null,
   "mediaType": null,
   "sizeHint": null,
+  "path": null,
+  "searchStatus": null,
+  "indexable": null,
 } satisfies LsEntry
 
 console.log(example)

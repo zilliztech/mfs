@@ -9,6 +9,9 @@ Name | Type | Description | Notes
 **type** | **str** | file | dir | 
 **media_type** | **str** |  | [optional] 
 **size_hint** | **int** |  | [optional] 
+**path** | **str** | full object URI — feed to cat/search | [optional] 
+**search_status** | **str** | indexed | partial | not_indexed | null if unseen | [optional] 
+**indexable** | **bool** | whether this object is eligible for indexing | [optional] 
 
 ## Example
 

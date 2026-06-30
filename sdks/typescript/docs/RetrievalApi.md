@@ -1,6 +1,6 @@
 # RetrievalApi
 
-All URIs are relative to *http://127.0.0.1:8765*
+All URIs are relative to *http://localhost*
 
 | Method | HTTP request | Description |
 |------------- | ------------- | -------------|
@@ -26,7 +26,11 @@ import type { GrepRequest } from '@mfs/sdk';
 
 async function example() {
   console.log("🚀 Testing @mfs/sdk SDK...");
-  const api = new RetrievalApi();
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: BearerAuth
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new RetrievalApi(config);
 
   const body = {
     // string
@@ -61,7 +65,7 @@ example().catch(console.error);
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -74,13 +78,18 @@ No authorization required
 |-------------|-------------|------------------|
 | **200** | Successful Response |  -  |
 | **422** | Validation Error |  -  |
+| **400** | Bad Request |  -  |
+| **401** | Unauthorized |  -  |
+| **404** | Not Found |  -  |
+| **405** | Method Not Allowed |  -  |
+| **500** | Internal Server Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
 
 ## search
 
-> SearchResponse search(q, path, mode, topK, collapse)
+> SearchResponse search(q, path, mode, topK, collapse, kind)
 
 Search
 
@@ -95,19 +104,25 @@ import type { SearchRequest } from '@mfs/sdk';
 
 async function example() {
   console.log("🚀 Testing @mfs/sdk SDK...");
-  const api = new RetrievalApi();
+  const config = new Configuration({ 
+    // Configure HTTP bearer authorization: BearerAuth
+    accessToken: "YOUR BEARER TOKEN",
+  });
+  const api = new RetrievalApi(config);
 
   const body = {
     // string
     q: q_example,
     // string (optional)
     path: path_example,
-    // string (optional)
+    // 'hybrid' | 'semantic' | 'keyword' (optional)
     mode: mode_example,
     // number (optional)
     topK: 56,
     // boolean (optional)
     collapse: true,
+    // string (optional)
+    kind: kind_example,
   } satisfies SearchRequest;
 
   try {
@@ -129,9 +144,10 @@ example().catch(console.error);
 |------------- | ------------- | ------------- | -------------|
 | **q** | `string` |  | [Defaults to `undefined`] |
 | **path** | `string` |  | [Optional] [Defaults to `undefined`] |
-| **mode** | `string` |  | [Optional] [Defaults to `&#39;hybrid&#39;`] |
+| **mode** | `hybrid`, `semantic`, `keyword` |  | [Optional] [Defaults to `&#39;hybrid&#39;`] [Enum: hybrid, semantic, keyword] |
 | **topK** | `number` |  | [Optional] [Defaults to `10`] |
 | **collapse** | `boolean` |  | [Optional] [Defaults to `false`] |
+| **kind** | `string` |  | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 
@@ -139,7 +155,7 @@ example().catch(console.error);
 
 ### Authorization
 
-No authorization required
+[BearerAuth](../README.md#BearerAuth)
 
 ### HTTP request headers
 
@@ -152,6 +168,11 @@ No authorization required
 |-------------|-------------|------------------|
 | **200** | Successful Response |  -  |
 | **422** | Validation Error |  -  |
+| **400** | Bad Request |  -  |
+| **401** | Unauthorized |  -  |
+| **404** | Not Found |  -  |
+| **405** | Method Not Allowed |  -  |
+| **500** | Internal Server Error |  -  |
 
 [[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
 
