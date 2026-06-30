@@ -1663,6 +1663,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#restrict-its-reach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restrict its reach
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2447,6 +2458,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#restrict-its-reach" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restrict its reach
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2532,6 +2554,13 @@ MFS runs fully local — ONNX embeddings + Milvus Lite, no keys.)</p>
 <p><code>claude mcp list</code> should report <code>mfs-context: ✔ Connected</code>, after which the agent
 calls the tools on its own — "where is rate limiting implemented? search our
 sources." Any MCP client works; point its stdio server config at the same command.</p>
+<h2 id="restrict-its-reach">Restrict its reach<a class="headerlink" href="#restrict-its-reach" title="Permanent link">&para;</a></h2>
+<p>By default the server can search and read everything the MFS server has indexed.
+Add <code>--env MFS_ALLOWED_SCOPES=github://org/repo,file://local/abs/path</code> (a
+comma-separated list of URI / path prefixes) to bound it: <code>search</code> only returns
+hits under those prefixes (an empty scope searches all of them, not the whole
+index) and <code>read</code> refuses any source outside them. This is enforced by the server,
+unlike the per-query <code>scope</code> argument the agent chooses.</p>
 
 
 
