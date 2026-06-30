@@ -49,6 +49,16 @@ jobs:
                       return package["version"]
               raise SystemExit(f"{package_name} not found in {path}")
 
+          def openapi_version(path: str) -> str:
+              # protocol/openapi.yaml is generated from the app schema. Read its
+              # info.version without a YAML dependency: the info block sits at the top,
+              # before `paths:`, so the first `version:` line there is info.version.
+              head = (root / path).read_text(encoding="utf-8").split("\npaths:", 1)[0]
+              for line in head.splitlines():
+                  if line.strip().startswith("version:"):
+                      return line.split(":", 1)[1].strip().strip("'\"")
+              raise SystemExit(f"info.version not found in {path}")
+
           package_lock = json.loads((root / "sdks/typescript/package-lock.json").read_text())
           versions = {
               "cli/Cargo.toml": toml_version("cli/Cargo.toml"),
@@ -63,6 +73,7 @@ jobs:
               "sdks/typescript/package.json": json.loads((root / "sdks/typescript/package.json").read_text())["version"],
               "sdks/typescript/package-lock.json": package_lock["version"],
               "sdks/typescript/package-lock.json packages.\"\"": package_lock["packages"][""]["version"],
+              "protocol/openapi.yaml": openapi_version("protocol/openapi.yaml"),
           }
 
           if len(set(versions.values())) == 1:
