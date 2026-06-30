@@ -739,28 +739,15 @@ at MFS and focus on the app on top.
 - **CLI** — call the `mfs` command to build your own **skills**, **MCP servers**,
   or **plugins** on top of the same surface.
 
-One example is [`Open Tag`](examples/open-tag-skill/), a small open-source demo of
-a **Claude Tag-style** Slack workflow. You mention a bot in a channel, it gathers
-authorized context, and a CLI agent backend does the work. Where the official tag
-answers to `@Claude`, Open Tag answers to **`@OpenClaude`** (Claude backend) or
-**`@OpenCodex`** (Codex backend), so it reads the same. It maps the same three
-parts onto MFS: MFS as authorized **Memory** over Slack/repos/docs/issues/
-databases, MFS connectors as **Tools**, and a CLI agent backend as the **Brain**
-that executes the delegated task.
+One example is [`Open Tag`](examples/open-tag-skill/): a small open-source Slack
+bot you `@mention` — `@OpenClaude` or `@OpenCodex`, in the style of the official
+`@Claude` tag — that gathers authorized context and runs the task on a CLI agent
+backend. The point is how little it takes to build: MFS already gives it one
+searchable, self-hosted memory over Slack, repos, docs, issues, and databases, so
+its strongest capability — plugging in whatever data sources you need — is also
+the easy part. See the [example](examples/open-tag-skill/) for the full walkthrough.
 
-Its edge is **Memory breadth**: 20+ connectors including raw data layers
-(Postgres / Mongo / BigQuery / S3), trackers (GitHub / Jira / Linear), chat, and
-local files — all **self-hosted**, so your data and credentials stay on your
-machines. It deliberately skips what a hosted tag bot provides: managed zero-ops,
-enterprise governance (approvals, audit, spend limits), an ambient proactive
-mode, and an org-level identity model.
-
-So it is a reference pattern, **not a production security boundary** — no hardened
-sandbox, no policy engine, no approval layer. Anyone who can mention the bot can
-drive a backend that runs with your shell and environment, so run it in an
-isolated Slack channel on a non-production host. It builds on a running MFS server
-with at least one indexed source; the [`open-tag-admin`](examples/open-tag-skill/open-tag/)
-skill walks through setup, status, and adding sources.
+![Open Tag — delegating a PR review across Slack channels](https://github.com/user-attachments/assets/6cb1db05-dd12-4a13-a9fa-1a1bf69bcf28)
 
 ## 🗺️ Roadmap
 
