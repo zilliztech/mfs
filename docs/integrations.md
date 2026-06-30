@@ -10,7 +10,9 @@ There are two kinds of pages here:
   Memory.
     - [Open Tag](integrations/open-tag.md) — a Slack tag-in bot, an open homage to
       [Claude Tag](https://www.anthropic.com/news/introducing-claude-tag).
-- **Frameworks** — drop MFS into an existing agent / RAG stack.
+- **Frameworks & protocols** — drop MFS into an existing agent / RAG stack.
+    - [MCP server](integrations/mcp.md) — expose MFS as tools to any MCP client
+      (Claude Code, Cursor, …).
     - [LangChain](integrations/langchain.md) — MFS as a `Retriever` and a tool.
     - [LangGraph](integrations/langgraph.md) — MFS as a retrieval node in a graph.
 
