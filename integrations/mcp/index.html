@@ -1642,6 +1642,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#configure-mfs-matches-claude-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure MFS (matches claude-context)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#register-it" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2415,6 +2426,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#configure-mfs-matches-claude-context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure MFS (matches claude-context)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#register-it" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2483,11 +2505,29 @@ one codebase.</p>
 <p><code>search</code> locates, <code>read</code> pulls the exact unit into context — the same loop MFS is
 built around. (<code>retrieval</code> / <code>browse</code> are <code>mfs_sdk.RetrievalApi</code> / <code>BrowseApi</code>
 pointed at your server; see the example for the few lines of setup.)</p>
+<h2 id="configure-mfs-matches-claude-context">Configure MFS (matches claude-context)<a class="headerlink" href="#configure-mfs-matches-claude-context" title="Permanent link">&para;</a></h2>
+<p><a href="https://github.com/zilliztech/claude-context">claude-context</a> ships with <strong>OpenAI
+<code>text-embedding-3-small</code></strong> embeddings and a <strong>Zilliz Cloud</strong> vector database; this
+example defaults to the same. MFS reads the vector store from the environment and
+the embedding model from its config, so launch the MFS server with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OPENAI_API_KEY</span><span class="o">=</span>sk-...<span class="w">                              </span><span class="c1"># embeddings</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ZILLIZ_URI</span><span class="o">=</span>https://&lt;your-cluster&gt;.zillizcloud.com<span class="w">  </span><span class="c1"># vector store</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ZILLIZ_TOKEN</span><span class="o">=</span>&lt;your-zilliz-key&gt;
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># server.toml  (or run: mfs-server setup --section embedding)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">[embedding]</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">model</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;text-embedding-3-small&quot;</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">dim</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="mi">1536</span>
+</code></pre></div>
+<p>The MCP server is a thin client — it only needs <code>MFS_URL</code> / <code>MFS_TOKEN</code> to reach
+that server; the embedding and vector-store choice lives with MFS. (Drop these and
+MFS runs fully local — ONNX embeddings + Milvus Lite, no keys.)</p>
 <h2 id="register-it">Register it<a class="headerlink" href="#register-it" title="Permanent link">&para;</a></h2>
 <p>With Claude Code, from your project:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>mfs-context<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>--env<span class="w"> </span><span class="nv">MFS_URL</span><span class="o">=</span>http://127.0.0.1:13619<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--<span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>--with<span class="w"> </span>mcp<span class="w"> </span>--with<span class="w"> </span>/abs/path/to/mfs/sdks/python<span class="w"> </span>python<span class="w"> </span>/abs/path/to/mfs/examples/mfs-mcp/server.py
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>mfs-context<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>--env<span class="w"> </span><span class="nv">MFS_URL</span><span class="o">=</span>http://127.0.0.1:13619<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--<span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>--with<span class="w"> </span>mcp<span class="w"> </span>--with<span class="w"> </span>/abs/path/to/mfs/sdks/python<span class="w"> </span>python<span class="w"> </span>/abs/path/to/mfs/examples/mfs-mcp/server.py
 </code></pre></div>
 <p><code>claude mcp list</code> should report <code>mfs-context: ✔ Connected</code>, after which the agent
 calls the tools on its own — "where is rate limiting implemented? search our
