@@ -43,6 +43,31 @@ if __name__ == "__main__":
 built around. (`retrieval` / `browse` are `mfs_sdk.RetrievalApi` / `BrowseApi`
 pointed at your server; see the example for the few lines of setup.)
 
+## Configure MFS (matches claude-context)
+
+[claude-context](https://github.com/zilliztech/claude-context) ships with **OpenAI
+`text-embedding-3-small`** embeddings and a **Zilliz Cloud** vector database; this
+example defaults to the same. MFS reads the vector store from the environment and
+the embedding model from its config, so launch the MFS server with:
+
+```bash
+export OPENAI_API_KEY=sk-...                              # embeddings
+export ZILLIZ_URI=https://<your-cluster>.zillizcloud.com  # vector store
+export ZILLIZ_TOKEN=<your-zilliz-key>
+```
+
+```toml
+# server.toml  (or run: mfs-server setup --section embedding)
+[embedding]
+provider = "openai"
+model    = "text-embedding-3-small"
+dim      = 1536
+```
+
+The MCP server is a thin client — it only needs `MFS_URL` / `MFS_TOKEN` to reach
+that server; the embedding and vector-store choice lives with MFS. (Drop these and
+MFS runs fully local — ONNX embeddings + Milvus Lite, no keys.)
+
 ## Register it
 
 With Claude Code, from your project:
