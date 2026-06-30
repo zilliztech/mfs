@@ -22,12 +22,35 @@ databases — not just one codebase.
 The loop an agent runs is the same one MFS is built around: `search` to locate,
 `read` to pull the exact unit into context.
 
-## Prerequisites
+## Configure MFS (matches claude-context)
 
-A running MFS server with at least one indexed source (see the
-[docs](https://github.com/zilliztech/mfs/tree/main/docs) — a local repo is the
-quickest start). The server reads `MFS_URL` / `MFS_TOKEN` (defaulting to
-`http://127.0.0.1:13619` and `~/.mfs/server.token`).
+[`claude-context`](https://github.com/zilliztech/claude-context) ships with
+**OpenAI `text-embedding-3-small`** embeddings and a **Zilliz Cloud** vector
+database. This example defaults to the same, so point your MFS server at that
+model and managed store. MFS reads the vector store from the environment and the
+embedding model from its config:
+
+```bash
+export OPENAI_API_KEY=sk-...                              # embeddings
+export ZILLIZ_URI=https://<your-cluster>.zillizcloud.com  # vector store
+export ZILLIZ_TOKEN=<your-zilliz-key>
+```
+
+```toml
+# server.toml  (or run: mfs-server setup --section embedding)
+[embedding]
+provider = "openai"
+model    = "text-embedding-3-small"
+dim      = 1536
+```
+
+Then `mfs-server run` and index at least one source. The MCP server itself only
+needs `MFS_URL` / `MFS_TOKEN` (defaulting to `http://127.0.0.1:13619` and
+`~/.mfs/server.token`) to reach that server — the embedding and vector-store
+choice lives with MFS, not here.
+
+> Drop the OpenAI / Zilliz settings and MFS runs fully local instead — ONNX
+> embeddings + Milvus Lite, no keys.
 
 ## Register it
 
