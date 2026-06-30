@@ -8,7 +8,8 @@ There are two kinds of pages here:
 
 - **Apps on MFS** — runnable reference apps that use MFS as their searchable
   Memory.
-    - [Open Tag](integrations/open-tag.md) — a Claude Tag-style Slack tag-in bot.
+    - [Open Tag](integrations/open-tag.md) — a Slack tag-in bot, an open homage to
+      [Claude Tag](https://www.anthropic.com/news/introducing-claude-tag).
 - **Frameworks** — drop MFS into an existing agent / RAG stack.
     - [LangChain](integrations/langchain.md) — MFS as a `Retriever` and a tool.
     - [LangGraph](integrations/langgraph.md) — MFS as a retrieval node in a graph.

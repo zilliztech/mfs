@@ -1,11 +1,18 @@
 # Open Tag — a Slack tag-in bot
 
-[Open Tag](https://github.com/zilliztech/mfs/tree/main/examples/open-tag-skill)
-is a small open-source demo of a **Claude Tag-style** Slack workflow built on
-MFS: you `@mention` a bot in a thread, it gathers authorized context, and a CLI
-agent backend does the work. By convention it answers to **`@OpenClaude`**
-(Claude backend) or **`@OpenCodex`** (Codex backend), so it reads like the
-official `@Claude` tag.
+[Claude Tag](https://www.anthropic.com/news/introducing-claude-tag) is Anthropic's
+way to bring Claude into Slack as a shared teammate: an admin grants it access to
+selected channels, tools, and data, and anyone in the channel can `@Claude` to
+delegate a task while they get on with other work. It is a hosted product for
+Claude Enterprise and Team.
+
+[Open Tag](https://github.com/zilliztech/mfs/tree/main/examples/open-tag-skill) is
+a small open-source homage to that pattern, built on MFS: you `@mention` a bot in
+a thread, it gathers authorized context, and a CLI agent backend does the work. By
+convention it answers to **`@OpenClaude`** (Claude backend) or **`@OpenCodex`**
+(Codex backend), so it reads like the official `@Claude` tag. The difference is
+that the **Memory** and **Tools** are your own self-hosted MFS sources, behind
+whatever CLI agent you run — your data and credentials stay on your machines.
 
 ## Architecture
 
