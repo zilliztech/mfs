@@ -9,6 +9,8 @@ Name | Type
 `rootUri` | string
 `type` | string
 `status` | string
+`objectCount` | number
+`chunkCount` | number
 
 ## Example
 
@@ -20,6 +22,8 @@ const example = {
   "rootUri": null,
   "type": null,
   "status": null,
+  "objectCount": null,
+  "chunkCount": null,
 } satisfies ConnectorRow
 
 console.log(example)

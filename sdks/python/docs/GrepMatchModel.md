@@ -6,9 +6,9 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **source** | **str** |  | [optional] 
-**lines** | **List[int]** |  | [optional] 
+**locator** | **Dict[str, object]** | per-hit identity. text/code line hits: {&#39;lines&#39;:[n,n]}; structured pushdown: connector PK dict; notice rows: null. | [optional] 
 **content** | **str** |  | [optional] [default to '']
-**via** | **str** | bm25 | linear | pushdown | [optional] 
+**via** | **str** | bm25 | linear | pushdown | notice | [optional] 
 
 ## Example
 

@@ -7,6 +7,7 @@
 Name | Type
 ------------ | -------------
 `entries` | [Array&lt;LsEntry&gt;](LsEntry.md)
+`capabilities` | { [key: string]: any; }
 
 ## Example
 
@@ -16,6 +17,7 @@ import type { LsResponse } from '@mfs/sdk'
 // TODO: Update the object below with actual values
 const example = {
   "entries": null,
+  "capabilities": null,
 } satisfies LsResponse
 
 console.log(example)

@@ -7,13 +7,11 @@ for the full `/v1` endpoint contract and runtime behavior.
 Use [Development](development.md#openapi-to-sdks) when you are changing the
 OpenAPI spec or regenerating the checked-in SDK sources.
 
-!!! warning "Generated-client coverage"
-    The current generated clients expose `BrowseApi`, `IngestApi`,
-    `RetrievalApi`, and `ServerApi`. The OpenAPI spec also contains operations
-    that are not present in those generated API classes, including connector
-    management, file manifest/upload, `head`, `tail`, `export`, and `listJobs`.
-    Call the HTTP API directly, or regenerate and inspect the SDK sources, before
-    relying on generated methods for those operations.
+!!! note "Generated-client coverage"
+    The generated clients expose `BrowseApi`, `ConnectorsApi`, `IngestApi`,
+    `RetrievalApi`, and `ServerApi`, covering every operation in the OpenAPI
+    spec — including `head`, `tail`, `export`, `listJobs`, file manifest/upload,
+    and connector management (`probe` / `estimate` / `inspect` / `remove`).
 
 ## Packages
 
@@ -71,6 +69,14 @@ Authorization: Bearer <token>
 | Grep a path | `GET /v1/grep` | `RetrievalApi.grep(pattern=..., path=...)` | `RetrievalApi.grep({ pattern, path })` |
 | List a path | `GET /v1/ls` | `BrowseApi.ls(path=...)` | `BrowseApi.ls({ path })` |
 | Read an object | `GET /v1/cat` | `BrowseApi.cat(path=..., range=..., meta=..., density=...)` | `BrowseApi.cat({ path, range, meta, density })` |
+| First N lines/records | `GET /v1/head` | `BrowseApi.head(path=..., n=...)` | `BrowseApi.head({ path, n })` |
+| Last N lines/records | `GET /v1/tail` | `BrowseApi.tail(path=..., n=...)` | `BrowseApi.tail({ path, n })` |
+| Export an object | `GET /v1/export` | `BrowseApi.export(path=...)` | `BrowseApi._export({ path })` |
+| List recent jobs | `GET /v1/jobs` | `IngestApi.list_jobs(limit=...)` | `IngestApi.listJobs({ limit })` |
+| Probe a connector | `POST /v1/connectors/probe` | `ConnectorsApi.probe_connector(probe_request)` | `ConnectorsApi.probeConnector({ probeRequest })` |
+| Estimate a connector | `POST /v1/connectors/estimate` | `ConnectorsApi.estimate_connector(probe_request)` | `ConnectorsApi.estimateConnector({ probeRequest })` |
+| Inspect a connector | `GET /v1/connectors/inspect` | `ConnectorsApi.inspect_connector(target=...)` | `ConnectorsApi.inspectConnector({ target })` |
+| Remove a connector | `DELETE /v1/connectors` | `ConnectorsApi.remove_connector(target=...)` | `ConnectorsApi.removeConnector({ target })` |
 
 ## Minimal Examples
 

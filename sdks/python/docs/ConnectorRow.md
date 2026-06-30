@@ -8,6 +8,8 @@ Name | Type | Description | Notes
 **root_uri** | **str** |  | 
 **type** | **str** |  | 
 **status** | **str** |  | 
+**object_count** | **int** | indexed objects for this connector | [optional] [default to 0]
+**chunk_count** | **int** | indexed vector chunks for this connector | [optional] [default to 0]
 
 ## Example
 

@@ -8,6 +8,7 @@ Name | Type
 ------------ | -------------
 `source` | string
 `content` | string
+`partial` | boolean
 
 ## Example
 
@@ -18,6 +19,7 @@ import type { CatResponse } from '@mfs/sdk'
 const example = {
   "source": null,
   "content": null,
+  "partial": null,
 } satisfies CatResponse
 
 console.log(example)

@@ -6,9 +6,11 @@
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **target** | **str** | path or connector URI to register + index | 
+**config** | **Dict[str, object]** | connector config ([[objects]], schemas, _credential_ref, ...); the CLI loads this from --config &lt;file.toml&gt; | [optional] 
 **full** | **bool** | force full re-index (ignore caches/fingerprints) | [optional] [default to False]
 **since** | **str** | only index changes since this cursor/date | [optional] 
-**process** | **bool** | True: index inline now; False: enqueue for a worker | [optional] [default to True]
+**process** | **bool** | False (default): enqueue and return the job_id immediately (poll GET /v1/jobs/{id}); True: index inline and return when done | [optional] [default to False]
+**update** | **bool** | apply config to an existing connector (connector update); add ignores it | [optional] [default to False]
 
 ## Example
 

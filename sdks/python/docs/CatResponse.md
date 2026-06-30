@@ -7,6 +7,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **source** | **str** |  | 
 **content** | **str** |  | 
+**partial** | **bool** |  | [optional] [default to False]
 
 ## Example
 

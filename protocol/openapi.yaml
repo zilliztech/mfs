@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: MFS
   description: Multi-source File-like Search — HTTP /v1 control plane.
-  version: 0.4.0
+  version: 0.4.3
 paths:
   /v1/server/info:
     get:
