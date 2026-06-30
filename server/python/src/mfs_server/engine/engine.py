@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import re
 import time
@@ -48,6 +49,8 @@ from .producers.render import render_record, resolve_path
 from .job_watcher import ConnectorJobWatcher
 from .job_lane import build_job_lane
 from .state import ConnectorStateStore
+
+logger = logging.getLogger(__name__)
 
 _HEAD_CACHE_N = 100  # rows pre-cached per structured object to speed `head`
 _BARE_CAT_MAX_BYTES = 5 * 1024 * 1024  # bare `cat` (no range) rejects objects larger than this
@@ -226,13 +229,13 @@ class Engine:
     async def _preload_startup_models(self) -> None:
         if not self.embed.should_preload_on_server_start():
             return
-        print(
-            f"mfs-server: preloading embedding provider "
-            f"{self.embed.provider_name}/{self.embed.model}",
-            flush=True,
+        logger.info(
+            "preloading embedding provider %s/%s",
+            self.embed.provider_name,
+            self.embed.model,
         )
         await asyncio.to_thread(self.embed.preload_provider)
-        print("mfs-server: embedding provider ready", flush=True)
+        logger.info("embedding provider ready")
 
     async def _gc_orphan_chunks(self) -> int:
         """Startup reconcile: delete Milvus chunks that no committed `objects` row points at.
@@ -269,14 +272,11 @@ class Engine:
                     )
                     deleted += 1
             if deleted:
-                print(
-                    f"mfs-server: startup GC purged {deleted} orphan object(s) from the index",
-                    flush=True,
-                )
+                logger.info("startup GC purged %d orphan object(s) from the index", deleted)
             return deleted
         except Exception as e:  # noqa: BLE001
             # Best-effort housekeeping; never block startup on it.
-            print(f"mfs-server: startup orphan GC skipped ({e})", flush=True)
+            logger.warning("startup orphan GC skipped (%s)", e)
             return 0
 
     async def shutdown(self) -> None:
@@ -416,10 +416,7 @@ class Engine:
                 ]
                 self._job_lane.recover_job(job_id, connector_uri, plugin, objects, [])
             except Exception as e:  # noqa: BLE001
-                print(
-                    f"mfs-server: WARNING Job Lane recovery for job {job_id} failed: {e}",
-                    flush=True,
-                )
+                logger.warning("Job Lane recovery for job %s failed: %s", job_id, e)
 
     async def _on_pipeline_object_indexed(
         self,
@@ -576,12 +573,12 @@ class Engine:
                     # Count what's actually at risk so the warning is concrete
                     # rather than scary boilerplate.
                     indexed = await self.objects.count_indexed_objects(row["id"])
-                    print(
-                        f"mfs-server: WARNING --config differs from stored config for "
-                        f"{connector_uri}; persisted, but {indexed} existing indexed "
-                        f"object(s) retain the OLD config until you re-sync with "
-                        f"`mfs add --force-index`.",
-                        flush=True,
+                    logger.warning(
+                        "--config differs from stored config for %s; persisted, but %d "
+                        "existing indexed object(s) retain the OLD config until you re-sync "
+                        "with `mfs add --force-index`.",
+                        connector_uri,
+                        indexed,
                     )
             return row["id"]
         cid = uuid.uuid4().hex
@@ -1078,10 +1075,7 @@ class Engine:
             )
             await self.objects.fail_running_tasks_for_job(job["id"], str(reason))
             await self.objects.fail_inflight_job(job["id"], str(reason))
-            print(
-                f"mfs-server: WARNING sync job {job['id']} for {connector_uri} failed: {reason}",
-                flush=True,
-            )
+            logger.warning("sync job %s for %s failed: %s", job["id"], connector_uri, reason)
         finally:
             if plugin is not None:
                 try:
@@ -1114,25 +1108,18 @@ class Engine:
         try:
             stale_prep = await self.objects.list_stale_preparing_jobs(cutoff)
         except Exception as e:  # noqa: BLE001
-            print(
-                f"mfs-server: WARNING reclaim: listing stale preparing jobs failed: {e}", flush=True
-            )
+            logger.warning("reclaim: listing stale preparing jobs failed: %s", e)
             stale_prep = []
         for j in stale_prep:
             try:
                 await self.objects.fail_stale_preparing_job(j["id"])
             except Exception as e:  # noqa: BLE001
-                print(
-                    f"mfs-server: WARNING reclaim: failing stale preparing job {j['id']}: {e}",
-                    flush=True,
-                )
+                logger.warning("reclaim: failing stale preparing job %s: %s", j["id"], e)
 
         try:
             stale = await self.objects.list_stale_running_jobs(cutoff)
         except Exception as e:  # noqa: BLE001
-            print(
-                f"mfs-server: WARNING reclaim: listing stale running jobs failed: {e}", flush=True
-            )
+            logger.warning("reclaim: listing stale running jobs failed: %s", e)
             return
         for j in stale:
             try:
@@ -1152,10 +1139,7 @@ class Engine:
                 await self.objects.reset_running_tasks_to_pending(j["id"])
                 await self.objects.requeue_stale_running_job(j["id"])
             except Exception as e:  # noqa: BLE001 — one un-recoverable orphan must not starve the rest
-                print(
-                    f"mfs-server: WARNING reclaim: recovering stale running job {j['id']}: {e}",
-                    flush=True,
-                )
+                logger.warning("reclaim: recovering stale running job %s: %s", j["id"], e)
 
     async def run_worker_forever(self, poll_interval: float = 1.0, concurrency=None) -> None:
         """Drain the queued-job queue with `concurrency` parallel workers. Each worker
@@ -1246,10 +1230,7 @@ class Engine:
                     task["id"], f"{type(e).__name__}: source disappeared mid-sync"
                 )
                 uri = f"{connector_uri}{task.get('object_uri', '')}"
-                print(
-                    f"mfs-server: object {uri} skipped (source disappeared mid-sync)",
-                    flush=True,
-                )
+                logger.info("object %s skipped (source disappeared mid-sync)", uri)
                 return "skipped"
             except Exception as e:  # noqa: BLE001
                 kind = self._classify_error(e)
@@ -1299,7 +1280,7 @@ class Engine:
         reason = f"{type(e).__name__}: {e}".replace("\n", " ").strip()
         if len(reason) > 300:
             reason = reason[:297] + "..."
-        print(f"mfs-server: WARNING object {uri} failed: {reason}", flush=True)
+        logger.warning("object %s failed: %s", uri, reason)
 
     async def _should_stop(self, job_id: str, cid: str) -> bool:
         """A task boundary must stop the job if it was cancelled OR its connector is being
@@ -2280,11 +2261,10 @@ class Engine:
         single-host deployment this guard covers, and the warning makes the cost explicit."""
         size = len(text.encode("utf-8", errors="ignore")) if text else 0
         if size > 100 * 1024 * 1024:
-            print(
-                f"mfs-server: WARNING export {uri} materialized "
-                f"{size // (1024 * 1024)} MB in memory "
-                f"(streaming export not yet implemented)",
-                flush=True,
+            logger.warning(
+                "export %s materialized %d MB in memory (streaming export not yet implemented)",
+                uri,
+                size // (1024 * 1024),
             )
 
     async def export(self, path: str) -> tuple[str, bool]:

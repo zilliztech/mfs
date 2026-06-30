@@ -12,6 +12,7 @@ JSONPath-lite resolver handles nested arrays (`comments[].body`) for both.
 from __future__ import annotations
 
 import json
+import logging
 from typing import AsyncIterator
 
 from .base import (
@@ -24,6 +25,8 @@ from .base import (
 )
 from .render import field_top_key, render_record, resolve_path
 from .text import chunk_text_body
+
+logger = logging.getLogger(__name__)
 
 
 class RecordCollectionProducer:
@@ -108,11 +111,11 @@ class RecordCollectionProducer:
         # [[objects]].text_fields. (When a chunk was emitted a field key was necessarily
         # present, so seen_field_keys is non-empty and this branch is skipped.)
         if i > 0 and ocfg.text_fields and not seen_field_keys:
-            print(
-                f"mfs-server: WARNING {full_uri}: configured text_fields "
-                f"{list(ocfg.text_fields)} are absent from every record (indexed 0 chunks) — "
-                "check [[objects]].text_fields",
-                flush=True,
+            logger.warning(
+                "%s: configured text_fields %s are absent from every record "
+                "(indexed 0 chunks) — check [[objects]].text_fields",
+                full_uri,
+                list(ocfg.text_fields),
             )
             yield EndOfTask(partial=True)
             return

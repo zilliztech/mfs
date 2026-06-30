@@ -11,12 +11,15 @@ Supported names today: onnx (default), openai, google, voyage, ollama, local.
 from __future__ import annotations
 
 import array
+import logging
 from typing import Any
 
 from ..config import ServerConfig
 from ..storage.ids import cache_key, sha1_hex
 from ..storage.transformation_cache import TransformationCache
 from .embeddings import get_provider
+
+logger = logging.getLogger(__name__)
 
 _STARTUP_PRELOAD_PROVIDERS = {"onnx", "local"}
 
@@ -77,12 +80,15 @@ class CachingEmbeddingClient:
         except Exception:  # noqa: BLE001 — can't read dim: skip, don't break embedding
             return
         if actual != self.dim:
-            print(
-                f"mfs-server: WARNING embedding dim mismatch — configured dim={self.dim} "
-                f"but provider '{self.provider_name}'/'{self.model}' emits dim={actual}. "
-                f"Search/index will fail against the dim={self.dim} collection; re-run "
-                f"`mfs-server setup --section embedding` or re-index into a fresh collection.",
-                flush=True,
+            logger.warning(
+                "embedding dim mismatch — configured dim=%d but provider '%s'/'%s' emits "
+                "dim=%d. Search/index will fail against the dim=%d collection; re-run "
+                "`mfs-server setup --section embedding` or re-index into a fresh collection.",
+                self.dim,
+                self.provider_name,
+                self.model,
+                actual,
+                self.dim,
             )
 
     def _key(self, text: str) -> str:

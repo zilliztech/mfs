@@ -7,7 +7,10 @@ request). Standalone worker daemon (polling the DB queue) + reload are Phase 5/7
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_auth_token(cfg) -> None:
@@ -34,10 +37,10 @@ def _ensure_auth_token(cfg) -> None:
     except OSError:
         pass
     cfg.auth_token = tok
-    print(
-        f"mfs-server: generated API token at {token_file} "
-        f"(local CLIs read it automatically; pass it as Authorization: Bearer for remote)",
-        flush=True,
+    logger.info(
+        "generated API token at %s "
+        "(local CLIs read it automatically; pass it as Authorization: Bearer for remote)",
+        token_file,
     )
 
 
@@ -93,13 +96,17 @@ def main(argv: list[str] | None = None) -> int:
         import uvicorn
 
         from ..api.app import create_app
+        from ..common.logging import configure_logging
         from ..config import load_server_config
 
         cfg = load_server_config(args.config)
+        configure_logging()
         _ensure_auth_token(cfg)
         host, _, port = args.bind.partition(":")
         app = create_app(cfg, preload_local_models=True)
-        uvicorn.run(app, host=host, port=int(port or "13619"))
+        # log_config=None: don't let uvicorn install its own handlers — its access/error
+        # loggers propagate to the root handler configure_logging() set up, sharing one format.
+        uvicorn.run(app, host=host, port=int(port or "13619"), log_config=None)
         return 0
 
     if args.cmd == "worker":
@@ -107,18 +114,20 @@ def main(argv: list[str] | None = None) -> int:
         # Use with `mfs add --no-process` / API enqueue so ingestion runs out-of-band.
         import asyncio
 
+        from ..common.logging import configure_logging
         from ..config import load_server_config
         from ..engine.engine import Engine
 
         cfg = load_server_config(args.config)
+        configure_logging()
         eng = Engine(cfg)
 
         async def run() -> None:
             await eng.startup(preload_local_models=True)
-            print(
-                f"mfs-server worker: polling queue (metadata={cfg.metadata.backend}, "
-                f"concurrency={args.concurrency})",
-                flush=True,
+            logger.info(
+                "worker: polling queue (metadata=%s, concurrency=%s)",
+                cfg.metadata.backend,
+                args.concurrency,
             )
             try:
                 await eng.run_worker_forever(concurrency=args.concurrency)

@@ -18,6 +18,7 @@ from starlette.datastructures import Headers
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import ClientDisconnect
 
+from ..common.logging import configure_logging
 from ..config import ServerConfig, load_server_config
 from ..engine.engine import Engine
 from .models import (
@@ -198,6 +199,7 @@ def _reject_unknown_query_params(request: Request, allowed: set[str]) -> None:
 
 
 def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = False) -> FastAPI:
+    configure_logging()
     cfg = cfg or load_server_config()
 
     @asynccontextmanager
