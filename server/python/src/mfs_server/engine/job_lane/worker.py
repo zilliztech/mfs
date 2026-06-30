@@ -10,10 +10,13 @@ through the VLM client (transformation-cache memoized); code / markdown are read
 
 from __future__ import annotations
 
+import logging
 import os
 
 from ...common.converter import CONVERT_EXTS
 from ..producers.base import read_bytes, read_text
+
+logger = logging.getLogger(__name__)
 
 
 async def _child_text(coord, job_id: str, child_uri: str, okind: str) -> str:
@@ -93,7 +96,7 @@ async def fold_and_summarize(coord, job_id: str, dir_uri: str) -> None:
             async with coord.summary_gate:
                 summ = await coord.summary.summarize(listing, "directory_summary")
     except Exception as e:  # noqa: BLE001 — never leave a dir un-finalized (would wedge the job)
-        print(f"mfs-server: WARNING directory summary {dir_uri} failed: {e}", flush=True)
+        logger.warning("directory summary %s failed: %s", dir_uri, e)
         summ = ""
 
     # bookkeeping always runs: write back, decrement parent pending, push parent if ready.
@@ -113,4 +116,4 @@ async def run_summary_worker(coord, worker_id: int) -> None:
         try:
             await fold_and_summarize(coord, job_id, dir_uri)
         except Exception as e:  # noqa: BLE001 — last-resort guard so the worker never dies
-            print(f"mfs-server: WARNING summary worker {worker_id} error: {e}", flush=True)
+            logger.warning("summary worker %d error: %s", worker_id, e)

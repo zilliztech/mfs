@@ -23,6 +23,7 @@ auto-migrated at load time (see _migrate_legacy_blocks).
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -34,6 +35,9 @@ if sys.version_info < (3, 11):
     import tomli as tomllib
 else:
     import tomllib
+
+
+logger = logging.getLogger(__name__)
 
 
 def mfs_home() -> Path:
@@ -443,18 +447,15 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
     # case is the override is intentional (docker/K8s injection), so this is
     # an INFO/WARN line at startup, not a refusal — just visible provenance.
     if uri_env and cfg.milvus.uri and uri_env != cfg.milvus.uri:
-        print(
-            f"mfs-server: WARNING [milvus] uri overridden by env: "
-            f"toml={_redact_uri(cfg.milvus.uri)} -> "
-            f"env={_redact_uri(uri_env)} "
-            f"(set MFS_NO_ENV_OVERRIDE=1 to disable env override)",
-            flush=True,
+        logger.warning(
+            "[milvus] uri overridden by env: toml=%s -> env=%s "
+            "(set MFS_NO_ENV_OVERRIDE=1 to disable env override)",
+            _redact_uri(cfg.milvus.uri),
+            _redact_uri(uri_env),
         )
     if token_env and cfg.milvus.token and token_env != cfg.milvus.token:
-        print(
-            "mfs-server: WARNING [milvus] token overridden by env "
-            "(set MFS_NO_ENV_OVERRIDE=1 to disable env override)",
-            flush=True,
+        logger.warning(
+            "[milvus] token overridden by env (set MFS_NO_ENV_OVERRIDE=1 to disable env override)"
         )
     if uri_env:
         cfg.milvus.uri = uri_env

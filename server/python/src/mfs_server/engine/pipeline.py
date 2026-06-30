@@ -26,10 +26,13 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
 from dataclasses import dataclass
 from typing import Awaitable, Callable, Optional, Protocol, Union, runtime_checkable
 
 from .producers.base import Chunk, EndOfTask, cap_content
+
+logger = logging.getLogger(__name__)
 
 # --- internal constants (not TOML-exposed, §7.3) ---
 _EMBED_FLUSH_IDLE_MS = 5000  # force a flush when the batch sits idle this long
@@ -198,7 +201,7 @@ class EmbedConsumer:
             try:
                 await self._consume(item)
             except Exception as e:  # noqa: BLE001 — never let one bad item kill the consumer
-                print(f"mfs-server: WARNING embed consumer consume failed: {e}", flush=True)
+                logger.warning("embed consumer consume failed: %s", e)
 
     async def _safe_flush(self) -> None:
         """_flush that logs (never raises) — for the loop's idle/shutdown drains, so a failed
@@ -207,7 +210,7 @@ class EmbedConsumer:
         try:
             await self._flush()
         except Exception as e:  # noqa: BLE001
-            print(f"mfs-server: WARNING embed consumer flush failed: {e}", flush=True)
+            logger.warning("embed consumer flush failed: %s", e)
 
     async def shutdown(self) -> None:
         """Signal the loop to drain its pending batch and stop; await the run task."""
@@ -328,10 +331,12 @@ class EmbedConsumer:
             if env.task_id not in seen:
                 seen.add(env.task_id)
                 affected.append(env.task_id)
-        print(
-            f"mfs-server: WARNING embed flush failed for {len(batch)} chunk(s) across "
-            f"{len(affected)} task(s); dropping the batch and finalizing them as failed: {exc!r}",
-            flush=True,
+        logger.warning(
+            "embed flush failed for %d chunk(s) across %d task(s); dropping the batch "
+            "and finalizing them as failed: %r",
+            len(batch),
+            len(affected),
+            exc,
         )
         # The whole batch is discarded (these chunks are NOT written). Decrement each chunk's
         # pending (clamped at 0 — never negative), flag the task partial, and record the raw
@@ -372,10 +377,7 @@ class EmbedConsumer:
                 if asyncio.iscoroutine(res):
                     await res
             except Exception as e:  # noqa: BLE001
-                print(
-                    f"mfs-server: WARNING embed success hook failed for {task_uri}: {e}",
-                    flush=True,
-                )
+                logger.warning("embed success hook failed for %s: %s", task_uri, e)
 
     def _cleanup(self, task_id: str) -> None:
         self._pending.pop(task_id, None)

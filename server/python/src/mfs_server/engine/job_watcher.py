@@ -28,8 +28,11 @@ synchronously; the watcher consolidates the missing job-lane-evict + pending-tas
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 # Poll cadence. Kept a source constant (not TOML): 1s is responsive without meaningful DB load
 # (a couple of GROUP BY queries). The [object_task] business section can fold this in later.
@@ -63,7 +66,7 @@ class ConnectorJobWatcher:
             try:
                 await self.tick()
             except Exception as e:  # noqa: BLE001
-                print(f"mfs-server: WARNING job watcher tick failed: {e}", flush=True)
+                logger.warning("job watcher tick failed: %s", e)
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=self.poll_interval_s)
             except asyncio.TimeoutError:

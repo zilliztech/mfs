@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from typing import Any, Optional
 from urllib.parse import urlparse
 
@@ -26,6 +25,8 @@ from ..config import ServerConfig
 # embedding dim, so a build always targets a collection built for ITS schema/model and never
 # silently reuses an incompatible one written by a different version (migrations out of scope).
 _COLLECTION_SCHEMA_VERSION = 1
+
+logger = logging.getLogger(__name__)
 
 # Milvus rejects any search whose `offset + limit` exceeds this window with
 # `MilvusException(code=65535, "invalid max query result window")`. A user-supplied
@@ -129,10 +130,10 @@ class MilvusStore:
         # silent env override (ZILLIZ_URI) had us mistake a Zilliz server for Lite. Token is
         # never logged; only the host (remote) or db path (Lite).
         if self.is_lite():
-            print(f"mfs-server: Milvus backend: Lite ({self.uri})", flush=True)
+            logger.info("Milvus backend: Lite (%s)", self.uri)
         else:
             host = urlparse(self.uri).netloc or self.uri
-            print(f"mfs-server: Milvus backend: Zilliz/remote {host}", flush=True)
+            logger.info("Milvus backend: Zilliz/remote %s", host)
 
     def is_lite(self) -> bool:
         return not self.uri.startswith("http")
@@ -258,17 +259,16 @@ class MilvusStore:
                 # starlette lifespan re-wrapping a SystemExit into another "startup failed"
                 # traceback; nothing is initialized yet at this point, so there is no cleanup
                 # to skip.
-                print(
-                    f"mfs-server: FATAL invalid milvus.analyzer_params "
-                    f"{self.analyzer_params!r}: {detail}\n"
-                    f"  Supported BM25 tokenizers: 'standard' (default) and 'jieba' (Chinese "
-                    f"segmentation; requires the jieba package — `uv pip install jieba`).\n"
-                    f'  Fix milvus.analyzer_params in server.toml (e.g. {{type = "jieba"}}) and '
-                    f"recreate the collection: the analyzer is applied only at collection "
-                    f"creation, so an existing index must be dropped and re-indexed for the "
-                    f"change to take effect.",
-                    file=sys.stderr,
-                    flush=True,
+                logger.critical(
+                    "invalid milvus.analyzer_params %r: %s\n"
+                    "  Supported BM25 tokenizers: 'standard' (default) and 'jieba' (Chinese "
+                    "segmentation; requires the jieba package — `uv pip install jieba`).\n"
+                    '  Fix milvus.analyzer_params in server.toml (e.g. {type = "jieba"}) and '
+                    "recreate the collection: the analyzer is applied only at collection "
+                    "creation, so an existing index must be dropped and re-indexed for the "
+                    "change to take effect.",
+                    self.analyzer_params,
+                    detail,
                 )
                 os._exit(1)
             raise
