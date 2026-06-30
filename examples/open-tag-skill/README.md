@@ -42,6 +42,28 @@ Open Tag is a thin layer of glue; all the retrieval power lives in MFS.
    └──────────────────────────────────┘
 ```
 
+## See it in action
+
+Two short demos — each is someone `@OpenClaude`-ing the bot in a Slack thread.
+
+**Delegate a PR review across channels.** A teammate asked for a review in another
+channel; from a different channel you tag `@OpenClaude` to handle it. The bot
+reads the request from the other channel's history, pulls the PR through MFS, and
+reports back — cross-channel context plus reaching an external source (GitHub).
+
+![Open Tag — PR review delegation across channels](https://github.com/user-attachments/assets/6cb1db05-dd12-4a13-a9fa-1a1bf69bcf28)
+
+**Follow up with a new, source-spanning task.** A follow-up in the same thread:
+ask the bot to compare two projects and write up the differences. It gathers
+context from the indexed sources and produces the document — a same-thread
+follow-up that uses external data sources and tools.
+
+![Open Tag — Slack follow-up that spans sources](https://github.com/user-attachments/assets/8f11e931-4248-46c5-b1fb-8128d56b8773)
+
+Together they show what the **Memory + Tools** wiring buys you: from a single
+mention, the bot can recall other channels' history and reach external sources
+and tools.
+
 ## Install the skill
 
 Open Tag ships as the `open-tag-admin` skill. It lives under `examples/`, so
@@ -59,18 +81,14 @@ Once the skill is installed, you drive everything from Claude Code or Codex in
 plain language — the `open-tag-admin` skill handles credential setup, preflight,
 and launch for you. Open your agent in a working directory and ask.
 
-**No credentials yet?** You don't need any tokens in hand first. The skill walks
-you through obtaining them — creating the Slack app and its bot/app tokens for
-the bridge, and the per-source tokens (GitHub, Slack history, databases, …) for
-Memory, including which scopes to add and where each token goes. For example:
+**No credentials yet?** You don't need any tokens in hand first — just say so and
+the skill walks you through getting them. The full manual walkthrough (the Slack
+app, the two kinds of Slack token, other sources) is under
+[Credentials](#credentials) below, folded up. For example:
 
 > I want to run an Open Tag bot but I don't have any Slack credentials yet. Walk
 > me through creating the Slack app, turning on Socket Mode, and getting the bot
 > and app tokens — tell me which scopes to add and where each token goes.
-
-(It can guide the setup and diagnose failures, but it can't bypass workspace
-policy — if your workspace requires admin approval to install an app, you'll
-still need an admin to approve it.)
 
 Once your credentials are ready — or if you already have them in your
 environment — drive the rest in plain language:
@@ -101,6 +119,82 @@ environment — drive the rest in plain language:
 
 Then go to Slack and `@OpenClaude` (or `@OpenCodex`) the bot inside a thread — it
 gathers context from the permitted MFS scopes and replies in-thread.
+
+## Credentials
+
+Open Tag uses Slack credentials in **two** different places — don't confuse them:
+
+| Credential | What it's for | Tokens |
+|---|---|---|
+| **Bridge app** | the bot that receives `@mentions`, reads the thread, posts replies | `SLACK_APP_TOKEN` (`xapp-…`, Socket Mode) **and** `SLACK_BOT_TOKEN` (`xoxb-…`) |
+| **Slack-history connector** *(optional)* | indexing channel history into Memory so the bot can recall it | one token — **bot** (`xoxb-…`, recommended) or **user** (`xoxp-…`) |
+
+The skill can do all of this from a plain-language ask. The manual walkthroughs
+are here, folded, for when you'd rather do it yourself or want to see exactly
+what's being requested. (The skill can guide and diagnose, but it can't bypass
+workspace policy — if installing an app needs admin approval, an admin still has
+to approve it.)
+
+<details>
+<summary><b>1. Create the Slack app + bridge tokens</b> (for receiving @mentions)</summary>
+
+Go to <https://api.slack.com/apps> → **Create New App** → **From scratch**, and
+name it for the backend (**OpenClaude** for `claude`, **OpenCodex** for `codex`).
+
+![Slack Create New App button](https://github.com/user-attachments/assets/40ffd973-84d2-483f-beca-720c723223c2)
+![Slack Create an app dialog](https://github.com/user-attachments/assets/5119276e-cde3-405e-bd86-7fb33b2218d9)
+![Slack From scratch app form](https://github.com/user-attachments/assets/abbdc1cf-012a-44ed-ae62-210abc252980)
+
+1. **Socket Mode** → enable it → create an app-level token with
+   `connections:write`. Save it as `SLACK_APP_TOKEN` (`xapp-…`).
+2. **OAuth & Permissions** → add Bot Token Scopes:
+   - `app_mentions:read` — receive mention events
+   - `chat:write` — post and update replies
+   - `channels:read` + `channels:history` — read threads in public channels
+   - `groups:read` + `groups:history` — private channels (optional)
+3. **Event Subscriptions** → subscribe to the bot event `app_mention`.
+4. **Install to Workspace** (reinstall after any scope/event change) → copy the
+   **Bot User OAuth Token**. Save it as `SLACK_BOT_TOKEN` (`xoxb-…`).
+5. Invite the bot to your sandbox channel: `/invite @OpenClaude`.
+
+A private channel needs the bot to actually be a member, even with
+`groups:history`. If preflight reports `not_in_channel`, invite it again.
+
+</details>
+
+<details>
+<summary><b>2. Index Slack history into Memory</b> — bot token vs user token (optional)</summary>
+
+This is separate from the bridge: it's the MFS **slack connector**, which indexes
+channel history so the bot can search past conversations. You need **one** token:
+
+- **Bot token** (`xoxb-…`, recommended) — same app as above; under **OAuth &
+  Permissions** add `channels:read`, `channels:history`, `users:read` (plus
+  `groups:*` for private channels), install, and copy the `xoxb-…` token. Invite
+  the bot to any private channel you want indexed.
+- **User token** (`xoxp-…`) — created the same way under **User Token Scopes**.
+  Use it only when the bot identity can't reach what you can (DMs, channels the
+  bot isn't in); always pair it with a channel allowlist so it doesn't index the
+  whole workspace.
+
+You don't write the connector config by hand — the **mfs-ingest** skill does,
+keeping the token as an `env:` reference and bounding the channels. Full details
+and screenshots: [`docs/connectors/slack.md`](../../docs/connectors/slack.md).
+
+</details>
+
+<details>
+<summary><b>3. Other data sources</b> (GitHub, Postgres, Linear, …)</summary>
+
+Each connector has its own credential, and the **mfs-ingest** skill walks you
+through getting each one — what's needed and where to obtain it (a GitHub PAT, a
+Postgres DSN, an OAuth token, …) — then stores it as an `env:` / `file:`
+reference, never inline. Open Tag itself only *consumes* what MFS has indexed.
+
+The full per-connector walkthroughs (20+ sources) are in
+[`docs/connectors/`](../../docs/connectors/).
+
+</details>
 
 ## Where it stands vs. a hosted tag bot
 
@@ -135,6 +229,33 @@ What you bring is what an agent can't do for you:
   approve it;
 - access to whatever data you want indexed.
 
-Want to look under the hood? The runnable code is in [`open-tag/`](open-tag/) and
-the connector catalog is in [`docs/connectors/`](../../docs/connectors/) — but you
-can ignore both; the skill handles them.
+The runnable code is in [`open-tag/`](open-tag/) — you can ignore it; the skill
+handles everything. But if you'd rather see (or run) the steps yourself:
+
+<details>
+<summary>The manual sequence the skill automates</summary>
+
+```bash
+# 1. install + run MFS
+uv tool install mfs-server && mfs-server run            # binds 127.0.0.1:13619
+
+# 2. index your Memory (or just let the mfs-ingest skill do it)
+mfs add /path/to/your/repo
+mfs add slack://team-memory --config ./slack.toml       # optional Slack history
+
+# 3. point the bot at the permitted scopes + Slack app + backend
+export MFS_ALLOWED_SCOPES="file://local/path/to/your/repo,slack://team-memory"
+export SLACK_APP_TOKEN="xapp-…"  SLACK_BOT_TOKEN="xoxb-…"
+export OPENTAG_BACKEND="claude"  SLACK_CHANNEL_ID="C0…"
+export MFS_URL="http://127.0.0.1:13619"  MFS_TOKEN="$(cat ~/.mfs/server.token)"
+
+# 4. preflight, then start the bridge
+cd examples/open-tag-skill/open-tag
+python scripts/opentag_doctor.py --channel-id "$SLACK_CHANNEL_ID"
+uv run --with slack-bolt python scripts/slack_socket_agent.py --backend "$OPENTAG_BACKEND"
+```
+
+Each step is documented in [`open-tag/references/`](open-tag/references/) (Slack
+adapter, backends, runtime agent, memory).
+
+</details>

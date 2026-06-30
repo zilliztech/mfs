@@ -46,6 +46,28 @@ Its edge over a hosted tag bot is **Memory breadth**: every connector — databa
 object stores, trackers, chat, local files — can be permitted context, all
 self-hosted, so your data and credentials never leave your machines.
 
+## See it in action
+
+Two short demos — each is someone `@OpenClaude`-ing the bot in a Slack thread.
+
+**Delegate a PR review across channels.** A teammate asked for a review in another
+channel; from a different channel you tag `@OpenClaude` to handle it. The bot
+reads the request from the other channel's history, pulls the PR through MFS, and
+reports back — cross-channel context plus reaching an external source (GitHub).
+
+![Open Tag — PR review delegation across channels](https://github.com/user-attachments/assets/6cb1db05-dd12-4a13-a9fa-1a1bf69bcf28)
+
+**Follow up with a new, source-spanning task.** A follow-up in the same thread:
+ask the bot to compare two projects and write up the differences. It gathers
+context from the indexed sources and produces the document — a same-thread
+follow-up that uses external data sources and tools.
+
+![Open Tag — Slack follow-up that spans sources](https://github.com/user-attachments/assets/8f11e931-4248-46c5-b1fb-8128d56b8773)
+
+Together they show what the **Memory + Tools** wiring buys you: from a single
+mention, the bot can recall other channels' history and reach external sources
+and tools.
+
 ## Quick start
 
 Open Tag ships as the `open-tag-admin` skill. Install it, then drive everything
