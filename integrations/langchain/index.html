@@ -10,31 +10,31 @@
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/architecture/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/integrations/langchain/">
       
       
-        <link rel="prev" href="../examples/">
+        <link rel="prev" href="../open-tag/">
       
       
-        <link rel="next" href="../production/">
+        <link rel="next" href="../langgraph/">
       
       
         
       
       
-      <link rel="icon" href="../assets/logo.svg">
+      <link rel="icon" href="../../assets/logo.svg">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Architecture - MFS</title>
+        <title>LangChain - MFS</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,9 +53,9 @@
       
     
     
-      <link rel="stylesheet" href="../stylesheets/terminal.css">
+      <link rel="stylesheet" href="../../stylesheets/terminal.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture" class="md-skip">
+        <a href="#langchain" class="md-skip">
           Skip to content
         </a>
       
@@ -94,9 +94,9 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="MFS" class="md-header__button md-logo" aria-label="MFS" data-md-component="logo">
+    <a href="../.." title="MFS" class="md-header__button md-logo" aria-label="MFS" data-md-component="logo">
       
-  <img src="../assets/logo.svg" alt="logo">
+  <img src="../../assets/logo.svg" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture
+              LangChain
             
           </span>
         </div>
@@ -194,7 +194,7 @@
     
     
       <li class="md-tabs__item">
-        <a href=".." class="md-tabs__link">
+        <a href="../.." class="md-tabs__link">
           
   
   
@@ -210,13 +210,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../architecture/" class="md-tabs__link">
           
   
   
@@ -236,7 +234,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../connectors/" class="md-tabs__link">
+        <a href="../../connectors/" class="md-tabs__link">
           
   
   
@@ -252,11 +250,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../integrations/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
           
   
   
@@ -276,7 +276,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../configuration/" class="md-tabs__link">
+        <a href="../../configuration/" class="md-tabs__link">
           
   
   
@@ -296,7 +296,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../cli/" class="md-tabs__link">
+        <a href="../../cli/" class="md-tabs__link">
           
   
   
@@ -316,7 +316,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../evaluation/" class="md-tabs__link">
+        <a href="../../evaluation/" class="md-tabs__link">
           
   
   
@@ -356,9 +356,9 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="MFS" class="md-nav__button md-logo" aria-label="MFS" data-md-component="logo">
+    <a href="../.." title="MFS" class="md-nav__button md-logo" aria-label="MFS" data-md-component="logo">
       
-  <img src="../assets/logo.svg" alt="logo">
+  <img src="../../assets/logo.svg" alt="logo">
 
     </a>
     MFS
@@ -437,7 +437,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -465,7 +465,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../why/" class="md-nav__link">
+      <a href="../../why/" class="md-nav__link">
         
   
   
@@ -493,7 +493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../getting-started/" class="md-nav__link">
+      <a href="../../getting-started/" class="md-nav__link">
         
   
   
@@ -521,7 +521,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/" class="md-nav__link">
+      <a href="../../examples/" class="md-nav__link">
         
   
   
@@ -553,31 +553,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
@@ -595,7 +590,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -610,37 +605,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
         
   
   
@@ -656,70 +624,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#core-concepts" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Core concepts
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-each-piece-runs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where each piece runs
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-credentials-live" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where credentials live
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#file-is-the-special-case" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        File is the special case
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -732,7 +636,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../production/" class="md-nav__link">
+      <a href="../../production/" class="md-nav__link">
         
   
   
@@ -760,7 +664,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../one-model-many-sources/" class="md-nav__link">
+      <a href="../../one-model-many-sources/" class="md-nav__link">
         
   
   
@@ -788,7 +692,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../robustness/" class="md-nav__link">
+      <a href="../../robustness/" class="md-nav__link">
         
   
   
@@ -816,7 +720,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../search-and-browse/" class="md-nav__link">
+      <a href="../../search-and-browse/" class="md-nav__link">
         
   
   
@@ -844,7 +748,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ingest-pipeline/" class="md-nav__link">
+      <a href="../../ingest-pipeline/" class="md-nav__link">
         
   
   
@@ -872,7 +776,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../schema/" class="md-nav__link">
+      <a href="../../schema/" class="md-nav__link">
         
   
   
@@ -900,7 +804,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../caching/" class="md-nav__link">
+      <a href="../../caching/" class="md-nav__link">
         
   
   
@@ -987,7 +891,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/" class="md-nav__link">
+      <a href="../../connectors/" class="md-nav__link">
         
   
   
@@ -1015,7 +919,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/file/" class="md-nav__link">
+      <a href="../../connectors/file/" class="md-nav__link">
         
   
   
@@ -1043,7 +947,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/web/" class="md-nav__link">
+      <a href="../../connectors/web/" class="md-nav__link">
         
   
   
@@ -1071,7 +975,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/github/" class="md-nav__link">
+      <a href="../../connectors/github/" class="md-nav__link">
         
   
   
@@ -1099,7 +1003,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/postgres/" class="md-nav__link">
+      <a href="../../connectors/postgres/" class="md-nav__link">
         
   
   
@@ -1127,7 +1031,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/mysql/" class="md-nav__link">
+      <a href="../../connectors/mysql/" class="md-nav__link">
         
   
   
@@ -1155,7 +1059,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/mongo/" class="md-nav__link">
+      <a href="../../connectors/mongo/" class="md-nav__link">
         
   
   
@@ -1183,7 +1087,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/slack/" class="md-nav__link">
+      <a href="../../connectors/slack/" class="md-nav__link">
         
   
   
@@ -1211,7 +1115,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/discord/" class="md-nav__link">
+      <a href="../../connectors/discord/" class="md-nav__link">
         
   
   
@@ -1239,7 +1143,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/gmail/" class="md-nav__link">
+      <a href="../../connectors/gmail/" class="md-nav__link">
         
   
   
@@ -1267,7 +1171,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/notion/" class="md-nav__link">
+      <a href="../../connectors/notion/" class="md-nav__link">
         
   
   
@@ -1295,7 +1199,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/jira/" class="md-nav__link">
+      <a href="../../connectors/jira/" class="md-nav__link">
         
   
   
@@ -1323,7 +1227,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/linear/" class="md-nav__link">
+      <a href="../../connectors/linear/" class="md-nav__link">
         
   
   
@@ -1351,7 +1255,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/zendesk/" class="md-nav__link">
+      <a href="../../connectors/zendesk/" class="md-nav__link">
         
   
   
@@ -1379,7 +1283,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/hubspot/" class="md-nav__link">
+      <a href="../../connectors/hubspot/" class="md-nav__link">
         
   
   
@@ -1407,7 +1311,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/bigquery/" class="md-nav__link">
+      <a href="../../connectors/bigquery/" class="md-nav__link">
         
   
   
@@ -1435,7 +1339,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/snowflake/" class="md-nav__link">
+      <a href="../../connectors/snowflake/" class="md-nav__link">
         
   
   
@@ -1463,7 +1367,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/s3/" class="md-nav__link">
+      <a href="../../connectors/s3/" class="md-nav__link">
         
   
   
@@ -1491,7 +1395,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/gdrive/" class="md-nav__link">
+      <a href="../../connectors/gdrive/" class="md-nav__link">
         
   
   
@@ -1519,7 +1423,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/feishu/" class="md-nav__link">
+      <a href="../../connectors/feishu/" class="md-nav__link">
         
   
   
@@ -1551,26 +1455,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -1588,7 +1497,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1606,7 +1515,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../integrations/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -1634,7 +1543,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../integrations/open-tag/" class="md-nav__link">
+      <a href="../open-tag/" class="md-nav__link">
         
   
   
@@ -1659,10 +1568,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../integrations/langchain/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LangChain
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1678,6 +1614,59 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-retriever" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The retriever
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use it
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1690,7 +1679,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../integrations/langgraph/" class="md-nav__link">
+      <a href="../langgraph/" class="md-nav__link">
         
   
   
@@ -1777,7 +1766,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../configuration/" class="md-nav__link">
+      <a href="../../configuration/" class="md-nav__link">
         
   
   
@@ -1805,7 +1794,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../auth-and-secrets/" class="md-nav__link">
+      <a href="../../auth-and-secrets/" class="md-nav__link">
         
   
   
@@ -1833,7 +1822,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../providers/" class="md-nav__link">
+      <a href="../../providers/" class="md-nav__link">
         
   
   
@@ -1861,7 +1850,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../deployment/" class="md-nav__link">
+      <a href="../../deployment/" class="md-nav__link">
         
   
   
@@ -1889,7 +1878,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../storage-and-backup/" class="md-nav__link">
+      <a href="../../storage-and-backup/" class="md-nav__link">
         
   
   
@@ -1917,7 +1906,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../troubleshooting/" class="md-nav__link">
+      <a href="../../troubleshooting/" class="md-nav__link">
         
   
   
@@ -2004,7 +1993,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli/" class="md-nav__link">
+      <a href="../../cli/" class="md-nav__link">
         
   
   
@@ -2032,7 +2021,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/" class="md-nav__link">
+      <a href="../../api/" class="md-nav__link">
         
   
   
@@ -2060,7 +2049,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sdks/" class="md-nav__link">
+      <a href="../../sdks/" class="md-nav__link">
         
   
   
@@ -2088,7 +2077,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../skills/" class="md-nav__link">
+      <a href="../../skills/" class="md-nav__link">
         
   
   
@@ -2116,7 +2105,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../errors/" class="md-nav__link">
+      <a href="../../errors/" class="md-nav__link">
         
   
   
@@ -2144,7 +2133,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../glossary/" class="md-nav__link">
+      <a href="../../glossary/" class="md-nav__link">
         
   
   
@@ -2231,7 +2220,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../evaluation/" class="md-nav__link">
+      <a href="../../evaluation/" class="md-nav__link">
         
   
   
@@ -2259,7 +2248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/" class="md-nav__link">
+      <a href="../../development/" class="md-nav__link">
         
   
   
@@ -2287,7 +2276,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../server/" class="md-nav__link">
+      <a href="../../server/" class="md-nav__link">
         
   
   
@@ -2315,7 +2304,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../faq/" class="md-nav__link">
+      <a href="../../faq/" class="md-nav__link">
         
   
   
@@ -2343,7 +2332,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../roadmap/" class="md-nav__link">
+      <a href="../../roadmap/" class="md-nav__link">
         
   
   
@@ -2398,10 +2387,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#core-concepts" class="md-nav__link">
+  <a href="#install" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core concepts
+        Install
       
     </span>
   </a>
@@ -2409,10 +2398,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-each-piece-runs" class="md-nav__link">
+  <a href="#the-retriever" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where each piece runs
+        The retriever
       
     </span>
   </a>
@@ -2420,21 +2409,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-credentials-live" class="md-nav__link">
+  <a href="#use-it" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where credentials live
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#file-is-the-special-case" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        File is the special case
+        Use it
       
     </span>
   </a>
@@ -2461,223 +2439,78 @@
   
 
 
-<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<p>MFS is a <strong>thin client over a stateful server</strong>, talking over one HTTP <code>/v1</code> API.
-Everything runs the simplest way — client and server on one machine — and the
-same design scales to production by moving where the server runs. The split is
-deliberate, and it decides where everything lives.</p>
-<ul>
-<li><strong>Client</strong> — the <code>mfs</code> CLI, the SDKs, and the agent skills (<code>mfs-find</code> /
-  <code>mfs-ingest</code>). Stateless, so re-creating it on a laptop, a CI runner, or an
-  agent runtime is free.</li>
-<li><strong>Server</strong> (<code>mfs-server</code>) — the setup wizard, all config / credentials / env
-  vars, the queue and workers, the engine and connectors, and the data backends.
-  Everything that matters lives here, so <code>env:</code> / <code>file:</code> secret references always
-  resolve on the server, never on the client.</li>
-</ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌────────────────┐                 ┌────────────────────────────────────────┐
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│ CLIENT         │                 │ SERVER · mfs-server                    │
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│ ────────────── │                 │ ────────────────────────────────────── │
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│ mfs CLI        │                 │ setup wizard                           │
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│ SDKs           │                 │ queue + workers                        │
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│ skills         │                 │ config · env vars · credentials        │
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   · mfs-find   │ ── HTTP /v1 ──▶ │ engine · connectors · processors       │
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   · mfs-ingest │                 │ backends (scale up as needed):         │
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>└────────────────┘                 │   vector    Milvus Lite → Zilliz Cloud │
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>                                   │   metadata  SQLite → Postgres          │
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>                                   │   caches    local filesystem → S3      │
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                                   └────────────────────────────────────────┘
+<h1 id="langchain">LangChain<a class="headerlink" href="#langchain" title="Permanent link">&para;</a></h1>
+<p>Wrap MFS as a LangChain <code>Retriever</code> and you get a <strong>single retriever over every
+source you have indexed</strong> — code, docs, Slack, Postgres, Jira, S3 — instead of one
+vector store per folder. MFS owns ingest and hybrid (dense + BM25) search; the
+adapter below is the whole integration.</p>
+<h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
+<p>Install <code>langchain-core</code> plus the MFS Python SDK (<code>mfs_sdk</code>, see <a href="../../sdks/">SDKs</a>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>langchain-core
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1"># then install the checked-in MFS SDK from sdks/python (see the SDKs page)</span>
 </code></pre></div>
-<p>The CLI's only job is to parse a command, resolve the endpoint and token, package
-an upload when one is needed, call <code>/v1</code>, and render the result. Everything
-stateful — what's registered, what's indexed, what's cached — belongs to the
-server.</p>
-<h2 id="core-concepts">Core concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h2>
-<p>A handful of words turn up all over these docs and the diagrams. Here they are in
-plain terms, with one running example: you've just run <code>mfs add ./repo</code>.</p>
-<table>
-<thead>
-<tr>
-<th>Term</th>
-<th>What it is</th>
-<th>In the example</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Connector</strong></td>
-<td>A registered source. One connector holds <strong>many</strong> objects.</td>
-<td><code>./repo</code>, a local folder. (Others: <code>postgres://prod</code>, <code>slack://eng</code>.)</td>
-</tr>
-<tr>
-<td><strong>Object</strong></td>
-<td>One virtual "file" under a connector — really just one URI path.</td>
-<td>each file in the repo, like <code>src/main.py</code>. (For a database, an object is a table's <code>rows.jsonl</code>.)</td>
-</tr>
-<tr>
-<td><strong>ConnectorJob</strong></td>
-<td>One sync of a <em>whole</em> connector — connector-level — with a status you can watch.</td>
-<td>the single indexing run you just started for <code>./repo</code>.</td>
-</tr>
-<tr>
-<td><strong>ObjectTask</strong></td>
-<td>The work for <em>one</em> object inside a job — object-level: convert it, split it, embed it.</td>
-<td>"process <code>src/main.py</code>" is one task; the job spawns thousands, one per file.</td>
-</tr>
-<tr>
-<td><strong>Queue</strong></td>
-<td>Where ObjectTasks wait for a worker. There are two: a durable, DB-backed queue for the per-object work, and a fast in-memory queue (the ChunkQueue) further down the pipeline — see <a href="../ingest-pipeline/">Ingest pipeline</a>.</td>
-<td>the per-file tasks line up here until a worker claims one.</td>
-</tr>
-<tr>
-<td><strong>Metadata DB</strong></td>
-<td>The bookkeeping — which connectors, objects, and ConnectorJobs exist and their state. The durable queue lives here too.</td>
-<td>tracks the run and its per-file tasks.</td>
-</tr>
-<tr>
-<td><strong>Cache</strong></td>
-<td>Derived bytes kept so MFS never redoes heavy work for the same input. Two kinds: the <strong>artifact cache</strong> holds conversions (a PDF turned into Markdown), the <strong>transformation cache</strong> holds model inputs and outputs (an embedding already computed).</td>
-<td>a converted PDF reused on the next sync; an embedding not paid for twice.</td>
-</tr>
-<tr>
-<td><strong>Index</strong></td>
-<td>The searchable rows, in Milvus — what <code>search</code> and <code>grep</code> actually hit.</td>
-<td>the repo, now findable by meaning.</td>
-</tr>
-</tbody>
-</table>
-<p>The level is the thing to keep straight: a <strong>connector</strong> holds <strong>many objects</strong>
-(one per URI path); a <strong>ConnectorJob</strong> runs at the connector level — one sync of
-the whole source — and fans out into one <strong>ObjectTask</strong> per object. So
-<code>mfs add ./repo</code> is a single ConnectorJob that spawns thousands of ObjectTasks,
-one per file.</p>
-<p>And the source is always the truth — everything in the Cache and the Index is
-derived from it, and can be thrown away and rebuilt.</p>
-<h2 id="where-each-piece-runs">Where each piece runs<a class="headerlink" href="#where-each-piece-runs" title="Permanent link">&para;</a></h2>
-<p>The only real deployment choice is <strong>where the server runs</strong>. Run it on your own
-machine, move it onto its own host (a VM or a single container), or scale it out
-across Compose or Kubernetes — the CLI and skills stay with you either way. This
-is the recommended layout per mode; for how to set each piece, see
-<a href="../configuration/">Configuration</a>, and for the topologies see
-<a href="../deployment/">Deployment</a>.</p>
-<table>
-<thead>
-<tr>
-<th>Piece</th>
-<th>Local (one machine)</th>
-<th>Single host (its own VM or container)</th>
-<th>Distributed (Compose / Kubernetes)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>mfs</code> CLI</td>
-<td>your machine</td>
-<td>your machine</td>
-<td>your machine</td>
-</tr>
-<tr>
-<td>Agent skills</td>
-<td>your machine</td>
-<td>your machine</td>
-<td>your machine</td>
-</tr>
-<tr>
-<td><code>mfs-server</code> + workers</td>
-<td>your machine</td>
-<td>the server host</td>
-<td>the server cluster (api + worker pods)</td>
-</tr>
-<tr>
-<td><code>mfs-server setup</code> wizard</td>
-<td>your machine</td>
-<td>the server host</td>
-<td>the server cluster</td>
-</tr>
-<tr>
-<td><code>server.toml</code></td>
-<td>your machine</td>
-<td>the server host</td>
-<td>the server cluster (ConfigMap / mounted file)</td>
-</tr>
-<tr>
-<td>Connector credentials + secret files</td>
-<td>your machine</td>
-<td>the server host</td>
-<td>the server cluster (Docker / k8s secrets)</td>
-</tr>
-<tr>
-<td><code>env:</code> / <code>file:</code> ref values</td>
-<td>your machine</td>
-<td>the server host</td>
-<td>the server cluster (pod env / mounted files)</td>
-</tr>
-<tr>
-<td>Vector DB</td>
-<td>Milvus Lite (local file)</td>
-<td>self-hosted Milvus or Zilliz Cloud</td>
-<td>Zilliz Cloud</td>
-</tr>
-<tr>
-<td>Metadata DB</td>
-<td>SQLite (local file)</td>
-<td>Postgres</td>
-<td>Postgres</td>
-</tr>
-<tr>
-<td><code>file://</code> ingest</td>
-<td>server reads the path in place</td>
-<td>CLI bundles + uploads the tree</td>
-<td>CLI bundles + uploads the tree</td>
-</tr>
-</tbody>
-</table>
-<p>A few rows are worth spelling out:</p>
-<ul>
-<li><strong>The client never holds state worth backing up.</strong> The CLI and skills are
-  always "your machine"; the only client file is <code>client.toml</code> (which server to
-  talk to). Everything stateful is server-side, so a laptop, CI runner, or fresh
-  container reconnects with zero setup.</li>
-<li><strong>Backends scale by configuration, not by code.</strong> Locally everything sits in
-  <code>$MFS_HOME</code> (default <code>~/.mfs</code>): <code>server.toml</code>, the generated token, SQLite,
-  the artifact cache, the ONNX model cache, and Milvus Lite. Point the vector
-  backend at Zilliz Cloud and metadata at Postgres and the same server runs at
-  scale — the engine and connectors don't change.</li>
-<li><strong><code>file://</code> ingest is automatic.</strong> On a shared filesystem the server reads the
-  path directly; otherwise the CLI bundles and uploads it — no flag needed. An
-  agent never has to think about this.</li>
-</ul>
-<p>For a split deployment, point the CLI at the server and you're set:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_URL</span><span class="o">=</span>https://mfs.your-corp.internal
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">MFS_API_TOKEN</span><span class="o">=</span>...
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>mfs<span class="w"> </span>status
+<p>Point the SDK at your running server (<code>mfs-server run</code> binds <code>127.0.0.1:13619</code>);
+send a bearer token when the server has auth enabled.</p>
+<h2 id="the-retriever">The retriever<a class="headerlink" href="#the-retriever" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mfs_sdk</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.documents</span><span class="w"> </span><span class="kn">import</span> <span class="n">Document</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.retrievers</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseRetriever</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">class</span><span class="w"> </span><span class="nc">MFSRetriever</span><span class="p">(</span><span class="n">BaseRetriever</span><span class="p">):</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Retrieve across MFS-indexed sources. Leave `scope` empty to search every</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="sd">    connector, or set it to a path / URI prefix (e.g. &quot;github://org/repo&quot;).&quot;&quot;&quot;</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="n">api</span><span class="p">:</span> <span class="n">Any</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="n">top_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">_get_relevant_documents</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">run_manager</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>        <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">q</span><span class="o">=</span><span class="n">query</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">scope</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">,</span> <span class="n">top_k</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">top_k</span><span class="p">)</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>        <span class="k">return</span> <span class="p">[</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>            <span class="n">Document</span><span class="p">(</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>                <span class="n">page_content</span><span class="o">=</span><span class="n">hit</span><span class="o">.</span><span class="n">content</span><span class="p">,</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>                <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="n">hit</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="n">hit</span><span class="o">.</span><span class="n">score</span><span class="p">,</span> <span class="s2">&quot;locator&quot;</span><span class="p">:</span> <span class="n">hit</span><span class="o">.</span><span class="n">locator</span><span class="p">},</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>            <span class="p">)</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>            <span class="k">for</span> <span class="n">hit</span> <span class="ow">in</span> <span class="n">resp</span><span class="o">.</span><span class="n">results</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>        <span class="p">]</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="k">def</span><span class="w"> </span><span class="nf">mfs_retriever</span><span class="p">(</span><span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;http://127.0.0.1:13619&quot;</span><span class="p">,</span> <span class="n">token</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>    <span class="n">client</span> <span class="o">=</span> <span class="n">mfs_sdk</span><span class="o">.</span><span class="n">ApiClient</span><span class="p">(</span><span class="n">mfs_sdk</span><span class="o">.</span><span class="n">Configuration</span><span class="p">(</span><span class="n">host</span><span class="o">=</span><span class="n">base_url</span><span class="p">))</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>    <span class="k">if</span> <span class="n">token</span><span class="p">:</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>        <span class="n">client</span><span class="o">.</span><span class="n">set_default_header</span><span class="p">(</span><span class="s2">&quot;Authorization&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="n">token</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>    <span class="k">return</span> <span class="n">MFSRetriever</span><span class="p">(</span><span class="n">api</span><span class="o">=</span><span class="n">mfs_sdk</span><span class="o">.</span><span class="n">RetrievalApi</span><span class="p">(</span><span class="n">client</span><span class="p">),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </code></pre></div>
-<h2 id="where-credentials-live">Where credentials live<a class="headerlink" href="#where-credentials-live" title="Permanent link">&para;</a></h2>
-<p>A connector's TOML never holds a raw secret — it carries a <strong>reference</strong>, and the
-server resolves it when it builds the connector:</p>
-<ul>
-<li><code>env:VAR_NAME</code> — read from the <strong>server process</strong> environment.</li>
-<li><code>file:/abs/path</code> — the contents of a file the <strong>server</strong> can read (a mounted
-  Docker / k8s secret, a PEM key).</li>
-</ul>
-<p>Because resolution happens on the server, the CLI and your agent never touch raw
-credentials, and the database keeps only the <code>env:</code> / <code>file:</code> reference, never the
-value. Set the variables where <code>mfs-server</code> runs — your machine in local mode, the
-server host or pod otherwise. See <a href="../auth-and-secrets/">Auth and secrets</a> for the
-full boundary and <a href="../production/">Design philosophy</a> for <em>why</em> it's built this
-way.</p>
-<h2 id="file-is-the-special-case">File is the special case<a class="headerlink" href="#file-is-the-special-case" title="Permanent link">&para;</a></h2>
-<p>Every source is a connector, and they're all the same kind of thing: <code>postgres</code>,
-<code>slack</code>, <code>github</code>, and <code>file</code> each implement the same <code>list / stat / read /
-fingerprint / sync</code> contract, flow through the same pipeline, and get the same
-search. The one real exception is <code>file</code> — and the reason is <em>where the bytes
-are</em>. The server reaches most sources itself: it connects to Postgres, it calls
-the Slack API, and pulls the data directly. Local files are different — in a
-client/server setup the bytes sit on the client machine, where the server can't
-see them, so the file connector adds an upload step (manifest diff → upload →
-commit). That special case stays isolated: the file connector's sync logic is the
-same whether it runs local or remote; only how the bytes reach the server
-changes.</p>
+<p>Each MFS hit becomes a <code>Document</code>: the <code>content</code> snippet is the <code>page_content</code>,
+and <code>source</code> / <code>score</code> / <code>locator</code> ride along in <code>metadata</code>. The <code>locator</code> lets
+you reopen the exact unit later with <code>BrowseApi.cat</code> when a snippet is not enough.</p>
+<h2 id="use-it">Use it<a class="headerlink" href="#use-it" title="Permanent link">&para;</a></h2>
+<p>As a plain retriever:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">retriever</span> <span class="o">=</span> <span class="n">mfs_retriever</span><span class="p">(</span><span class="n">top_k</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">docs</span> <span class="o">=</span> <span class="n">retriever</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s2">&quot;how do we handle clients that send too many requests&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">docs</span><span class="p">:</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;source&quot;</span><span class="p">],</span> <span class="s2">&quot;→&quot;</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">page_content</span><span class="p">[:</span><span class="mi">80</span><span class="p">])</span>
+</code></pre></div>
+<p>In a RAG chain — drop it in anywhere a retriever is expected:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.chains</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_retrieval_chain</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.chains.combine_documents</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_stuff_documents_chain</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">chain</span> <span class="o">=</span> <span class="n">create_retrieval_chain</span><span class="p">(</span><span class="n">retriever</span><span class="p">,</span> <span class="n">create_stuff_documents_chain</span><span class="p">(</span><span class="n">llm</span><span class="p">,</span> <span class="n">prompt</span><span class="p">))</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">chain</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;input&quot;</span><span class="p">:</span> <span class="s2">&quot;summarize our rate-limiting behavior&quot;</span><span class="p">})</span>
+</code></pre></div>
+<p>Or hand it to an agent as a tool:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.tools</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_retriever_tool</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">mfs_tool</span> <span class="o">=</span> <span class="n">create_retriever_tool</span><span class="p">(</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">retriever</span><span class="p">,</span> <span class="s2">&quot;search_mfs&quot;</span><span class="p">,</span> <span class="s2">&quot;Search the team&#39;s code, docs, chat, and databases via MFS.&quot;</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">)</span>
+</code></pre></div>
+<p>Scope the retriever per use — <code>mfs_retriever(scope="slack://team")</code> for chat,
+<code>mfs_retriever(scope="github://org/repo")</code> for one repo, or leave it empty to fan
+out across everything.</p>
 
 
 
@@ -2733,10 +2566,10 @@ changes.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

@@ -69,6 +69,10 @@
          <lastmod>2026-06-30</lastmod>
     </url>
     <url>
+         <loc>https://zilliztech.github.io/mfs/integrations/</loc>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
          <loc>https://zilliztech.github.io/mfs/one-model-many-sources/</loc>
          <lastmod>2026-06-30</lastmod>
     </url>
@@ -194,6 +198,18 @@
     </url>
     <url>
          <loc>https://zilliztech.github.io/mfs/connectors/zendesk/</loc>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
+         <loc>https://zilliztech.github.io/mfs/integrations/langchain/</loc>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
+         <loc>https://zilliztech.github.io/mfs/integrations/langgraph/</loc>
+         <lastmod>2026-06-30</lastmod>
+    </url>
+    <url>
+         <loc>https://zilliztech.github.io/mfs/integrations/open-tag/</loc>
          <lastmod>2026-06-30</lastmod>
     </url>
 </urlset>

@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://zilliztech.github.io/mfs/providers/">
+        <link rel="canonical" href="https://zilliztech.github.io/mfs/integrations/">
       
       
-        <link rel="prev" href="../auth-and-secrets/">
+        <link rel="prev" href="../connectors/feishu/">
       
       
-        <link rel="next" href="../deployment/">
+        <link rel="next" href="open-tag/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Providers and processing - MFS</title>
+        <title>Overview - MFS</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#providers-and-processing" class="md-skip">
+        <a href="#integrations" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Providers and processing
+              Overview
             
           </span>
         </div>
@@ -250,11 +250,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../integrations/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -270,12 +272,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../configuration/" class="md-tabs__link">
           
   
@@ -1455,26 +1455,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -1492,7 +1497,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1507,10 +1512,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../integrations/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1526,6 +1558,48 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-integrations-are-thin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why integrations are thin
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-you-get-over-a-single-vector-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What you get over a single vector store
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1538,7 +1612,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../integrations/open-tag/" class="md-nav__link">
+      <a href="open-tag/" class="md-nav__link">
         
   
   
@@ -1566,7 +1640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../integrations/langchain/" class="md-nav__link">
+      <a href="langchain/" class="md-nav__link">
         
   
   
@@ -1594,7 +1668,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../integrations/langgraph/" class="md-nav__link">
+      <a href="langgraph/" class="md-nav__link">
         
   
   
@@ -1626,31 +1700,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   
@@ -1668,7 +1737,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1739,37 +1808,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Providers and processing
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../providers/" class="md-nav__link">
         
   
   
@@ -1785,92 +1827,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#fast-choice" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Fast Choice
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#install-paths" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Install Paths
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#embedding-providers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Embedding Providers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#summary-and-vlm-providers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary and VLM Providers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#conversion-and-processing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Conversion and Processing
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-provider-errors-show-up" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where Provider Errors Show Up
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2420,10 +2376,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#fast-choice" class="md-nav__link">
+  <a href="#why-integrations-are-thin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fast Choice
+        Why integrations are thin
       
     </span>
   </a>
@@ -2431,54 +2387,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#install-paths" class="md-nav__link">
+  <a href="#what-you-get-over-a-single-vector-store" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Install Paths
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#embedding-providers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Embedding Providers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#summary-and-vlm-providers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary and VLM Providers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#conversion-and-processing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Conversion and Processing
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-provider-errors-show-up" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where Provider Errors Show Up
+        What you get over a single vector store
       
     </span>
   </a>
@@ -2505,368 +2417,45 @@
   
 
 
-<h1 id="providers-and-processing">Providers and Processing<a class="headerlink" href="#providers-and-processing" title="Permanent link">&para;</a></h1>
-<p>Use this page when you need to choose an embedding provider, install the right
-server extra, set the right credential, or understand where conversion, VLM,
-summary, embedding, and search failures appear.</p>
-<p>For Milvus, database, cache, auth, and config-file precedence, use
-<a href="../configuration/">Configuration</a>. For source, Docker, Compose, and Helm
-topologies, use <a href="../deployment/">Deployment</a>.</p>
-<h2 id="fast-choice">Fast Choice<a class="headerlink" href="#fast-choice" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Need</th>
-<th>Use</th>
-<th>Setup path</th>
-<th>Credential or service</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Local default with no API key</td>
-<td><code>onnx</code> embeddings</td>
-<td><code>uv tool install mfs-server</code>, then <code>mfs-server setup --section embedding</code> or built-in defaults</td>
-<td>None</td>
-</tr>
-<tr>
-<td>Hosted OpenAI embeddings</td>
-<td><code>openai</code> embeddings</td>
-<td><code>uv tool install mfs-server</code>, then <code>mfs-server setup --section embedding</code></td>
-<td><code>OPENAI_API_KEY</code></td>
-</tr>
-<tr>
-<td>Google Gemini embeddings</td>
-<td><code>gemini</code> embeddings</td>
-<td><code>uv tool install "mfs-server[gemini]"</code>, then <code>mfs-server setup --section embedding</code></td>
-<td><code>GOOGLE_API_KEY</code>, or Vertex AI auth for the embedding SDK</td>
-</tr>
-<tr>
-<td>Voyage embeddings</td>
-<td><code>voyage</code> embeddings</td>
-<td><code>uv tool install "mfs-server[voyage]"</code>, then <code>mfs-server setup --section embedding</code></td>
-<td><code>VOYAGE_API_KEY</code></td>
-</tr>
-<tr>
-<td>Local Ollama embeddings</td>
-<td><code>ollama</code> embeddings</td>
-<td><code>uv tool install "mfs-server[ollama]"</code>, then <code>mfs-server setup --section embedding</code></td>
-<td>Running Ollama server; <code>OLLAMA_HOST</code> is optional</td>
-</tr>
-<tr>
-<td>Local sentence-transformers embeddings</td>
-<td><code>local</code> embeddings</td>
-<td><code>uv tool install "mfs-server[local]"</code>, then <code>mfs-server setup --section embedding</code></td>
-<td>None; this extra pulls the sentence-transformers stack</td>
-</tr>
-<tr>
-<td>Image-description and summary setup</td>
-<td><code>openai</code>, <code>anthropic</code>, or <code>gemini</code> LLM/VLM</td>
-<td><code>mfs-server setup --section description</code> (and <code>--section summary</code>)</td>
-<td>Provider key for the selected LLM/VLM provider</td>
-</tr>
-</tbody>
-</table>
-<p>Provider names are exact. The supported embedding names are <code>openai</code>, <code>onnx</code>,
-<code>gemini</code>, <code>voyage</code>, <code>ollama</code>, and <code>local</code>.</p>
-<h2 id="install-paths">Install Paths<a class="headerlink" href="#install-paths" title="Permanent link">&para;</a></h2>
-<p>The base install includes the OpenAI SDK and the default ONNX embedding stack:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>mfs-server
-</code></pre></div>
-<p>Alternate provider extras are separate:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mfs-server[gemini]&quot;</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mfs-server[voyage]&quot;</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mfs-server[ollama]&quot;</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mfs-server[local]&quot;</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mfs-server[anthropic]&quot;</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;mfs-server[all-providers]&quot;</span>
-</code></pre></div>
-<p><code>all-providers</code> installs Gemini, Voyage, Ollama, and Anthropic provider
-dependencies. It does not include <code>local</code>, because <code>local</code> pulls the larger
-sentence-transformers dependency stack.</p>
-<h2 id="embedding-providers">Embedding Providers<a class="headerlink" href="#embedding-providers" title="Permanent link">&para;</a></h2>
-<p>The embedding registry is the source of truth for provider names and default
-models.</p>
-<table>
-<thead>
-<tr>
-<th>Provider</th>
-<th>Default model</th>
-<th>Default or detected dimension</th>
-<th>Dependency</th>
-<th>Runtime requirement</th>
-<th>First-run behavior</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>onnx</code></td>
-<td><code>gpahal/bge-m3-onnx-int8</code></td>
-<td>1024 in the default config; probed from the model by setup</td>
-<td>Core</td>
-<td>No API key</td>
-<td><code>mfs-server run</code> and <code>mfs-server worker</code> preload the model at startup; if files are not cached under <code>$MFS_HOME/onnx-cache/</code>, startup downloads them.</td>
-</tr>
-<tr>
-<td><code>openai</code></td>
-<td><code>text-embedding-3-small</code></td>
-<td>1536 for the default model</td>
-<td>Core</td>
-<td><code>OPENAI_API_KEY</code>; <code>OPENAI_BASE_URL</code> is optional</td>
-<td>No local model download. Unknown model dimensions may require a trial embedding call.</td>
-</tr>
-<tr>
-<td><code>gemini</code></td>
-<td><code>gemini-embedding-001</code></td>
-<td>768 for the default model</td>
-<td><code>uv tool install "mfs-server[gemini]"</code> or <code>all-providers</code></td>
-<td><code>GOOGLE_API_KEY</code>, or Vertex AI auth with <code>GOOGLE_GENAI_USE_VERTEXAI=true</code></td>
-<td>Known model dimensions use a local table; unknown models require a trial embedding call.</td>
-</tr>
-<tr>
-<td><code>voyage</code></td>
-<td><code>voyage-3-lite</code></td>
-<td>512 for the default model</td>
-<td><code>uv tool install "mfs-server[voyage]"</code> or <code>all-providers</code></td>
-<td><code>VOYAGE_API_KEY</code></td>
-<td>Known model dimensions use a local table; unknown models require a trial embedding call.</td>
-</tr>
-<tr>
-<td><code>ollama</code></td>
-<td><code>nomic-embed-text</code></td>
-<td>Detected by a trial embed against the selected Ollama model</td>
-<td><code>uv tool install "mfs-server[ollama]"</code> or <code>all-providers</code></td>
-<td>Running Ollama server; <code>OLLAMA_HOST</code> can point at a non-default host</td>
-<td>The selected model must be available to the Ollama server before dimension probing and embedding can succeed.</td>
-</tr>
-<tr>
-<td><code>local</code></td>
-<td><code>all-MiniLM-L6-v2</code></td>
-<td>Detected from sentence-transformers model metadata</td>
-<td><code>uv tool install "mfs-server[local]"</code></td>
-<td>No API key</td>
-<td><code>mfs-server run</code> and <code>mfs-server worker</code> preload the sentence-transformers model on the detected device: CUDA, MPS, then CPU.</td>
-</tr>
-</tbody>
-</table>
-<p>Prefer the setup wizard when switching providers:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>embedding
-</code></pre></div>
-<p>The wizard writes:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[embedding]</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;onnx&quot;</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpahal/bge-m3-onnx-int8&quot;</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">dim</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1024</span>
-</code></pre></div>
-<p>It probes the selected provider for the actual dimension. If the probe fails
-because credentials, dependencies, or a local service are not ready, the wizard
-lets you enter the dimension manually. Only hand-edit <code>dim</code> when you know the
-provider model's output size.</p>
-<p>After changing the embedding provider or model, re-index sources you depend on
-so query vectors and indexed vectors come from the same embedding space:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>add<span class="w"> </span>--force-index<span class="w"> </span>TARGET
-</code></pre></div>
-<h2 id="summary-and-vlm-providers">Summary and VLM Providers<a class="headerlink" href="#summary-and-vlm-providers" title="Permanent link">&para;</a></h2>
-<p>Text summary and image-description clients use the LLM provider registry.</p>
-<table>
-<thead>
-<tr>
-<th>Provider</th>
-<th>Default text and vision model</th>
-<th>Dependency</th>
-<th>Runtime requirement</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>openai</code></td>
-<td><code>gpt-4o-mini</code></td>
-<td>Core</td>
-<td><code>OPENAI_API_KEY</code>; <code>OPENAI_BASE_URL</code> is optional</td>
-</tr>
-<tr>
-<td><code>anthropic</code></td>
-<td><code>claude-sonnet-4-5-20250929</code></td>
-<td><code>uv tool install "mfs-server[anthropic]"</code> or <code>all-providers</code></td>
-<td><code>ANTHROPIC_API_KEY</code></td>
-</tr>
-<tr>
-<td><code>gemini</code></td>
-<td><code>gemini-2.0-flash</code></td>
-<td><code>uv tool install "mfs-server[gemini]"</code> or <code>all-providers</code></td>
-<td><code>GOOGLE_API_KEY</code>; the Gemini provider module also documents Vertex AI auth</td>
-</tr>
-</tbody>
-</table>
-<p>Image descriptions and directory/file summaries are both off by default. They
-are two independent subsystems — each has its own enable switch and its own
-wizard section:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[description]</span><span class="w">            </span><span class="c1"># vision LLM — one call per image</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpt-4o-mini&quot;</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="k">[summary]</span><span class="w">                </span><span class="c1"># text LLM — one call per directory (and optionally per file)</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai&quot;</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpt-4o-mini&quot;</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="w">               </span><span class="c1"># summarize directories (recursive, bottom-up)</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">             </span><span class="c1"># also summarize each individual file (~2x cost)</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">include_image_description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">  </span><span class="c1"># fold image-description text into directory summaries</span>
-</code></pre></div>
-<p>Configure them with their own wizard sections:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>description<span class="w">   </span><span class="c1"># images</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>summary<span class="w">       </span><span class="c1"># directories / files</span>
-</code></pre></div>
-<p>The <code>description</code> section writes only <code>[description]</code>; the <code>summary</code> section
-writes only <code>[summary]</code>. You can also set <code>MFS_SUMMARY_ENABLED</code> in the server
-environment to turn directory summaries on; truthy values are <code>1</code>, <code>true</code>,
-<code>yes</code>, and <code>on</code>.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Image indexing is gated by <code>[description].enabled</code>: indexable image objects
-use the configured provider to produce <code>vlm_description</code> chunks when the call
-succeeds. <code>summary.include_image_description</code> only controls whether cached
-image-description text is folded into directory-summary input.</p>
-</div>
-<h2 id="conversion-and-processing">Conversion and Processing<a class="headerlink" href="#conversion-and-processing" title="Permanent link">&para;</a></h2>
-<p>Framework conversion uses MarkItDown by default:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">[conversion]</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">default</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;markitdown&quot;</span>
-</code></pre></div>
-<p>The framework converter path is used for these file-form document extensions:
-<code>.pdf</code>, <code>.docx</code>, <code>.doc</code>, <code>.pptx</code>, <code>.ppt</code>, <code>.xlsx</code>, <code>.xls</code>, <code>.html</code>, and
-<code>.htm</code>. Web crawler HTML-to-markdown conversion is connector-specific and does
-not use this framework converter path.</p>
-<pre class="mermaid"><code>flowchart LR
-  source["Object bytes or records"]
-  classify["Connector object kind"]
-  convert["MarkItDown conversion&lt;br/&gt;for configured document extensions"]
-  text["Text, code, rows, records,&lt;br/&gt;or message threads"]
-  vlm["Image description&lt;br/&gt;through VLM provider"]
-  chunks["Search chunks&lt;br/&gt;body / row_text / thread_aggregate&lt;br/&gt;directory_summary / schema_summary / vlm_description"]
-  embed["Embedding provider"]
-  index["Milvus dense vectors&lt;br/&gt;plus BM25 content"]
-  artifacts["Artifact cache&lt;br/&gt;converted_md / head_cache"]
-  txcache["Transformation cache&lt;br/&gt;embedding / vlm / summary"]
-
-  source --&gt; classify
-  classify --&gt; convert --&gt; chunks
-  classify --&gt; text --&gt; chunks
-  classify --&gt; vlm --&gt; chunks
-  convert --&gt; artifacts
-  chunks --&gt; embed
-  embed --&gt; index
-  convert --&gt; txcache
-  vlm --&gt; txcache
-  embed --&gt; txcache</code></pre>
-<table>
-<thead>
-<tr>
-<th>Input kind</th>
-<th>Processing path</th>
-<th>Search chunk kind</th>
-<th>Cache or artifact</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Text, code, markdown, plain documents</td>
-<td>Read text, split into chunks, embed</td>
-<td><code>body</code></td>
-<td>Embedding results in the transformation cache</td>
-</tr>
-<tr>
-<td>Documents with converter extensions</td>
-<td>Convert to markdown, split, embed</td>
-<td><code>body</code></td>
-<td><code>converted_md</code> artifact plus convert and embedding cache entries</td>
-</tr>
-<tr>
-<td>Structured rows or record collections</td>
-<td>Render configured text fields, embed each record</td>
-<td><code>row_text</code></td>
-<td><code>head_cache</code> artifact for fast <code>head</code>; embedding cache entries</td>
-</tr>
-<tr>
-<td>Message streams</td>
-<td>Aggregate messages by thread, split long threads, embed</td>
-<td><code>thread_aggregate</code></td>
-<td>Embedding cache entries</td>
-</tr>
-<tr>
-<td>Table schemas, when summary is enabled</td>
-<td>Summarize schema, embed summary</td>
-<td><code>schema_summary</code></td>
-<td>Summary and embedding cache entries</td>
-</tr>
-<tr>
-<td>Directories, when summary is enabled</td>
-<td>Build bottom-up directory summaries, embed summaries</td>
-<td><code>directory_summary</code></td>
-<td>Summary and embedding cache entries</td>
-</tr>
-<tr>
-<td>Images</td>
-<td>Generate an image description through the configured VLM provider, then embed it</td>
-<td><code>vlm_description</code></td>
-<td><code>vlm_text</code> artifact plus VLM and embedding cache entries</td>
-</tr>
-</tbody>
-</table>
-<p>The transformation cache is content-addressed by input hash, kind, provider,
-model, and version. Losing it causes recomputation. The artifact cache stores
-derived per-object blobs such as converted markdown and image-description text.
-For how these chunks appear as <code>source</code>, <code>locator</code>, <code>metadata.chunk_kind</code>, and
-<code>metadata.fields</code>, see <a href="../search-and-browse/#locate-exact-hits">Search and browse</a>.</p>
-<h2 id="where-provider-errors-show-up">Where Provider Errors Show Up<a class="headerlink" href="#where-provider-errors-show-up" title="Permanent link">&para;</a></h2>
-<p>Hosted provider SDKs and credentials are loaded lazily. Local downloadable
-embedding providers (<code>onnx</code> and <code>local</code>) are preloaded by <code>mfs-server run</code> and
-<code>mfs-server worker</code>, so missing dependencies or failed downloads stop startup
-before the service begins accepting work.</p>
-<table>
-<thead>
-<tr>
-<th>Operation</th>
-<th>Provider used</th>
-<th>Failure surface</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>mfs-server setup --section embedding</code></td>
-<td>Selected embedding provider</td>
-<td>Dimension probe can fail; install the extra, export credentials, start local services, or enter a verified dimension manually.</td>
-</tr>
-<tr>
-<td><code>mfs-server run</code> / <code>mfs-server worker</code></td>
-<td><code>onnx</code> or <code>local</code> embedding provider</td>
-<td>Startup blocks while the model is loaded or downloaded; failure stops the process.</td>
-</tr>
-<tr>
-<td><code>mfs add ...</code> indexing</td>
-<td>Embedding provider, and summary/VLM provider when those features are enabled</td>
-<td><code>mfs job show JOB_ID</code>, <code>mfs connector inspect TARGET</code>, and the provider-related codes in <a href="../troubleshooting/#canonical-error-codes">Troubleshooting</a>.</td>
-</tr>
-<tr>
-<td><code>mfs search QUERY PATH --mode semantic</code></td>
-<td>Embedding provider for the query vector</td>
-<td>Search can fail if the selected embedding provider is unavailable.</td>
-</tr>
-<tr>
-<td><code>mfs search QUERY PATH --mode hybrid</code></td>
-<td>Embedding provider for the dense half plus Milvus BM25 for the keyword half</td>
-<td>Hybrid search can fail before querying Milvus if query embedding fails.</td>
-</tr>
-<tr>
-<td><code>mfs search QUERY PATH --mode keyword</code></td>
-<td>No embedding provider for the query</td>
-<td>Useful when the embedding provider is unavailable but indexed BM25 content exists.</td>
-</tr>
-</tbody>
-</table>
-<p>For provider auth, quota, repeated retry, and circuit-breaker recovery, see
-<a href="../troubleshooting/#canonical-error-codes">Troubleshooting</a>.</p>
+<h1 id="integrations">Integrations<a class="headerlink" href="#integrations" title="Permanent link">&para;</a></h1>
+<p>MFS is a retrieval layer, not a destination. This section is the ecosystem hub:
+<strong>apps built on top of MFS</strong>, and <strong>adapters that plug MFS into the AI frameworks
+you already use</strong>.</p>
+<p>There are two kinds of pages here:</p>
+<ul>
+<li><strong>Apps on MFS</strong> — runnable reference apps that use MFS as their searchable
+  Memory.<ul>
+<li><a href="open-tag/">Open Tag</a> — a Claude Tag-style Slack tag-in bot.</li>
+</ul>
+</li>
+<li><strong>Frameworks</strong> — drop MFS into an existing agent / RAG stack.<ul>
+<li><a href="langchain/">LangChain</a> — MFS as a <code>Retriever</code> and a tool.</li>
+<li><a href="langgraph/">LangGraph</a> — MFS as a retrieval node in a graph.</li>
+</ul>
+</li>
+</ul>
+<h2 id="why-integrations-are-thin">Why integrations are thin<a class="headerlink" href="#why-integrations-are-thin" title="Permanent link">&para;</a></h2>
+<p>Everything MFS exposes is a small, stable surface, so an adapter is usually a
+dozen lines, not a package:</p>
+<ul>
+<li><strong>One HTTP control plane</strong> (<code>/v1</code>) and two generated clients — see
+  <a href="../sdks/">SDKs</a> and the <a href="../api/">HTTP API</a>.</li>
+<li><strong>One search call</strong> over every connected source at once: hybrid (dense + BM25)
+  ranking, returned as a flat list of hits.</li>
+<li><strong>A uniform hit shape</strong> — each result carries <code>source</code>, a <code>content</code> snippet, a
+  <code>score</code>, and a <code>locator</code> that reopens the exact unit (a line range for
+  code/docs, a primary-key dict for a row / issue / chat thread).</li>
+</ul>
+<p>So a framework adapter is just a mapping: a search hit becomes whatever that
+framework calls a retrieved chunk (a LangChain <code>Document</code>, a tool result, …),
+and the <code>locator</code> lets you fetch the full unit with <code>cat</code> when a snippet is not
+enough.</p>
+<h2 id="what-you-get-over-a-single-vector-store">What you get over a single vector store<a class="headerlink" href="#what-you-get-over-a-single-vector-store" title="Permanent link">&para;</a></h2>
+<p>The usual setup wires one vector store over one folder, and re-indexes per app.
+MFS inverts that: it owns ingest and indexing across <strong>all</strong> your sources —
+code, docs, Slack, Postgres, Jira, S3, … — behind one query. An adapter gives
+the framework a <strong>single retriever over everything</strong>, self-hosted, with no
+per-app re-indexing. Add a source once in MFS and every integration sees it.</p>
 
 
 
