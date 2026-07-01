@@ -74,7 +74,11 @@ Notes:
 
 - **Queue ① is durable.** `ObjectTask` rows sit in the metadata database, so a
   worker crash never loses pending work. Workers claim by `(priority ASC,
-  started_at ASC)`.
+  started_at ASC)`. `priority` defaults to the connector's own bucketing (e.g.
+  the file connector's entrypoint/src/tests/generated heuristic) but a user
+  `[[objects]] priority` match overrides it — see
+  [Connectors](connectors.md#processing-order-within-a-connector). This orders
+  work only within one connector's own sync job, not across connectors.
 - **The Producer pool is okind-dispatched.** `select_producer(okind, ctx)` maps
   the eight object kinds (`document`, `code`, `text_blob`, `image`,
   `message_stream`, `table_rows`, `record_collection`, `table_schema`) onto five

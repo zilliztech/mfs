@@ -271,6 +271,7 @@ User wants to change a registered connector — new token, different
    | Cap on per-object chunks | `chunk_max` |
    | Which columns to embed (DB / SaaS) | `[[objects]] text_fields` |
    | Make a previously-indexed object stop indexing | `[[objects]] indexable = false` |
+   | Process some objects before others in this sync | `[[objects]] priority` (lower = earlier; doesn't affect ordering across different connectors) |
 
    See `reference/connectors/<scheme>.md` for the full field list.
 
@@ -293,6 +294,7 @@ User wants to change a registered connector — new token, different
 | `text_fields` (which columns become content) | yes, with `--force-index` (see below) |
 | `embedding.*` in server config | yes (and affects ALL connectors) |
 | `[[objects]] indexable = false` | drops that object from index |
+| `[[objects]] priority` | no — only changes processing order for objects enumerated in a future sync, not already-succeeded ones |
 
 **Applying a `text_fields` change to existing objects needs
 `mfs add <uri> --force-index`.** A plain `mfs connector update` saves the new
