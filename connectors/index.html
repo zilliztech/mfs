@@ -1008,6 +1008,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="[[objects]] for structured rows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#processing-order-within-a-connector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing order within a connector
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2500,6 +2517,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="[[objects]] for structured rows">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#processing-order-within-a-connector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing order within a connector
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2792,12 +2826,22 @@ searchable text and which key reopens an exact record:</p>
 Gmail, Discord, Feishu) ship presets, so <code>[[objects]]</code> is optional there — use it
 only to override the default fields. See <a href="../search-and-browse/#locate-exact-hits">Search and browse</a>
 for how these become <code>content</code>, <code>locator</code>, and <code>metadata.fields</code> in a result.</p>
+<h3 id="processing-order-within-a-connector">Processing order within a connector<a class="headerlink" href="#processing-order-within-a-connector" title="Permanent link">&para;</a></h3>
+<p>Add <code>priority</code> to any <code>[[objects]]</code> block to change which of <em>that connector's own</em>
+objects get indexed first during a sync (lower runs earlier; unmatched objects keep the
+connector's own default order):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[[objects]]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">match</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;archive/**&quot;</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">priority</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">900</span><span class="w">   </span><span class="c1"># push a low-value subtree to the back of the queue</span>
+</code></pre></div>
+<p>This only reorders work inside one connector's sync job — it does not affect scheduling
+across different connectors running at the same time.</p>
 <h2 id="after-ingest">After ingest<a class="headerlink" href="#after-ingest" title="Permanent link">&para;</a></h2>
 <p>Every scheme answers the same commands:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing escalation&quot;</span><span class="w"> </span>zendesk://acme<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;rate limit retry policy&quot;</span><span class="w"> </span>--all
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>mfs<span class="w"> </span>tree<span class="w"> </span>postgres://prod-db<span class="w"> </span>-L<span class="w"> </span><span class="m">3</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>github://owner/repo/src/main.rs<span class="w"> </span>--range<span class="w"> </span><span class="m">100</span>:150
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;billing escalation&quot;</span><span class="w"> </span>zendesk://acme<span class="w"> </span>--top-k<span class="w"> </span><span class="m">10</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>mfs<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;rate limit retry policy&quot;</span><span class="w"> </span>--all
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>mfs<span class="w"> </span>tree<span class="w"> </span>postgres://prod-db<span class="w"> </span>-L<span class="w"> </span><span class="m">3</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>mfs<span class="w"> </span>cat<span class="w"> </span>github://owner/repo/src/main.rs<span class="w"> </span>--range<span class="w"> </span><span class="m">100</span>:150
 </code></pre></div>
 <p>See <a href="../search-and-browse/">Search and browse</a> for the retrieval loop.</p>
 

@@ -2633,7 +2633,11 @@ them with the same icons:</p>
 <ul>
 <li><strong>Queue ① is durable.</strong> <code>ObjectTask</code> rows sit in the metadata database, so a
   worker crash never loses pending work. Workers claim by <code>(priority ASC,
-  started_at ASC)</code>.</li>
+  started_at ASC)</code>. <code>priority</code> defaults to the connector's own bucketing (e.g.
+  the file connector's entrypoint/src/tests/generated heuristic) but a user
+  <code>[[objects]] priority</code> match overrides it — see
+  <a href="../connectors/#processing-order-within-a-connector">Connectors</a>. This orders
+  work only within one connector's own sync job, not across connectors.</li>
 <li><strong>The Producer pool is okind-dispatched.</strong> <code>select_producer(okind, ctx)</code> maps
   the eight object kinds (<code>document</code>, <code>code</code>, <code>text_blob</code>, <code>image</code>,
   <code>message_stream</code>, <code>table_rows</code>, <code>record_collection</code>, <code>table_schema</code>) onto five
