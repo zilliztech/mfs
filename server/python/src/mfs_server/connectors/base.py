@@ -231,6 +231,11 @@ class ObjectConfig:
     indexable: bool = True
     chunk_max: int = 1_000_000
     group_by: Optional[str] = None  # message_stream: override the auto-detected thread key
+    # Task processing order within THIS connector's own sync job — lower runs earlier
+    # (matches the file connector's built-in task_priority() bucket scale, e.g. -350 for
+    # entrypoints). None (default) means "no user override, use the connector's own
+    # task_priority()". Does not affect ordering across different connectors/jobs.
+    priority: Optional[int] = None
     # Optional Python str.format template applied per record before chunking.
     # Lets message presets render `alice: 部署炸了, 503 spike` instead of the
     # default labeled `text: 部署炸了, 503 spike`, which embeds better and

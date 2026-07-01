@@ -705,6 +705,9 @@ class Engine:
                         # 'explicit_only' (yielded events, e.g. upload) honor them
                         continue  # never-delete connectors (slack/gmail) keep the index
                     tid = uuid.uuid4().hex
+                    # a user [[objects]] `priority =` match overrides the connector's own
+                    # task_priority() default (e.g. file's README/tests/vendor buckets).
+                    user_priority = plugin.ctx.object_config_for(ch.uri).priority
                     await self.objects.insert_task(
                         tid,
                         job_id,
@@ -712,7 +715,7 @@ class Engine:
                         ch.uri,
                         ch.old_uri,
                         ch.kind,
-                        plugin.task_priority(ch),
+                        user_priority if user_priority is not None else plugin.task_priority(ch),
                     )
                     if ch.kind != "deleted":
                         # Accumulate the dir tree (okind passed in — no extra DB hit, §6.4.1).

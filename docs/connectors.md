@@ -151,6 +151,21 @@ Gmail, Discord, Feishu) ship presets, so `[[objects]]` is optional there — use
 only to override the default fields. See [Search and browse](search-and-browse.md#locate-exact-hits)
 for how these become `content`, `locator`, and `metadata.fields` in a result.
 
+### Processing order within a connector
+
+Add `priority` to any `[[objects]]` block to change which of *that connector's own*
+objects get indexed first during a sync (lower runs earlier; unmatched objects keep the
+connector's own default order):
+
+```toml
+[[objects]]
+match    = "archive/**"
+priority = 900   # push a low-value subtree to the back of the queue
+```
+
+This only reorders work inside one connector's sync job — it does not affect scheduling
+across different connectors running at the same time.
+
 ## After ingest
 
 Every scheme answers the same commands:
