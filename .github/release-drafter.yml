@@ -46,13 +46,17 @@ autolabeler:
   - label: 'breaking'
     title: ['/^.+!:/']
 
+# Small, frequent 0.4.x patch releases by default — a `feat:`-titled PR only earns
+# the 'feature' label (for changelog grouping), it does NOT bump minor on its own.
+# Bumping to a new minor (0.5.0) is a deliberate call: add the 'minor' label to the
+# PR by hand when a feature is big enough to warrant it.
 version-resolver:
   major:
     labels: ['breaking']
   minor:
-    labels: ['feature']
+    labels: ['minor']
   patch:
-    labels: ['fix', 'docs', 'chore', 'ci', 'refactor', 'test', 'style', 'perf', 'build', 'connector']
+    labels: ['feature', 'fix', 'docs', 'chore', 'ci', 'refactor', 'test', 'style', 'perf', 'build', 'connector']
   default: patch
 
 template: |
