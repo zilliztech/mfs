@@ -944,12 +944,20 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     return Ok(());
                 }
                 for j in v.as_array().unwrap_or(&vec![]) {
-                    println!(
+                    let status = j["status"].as_str().unwrap_or("?");
+                    print!(
                         "{:8}  {:10}  {}",
-                        j["status"].as_str().unwrap_or("?"),
+                        status,
                         j["op_kind"].as_str().unwrap_or("?"),
                         j["id"].as_str().unwrap_or("?")
                     );
+                    if status == "failed" {
+                        if let Some(err) = j["error"].as_str() {
+                            let snippet: String = err.chars().take(80).collect();
+                            print!("  — {snippet}");
+                        }
+                    }
+                    println!();
                 }
             }
             JobAction::Show { job_id } => {
