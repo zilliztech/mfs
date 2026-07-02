@@ -139,6 +139,35 @@ class CredentialService:
     _CONN_URI_RE = re.compile(r"[a-zA-Z][a-zA-Z0-9+.\-]*://[^/\s:@]+:[^/\s@]+@")
     _REDACTED = "<redacted: use credential_ref=env:VAR>"
 
+    # --- validate ---
+
+    @classmethod
+    def validate_no_plaintext_secrets(cls, value: Any, key_path: str = "") -> None:
+        """Recursively reject inline plaintext secrets BEFORE redact()/persistence.
+        A caller must supply credentials as env:VAR / file:/abs/path references; a
+        raw value under a secret-looking key (or an inline user:pass@host
+        connection string) is rejected outright rather than silently masked, so a
+        rebuild can never end up resolving a redaction placeholder as if it were a
+        real credential. Mirrors redact()'s detection surface exactly."""
+        if isinstance(value, dict):
+            for k, v in value.items():
+                cls.validate_no_plaintext_secrets(v, f"{key_path}.{k}" if key_path else str(k))
+            return
+        if isinstance(value, list):
+            for v in value:
+                cls.validate_no_plaintext_secrets(v, key_path)
+            return
+        if not isinstance(value, str) or value in ("", None):
+            return
+        if value.startswith(cls._CRED_REF_PREFIXES):
+            return  # a safe credential reference
+        leaf_key = key_path.rsplit(".", 1)[-1] if key_path else ""
+        if cls.is_secret_key(leaf_key) or cls._CONN_URI_RE.search(value):
+            raise ValueError(
+                f"plaintext secret in config field {key_path!r}: use "
+                "credential_ref=env:VAR or file:/abs/path, not a literal value"
+            )
+
     # --- redact ---
 
     @classmethod
@@ -150,8 +179,12 @@ class CredentialService:
     def redact(cls, value: Any, key_is_secret: bool = False) -> Any:
         """Recursively redact raw inline secrets from a config before persistence.
         A credential_ref (env:/secret:/file:/vault:) is kept; anything else under a
-        secret-looking key is replaced. Recurses into dicts/lists so nested OAuth
-        token dicts don't leak. Verbatim migration of ``_redact_config``."""
+        secret-looking key is replaced with None (never a placeholder string a
+        plugin could mistake for a real value). Recurses into dicts/lists so nested
+        OAuth token dicts don't leak. Verbatim migration of ``_redact_config``,
+        except the placeholder is now None instead of a literal sentinel string —
+        callers should have already rejected plaintext secrets via
+        ``validate_no_plaintext_secrets``; this is defense-in-depth only."""
         if isinstance(value, dict):
             return {k: cls.redact(v, cls.is_secret_key(k)) for k, v in value.items()}
         if isinstance(value, list):
@@ -159,11 +192,11 @@ class CredentialService:
         if isinstance(value, str) and value.startswith(cls._CRED_REF_PREFIXES):
             return value  # a safe credential reference, keep as-is
         if key_is_secret and value not in (None, "", [], {}):
-            return cls._REDACTED
+            return None
         # value-level catch: an inline connection string carrying a password leaks
         # via a field name (dsn/uri/url/connection) that doesn't look secret — redact by shape.
         if isinstance(value, str) and cls._CONN_URI_RE.search(value):
-            return cls._REDACTED
+            return None
         return value
 
     # --- resolve ---
@@ -177,6 +210,14 @@ class CredentialService:
         a working ref and silently fail auth. Verbatim migration of ``_resolve_ref``."""
         if not isinstance(value, str):
             return value
+        if value == CredentialService._REDACTED:
+            # defense-in-depth: a pre-fix row (or any other path that still produced
+            # the old sentinel string) must never be resolved as a literal credential.
+            raise ValueError(
+                f"credential_ref {value!r}: this is a redaction placeholder, not a "
+                "real credential — re-register the connector with credential_ref=env:VAR "
+                "or file:/abs/path"
+            )
         if value.startswith("env:"):
             name = value[4:]
             if name not in os.environ:
@@ -366,6 +407,12 @@ class ConnectorFactory:
         return TargetResolution(ctype, connector_uri, scheme, cfg)
 
     # --- credentials (single security entry point) ---
+
+    def validate_credentials(self, config: Any) -> None:
+        """Reject plaintext secrets in a caller-supplied config before it is ever
+        redacted/persisted. Callers that register/update a connector MUST call
+        this before ``redact``."""
+        self._creds.validate_no_plaintext_secrets(config)
 
     def redact(self, config: Any) -> Any:
         """Recursively redact inline secrets before persistence.

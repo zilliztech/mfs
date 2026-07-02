@@ -553,6 +553,10 @@ class Engine:
     ) -> str:
         import json
 
+        # reject plaintext secrets outright — redact() is defense-in-depth, not the
+        # gate; a rejected literal here can never round-trip into a stored
+        # placeholder that a later rebuild mistakes for a real credential.
+        self.connector_factory.validate_credentials(config)
         stored = self.connector_factory.redact(config)
         row = await self.objects.get_connector_id_and_config_by_uri(connector_uri)
         if row:
