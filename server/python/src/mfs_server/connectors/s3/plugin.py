@@ -21,6 +21,7 @@ from ..base import (
     Capabilities,
     ConnectorPlugin,
     Entry,
+    HealthStatus,
     ObjectChange,
     ObjectKind,
     PathStat,
@@ -72,6 +73,30 @@ class S3Plugin(ConnectorPlugin):
         if self._cfg("endpoint_url"):  # R2 / GCS / MinIO
             kw["endpoint_url"] = self._cfg("endpoint_url")
         return kw
+
+    async def healthcheck(self) -> HealthStatus:
+        # The base default never opens a real connection, so a bad access
+        # key, wrong bucket, or unreachable endpoint would probe clean and
+        # only surface once a real sync ran and failed. Prefer
+        # list_objects_v2(MaxKeys=1) over head_bucket: verified against the
+        # real (currently-broken) test bucket that head_bucket collapses
+        # both "bad credentials" and "bucket doesn't exist" into an
+        # undifferentiated 403, while list_objects_v2 surfaces the actual
+        # error code (e.g. InvalidAccessKeyId) — same cost, better diagnostic.
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        bucket = self._bucket()
+        if not bucket:
+            return HealthStatus(ok=False, detail="no bucket configured")
+        try:
+            async with self._session().client("s3", **self._client_kwargs()) as s3:
+                await s3.list_objects_v2(Bucket=bucket, MaxKeys=1)
+        except ClientError as e:
+            code = e.response.get("Error", {}).get("Code", "?")
+            return HealthStatus(ok=False, detail=f"{bucket}: {code}")
+        except BotoCoreError as e:
+            return HealthStatus(ok=False, detail=f"network error reaching {bucket}: {e}")
+        return HealthStatus(ok=True, detail=f"bucket {bucket} reachable")
 
     def object_kind_of(self, path: str) -> ObjectKind:
         ext = os.path.splitext(path)[1].lower()

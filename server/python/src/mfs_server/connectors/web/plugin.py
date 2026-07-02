@@ -17,6 +17,7 @@ from ..base import (
     Capabilities,
     ConnectorPlugin,
     Entry,
+    HealthStatus,
     ObjectChange,
     ObjectKind,
     PathStat,
@@ -82,6 +83,33 @@ class WebPlugin(ConnectorPlugin):
     def _allowed(self, url: str) -> bool:
         domains = self._cfg("allowed_domains", []) or []
         return urlparse(url).netloc in domains if domains else True
+
+    async def healthcheck(self) -> HealthStatus:
+        # The base default never makes a request, so a seed URL excluded by
+        # allowed_domains (or simply unreachable) would probe clean and only
+        # surface once a real sync crawled zero pages. Run the same
+        # _allowed() gate sync() uses, then a cheap GET against one seed URL.
+        import aiohttp
+
+        start = list(self._cfg("start_urls", []) or [])
+        if not start:
+            return HealthStatus(ok=False, detail="no start_urls configured")
+        blocked = [u for u in start if not self._allowed(u)]
+        if blocked:
+            return HealthStatus(
+                ok=False,
+                detail=f"allowed_domains excludes {len(blocked)} of {len(start)} start_urls: {blocked[:3]}",
+            )
+        try:
+            async with aiohttp.ClientSession(headers={"User-Agent": "mfs-web/0.4"}) as sess:
+                async with sess.get(start[0], timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                    if resp.status >= 400:
+                        return HealthStatus(
+                            ok=False, detail=f"{start[0]} returned HTTP {resp.status}"
+                        )
+        except Exception as e:  # noqa: BLE001
+            return HealthStatus(ok=False, detail=f"network error reaching {start[0]}: {e}")
+        return HealthStatus(ok=True, detail=f"{len(start)} start_url(s) allowed, seed reachable")
 
     def object_kind_of(self, path: str) -> ObjectKind:
         return "document" if path.endswith(".md") else "directory"

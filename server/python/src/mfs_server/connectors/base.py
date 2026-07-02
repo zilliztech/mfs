@@ -484,8 +484,9 @@ class ConnectorPlugin(ABC):
         # only constructs an httpx.AsyncClient at connect() time will say
         # ok=True even with a 401 token until the first real call. Override
         # this with a cheap round-trip (GitHub /repos/{o}/{r}, Slack
-        # auth.test, etc.) when correctness matters for the probe UX. The
-        # github connector does; the rest currently inherit this default.
+        # auth.test, S3 head_bucket, etc.) when correctness matters for the
+        # probe UX. Most connectors do; check a given plugin's own file
+        # before assuming it still inherits this no-op.
         return HealthStatus(ok=True)
 
     async def introspect_for_wizard(self) -> dict[str, dict]:
