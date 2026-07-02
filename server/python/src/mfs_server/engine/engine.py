@@ -2381,6 +2381,12 @@ class Engine:
         cid, curi, rel, plugin = await self._open_path(path)
         scope_prefix = (curi + rel) if rel != "/" else None
         try:
+            # _open_path only resolves which connector owns the prefix, not whether
+            # `rel` exists under it -- unlike ls/cat, nothing downstream fails loudly
+            # for a missing path (pushdown/BM25/linear-scan all just yield zero
+            # matches). Stat it explicitly so a bad path 404s like ls/cat instead of
+            # looking like a real, empty search.
+            await plugin.stat(rel)
             results: list[dict] = []
             # 2a connector grep pushdown: exact, source-side (e.g.
             # SQL ILIKE for structured connectors). Returns None when unsupported.
