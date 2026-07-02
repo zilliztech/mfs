@@ -549,10 +549,19 @@ class Engine:
         return CredentialService.redact(value, key_is_secret)
 
     async def register_or_get_connector(
-        self, connector_uri: str, ctype: str, config: dict, overwrite_config: bool = False
+        self,
+        connector_uri: str,
+        ctype: str,
+        config: dict,
+        overwrite_config: bool = False,
+        config_explicit: bool = True,
     ) -> str:
         import json
 
+        # reject plaintext secrets outright — redact() is defense-in-depth, not the
+        # gate; a rejected literal here can never round-trip into a stored
+        # placeholder that a later rebuild mistakes for a real credential.
+        self.connector_factory.validate_credentials(config)
         stored = self.connector_factory.redact(config)
         row = await self.objects.get_connector_id_and_config_by_uri(connector_uri)
         if row:
@@ -567,6 +576,13 @@ class Engine:
             new_json = json.dumps(stored, sort_keys=True)
             old_json = row["config_json"] or "{}"
             drift = _normalize_json(new_json) != _normalize_json(old_json)
+            if drift and not config_explicit:
+                # --config was omitted entirely: `config` here is just a URI-derived
+                # default, not something the caller asked for. Persisting it would
+                # silently drop the real stored config (credentials, schemas,
+                # [[objects]] mappings) with zero warning — refuse instead of
+                # guessing. Nothing has been written yet at this point.
+                raise ValueError("config_required")
             if overwrite_config or drift:
                 await self.objects.update_connector_config(row["id"], json.dumps(stored))
                 if drift and not overwrite_config:
@@ -630,7 +646,11 @@ class Engine:
         cfg_dict = {**default_config, **config} if config is not None else default_config
         existing_connector = await self.objects.get_connector_id_by_uri(connector_uri)
         cid = await self.register_or_get_connector(
-            connector_uri, ctype, cfg_dict, overwrite_config=update_config
+            connector_uri,
+            ctype,
+            cfg_dict,
+            overwrite_config=update_config,
+            config_explicit=config is not None,
         )
         row0 = await self.objects.get_connector_config_and_status(cid)
         if row0 and row0["status"] == "removing":
@@ -1023,12 +1043,18 @@ class Engine:
     # --- standalone worker: poll DB queue, process queued jobs ---
     async def cancel_job(self, job_id: str) -> bool:
         """Cancel a job: mark it + its pending/running tasks cancelled. A running
-        worker stops at the next per-object boundary (checked in _run_job)."""
+        worker stops at the next per-object boundary (checked in _run_job). That
+        boundary is between objects, not within one -- a single large object already
+        mid-embed keeps running regardless, so also tell the embed consumer so its
+        NEXT flush (not the one already in flight) skips this job's chunks instead
+        of spending real embed time on work that will never be written."""
         status = await self.objects.get_job_status(job_id)
         if not status or status in ("succeeded", "failed", "cancelled"):
             return False
         await self.objects.cancel_pending_running_tasks_for_job(job_id)
         await self.objects.cancel_job_row(job_id)
+        if self._embed_consumer is not None:
+            self._embed_consumer.mark_job_cancelled(job_id)
         return True
 
     async def _claim_queued_job(self) -> dict | None:
@@ -1719,11 +1745,30 @@ class Engine:
         object_prefix = (connector_uri + rel) if rel not in ("", "/") else None
         return connector_uri, object_prefix
 
+    async def _resolve_readonly_config(
+        self, connector_uri: str, config: dict | None, default_config: dict
+    ) -> dict:
+        """Config resolution shared by probe()/estimate(). When `--config` is
+        omitted, reuse an already-registered connector's stored config (as
+        inspect() does) instead of silently falling back to a URI-derived
+        default — for schemes where the URI alone can't reconstruct real
+        connection info (postgres/mysql/mongo/s3/web), that default is `{}`,
+        which produces a connection to nothing meaningful (e.g. postgres
+        falling through to libpq's OS-user ambient defaults) while still
+        reporting a real-looking failure, misleading the caller into thinking
+        their actual registered connector is broken."""
+        if config is not None:
+            return {**default_config, **config}
+        row = await self.objects.get_connector_id_and_config_by_uri(connector_uri)
+        if row and row["config_json"]:
+            return json.loads(row["config_json"])
+        return default_config
+
     # --- connector management: probe / inspect / remove ---
     async def probe(self, target: str, config: dict | None = None) -> dict:
         """Try-connect a connector without registering or writing state."""
         _, connector_uri, ctype, default_config = self._resolve_target(target)
-        cfg_dict = {**default_config, **config} if config is not None else default_config
+        cfg_dict = await self._resolve_readonly_config(connector_uri, config, default_config)
         plugin = None
         try:
             # Build inside the guard: _build_plugin resolves credential refs (_resolve_ref),
@@ -1762,7 +1807,7 @@ class Engine:
         from ..processors.text import chunk_body
 
         _, connector_uri, ctype, default_config = self._resolve_target(target)
-        cfg_dict = {**default_config, **config} if config is not None else default_config
+        cfg_dict = await self._resolve_readonly_config(connector_uri, config, default_config)
         tmp_cid = "estimate-" + uuid.uuid4().hex
         plugin, _ = self._build_plugin(ctype, cfg_dict, tmp_cid)
         await plugin.connect()
@@ -2377,6 +2422,12 @@ class Engine:
         cid, curi, rel, plugin = await self._open_path(path)
         scope_prefix = (curi + rel) if rel != "/" else None
         try:
+            # _open_path only resolves which connector owns the prefix, not whether
+            # `rel` exists under it -- unlike ls/cat, nothing downstream fails loudly
+            # for a missing path (pushdown/BM25/linear-scan all just yield zero
+            # matches). Stat it explicitly so a bad path 404s like ls/cat instead of
+            # looking like a real, empty search.
+            await plugin.stat(rel)
             results: list[dict] = []
             # 2a connector grep pushdown: exact, source-side (e.g.
             # SQL ILIKE for structured connectors). Returns None when unsupported.

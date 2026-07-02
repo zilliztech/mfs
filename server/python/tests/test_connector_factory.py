@@ -178,16 +178,16 @@ class TestRedact:
     def test_top_level_secret_keys_redacted(self):
         for k in ("password", "api_key", "refresh_token", "access_key", "client_secret"):
             out = CredentialService.redact({k: "shh"})
-            assert out[k] == CredentialService._REDACTED, k
+            assert out[k] is None, k
 
     def test_nested_dict_recursive(self):
         out = CredentialService.redact({"oauth": {"access_token": "t", "scope": "read"}})
-        assert out["oauth"]["access_token"] == CredentialService._REDACTED
+        assert out["oauth"]["access_token"] is None
         assert out["oauth"]["scope"] == "read"
 
     def test_list_recursive(self):
         out = CredentialService.redact({"tokens": [{"token": "t"}, {"id": 1}]})
-        assert out["tokens"][0]["token"] == CredentialService._REDACTED
+        assert out["tokens"][0]["token"] is None
         assert out["tokens"][1]["id"] == 1
 
     def test_env_file_refs_preserved(self):
@@ -201,7 +201,7 @@ class TestRedact:
 
     def test_value_level_connection_string_redacted(self):
         out = CredentialService.redact({"url": "postgres://u:p@host/db"})
-        assert out["url"] == CredentialService._REDACTED
+        assert out["url"] is None
 
     def test_plain_url_not_redacted(self):
         out = CredentialService.redact({"url": "https://example.com/path"})
@@ -220,9 +220,9 @@ class TestRedact:
 
     def test_unimplemented_scheme_under_secret_key_redacted(self):
         out = CredentialService.redact({"password": "secret:foo"})
-        assert out["password"] == CredentialService._REDACTED
+        assert out["password"] is None
         out2 = CredentialService.redact({"token": "vault:bar"})
-        assert out2["token"] == CredentialService._REDACTED
+        assert out2["token"] is None
 
 
 # ===========================================================================
@@ -262,6 +262,39 @@ class TestResolve:
 
     def test_no_prefix_passthrough(self):
         assert CredentialService.resolve("plain-value") == "plain-value"
+
+    def test_redaction_placeholder_rejected(self):
+        with pytest.raises(ValueError, match="redaction placeholder"):
+            CredentialService.resolve(CredentialService._REDACTED)
+
+
+# ===========================================================================
+# §7.1b CredentialService.validate_no_plaintext_secrets
+# ===========================================================================
+
+
+class TestValidateNoPlaintextSecrets:
+    def test_plaintext_secret_key_rejected(self):
+        with pytest.raises(ValueError, match="plaintext secret"):
+            CredentialService.validate_no_plaintext_secrets({"password": "shh"})
+
+    def test_plaintext_connection_string_rejected(self):
+        with pytest.raises(ValueError, match="plaintext secret"):
+            CredentialService.validate_no_plaintext_secrets({"uri": "postgres://u:p@host/db"})
+
+    def test_nested_plaintext_secret_rejected(self):
+        with pytest.raises(ValueError, match="plaintext secret"):
+            CredentialService.validate_no_plaintext_secrets({"oauth": {"access_token": "t"}})
+
+    def test_env_and_file_refs_accepted(self):
+        CredentialService.validate_no_plaintext_secrets({"password": "env:VAR", "key": "file:/p"})
+
+    def test_non_secret_plaintext_accepted(self):
+        CredentialService.validate_no_plaintext_secrets({"host": "db.example.com", "port": 5432})
+
+    def test_empty_values_accepted(self):
+        for v in (None, "", [], {}):
+            CredentialService.validate_no_plaintext_secrets({"password": v})
 
 
 # ===========================================================================

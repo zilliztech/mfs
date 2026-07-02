@@ -330,7 +330,7 @@ async def test_upsert_failure_drops_batch_and_finalizes_failed():
     c, embedder, milvus, tx = _consumer(batch_size=10, idle_ms=30)
     finals: list[tuple] = []
     c.register_on_succeeded(
-        lambda uri, job, count, partial, error: finals.append((uri, partial, error))
+        lambda uri, job, count, partial, error: finals.append((uri, count, partial, error))
     )
     milvus.upsert = AsyncMock(side_effect=RuntimeError("milvus write error"))
     q = make_chunks_q(10)
@@ -342,9 +342,87 @@ async def test_upsert_failure_drops_batch_and_finalizes_failed():
     await c.shutdown()
 
     assert len(finals) == 1
-    uri, partial, error = finals[0]
-    assert uri == "c://x/T" and partial is True and "RuntimeError" in error
+    uri, count, partial, error = finals[0]
+    # Bug C: chunk_count must reflect what actually persisted (nothing — the whole batch was
+    # dropped), never the attempted count.
+    assert uri == "c://x/T" and count == 0 and partial is True and "RuntimeError" in error
     assert c._pending == {} and c._task_errors == {}
+
+
+async def test_duplicate_chunk_id_within_batch_dedupes_and_both_tasks_succeed():
+    # Bug B: two chunks (from different tasks, but landing in the same flush) that hash to the
+    # same chunk_id must NOT crash the whole batch — dedupe by chunk_id (last-write-wins) before
+    # upsert, and both tasks still finalize successfully with the deduped count.
+    class _DedupingConsumer(EmbedConsumer):
+        def _build_row(self, env, chunk, vec):
+            row = super()._build_row(env, chunk, vec)
+            row["chunk_id"] = f"cid-{chunk.locator}"  # deliberately collide via shared locator
+            return row
+
+    embedder, milvus, tx = _mocks()
+    c = _DedupingConsumer(embedder, milvus, tx, batch_size=2, idle_ms=5000)
+    finals: dict[str, tuple] = {}
+    c.register_on_succeeded(
+        lambda uri, job, count, partial, error=None: finals.update({uri: (count, partial, error)})
+    )
+    q = make_chunks_q(2)
+    c.start(q)
+
+    # A and B each contribute one chunk with the SAME locator -> same chunk_id, same flush.
+    await q.put(_chunk_env("A", "content-a", locator="shared"))
+    await q.put(_chunk_env("B", "content-b", locator="shared"))  # triggers flush at batch_size=2
+    await q.put(_eot_env("A"))
+    await q.put(_eot_env("B"))
+    await c.shutdown()
+
+    assert milvus.upsert.call_count == 1
+    rows = milvus.upsert.call_args.args[0]
+    assert len(rows) == 1  # deduped down to one row
+    assert rows[0]["content"] == "content-b"  # last occurrence wins (B was appended after A)
+    assert rows[0]["chunk_id"] == "cid-shared"
+
+    # both tasks finalize successfully (no error), not failed — the batch was never dropped.
+    assert finals["c://x/A"][2] is None
+    assert finals["c://x/B"][2] is None
+    # only the single surviving (deduped) row is credited, and it was B's (last-write-wins).
+    assert finals["c://x/A"] == (0, False, None)
+    assert finals["c://x/B"] == (1, False, None)
+
+
+async def test_partial_success_then_failure_reports_only_successful_chunks():
+    # The most important Bug C case: a task spanning two flushes where the first succeeds (2
+    # chunks written) and the second fails (1 more chunk attempted) must finalize with
+    # chunk_count == 2 (only what actually persisted), not 3 (the attempted total).
+    c, embedder, milvus, tx = _consumer(batch_size=2, idle_ms=5000)
+    finals: dict[str, tuple] = {}
+    c.register_on_succeeded(
+        lambda uri, job, count, partial, error=None: finals.update({uri: (count, partial, error)})
+    )
+
+    upsert_calls = {"n": 0}
+
+    async def flaky_upsert(rows):
+        upsert_calls["n"] += 1
+        if upsert_calls["n"] == 2:
+            raise RuntimeError("milvus write error")
+
+    milvus.upsert = AsyncMock(side_effect=flaky_upsert)
+    q = make_chunks_q(2)
+    c.start(q)
+
+    # first flush (2 chunks) succeeds.
+    await q.put(_chunk_env("T", "a"))
+    await q.put(_chunk_env("T", "b"))
+    # second flush (1 more chunk, below batch_size) fails via the idle-timeout drain.
+    await q.put(_chunk_env("T", "c"))
+    await q.put(_eot_env("T"))
+    await c.shutdown()
+
+    assert upsert_calls["n"] == 2
+    count, partial, error = finals["c://x/T"]
+    assert count == 2  # only the first, successful flush's chunks
+    assert partial is True  # flagged partial by the dropped second batch
+    assert error is not None and "RuntimeError" in error
 
 
 async def test_on_task_retry_resets_per_task_state():
@@ -378,3 +456,54 @@ async def test_on_task_retry_resets_per_task_state():
     assert seen["c://x/T"] == (3, False)  # counts ONLY the retry's chunks, not 2+3
     assert milvus.delete_by_object.await_count == 2  # delete ran again on the retry's first chunk
     assert c._pending == {}
+
+
+async def test_mark_job_cancelled_skips_future_flush_without_embedding():
+    # `mfs job cancel` can't interrupt a batch_embed() call already in flight, but the NEXT
+    # flush for that job's chunks should skip the embed/upsert entirely (via the same
+    # _fail_batch path a real embed/Milvus failure uses) instead of burning embed time on
+    # work that will never be written -- and finalize the task failed, not wedge it.
+    c, embedder, milvus, tx = _consumer(batch_size=10, idle_ms=30)
+    finals: dict[str, tuple] = {}
+    c.register_on_succeeded(
+        lambda uri, job, count, partial, error: finals.update({uri: (count, partial, error)})
+    )
+    q = make_chunks_q(10)
+    c.start(q)
+
+    c.mark_job_cancelled("job1")  # T's job (default job="job1" in _chunk_env/_eot_env)
+    await q.put(_chunk_env("T", "a"))
+    await q.put(_chunk_env("T", "b"))
+    await q.put(_eot_env("T"))
+    await c.shutdown()
+
+    embedder.batch_embed.assert_not_awaited()  # never even tried to embed a cancelled job's chunks
+    milvus.upsert.assert_not_awaited()
+    count, partial, error = finals["c://x/T"]
+    assert count == 0 and partial is True and "job_cancelled" in error
+    assert c._pending == {} and c._task_errors == {}  # released, not leaked
+
+
+async def test_mark_job_cancelled_only_affects_that_job_not_others_in_same_batch():
+    # Two tasks from different jobs land in the SAME flush; cancelling one job must not
+    # affect the other's chunks, which should embed/upsert/finalize normally.
+    c, embedder, milvus, tx = _consumer(batch_size=10, idle_ms=30)
+    finals: dict[str, tuple] = {}
+    c.register_on_succeeded(
+        lambda uri, job, count, partial, error: finals.update({uri: (job, count, partial, error)})
+    )
+    q = make_chunks_q(10)
+    c.start(q)
+
+    c.mark_job_cancelled("job-cancelled")
+    await q.put(_chunk_env("T1", "a", job="job-cancelled"))
+    await q.put(_eot_env("T1", job="job-cancelled"))
+    await q.put(_chunk_env("T2", "b", job="job-active"))
+    await q.put(_eot_env("T2", job="job-active"))
+    await c.shutdown()
+
+    assert finals["c://x/T1"] == ("job-cancelled", 0, True, "RuntimeError: job_cancelled")
+    assert finals["c://x/T2"] == ("job-active", 1, False, None)
+    milvus.upsert.assert_awaited_once()  # only T2's row was ever written
+    (written_rows,), _ = milvus.upsert.call_args
+    assert len(written_rows) == 1  # T1's chunk never reached the embed/upsert call at all

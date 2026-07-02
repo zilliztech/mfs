@@ -101,6 +101,15 @@ def main(argv: list[str] | None = None) -> int:
 
         cfg = load_server_config(args.config)
         configure_logging()
+        from .. import __version__
+
+        # The startup log previously had no version string anywhere, so
+        # confirming which build is actually running required cross-checking
+        # `ps aux` against known install paths. This is semver only (no git
+        # commit — mfs-server's package build doesn't stamp one the way the
+        # Rust CLI's build.rs now does for `mfs --version`), but it is at
+        # least visible without leaving the log.
+        logger.info("mfs-server %s starting", __version__)
         _ensure_auth_token(cfg)
         host, _, port = args.bind.partition(":")
         app = create_app(cfg, preload_local_models=True)

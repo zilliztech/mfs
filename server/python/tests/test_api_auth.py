@@ -119,6 +119,69 @@ def test_search_rejects_unknown_query_params(tmp_path) -> None:
     }
 
 
+def test_search_rejects_unknown_kind(tmp_path) -> None:
+    cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
+    app = create_app(cfg)
+    client = TestClient(app)
+
+    response = client.get(
+        "/v1/search?q=needle&kind=totally_bogus_kind",
+        headers={"Authorization": "Bearer expected"},
+    )
+
+    assert response.status_code == 400
+    body = response.json()
+    assert body["code"] == "bad_request"
+    assert "totally_bogus_kind" in body["detail"]
+    assert "body" in body["detail"]  # valid kinds listed for guidance
+
+
+def test_search_rejects_empty_string_kind(tmp_path) -> None:
+    cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
+    app = create_app(cfg)
+    client = TestClient(app)
+
+    response = client.get(
+        "/v1/search?q=needle&kind=",
+        headers={"Authorization": "Bearer expected"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "bad_request"
+
+
+def test_search_rejects_valid_kind_with_stray_empty_segment(tmp_path) -> None:
+    cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
+    app = create_app(cfg)
+    client = TestClient(app)
+
+    response = client.get(
+        "/v1/search?q=needle&kind=body,",
+        headers={"Authorization": "Bearer expected"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "bad_request"
+
+
+def test_search_accepts_valid_kinds(tmp_path) -> None:
+    cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
+    app = create_app(cfg)
+
+    with TestClient(app) as client:
+        client.headers["Authorization"] = "Bearer expected"
+
+        single = client.get("/v1/search", params={"q": "needle", "kind": "body"})
+        multiple = client.get(
+            "/v1/search", params={"q": "needle", "kind": "body,directory_summary"}
+        )
+        omitted = client.get("/v1/search", params={"q": "needle"})
+
+    for response in (single, multiple, omitted):
+        assert response.status_code == 200
+        assert response.json() == {"results": []}
+
+
 def test_framework_http_errors_use_documented_envelope(tmp_path) -> None:
     cfg = ServerConfig(home=str(tmp_path), auth_token="expected").resolve_defaults()
     app = create_app(cfg)

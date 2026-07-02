@@ -115,8 +115,10 @@ class _Shutdown:
 _SHUTDOWN = _Shutdown()
 
 # Success hook: (task_uri, job_id, chunk_count, partial, error). chunk_count is the total number
-# of chunks received for the object; partial is True if any chunk's content was capped, the task
-# was truncated (EndOfTask.partial), or a flush dropped some of its chunks. error is None on a
+# of chunks actually persisted to Milvus for the object (credited only on a successful flush,
+# post-dedup — never on a chunk merely received, and never on a batch that failed and was
+# dropped); partial is True if any chunk's content was capped, the task was truncated
+# (EndOfTask.partial), or a flush dropped some of its chunks. error is None on a
 # clean finalize, or "<ExcType>: <msg>" when an embed/upsert flush failed for this task — the
 # callback uses it to record a failed status + last_error. Callers derive search_status from
 # these without the producer returning them inline (§6.1).
@@ -159,6 +161,15 @@ class EmbedConsumer:
         # task_id -> "<ExcType>: <msg>" recorded when a flush dropped this task's chunks, so
         # finalize can mark the object failed + attach last_error.
         self._task_errors: dict[str, str] = {}
+        # job_ids Engine.cancel_job() has told us about (§ mfs job cancel). A single object's
+        # chunks can span many flushes; the producer/object-boundary cancellation check
+        # (Engine._should_stop) only stops the NEXT object from starting, so a large single
+        # object already mid-flight here would otherwise keep burning embed CPU until it
+        # finishes regardless of cancellation. Checked once per flush (not per chunk), so this
+        # can't slow down the common (nothing-cancelled) path. Never explicitly pruned: job ids
+        # are unique per sync and cancellation is a rare, human-triggered action, so this can't
+        # meaningfully grow over a process's lifetime.
+        self._cancelled_jobs: set[str] = set()
 
         self._on_succeeded: list[SuccessCallback] = []
         self._q: Optional[asyncio.Queue] = None
@@ -238,6 +249,16 @@ class EmbedConsumer:
         self._meta.pop(task_id, None)
         self._task_errors.pop(task_id, None)
 
+    # --- cancellation ---
+    def mark_job_cancelled(self, job_id: str) -> None:
+        """Record a job as cancelled (called from Engine.cancel_job()) so the NEXT flush
+        skips embedding its already-queued chunks instead of spending real embed-API/CPU
+        time on work whose result will never be written. This can't make an in-flight
+        batch_embed() call return early -- that one batch still runs to completion -- but
+        it stops every batch after it, which is the realistic bound on how fast `mfs job
+        cancel` can actually take effect for a single large object still mid-flight."""
+        self._cancelled_jobs.add(job_id)
+
     # --- consume ---
     async def _consume(self, env: TaskEnvelope) -> None:
         payload = env.payload
@@ -256,9 +277,6 @@ class EmbedConsumer:
             await self._milvus.delete_by_object(env.connector_uri, env.task_uri)
             self._deleted.add(tid)
         self._pending[tid] = self._pending.get(tid, 0) + 1
-        self._count[tid] = (
-            self._count.get(tid, 0) + 1
-        )  # cumulative: every received chunk is written
         if chunk.partial:
             self._partial[tid] = True
         self._batch.append((env, chunk))
@@ -284,8 +302,22 @@ class EmbedConsumer:
         if not self._batch:
             return
         # No concurrent appender can grow it mid-flush: _flush only runs inside the single
-        # run() loop, so this snapshot IS the whole pending batch.
+        # run() loop, so this snapshot IS the whole pending batch. Claiming it (rather than
+        # just aliasing it) up front is safe for the same reason: nothing else touches
+        # self._batch while this coroutine is suspended on an await below.
         batch = self._batch
+        self._batch = []
+        if self._cancelled_jobs:
+            cancelled = [item for item in batch if item[0].job_id in self._cancelled_jobs]
+            if cancelled:
+                batch = [item for item in batch if item[0].job_id not in self._cancelled_jobs]
+                # Reuse the existing failure path rather than inventing new bookkeeping --
+                # cancellation was already called out as one of _fail_batch's intended
+                # triggers ("an OOM embed, a Milvus error, a cancellation") when that method
+                # was written; this is the first caller to actually exercise it that way.
+                await self._fail_batch(cancelled, RuntimeError("job_cancelled"))
+                if not batch:
+                    return
         try:
             # 1. tx_cache lookup for vectors, embed only the misses (§6.3), cache them back.
             keys = [self._cache_key(ch) for _, ch in batch]
@@ -301,7 +333,23 @@ class EmbedConsumer:
 
             # 2. one upsert for the whole (cross-task, cross-kind) batch — idempotent by
             #    chunk_id PK (§5.3 / §6.2). delete_by_object already ran per task on receipt.
-            rows = [self._build_row(env, ch, cached[keys[i]]) for i, (env, ch) in enumerate(batch)]
+            built = [
+                (env.task_id, self._build_row(env, ch, cached[keys[i]]))
+                for i, (env, ch) in enumerate(batch)
+            ]
+            # de-dupe by chunk_id (last-occurrence wins) so two chunks colliding on the same
+            # locator-derived id within one batch don't make Milvus reject the WHOLE batch —
+            # rows without a chunk_id (the base class's default _build_row, used directly in
+            # unit tests) skip this, since there is nothing to collide on.
+            if built and "chunk_id" in built[0][1]:
+                deduped: dict[str, tuple[str, dict]] = {}
+                for tid, row in built:
+                    deduped[row["chunk_id"]] = (tid, row)
+                built = list(deduped.values())
+            rows = [row for _, row in built]
+            # raw per-task counts across the WHOLE flush attempt (every chunk processed, dedup
+            # or not) — pending tracks "no longer queued for a future flush", true regardless
+            # of whether the row survived dedup or the upsert ultimately succeeds.
             counts: dict[str, int] = {}
             for env, _ in batch:
                 counts[env.task_id] = counts.get(env.task_id, 0) + 1
@@ -315,8 +363,15 @@ class EmbedConsumer:
             await self._fail_batch(batch, exc)
             return
 
-        # 3. write acked: clear the batch, then decrement pending and finalize.
+        # 3. write acked: clear the batch, credit chunk_count for what actually persisted
+        # (the deduped rows — not the raw per-task counts above), then decrement pending and
+        # finalize.
         self._batch = []
+        written: dict[str, int] = {}
+        for tid, _ in built:
+            written[tid] = written.get(tid, 0) + 1
+        for tid, n in written.items():
+            self._count[tid] = self._count.get(tid, 0) + n
         for tid, n in counts.items():
             self._pending[tid] = self._pending.get(tid, 0) - n
             await self._maybe_finalize(tid)

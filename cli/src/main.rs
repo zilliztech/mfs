@@ -6,7 +6,9 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::net::TcpStream;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 type CliResult<T> = Result<T, CliError>;
 
@@ -117,7 +119,11 @@ impl std::fmt::Display for CliError {
 }
 
 #[derive(Parser)]
-#[command(name = "mfs", version, about = "Multi-source File-like Search")]
+#[command(
+    name = "mfs",
+    version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("MFS_GIT_SHA"), ")"),
+    about = "Multi-source File-like Search"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -141,10 +147,10 @@ enum Cmd {
         #[arg(long, visible_alias = "full")]
         force_index: bool,
         /// Bundle + upload the tree to the server even on the same host (no shared fs)
-        #[arg(long)]
+        #[arg(long, conflicts_with = "no_upload")]
         upload: bool,
         /// Re-upload every file (skip the manifest diff) and force a full re-index
-        #[arg(long)]
+        #[arg(long, conflicts_with = "no_upload")]
         force_upload: bool,
         /// Never upload; have the server read the path itself (shared fs)
         #[arg(long)]
@@ -188,7 +194,7 @@ enum Cmd {
         /// Line range, 1-based half-open: `start:end` returns lines start..end-1
         /// (e.g. `--range 1:11` = first 10 lines). Matches `locator.lines` from
         /// search hits.
-        #[arg(long)]
+        #[arg(long, allow_hyphen_values = true)]
         range: Option<String>,
         #[arg(long)]
         meta: bool,
@@ -332,7 +338,10 @@ enum ServeAction {
         bind: String,
     },
     /// Is the local mfs-server running?
-    Status,
+    Status {
+        #[arg(long, default_value = "127.0.0.1:13619")]
+        bind: String,
+    },
     /// Tail the local server log
     Logs,
 }
@@ -420,10 +429,37 @@ fn is_remote(base: &str) -> bool {
     !(base.contains("127.0.0.1") || base.contains("localhost") || base.contains("[::1]"))
 }
 
+/// Extract the underlying filesystem path from a `file:///abs` or `file://local/abs`
+/// target, mirroring the slicing the server's FilePlugin.derive_target does for the
+/// same two forms. Returns None for a bare path or any other file:// identity (e.g.
+/// the file://<client_id> upload identity), which callers fall back to handling as-is.
+fn local_fs_path_from_target(target: &str) -> Option<String> {
+    if target.starts_with("file:///") {
+        return Some(target["file://".len()..].to_string());
+    }
+    if target.starts_with("file://local/") {
+        return Some(target["file://local".len()..].to_string());
+    }
+    None
+}
+
 fn remote_path(base: &str, path: &str) -> CliResult<String> {
+    // As with `add`'s target (see local_fs_path_from_target), a `file:///abs` or
+    // `file://local/abs` spelling of a local path is never itself a literal path on
+    // disk -- strip it before canonicalizing so path-scoping (search/grep/ls/cat/...)
+    // resolves it the same way the server's connector-matching does.
+    let fs_path = local_fs_path_from_target(path);
+    let canon_input = fs_path.as_deref().unwrap_or(path);
     if is_remote(base) {
-        if let Ok(abs) = std::fs::canonicalize(path) {
+        if let Ok(abs) = std::fs::canonicalize(canon_input) {
             return Ok(format!("file://{}{}", client_id()?, abs.to_string_lossy()));
+        }
+    } else if fs_path.is_some() {
+        // Rewrite to the canonical file://local<abs> identity so a URI-spelled path
+        // matches the connector's registered root_uri, which the server compares by
+        // raw string prefix for "://"-bearing scopes (no scheme normalization there).
+        if let Ok(abs) = std::fs::canonicalize(canon_input) {
+            return Ok(format!("file://local{}", abs.to_string_lossy()));
         }
     }
     Ok(path.to_string())
@@ -468,7 +504,9 @@ fn resolve_path_arg(
     base: &str,
     path: &str,
 ) -> CliResult<String> {
-    if let Ok(abs) = std::fs::canonicalize(path) {
+    let fs_path = local_fs_path_from_target(path);
+    let canon_input = fs_path.as_deref().unwrap_or(path);
+    if let Ok(abs) = std::fs::canonicalize(canon_input) {
         let abs_path = abs.to_string_lossy().to_string();
         if let Ok(status) = get(client, &format!("{base}/v1/status"), &[]) {
             if let Some(mapped) = uploaded_local_path_from_status(&status, &client_id()?, &abs_path)
@@ -561,6 +599,23 @@ fn profile_url_from_cfg(cfg: &ClientConfig) -> CliResult<Option<String>> {
     }
 }
 
+// reqwest's request builder errors out once the built URL/request-line exceeds an
+// internal length limit, and that error string echoes the whole value back --
+// dumping the entire (potentially huge) query into stderr/logs. Reject oversized
+// values up front with a short, actionable message instead.
+const MAX_QUERY_CHARS: usize = 8000;
+
+fn check_query_length(label: &str, code: &str, value: &str) -> CliResult<()> {
+    let len = value.chars().count();
+    if len > MAX_QUERY_CHARS {
+        return Err(CliError::new(
+            code,
+            format!("{label} too long ({len} chars, max {MAX_QUERY_CHARS})"),
+        ));
+    }
+    Ok(())
+}
+
 fn base_url() -> CliResult<String> {
     if let Ok(u) = std::env::var("MFS_API_URL") {
         if !u.is_empty() {
@@ -610,13 +665,18 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             no_upload,
             yes,
         } => {
-            let is_local = std::path::Path::new(target).exists();
+            // A file:///abs or file://local/abs target is exactly as local as the bare
+            // path it encodes -- resolve it the same way the server's FilePlugin does
+            // before checking existence, so spelling a local target as a URI doesn't
+            // wrongly trip the external-connector cost-estimate prompt below.
+            let fs_path = local_fs_path_from_target(target);
+            let is_local = std::path::Path::new(fs_path.as_deref().unwrap_or(target)).exists();
             // Make a bare/relative local path absolute CLIENT-side before sending: a
             // loopback server resolves a relative path against its OWN cwd (not the user's),
             // so `mfs add ./repo` would 500 with a server-side FileNotFoundError. Canonicalizing
             // to the stable file://local<abs> identity also keeps search/cat/remove consistent.
             let canon_target: String = if is_local {
-                std::fs::canonicalize(target)
+                std::fs::canonicalize(fs_path.as_deref().unwrap_or(target))
                     .map(|p| p.to_string_lossy().into_owned())
                     .unwrap_or_else(|_| target.clone())
             } else {
@@ -703,6 +763,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             kind,
             collapse,
         } => {
+            check_query_length("query", "query_too_long", query)?;
             if path.is_none() && !all {
                 return Err(
                     "specify a path to scope the search, or --all for the whole namespace".into(),
@@ -747,6 +808,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             }
         }
         Cmd::Grep { pattern, path } => {
+            check_query_length("pattern", "pattern_too_long", pattern)?;
             let v = get(
                 client,
                 &format!("{base}/v1/grep"),
@@ -826,7 +888,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             if *meta {
                 println!("{v}");
             } else {
-                println!("{}", v["content"].as_str().unwrap_or(""));
+                print!("{}", v["content"].as_str().unwrap_or(""));
             }
         }
         Cmd::Head { path, lines } => {
@@ -841,7 +903,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             if cli.json {
                 println!("{v}");
             } else {
-                println!("{}", v["content"].as_str().unwrap_or(""));
+                print!("{}", v["content"].as_str().unwrap_or(""));
             }
         }
         Cmd::Tail { path, lines } => {
@@ -856,7 +918,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             if cli.json {
                 println!("{v}");
             } else {
-                println!("{}", v["content"].as_str().unwrap_or(""));
+                print!("{}", v["content"].as_str().unwrap_or(""));
             }
         }
         Cmd::Export { path, out } => {
@@ -891,12 +953,20 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     return Ok(());
                 }
                 for j in v.as_array().unwrap_or(&vec![]) {
-                    println!(
+                    let status = j["status"].as_str().unwrap_or("?");
+                    print!(
                         "{:8}  {:10}  {}",
-                        j["status"].as_str().unwrap_or("?"),
+                        status,
                         j["op_kind"].as_str().unwrap_or("?"),
                         j["id"].as_str().unwrap_or("?")
                     );
+                    if status == "failed" {
+                        if let Some(err) = j["error"].as_str() {
+                            let snippet: String = err.chars().take(80).collect();
+                            print!("  — {snippet}");
+                        }
+                    }
+                    println!();
                 }
             }
             JobAction::Show { job_id } => {
@@ -1424,6 +1494,19 @@ where
     Ok(expanded)
 }
 
+fn validate_profile_url(url: &str) -> CliResult<()> {
+    let parsed = reqwest::Url::parse(url).map_err(|_| {
+        format!("invalid profile URL '{url}': must be a valid http:// or https:// URL")
+    })?;
+    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return Err(format!(
+            "invalid profile URL '{url}': must be a valid http:// or https:// URL"
+        )
+        .into());
+    }
+    Ok(())
+}
+
 fn profile_cmd(action: &ProfileAction, json: bool) -> CliResult<()> {
     let mut cfg = load_client_cfg()?;
     match action {
@@ -1431,6 +1514,7 @@ fn profile_cmd(action: &ProfileAction, json: bool) -> CliResult<()> {
             println!("{}", profile_list_output(&cfg, &base_url()?, json));
         }
         ProfileAction::Add { name, url, token } => {
+            validate_profile_url(url)?;
             cfg.profiles.insert(
                 name.clone(),
                 Profile {
@@ -1529,21 +1613,60 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
                     return Ok(());
                 }
             }
+            // Pre-flight: a pidfile only tracks processes this CLI itself
+            // launched. If something not tracked by the pidfile (started by
+            // hand, e.g. `uv run mfs-server run`) already holds `bind`, don't
+            // spawn a duplicate — it would sit for however long this
+            // build's startup takes (Milvus connect + embedding model
+            // preload; ~15-20s observed) before failing to bind and dying,
+            // during which `serve status` would misreport a healthy "running"
+            // for a doomed process while the real server is never touched.
+            if tcp_probe(bind, Duration::from_millis(500)) {
+                println!(
+                    "something is already listening on {bind}, but not a process this CLI launched (no matching pidfile). Not starting a second instance — if that server is stale, stop it manually first."
+                );
+                return Ok(());
+            }
             std::fs::create_dir_all(mfs_home()).map_err(|e| e.to_string())?;
             let log = std::fs::File::create(&log_file).map_err(|e| e.to_string())?;
             let log_err = log.try_clone().map_err(|e| e.to_string())?;
-            let child = std::process::Command::new("mfs-server")
+            let mut child = std::process::Command::new("mfs-server")
                 .args(["run", "--bind", bind])
                 .stdout(std::process::Stdio::from(log))
                 .stderr(std::process::Stdio::from(log_err))
                 .spawn()
                 .map_err(|e| format!("failed to spawn mfs-server: {e}"))?;
-            std::fs::write(&pid_file, child.id().to_string()).map_err(|e| e.to_string())?;
-            println!(
-                "started mfs-server (pid {}) on {bind}; logs: {}",
-                child.id(),
-                log_file.display()
-            );
+
+            // Don't declare success the instant spawn() returns — that only
+            // confirms fork/exec worked, not that the server ever became
+            // reachable. Poll for either a successful bind or the child
+            // exiting early, and report whichever actually happened.
+            let deadline = Instant::now() + Duration::from_secs(45);
+            loop {
+                if tcp_probe(bind, Duration::from_millis(300)) {
+                    std::fs::write(&pid_file, child.id().to_string()).map_err(|e| e.to_string())?;
+                    println!(
+                        "started mfs-server (pid {}) on {bind}; logs: {}",
+                        child.id(),
+                        log_file.display()
+                    );
+                    break;
+                }
+                if let Ok(Some(status)) = child.try_wait() {
+                    let tail = tail_lines(&log_file, 10);
+                    return Err(format!(
+                        "mfs-server exited during startup ({status}); last log lines:\n{tail}"
+                    ));
+                }
+                if Instant::now() >= deadline {
+                    return Err(format!(
+                        "mfs-server on {bind} did not become reachable within 45s (pid {} still running); check {}",
+                        child.id(),
+                        log_file.display()
+                    ));
+                }
+                std::thread::sleep(Duration::from_millis(500));
+            }
         }
         ServeAction::Stop => match read_pid(&pid_file) {
             Some(pid) => {
@@ -1560,13 +1683,43 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
                 let _ = std::process::Command::new("kill")
                     .arg(pid.to_string())
                     .status();
+                // `kill` only sends the signal — it doesn't wait for the
+                // process to actually exit. uvicorn's graceful shutdown
+                // takes a moment, and Start's new "refuse if the port is
+                // already occupied" pre-flight check would otherwise race
+                // against the still-closing old process and mistake it for
+                // a foreign server, refusing to start the replacement and
+                // leaving nothing running at all. Wait for either the pid
+                // to die or the port to free up before proceeding.
+                let deadline = Instant::now() + Duration::from_secs(10);
+                while pid_alive(pid) && tcp_probe(bind, Duration::from_millis(200)) {
+                    if Instant::now() >= deadline {
+                        let _ = std::process::Command::new("kill")
+                            .args(["-9", &pid.to_string()])
+                            .status();
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(200));
+                }
                 let _ = std::fs::remove_file(&pid_file);
             }
             return serve_cmd(&ServeAction::Start { bind: bind.clone() });
         }
-        ServeAction::Status => match read_pid(&pid_file) {
+        ServeAction::Status { bind } => match read_pid(&pid_file) {
             Some(pid) if pid_alive(pid) => println!("running (pid {pid})"),
-            _ => println!("not running"),
+            _ => {
+                // A dead/missing pidfile only means this CLI isn't tracking
+                // anything — it doesn't mean nothing is actually serving.
+                // Probe the port so this doesn't flatly contradict a server
+                // that's genuinely up but was started outside `mfs serve`.
+                if tcp_probe(bind, Duration::from_millis(500)) {
+                    println!(
+                        "not running (no pidfile match) — but something IS listening on {bind}, started outside `mfs serve`"
+                    );
+                } else {
+                    println!("not running");
+                }
+            }
         },
         ServeAction::Logs => {
             let s = std::fs::read_to_string(&log_file).unwrap_or_default();
@@ -1583,6 +1736,27 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// Cheap "is anything listening here" check — a plain TCP connect, not an
+/// HTTP/health call, so it works before we know if the answering process
+/// even speaks HTTP. Used to distinguish a real occupant of `bind` from
+/// "nothing here yet" without waiting out a full server startup.
+fn tcp_probe(bind: &str, timeout: Duration) -> bool {
+    let Ok(addr) = bind.parse() else { return false };
+    TcpStream::connect_timeout(&addr, timeout).is_ok()
+}
+
+fn tail_lines(path: &PathBuf, n: usize) -> String {
+    let s = std::fs::read_to_string(path).unwrap_or_default();
+    s.lines()
+        .rev()
+        .take(n)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn read_pid(p: &PathBuf) -> Option<u32> {
@@ -1642,6 +1816,41 @@ mod tests {
     fn write_file(path: &std::path::Path, content: &str) {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, content).unwrap();
+    }
+
+    #[test]
+    fn local_fs_path_from_target_strips_file_uri_forms() {
+        assert_eq!(
+            local_fs_path_from_target("file:///tmp/foo"),
+            Some("/tmp/foo".to_string())
+        );
+        assert_eq!(
+            local_fs_path_from_target("file://local/tmp/foo"),
+            Some("/tmp/foo".to_string())
+        );
+        assert_eq!(local_fs_path_from_target("/tmp/foo"), None);
+        assert_eq!(local_fs_path_from_target("file://cid-1/tmp/foo"), None);
+        assert_eq!(local_fs_path_from_target("postgres://db/x"), None);
+    }
+
+    #[test]
+    fn remote_path_normalizes_file_uri_forms_for_local_server() {
+        let dir = temp_tree("remote-path");
+        let dir_str = dir.to_string_lossy().to_string();
+        let base = "http://127.0.0.1:13619";
+        // bare path passes through unchanged -- the server abspath()s it itself.
+        assert_eq!(remote_path(base, &dir_str).unwrap(), dir_str);
+        // both file:// spellings of the SAME local path must resolve identically,
+        // to the canonical form the server's root_uri is registered under.
+        let want = format!("file://local{dir_str}");
+        assert_eq!(
+            remote_path(base, &format!("file://{dir_str}")).unwrap(),
+            want
+        );
+        assert_eq!(
+            remote_path(base, &format!("file://local{dir_str}")).unwrap(),
+            want
+        );
     }
 
     #[test]
@@ -1763,6 +1972,51 @@ mod tests {
             err.display_message(),
             "401 Unauthorized [unauthorized]: missing or invalid bearer token\n  try: set a profile token"
         );
+    }
+
+    #[test]
+    fn check_query_length_accepts_value_just_under_the_limit() {
+        let value = "a".repeat(MAX_QUERY_CHARS);
+        assert!(check_query_length("query", "query_too_long", &value).is_ok());
+    }
+
+    #[test]
+    fn check_query_length_rejects_oversized_search_query_without_echoing_it() {
+        let value = "a".repeat(100_000);
+        let err = check_query_length("query", "query_too_long", &value).unwrap_err();
+
+        assert_eq!(err.code, "query_too_long");
+        assert_eq!(err.detail, "query too long (100000 chars, max 8000)");
+        assert!(!err.detail.contains(&value));
+    }
+
+    #[test]
+    fn check_query_length_rejects_oversized_grep_pattern_without_echoing_it() {
+        let value = "a".repeat(100_000);
+        let err = check_query_length("pattern", "pattern_too_long", &value).unwrap_err();
+
+        assert_eq!(err.code, "pattern_too_long");
+        assert_eq!(err.detail, "pattern too long (100000 chars, max 8000)");
+        assert!(!err.detail.contains(&value));
+    }
+
+    #[test]
+    fn validate_profile_url_accepts_http_and_https() {
+        assert!(validate_profile_url("http://127.0.0.1:13619").is_ok());
+        assert!(validate_profile_url("https://mfs.example.com").is_ok());
+    }
+
+    #[test]
+    fn validate_profile_url_rejects_garbage_and_wrong_scheme() {
+        for bad in ["not a url at all", "", "ftp://wrong-scheme.example.com"] {
+            let err = validate_profile_url(bad).unwrap_err();
+            assert!(
+                err.detail
+                    .contains("must be a valid http:// or https:// URL"),
+                "unexpected error for {bad:?}: {}",
+                err.detail
+            );
+        }
     }
 
     #[test]
