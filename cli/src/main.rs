@@ -590,6 +590,23 @@ fn profile_url_from_cfg(cfg: &ClientConfig) -> CliResult<Option<String>> {
     }
 }
 
+// reqwest's request builder errors out once the built URL/request-line exceeds an
+// internal length limit, and that error string echoes the whole value back --
+// dumping the entire (potentially huge) query into stderr/logs. Reject oversized
+// values up front with a short, actionable message instead.
+const MAX_QUERY_CHARS: usize = 8000;
+
+fn check_query_length(label: &str, code: &str, value: &str) -> CliResult<()> {
+    let len = value.chars().count();
+    if len > MAX_QUERY_CHARS {
+        return Err(CliError::new(
+            code,
+            format!("{label} too long ({len} chars, max {MAX_QUERY_CHARS})"),
+        ));
+    }
+    Ok(())
+}
+
 fn base_url() -> CliResult<String> {
     if let Ok(u) = std::env::var("MFS_API_URL") {
         if !u.is_empty() {
@@ -737,6 +754,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             kind,
             collapse,
         } => {
+            check_query_length("query", "query_too_long", query)?;
             if path.is_none() && !all {
                 return Err(
                     "specify a path to scope the search, or --all for the whole namespace".into(),
@@ -781,6 +799,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             }
         }
         Cmd::Grep { pattern, path } => {
+            check_query_length("pattern", "pattern_too_long", pattern)?;
             let v = get(
                 client,
                 &format!("{base}/v1/grep"),
@@ -1846,6 +1865,32 @@ mod tests {
             err.display_message(),
             "401 Unauthorized [unauthorized]: missing or invalid bearer token\n  try: set a profile token"
         );
+    }
+
+    #[test]
+    fn check_query_length_accepts_value_just_under_the_limit() {
+        let value = "a".repeat(MAX_QUERY_CHARS);
+        assert!(check_query_length("query", "query_too_long", &value).is_ok());
+    }
+
+    #[test]
+    fn check_query_length_rejects_oversized_search_query_without_echoing_it() {
+        let value = "a".repeat(100_000);
+        let err = check_query_length("query", "query_too_long", &value).unwrap_err();
+
+        assert_eq!(err.code, "query_too_long");
+        assert_eq!(err.detail, "query too long (100000 chars, max 8000)");
+        assert!(!err.detail.contains(&value));
+    }
+
+    #[test]
+    fn check_query_length_rejects_oversized_grep_pattern_without_echoing_it() {
+        let value = "a".repeat(100_000);
+        let err = check_query_length("pattern", "pattern_too_long", &value).unwrap_err();
+
+        assert_eq!(err.code, "pattern_too_long");
+        assert_eq!(err.detail, "pattern too long (100000 chars, max 8000)");
+        assert!(!err.detail.contains(&value));
     }
 
     #[test]
