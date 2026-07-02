@@ -115,8 +115,10 @@ class _Shutdown:
 _SHUTDOWN = _Shutdown()
 
 # Success hook: (task_uri, job_id, chunk_count, partial, error). chunk_count is the total number
-# of chunks received for the object; partial is True if any chunk's content was capped, the task
-# was truncated (EndOfTask.partial), or a flush dropped some of its chunks. error is None on a
+# of chunks actually persisted to Milvus for the object (credited only on a successful flush,
+# post-dedup — never on a chunk merely received, and never on a batch that failed and was
+# dropped); partial is True if any chunk's content was capped, the task was truncated
+# (EndOfTask.partial), or a flush dropped some of its chunks. error is None on a
 # clean finalize, or "<ExcType>: <msg>" when an embed/upsert flush failed for this task — the
 # callback uses it to record a failed status + last_error. Callers derive search_status from
 # these without the producer returning them inline (§6.1).
@@ -256,9 +258,6 @@ class EmbedConsumer:
             await self._milvus.delete_by_object(env.connector_uri, env.task_uri)
             self._deleted.add(tid)
         self._pending[tid] = self._pending.get(tid, 0) + 1
-        self._count[tid] = (
-            self._count.get(tid, 0) + 1
-        )  # cumulative: every received chunk is written
         if chunk.partial:
             self._partial[tid] = True
         self._batch.append((env, chunk))
@@ -301,7 +300,23 @@ class EmbedConsumer:
 
             # 2. one upsert for the whole (cross-task, cross-kind) batch — idempotent by
             #    chunk_id PK (§5.3 / §6.2). delete_by_object already ran per task on receipt.
-            rows = [self._build_row(env, ch, cached[keys[i]]) for i, (env, ch) in enumerate(batch)]
+            built = [
+                (env.task_id, self._build_row(env, ch, cached[keys[i]]))
+                for i, (env, ch) in enumerate(batch)
+            ]
+            # de-dupe by chunk_id (last-occurrence wins) so two chunks colliding on the same
+            # locator-derived id within one batch don't make Milvus reject the WHOLE batch —
+            # rows without a chunk_id (the base class's default _build_row, used directly in
+            # unit tests) skip this, since there is nothing to collide on.
+            if built and "chunk_id" in built[0][1]:
+                deduped: dict[str, tuple[str, dict]] = {}
+                for tid, row in built:
+                    deduped[row["chunk_id"]] = (tid, row)
+                built = list(deduped.values())
+            rows = [row for _, row in built]
+            # raw per-task counts across the WHOLE flush attempt (every chunk processed, dedup
+            # or not) — pending tracks "no longer queued for a future flush", true regardless
+            # of whether the row survived dedup or the upsert ultimately succeeds.
             counts: dict[str, int] = {}
             for env, _ in batch:
                 counts[env.task_id] = counts.get(env.task_id, 0) + 1
@@ -315,8 +330,15 @@ class EmbedConsumer:
             await self._fail_batch(batch, exc)
             return
 
-        # 3. write acked: clear the batch, then decrement pending and finalize.
+        # 3. write acked: clear the batch, credit chunk_count for what actually persisted
+        # (the deduped rows — not the raw per-task counts above), then decrement pending and
+        # finalize.
         self._batch = []
+        written: dict[str, int] = {}
+        for tid, _ in built:
+            written[tid] = written.get(tid, 0) + 1
+        for tid, n in written.items():
+            self._count[tid] = self._count.get(tid, 0) + n
         for tid, n in counts.items():
             self._pending[tid] = self._pending.get(tid, 0) - n
             await self._maybe_finalize(tid)
