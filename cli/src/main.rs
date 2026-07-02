@@ -1034,16 +1034,23 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     body["config"] = load_config_file(c)?;
                 }
                 let v = post(client, &format!("{base}/v1/connectors/probe"), &body)?;
+                let ok = v["ok"].as_bool().unwrap_or(false);
                 if cli.json {
                     println!("{v}");
-                    return Ok(());
+                } else {
+                    println!(
+                        "{}  ok={}  {}",
+                        v["type"].as_str().unwrap_or("?"),
+                        ok,
+                        v["detail"].as_str().unwrap_or("")
+                    );
                 }
-                println!(
-                    "{}  ok={}  {}",
-                    v["type"].as_str().unwrap_or("?"),
-                    v["ok"].as_bool().unwrap_or(false),
-                    v["detail"].as_str().unwrap_or("")
-                );
+                if !ok {
+                    use std::io::Write;
+                    std::io::stdout().flush().ok();
+                    std::process::exit(1);
+                }
+                return Ok(());
             }
             ConnectorAction::List => {
                 let v = get(client, &format!("{base}/v1/status"), &[])?;
