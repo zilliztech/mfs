@@ -92,6 +92,8 @@ space.
 | Mirage | Yes | — | Yes | — |
 | CocoIndex | Yes | — | — | Yes |
 | LlamaCloud | Yes | Yes | — | Yes |
+| Onyx (Danswer) | Yes | Yes | — | Yes |
+| deep-searcher | Partial | — | — | Partial |
 
 *Yes · Partial · — (not a focus of that tool).* Only MFS fills every column — and
 it's the only one that pairs hybrid search *with* file-like browse. See
