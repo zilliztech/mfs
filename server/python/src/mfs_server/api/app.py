@@ -555,6 +555,13 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
                 loc = _json.loads(locator)
             except ValueError:
                 raise HTTPException(400, "invalid locator JSON")
+            # A syntactically valid JSON value that isn't an object (array, number,
+            # string, bool, or null) can never match a record's locator_fields --
+            # reject it as malformed rather than letting eng().cat() either crash
+            # on non-dict.get()/`in` or (for null) silently fall through to the
+            # "no locator given" path, which would hide a real client-side bug.
+            if not isinstance(loc, dict):
+                raise HTTPException(400, "invalid locator JSON")
         try:
             out = await eng().cat(path, range=rg, meta=meta, density=density, locator=loc)
         except IsADirectoryError:
