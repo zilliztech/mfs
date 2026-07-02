@@ -2871,7 +2871,9 @@ short confirmation.</p>
 <a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="p">}</span>
 </code></pre></div>
 <p><code>via</code> can identify how grep found the match, for example pushdown, BM25, linear
-scan, or a notice.</p>
+scan, or a notice. A <code>bm25</code> match is keyword-based, not an exact-literal or
+regex match — expect token-level matching rather than character-for-character
+matches on database-backed sources.</p>
 <h2 id="reopen-file-like-hits">Reopen File-Like Hits<a class="headerlink" href="#reopen-file-like-hits" title="Permanent link">&para;</a></h2>
 <p>Text, code, and document chunks use a line locator:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span><span class="nt">&quot;lines&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="mi">78</span><span class="p">]}</span>
