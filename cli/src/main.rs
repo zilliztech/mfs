@@ -630,6 +630,15 @@ fn base_url() -> CliResult<String> {
 }
 
 fn main() {
+    // Rust ignores SIGPIPE by default, so a write to a closed pipe (`mfs ... |
+    // head`) surfaces as a panic instead of the quiet, short-write termination
+    // every other Unix CLI gets. Restore the default disposition before any I/O
+    // runs so a broken pipe just ends the process, like `cat`/`grep` do.
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+
     let cli = Cli::parse();
     let client = reqwest::blocking::Client::new();
     let base = match base_url() {
@@ -1098,7 +1107,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                 }
             }
         },
-        Cmd::Serve { action } => return serve_cmd(action).map_err(Into::into),
+        Cmd::Serve { action } => return serve_cmd(action, cli.json).map_err(Into::into),
     }
     Ok(())
 }
@@ -1602,7 +1611,7 @@ fn profile_list_output(cfg: &ClientConfig, endpoint: &str, json: bool) -> String
         .join("\n")
 }
 
-fn serve_cmd(action: &ServeAction) -> Result<(), String> {
+fn serve_cmd(action: &ServeAction, json: bool) -> Result<(), String> {
     let pid_file = mfs_home().join("server.pid");
     let log_file = mfs_home().join("server.log");
     match action {
@@ -1703,7 +1712,7 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
                 }
                 let _ = std::fs::remove_file(&pid_file);
             }
-            return serve_cmd(&ServeAction::Start { bind: bind.clone() });
+            return serve_cmd(&ServeAction::Start { bind: bind.clone() }, json);
         }
         ServeAction::Status { bind } => match read_pid(&pid_file) {
             Some(pid) if pid_alive(pid) => println!("running (pid {pid})"),
@@ -1723,15 +1732,23 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
         },
         ServeAction::Logs => {
             let s = std::fs::read_to_string(&log_file).unwrap_or_default();
-            for l in s
+            let lines: Vec<&str> = s
                 .lines()
                 .rev()
                 .take(40)
                 .collect::<Vec<_>>()
                 .into_iter()
                 .rev()
-            {
-                println!("{l}");
+                .collect();
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string(&lines).unwrap_or_else(|_| "[]".to_string())
+                );
+            } else {
+                for l in lines {
+                    println!("{l}");
+                }
             }
         }
     }
