@@ -57,6 +57,10 @@ _CODE_SUGGESTIONS = {
     "tail_unsupported": ["head", "cat --range"],
     "locator_not_found": ["re-search; the record may have changed"],
     "since_unsupported": ["drop --since"],
+    "config_required": [
+        "pass --config with the connector's full config; omitting it would silently drop "
+        "the existing stored configuration"
+    ],
     "sync_already_running": ["mfs job list", "mfs job cancel JOB_ID"],
     "connector_removing": ["wait for removal to finish, then retry"],
     "remove_requires_connector_root": [

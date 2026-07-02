@@ -549,7 +549,12 @@ class Engine:
         return CredentialService.redact(value, key_is_secret)
 
     async def register_or_get_connector(
-        self, connector_uri: str, ctype: str, config: dict, overwrite_config: bool = False
+        self,
+        connector_uri: str,
+        ctype: str,
+        config: dict,
+        overwrite_config: bool = False,
+        config_explicit: bool = True,
     ) -> str:
         import json
 
@@ -571,6 +576,13 @@ class Engine:
             new_json = json.dumps(stored, sort_keys=True)
             old_json = row["config_json"] or "{}"
             drift = _normalize_json(new_json) != _normalize_json(old_json)
+            if drift and not config_explicit:
+                # --config was omitted entirely: `config` here is just a URI-derived
+                # default, not something the caller asked for. Persisting it would
+                # silently drop the real stored config (credentials, schemas,
+                # [[objects]] mappings) with zero warning — refuse instead of
+                # guessing. Nothing has been written yet at this point.
+                raise ValueError("config_required")
             if overwrite_config or drift:
                 await self.objects.update_connector_config(row["id"], json.dumps(stored))
                 if drift and not overwrite_config:
@@ -634,7 +646,11 @@ class Engine:
         cfg_dict = {**default_config, **config} if config is not None else default_config
         existing_connector = await self.objects.get_connector_id_by_uri(connector_uri)
         cid = await self.register_or_get_connector(
-            connector_uri, ctype, cfg_dict, overwrite_config=update_config
+            connector_uri,
+            ctype,
+            cfg_dict,
+            overwrite_config=update_config,
+            config_explicit=config is not None,
         )
         row0 = await self.objects.get_connector_config_and_status(cid)
         if row0 and row0["status"] == "removing":
