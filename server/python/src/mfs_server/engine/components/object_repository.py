@@ -580,11 +580,16 @@ class ObjectRepository:
     async def insert_connector(
         self, cid: str, connector_uri: str, ctype: str, config_json: str
     ) -> None:
-        await self._meta.execute(
-            "INSERT INTO connectors (id, namespace_id, root_uri, type, status, config_json, registered_at) "
-            "VALUES (?,?,?,?,?,?,?)",
-            (cid, self._ns, connector_uri, ctype, "active", config_json, _now()),
-        )
+        try:
+            await self._meta.execute(
+                "INSERT INTO connectors (id, namespace_id, root_uri, type, status, config_json, registered_at) "
+                "VALUES (?,?,?,?,?,?,?)",
+                (cid, self._ns, connector_uri, ctype, "active", config_json, _now()),
+            )
+        except Exception as e:  # noqa: BLE001 - unique-violation: first-registration race on root_uri
+            if "unique" in str(e).lower() or "constraint" in str(e).lower():
+                raise ValueError("connector_already_registered") from e
+            raise
 
     async def update_connector_config(self, cid: str, config_json: str) -> None:
         await self._meta.execute(

@@ -63,6 +63,7 @@ _CODE_SUGGESTIONS = {
     ],
     "sync_already_running": ["mfs job list", "mfs job cancel JOB_ID"],
     "connector_removing": ["wait for removal to finish, then retry"],
+    "connector_already_registered": ["mfs connector list", "mfs connector inspect URI"],
     "remove_requires_connector_root": [
         "pass the registered connector root from `mfs connector list` or `mfs connector inspect`"
     ],
@@ -354,7 +355,12 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
             )
         except ValueError as e:
             code = str(e)
-            status = 409 if code in ("sync_already_running", "connector_removing") else 400
+            status = (
+                409
+                if code
+                in ("sync_already_running", "connector_removing", "connector_already_registered")
+                else 400
+            )
             raise HTTPException(status, code)  # -> error envelope
         return AddResponse(job_id=job_id)
 
