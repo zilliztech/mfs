@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#mcp-server" class="md-skip">
+        <a href="#mcp-server-a-claude-context-replica" class="md-skip">
           Skip to content
         </a>
       
@@ -2489,22 +2489,23 @@
   
 
 
-<h1 id="mcp-server">MCP server<a class="headerlink" href="#mcp-server" title="Permanent link">&para;</a></h1>
-<p>Expose MFS over the <a href="https://modelcontextprotocol.io">Model Context Protocol</a> and
-any MCP client — Claude Code, Cursor, Codex, Windsurf — can search your indexed
-sources as context. It's in the spirit of
+<h1 id="mcp-server-a-claude-context-replica">MCP server: a claude-context replica<a class="headerlink" href="#mcp-server-a-claude-context-replica" title="Permanent link">&para;</a></h1>
+<p>MFS ships a replica of
 <a href="https://github.com/zilliztech/claude-context">claude-context</a> ("make the codebase
-the context for any coding agent"), but the index is MFS, so one server covers
+the context for any coding agent"), rebuilt on top of MFS and exposed over the
+<a href="https://modelcontextprotocol.io">Model Context Protocol</a> for any MCP client —
+Claude Code, Cursor, Codex, Windsurf. Because the index is MFS, one server covers
 <strong>every</strong> source you've indexed — code, docs, issues, chat, databases — not just
 one codebase.</p>
 <p>The runnable server is in the
-<a href="https://github.com/zilliztech/mfs/tree/main/examples/mfs-mcp">example</a>; it's about
-60 lines over the <a href="../../sdks/">Python SDK</a>.</p>
+<a href="https://github.com/zilliztech/mfs/tree/main/examples/claude-context">example</a>;
+MFS's <code>search</code> + <code>read</code> API is enough to reproduce it in about 60 lines over the
+<a href="../../sdks/">Python SDK</a>.</p>
 <h2 id="two-tools">Two tools<a class="headerlink" href="#two-tools" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">mcp.server.fastmcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastMCP</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">mfs_sdk</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">mcp</span> <span class="o">=</span> <span class="n">FastMCP</span><span class="p">(</span><span class="s2">&quot;mfs-context&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">mcp</span> <span class="o">=</span> <span class="n">FastMCP</span><span class="p">(</span><span class="s2">&quot;claude-context&quot;</span><span class="p">)</span>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="nd">@mcp</span><span class="o">.</span><span class="n">tool</span><span class="p">()</span>
@@ -2547,11 +2548,11 @@ that server; the embedding and vector-store choice lives with MFS. (Drop these a
 MFS runs fully local — ONNX embeddings + Milvus Lite, no keys.)</p>
 <h2 id="register-it">Register it<a class="headerlink" href="#register-it" title="Permanent link">&para;</a></h2>
 <p>With Claude Code, from your project:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>mfs-context<span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>claude-context<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>--env<span class="w"> </span><span class="nv">MFS_URL</span><span class="o">=</span>http://127.0.0.1:13619<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--<span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>--with<span class="w"> </span>mcp<span class="w"> </span>--with<span class="w"> </span>/abs/path/to/mfs/sdks/python<span class="w"> </span>python<span class="w"> </span>/abs/path/to/mfs/examples/mfs-mcp/server.py
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>--<span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>--with<span class="w"> </span>mcp<span class="w"> </span>--with<span class="w"> </span>/abs/path/to/mfs/sdks/python<span class="w"> </span>python<span class="w"> </span>/abs/path/to/mfs/examples/claude-context/server.py
 </code></pre></div>
-<p><code>claude mcp list</code> should report <code>mfs-context: ✔ Connected</code>, after which the agent
+<p><code>claude mcp list</code> should report <code>claude-context: ✔ Connected</code>, after which the agent
 calls the tools on its own — "where is rate limiting implemented? search our
 sources." Any MCP client works; point its stdio server config at the same command.</p>
 <h2 id="restrict-its-reach">Restrict its reach<a class="headerlink" href="#restrict-its-reach" title="Permanent link">&para;</a></h2>
