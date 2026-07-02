@@ -1424,6 +1424,19 @@ where
     Ok(expanded)
 }
 
+fn validate_profile_url(url: &str) -> CliResult<()> {
+    let parsed = reqwest::Url::parse(url).map_err(|_| {
+        format!("invalid profile URL '{url}': must be a valid http:// or https:// URL")
+    })?;
+    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return Err(format!(
+            "invalid profile URL '{url}': must be a valid http:// or https:// URL"
+        )
+        .into());
+    }
+    Ok(())
+}
+
 fn profile_cmd(action: &ProfileAction, json: bool) -> CliResult<()> {
     let mut cfg = load_client_cfg()?;
     match action {
@@ -1431,6 +1444,7 @@ fn profile_cmd(action: &ProfileAction, json: bool) -> CliResult<()> {
             println!("{}", profile_list_output(&cfg, &base_url()?, json));
         }
         ProfileAction::Add { name, url, token } => {
+            validate_profile_url(url)?;
             cfg.profiles.insert(
                 name.clone(),
                 Profile {
@@ -1763,6 +1777,25 @@ mod tests {
             err.display_message(),
             "401 Unauthorized [unauthorized]: missing or invalid bearer token\n  try: set a profile token"
         );
+    }
+
+    #[test]
+    fn validate_profile_url_accepts_http_and_https() {
+        assert!(validate_profile_url("http://127.0.0.1:13619").is_ok());
+        assert!(validate_profile_url("https://mfs.example.com").is_ok());
+    }
+
+    #[test]
+    fn validate_profile_url_rejects_garbage_and_wrong_scheme() {
+        for bad in ["not a url at all", "", "ftp://wrong-scheme.example.com"] {
+            let err = validate_profile_url(bad).unwrap_err();
+            assert!(
+                err.detail
+                    .contains("must be a valid http:// or https:// URL"),
+                "unexpected error for {bad:?}: {}",
+                err.detail
+            );
+        }
     }
 
     #[test]
