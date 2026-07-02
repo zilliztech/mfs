@@ -135,8 +135,9 @@ Grep JSON is smaller:
 ```
 
 `via` can identify how grep found the match, for example pushdown, BM25, linear
-scan, or a notice. A `bm25` match is keyword-based, not an exact-literal or
-regex match — expect token-level matching rather than character-for-character
+scan, or a notice. A `bm25` match is keyword-based, not an exact-literal match;
+grep across all connectors today matches literal substrings/keywords, not
+regex patterns — expect token-level matching rather than character-for-character
 matches on database-backed sources.
 
 ## Reopen File-Like Hits
