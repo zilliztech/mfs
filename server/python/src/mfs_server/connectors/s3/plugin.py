@@ -142,8 +142,31 @@ class S3Plugin(ConnectorPlugin):
         key = path.lstrip("/")
         async with self._session().client("s3", **self._client_kwargs()) as s3:
             resp = await s3.get_object(Bucket=self._bucket(), Key=key)
-            async with resp["Body"] as stream:
-                yield await stream.read()
+            body = resp["Body"]
+            async with body:
+                # __aenter__ on the streaming body returns the raw aiohttp response (for
+                # connection lifecycle), not something with a chunk-sized read -- keep
+                # reading off `body` itself, which supports read(amt).
+                if range is None:
+                    while chunk := await body.read(65536):
+                        yield chunk
+                else:
+                    # line range [start, end) — stream line-by-line, same approach as the
+                    # file connector (cat --range must not buffer the whole object into memory).
+                    start, end = range.start, range.end
+                    i = 0
+                    buf = b""
+                    while chunk := await body.read(65536):
+                        buf += chunk
+                        while (nl := buf.find(b"\n")) >= 0:
+                            line, buf = buf[: nl + 1], buf[nl + 1 :]
+                            if start <= i < end:
+                                yield line
+                            i += 1
+                            if i >= end:
+                                return
+                    if buf and start <= i < end:  # trailing line without a newline
+                        yield buf
 
     async def fingerprint(self, path: str) -> Optional[str]:
         keys = await self.state.get("keys") or {}
