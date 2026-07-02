@@ -1,16 +1,17 @@
-# MCP server
+# MCP server: a claude-context replica
 
-Expose MFS over the [Model Context Protocol](https://modelcontextprotocol.io) and
-any MCP client — Claude Code, Cursor, Codex, Windsurf — can search your indexed
-sources as context. It's in the spirit of
+MFS ships a replica of
 [claude-context](https://github.com/zilliztech/claude-context) ("make the codebase
-the context for any coding agent"), but the index is MFS, so one server covers
+the context for any coding agent"), rebuilt on top of MFS and exposed over the
+[Model Context Protocol](https://modelcontextprotocol.io) for any MCP client —
+Claude Code, Cursor, Codex, Windsurf. Because the index is MFS, one server covers
 **every** source you've indexed — code, docs, issues, chat, databases — not just
 one codebase.
 
 The runnable server is in the
-[example](https://github.com/zilliztech/mfs/tree/main/examples/mfs-mcp); it's about
-60 lines over the [Python SDK](../sdks.md).
+[example](https://github.com/zilliztech/mfs/tree/main/examples/claude-context);
+MFS's `search` + `read` API is enough to reproduce it in about 60 lines over the
+[Python SDK](../sdks.md).
 
 ## Two tools
 
@@ -18,7 +19,7 @@ The runnable server is in the
 from mcp.server.fastmcp import FastMCP
 import mfs_sdk
 
-mcp = FastMCP("mfs-context")
+mcp = FastMCP("claude-context")
 
 
 @mcp.tool()
@@ -73,12 +74,12 @@ MFS runs fully local — ONNX embeddings + Milvus Lite, no keys.)
 With Claude Code, from your project:
 
 ```bash
-claude mcp add mfs-context \
+claude mcp add claude-context \
   --env MFS_URL=http://127.0.0.1:13619 \
-  -- uv run --with mcp --with /abs/path/to/mfs/sdks/python python /abs/path/to/mfs/examples/mfs-mcp/server.py
+  -- uv run --with mcp --with /abs/path/to/mfs/sdks/python python /abs/path/to/mfs/examples/claude-context/server.py
 ```
 
-`claude mcp list` should report `mfs-context: ✔ Connected`, after which the agent
+`claude mcp list` should report `claude-context: ✔ Connected`, after which the agent
 calls the tools on its own — "where is rate limiting implemented? search our
 sources." Any MCP client works; point its stdio server config at the same command.
 

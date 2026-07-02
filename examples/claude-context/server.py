@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""An MCP server that turns MFS into searchable context for any MCP client.
-
-In the spirit of zilliztech/claude-context — "make the codebase the context for
-any coding agent" — but the index is MFS, so a single server covers every source
-you've indexed (code, docs, issues, chat, databases), not just one codebase.
+"""A replica of zilliztech/claude-context ("make the codebase the context for any
+coding agent"), rebuilt on top of MFS instead of a single-codebase index. MFS's
+`search` + `read` API is enough to reproduce it in about 60 lines — and because the
+index is MFS, this single server covers every source you've indexed (code, docs,
+issues, chat, databases), not just one codebase.
 
 It exposes two tools over the Model Context Protocol:
 
@@ -14,7 +14,7 @@ Point it at a running MFS server with ``MFS_URL`` / ``MFS_TOKEN`` (defaults to
 ``http://127.0.0.1:13619`` and ``~/.mfs/server.token``). Register it with any MCP
 client, e.g. Claude Code:
 
-    claude mcp add mfs-context -- python /abs/path/to/server.py
+    claude mcp add claude-context -- python /abs/path/to/server.py
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from pathlib import Path
 import mfs_sdk
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("mfs-context")
+mcp = FastMCP("claude-context")
 
 # Optional access boundary: a comma-separated list of URI / path prefixes this
 # server may search and read. Empty = unrestricted (the whole MFS index). Set it

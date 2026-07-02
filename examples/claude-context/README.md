@@ -1,11 +1,10 @@
-# MFS MCP server
+# claude-context, on MFS
 
-A tiny [Model Context Protocol](https://modelcontextprotocol.io) server that turns
-MFS into searchable context for any MCP client — Claude Code, Cursor, Codex,
-Windsurf, and the rest.
-
-It's in the spirit of [`claude-context`](https://github.com/zilliztech/claude-context)
-("make the codebase the context for any coding agent"), but the index is MFS, so a
+A replica of [`claude-context`](https://github.com/zilliztech/claude-context)
+("make the codebase the context for any coding agent"), rebuilt on top of MFS: a
+tiny [Model Context Protocol](https://modelcontextprotocol.io) server for any MCP
+client — Claude Code, Cursor, Codex, Windsurf, and the rest. MFS's `search` + `read`
+API is enough to reproduce it in about 60 lines — and because the index is MFS, this
 single server covers **every source you've indexed** — code, docs, issues, chat,
 databases — not just one codebase.
 
@@ -57,12 +56,12 @@ choice lives with MFS, not here.
 With Claude Code, from your project:
 
 ```bash
-claude mcp add mfs-context \
+claude mcp add claude-context \
   --env MFS_URL=http://127.0.0.1:13619 \
-  -- uv run --with mcp --with /abs/path/to/mfs/sdks/python python /abs/path/to/mfs/examples/mfs-mcp/server.py
+  -- uv run --with mcp --with /abs/path/to/mfs/sdks/python python /abs/path/to/mfs/examples/claude-context/server.py
 ```
 
-`claude mcp list` should report `mfs-context: ✔ Connected`. Then just ask — the
+`claude mcp list` should report `claude-context: ✔ Connected`. Then just ask — the
 agent calls `search` / `read` on its own:
 
 > Where is rate limiting implemented? Search our indexed sources.
@@ -79,10 +78,10 @@ To bound it, set `MFS_ALLOWED_SCOPES` to a comma-separated list of URI / path
 prefixes when you register it:
 
 ```bash
-claude mcp add mfs-context \
+claude mcp add claude-context \
   --env MFS_URL=http://127.0.0.1:13619 \
   --env MFS_ALLOWED_SCOPES=github://your-org/your-repo,file://local/abs/path \
-  -- uv run --with mcp --with /abs/path/to/mfs/sdks/python python /abs/path/to/mfs/examples/mfs-mcp/server.py
+  -- uv run --with mcp --with /abs/path/to/mfs/sdks/python python /abs/path/to/mfs/examples/claude-context/server.py
 ```
 
 `search` then only returns hits under those prefixes — an empty scope searches all
