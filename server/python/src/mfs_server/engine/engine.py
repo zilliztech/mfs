@@ -174,7 +174,14 @@ class Engine:
     # okinds always routed to the producer + chunks_q + EmbedConsumer path (§3.2). image and
     # table_schema route conditionally (see _routes_to_pipeline); everything else is
     # metadata-only. dir_summary is not an object_task — the Job Lane owns it (§3.5).
-    _PIPELINE_OKINDS = ("document", "code", "message_stream", "record_collection", "table_rows")
+    _PIPELINE_OKINDS = (
+        "document",
+        "code",
+        "text_blob",
+        "message_stream",
+        "record_collection",
+        "table_rows",
+    )
 
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
@@ -377,8 +384,8 @@ class Engine:
     def _routes_to_pipeline(self, okind: str) -> bool:
         """Whether this okind goes through the producer -> chunks_q -> EmbedConsumer path.
 
-        document / code / message_stream / record_collection / table_rows always route
-        (_PIPELINE_OKINDS). image routes only when [description] is enabled — its
+        document / code / text_blob / message_stream / record_collection / table_rows always
+        route (_PIPELINE_OKINDS). image routes only when [description] is enabled — its
         ImageChunksProducer makes a VLM call, so with it off the image is recorded metadata-only.
         table_schema routes only when [summary] is enabled — its TableSchemaProducer makes a
         summary LLM call; with it off the schema is metadata-only. dir_summary is not an
