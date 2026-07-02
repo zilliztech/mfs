@@ -6,7 +6,9 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::net::TcpStream;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 type CliResult<T> = Result<T, CliError>;
 
@@ -117,7 +119,11 @@ impl std::fmt::Display for CliError {
 }
 
 #[derive(Parser)]
-#[command(name = "mfs", version, about = "Multi-source File-like Search")]
+#[command(
+    name = "mfs",
+    version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("MFS_GIT_SHA"), ")"),
+    about = "Multi-source File-like Search"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -332,7 +338,10 @@ enum ServeAction {
         bind: String,
     },
     /// Is the local mfs-server running?
-    Status,
+    Status {
+        #[arg(long, default_value = "127.0.0.1:13619")]
+        bind: String,
+    },
     /// Tail the local server log
     Logs,
 }
@@ -1604,21 +1613,60 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
                     return Ok(());
                 }
             }
+            // Pre-flight: a pidfile only tracks processes this CLI itself
+            // launched. If something not tracked by the pidfile (started by
+            // hand, e.g. `uv run mfs-server run`) already holds `bind`, don't
+            // spawn a duplicate — it would sit for however long this
+            // build's startup takes (Milvus connect + embedding model
+            // preload; ~15-20s observed) before failing to bind and dying,
+            // during which `serve status` would misreport a healthy "running"
+            // for a doomed process while the real server is never touched.
+            if tcp_probe(bind, Duration::from_millis(500)) {
+                println!(
+                    "something is already listening on {bind}, but not a process this CLI launched (no matching pidfile). Not starting a second instance — if that server is stale, stop it manually first."
+                );
+                return Ok(());
+            }
             std::fs::create_dir_all(mfs_home()).map_err(|e| e.to_string())?;
             let log = std::fs::File::create(&log_file).map_err(|e| e.to_string())?;
             let log_err = log.try_clone().map_err(|e| e.to_string())?;
-            let child = std::process::Command::new("mfs-server")
+            let mut child = std::process::Command::new("mfs-server")
                 .args(["run", "--bind", bind])
                 .stdout(std::process::Stdio::from(log))
                 .stderr(std::process::Stdio::from(log_err))
                 .spawn()
                 .map_err(|e| format!("failed to spawn mfs-server: {e}"))?;
-            std::fs::write(&pid_file, child.id().to_string()).map_err(|e| e.to_string())?;
-            println!(
-                "started mfs-server (pid {}) on {bind}; logs: {}",
-                child.id(),
-                log_file.display()
-            );
+
+            // Don't declare success the instant spawn() returns — that only
+            // confirms fork/exec worked, not that the server ever became
+            // reachable. Poll for either a successful bind or the child
+            // exiting early, and report whichever actually happened.
+            let deadline = Instant::now() + Duration::from_secs(45);
+            loop {
+                if tcp_probe(bind, Duration::from_millis(300)) {
+                    std::fs::write(&pid_file, child.id().to_string()).map_err(|e| e.to_string())?;
+                    println!(
+                        "started mfs-server (pid {}) on {bind}; logs: {}",
+                        child.id(),
+                        log_file.display()
+                    );
+                    break;
+                }
+                if let Ok(Some(status)) = child.try_wait() {
+                    let tail = tail_lines(&log_file, 10);
+                    return Err(format!(
+                        "mfs-server exited during startup ({status}); last log lines:\n{tail}"
+                    ));
+                }
+                if Instant::now() >= deadline {
+                    return Err(format!(
+                        "mfs-server on {bind} did not become reachable within 45s (pid {} still running); check {}",
+                        child.id(),
+                        log_file.display()
+                    ));
+                }
+                std::thread::sleep(Duration::from_millis(500));
+            }
         }
         ServeAction::Stop => match read_pid(&pid_file) {
             Some(pid) => {
@@ -1635,13 +1683,43 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
                 let _ = std::process::Command::new("kill")
                     .arg(pid.to_string())
                     .status();
+                // `kill` only sends the signal — it doesn't wait for the
+                // process to actually exit. uvicorn's graceful shutdown
+                // takes a moment, and Start's new "refuse if the port is
+                // already occupied" pre-flight check would otherwise race
+                // against the still-closing old process and mistake it for
+                // a foreign server, refusing to start the replacement and
+                // leaving nothing running at all. Wait for either the pid
+                // to die or the port to free up before proceeding.
+                let deadline = Instant::now() + Duration::from_secs(10);
+                while pid_alive(pid) && tcp_probe(bind, Duration::from_millis(200)) {
+                    if Instant::now() >= deadline {
+                        let _ = std::process::Command::new("kill")
+                            .args(["-9", &pid.to_string()])
+                            .status();
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(200));
+                }
                 let _ = std::fs::remove_file(&pid_file);
             }
             return serve_cmd(&ServeAction::Start { bind: bind.clone() });
         }
-        ServeAction::Status => match read_pid(&pid_file) {
+        ServeAction::Status { bind } => match read_pid(&pid_file) {
             Some(pid) if pid_alive(pid) => println!("running (pid {pid})"),
-            _ => println!("not running"),
+            _ => {
+                // A dead/missing pidfile only means this CLI isn't tracking
+                // anything — it doesn't mean nothing is actually serving.
+                // Probe the port so this doesn't flatly contradict a server
+                // that's genuinely up but was started outside `mfs serve`.
+                if tcp_probe(bind, Duration::from_millis(500)) {
+                    println!(
+                        "not running (no pidfile match) — but something IS listening on {bind}, started outside `mfs serve`"
+                    );
+                } else {
+                    println!("not running");
+                }
+            }
         },
         ServeAction::Logs => {
             let s = std::fs::read_to_string(&log_file).unwrap_or_default();
@@ -1658,6 +1736,27 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// Cheap "is anything listening here" check — a plain TCP connect, not an
+/// HTTP/health call, so it works before we know if the answering process
+/// even speaks HTTP. Used to distinguish a real occupant of `bind` from
+/// "nothing here yet" without waiting out a full server startup.
+fn tcp_probe(bind: &str, timeout: Duration) -> bool {
+    let Ok(addr) = bind.parse() else { return false };
+    TcpStream::connect_timeout(&addr, timeout).is_ok()
+}
+
+fn tail_lines(path: &PathBuf, n: usize) -> String {
+    let s = std::fs::read_to_string(path).unwrap_or_default();
+    s.lines()
+        .rev()
+        .take(n)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn read_pid(p: &PathBuf) -> Option<u32> {
