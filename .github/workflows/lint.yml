@@ -32,6 +32,7 @@ jobs:
           python - <<'PY'
           import json
           import pathlib
+          import re
           import sys
           import tomllib
 
@@ -59,6 +60,21 @@ jobs:
                       return line.split(":", 1)[1].strip().strip("'\"")
               raise SystemExit(f"info.version not found in {path}")
 
+          def image_tag_versions(path: str) -> dict[str, str]:
+              # deployments/ has no structured version field — mfs-server:X.Y.Z shows
+              # up free-text in Dockerfile comments and docker-compose.yml (the real
+              # `image:` field plus commented team-topology examples). Check every
+              # occurrence, not just the first, so a partially-bumped file still fails.
+              text = (root / path).read_text(encoding="utf-8")
+              out = {}
+              for lineno, line in enumerate(text.splitlines(), start=1):
+                  m = re.search(r"mfs-server:(\d+\.\d+\.\d+)", line)
+                  if m:
+                      out[f"{path}:{lineno}"] = m.group(1)
+              if not out:
+                  raise SystemExit(f"no mfs-server:X.Y.Z tag found in {path}")
+              return out
+
           package_lock = json.loads((root / "sdks/typescript/package-lock.json").read_text())
           versions = {
               "cli/Cargo.toml": toml_version("cli/Cargo.toml"),
@@ -75,6 +91,8 @@ jobs:
               "sdks/typescript/package-lock.json packages.\"\"": package_lock["packages"][""]["version"],
               "protocol/openapi.yaml": openapi_version("protocol/openapi.yaml"),
           }
+          versions.update(image_tag_versions("deployments/docker/Dockerfile"))
+          versions.update(image_tag_versions("deployments/compose/docker-compose.yml"))
 
           if len(set(versions.values())) == 1:
               print(f"package versions match: {next(iter(versions.values()))}")
