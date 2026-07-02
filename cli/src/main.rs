@@ -188,7 +188,7 @@ enum Cmd {
         /// Line range, 1-based half-open: `start:end` returns lines start..end-1
         /// (e.g. `--range 1:11` = first 10 lines). Matches `locator.lines` from
         /// search hits.
-        #[arg(long)]
+        #[arg(long, allow_hyphen_values = true)]
         range: Option<String>,
         #[arg(long)]
         meta: bool,
@@ -826,7 +826,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             if *meta {
                 println!("{v}");
             } else {
-                println!("{}", v["content"].as_str().unwrap_or(""));
+                print!("{}", v["content"].as_str().unwrap_or(""));
             }
         }
         Cmd::Head { path, lines } => {
@@ -841,7 +841,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             if cli.json {
                 println!("{v}");
             } else {
-                println!("{}", v["content"].as_str().unwrap_or(""));
+                print!("{}", v["content"].as_str().unwrap_or(""));
             }
         }
         Cmd::Tail { path, lines } => {
@@ -856,7 +856,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             if cli.json {
                 println!("{v}");
             } else {
-                println!("{}", v["content"].as_str().unwrap_or(""));
+                print!("{}", v["content"].as_str().unwrap_or(""));
             }
         }
         Cmd::Export { path, out } => {
