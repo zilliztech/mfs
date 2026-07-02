@@ -1043,12 +1043,18 @@ class Engine:
     # --- standalone worker: poll DB queue, process queued jobs ---
     async def cancel_job(self, job_id: str) -> bool:
         """Cancel a job: mark it + its pending/running tasks cancelled. A running
-        worker stops at the next per-object boundary (checked in _run_job)."""
+        worker stops at the next per-object boundary (checked in _run_job). That
+        boundary is between objects, not within one -- a single large object already
+        mid-embed keeps running regardless, so also tell the embed consumer so its
+        NEXT flush (not the one already in flight) skips this job's chunks instead
+        of spending real embed time on work that will never be written."""
         status = await self.objects.get_job_status(job_id)
         if not status or status in ("succeeded", "failed", "cancelled"):
             return False
         await self.objects.cancel_pending_running_tasks_for_job(job_id)
         await self.objects.cancel_job_row(job_id)
+        if self._embed_consumer is not None:
+            self._embed_consumer.mark_job_cancelled(job_id)
         return True
 
     async def _claim_queued_job(self) -> dict | None:

@@ -161,6 +161,15 @@ class EmbedConsumer:
         # task_id -> "<ExcType>: <msg>" recorded when a flush dropped this task's chunks, so
         # finalize can mark the object failed + attach last_error.
         self._task_errors: dict[str, str] = {}
+        # job_ids Engine.cancel_job() has told us about (§ mfs job cancel). A single object's
+        # chunks can span many flushes; the producer/object-boundary cancellation check
+        # (Engine._should_stop) only stops the NEXT object from starting, so a large single
+        # object already mid-flight here would otherwise keep burning embed CPU until it
+        # finishes regardless of cancellation. Checked once per flush (not per chunk), so this
+        # can't slow down the common (nothing-cancelled) path. Never explicitly pruned: job ids
+        # are unique per sync and cancellation is a rare, human-triggered action, so this can't
+        # meaningfully grow over a process's lifetime.
+        self._cancelled_jobs: set[str] = set()
 
         self._on_succeeded: list[SuccessCallback] = []
         self._q: Optional[asyncio.Queue] = None
@@ -240,6 +249,16 @@ class EmbedConsumer:
         self._meta.pop(task_id, None)
         self._task_errors.pop(task_id, None)
 
+    # --- cancellation ---
+    def mark_job_cancelled(self, job_id: str) -> None:
+        """Record a job as cancelled (called from Engine.cancel_job()) so the NEXT flush
+        skips embedding its already-queued chunks instead of spending real embed-API/CPU
+        time on work whose result will never be written. This can't make an in-flight
+        batch_embed() call return early -- that one batch still runs to completion -- but
+        it stops every batch after it, which is the realistic bound on how fast `mfs job
+        cancel` can actually take effect for a single large object still mid-flight."""
+        self._cancelled_jobs.add(job_id)
+
     # --- consume ---
     async def _consume(self, env: TaskEnvelope) -> None:
         payload = env.payload
@@ -283,8 +302,22 @@ class EmbedConsumer:
         if not self._batch:
             return
         # No concurrent appender can grow it mid-flush: _flush only runs inside the single
-        # run() loop, so this snapshot IS the whole pending batch.
+        # run() loop, so this snapshot IS the whole pending batch. Claiming it (rather than
+        # just aliasing it) up front is safe for the same reason: nothing else touches
+        # self._batch while this coroutine is suspended on an await below.
         batch = self._batch
+        self._batch = []
+        if self._cancelled_jobs:
+            cancelled = [item for item in batch if item[0].job_id in self._cancelled_jobs]
+            if cancelled:
+                batch = [item for item in batch if item[0].job_id not in self._cancelled_jobs]
+                # Reuse the existing failure path rather than inventing new bookkeeping --
+                # cancellation was already called out as one of _fail_batch's intended
+                # triggers ("an OOM embed, a Milvus error, a cancellation") when that method
+                # was written; this is the first caller to actually exercise it that way.
+                await self._fail_batch(cancelled, RuntimeError("job_cancelled"))
+                if not batch:
+                    return
         try:
             # 1. tx_cache lookup for vectors, embed only the misses (§6.3), cache them back.
             keys = [self._cache_key(ch) for _, ch in batch]

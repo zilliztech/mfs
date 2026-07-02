@@ -456,3 +456,54 @@ async def test_on_task_retry_resets_per_task_state():
     assert seen["c://x/T"] == (3, False)  # counts ONLY the retry's chunks, not 2+3
     assert milvus.delete_by_object.await_count == 2  # delete ran again on the retry's first chunk
     assert c._pending == {}
+
+
+async def test_mark_job_cancelled_skips_future_flush_without_embedding():
+    # `mfs job cancel` can't interrupt a batch_embed() call already in flight, but the NEXT
+    # flush for that job's chunks should skip the embed/upsert entirely (via the same
+    # _fail_batch path a real embed/Milvus failure uses) instead of burning embed time on
+    # work that will never be written -- and finalize the task failed, not wedge it.
+    c, embedder, milvus, tx = _consumer(batch_size=10, idle_ms=30)
+    finals: dict[str, tuple] = {}
+    c.register_on_succeeded(
+        lambda uri, job, count, partial, error: finals.update({uri: (count, partial, error)})
+    )
+    q = make_chunks_q(10)
+    c.start(q)
+
+    c.mark_job_cancelled("job1")  # T's job (default job="job1" in _chunk_env/_eot_env)
+    await q.put(_chunk_env("T", "a"))
+    await q.put(_chunk_env("T", "b"))
+    await q.put(_eot_env("T"))
+    await c.shutdown()
+
+    embedder.batch_embed.assert_not_awaited()  # never even tried to embed a cancelled job's chunks
+    milvus.upsert.assert_not_awaited()
+    count, partial, error = finals["c://x/T"]
+    assert count == 0 and partial is True and "job_cancelled" in error
+    assert c._pending == {} and c._task_errors == {}  # released, not leaked
+
+
+async def test_mark_job_cancelled_only_affects_that_job_not_others_in_same_batch():
+    # Two tasks from different jobs land in the SAME flush; cancelling one job must not
+    # affect the other's chunks, which should embed/upsert/finalize normally.
+    c, embedder, milvus, tx = _consumer(batch_size=10, idle_ms=30)
+    finals: dict[str, tuple] = {}
+    c.register_on_succeeded(
+        lambda uri, job, count, partial, error: finals.update({uri: (job, count, partial, error)})
+    )
+    q = make_chunks_q(10)
+    c.start(q)
+
+    c.mark_job_cancelled("job-cancelled")
+    await q.put(_chunk_env("T1", "a", job="job-cancelled"))
+    await q.put(_eot_env("T1", job="job-cancelled"))
+    await q.put(_chunk_env("T2", "b", job="job-active"))
+    await q.put(_eot_env("T2", job="job-active"))
+    await c.shutdown()
+
+    assert finals["c://x/T1"] == ("job-cancelled", 0, True, "RuntimeError: job_cancelled")
+    assert finals["c://x/T2"] == ("job-active", 1, False, None)
+    milvus.upsert.assert_awaited_once()  # only T2's row was ever written
+    (written_rows,), _ = milvus.upsert.call_args
+    assert len(written_rows) == 1  # T1's chunk never reached the embed/upsert call at all
