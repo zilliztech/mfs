@@ -34,6 +34,7 @@ from ..storage.artifact_cache import make_artifact_cache
 from ..storage.transformation_cache import make_transformation_cache
 from .adapters import ArtifactStoreAdapter, EmbedderAdapter, MilvusSinkAdapter, TxCacheAdapter
 from .components import ConnectorFactory, ConnectorLocator, CredentialService
+from .components.artifact_cache import ArtifactCacheService
 from .components.object_repository import ObjectRepository, TaskStatus
 from .pipeline import EmbedConsumer, TaskEnvelope, _EMBED_FLUSH_IDLE_MS, make_chunks_q
 from .producers import select_producer
@@ -193,7 +194,11 @@ class Engine:
         self.converter = ConverterClient(cfg)
         self.vlm = CachingVlmClient(cfg, self.tx_cache)
         self.summary = CachingSummaryClient(cfg, self.tx_cache)
-        self._artifact_writes = 0  # throttles LRU eviction sweeps
+        # ArtifactCacheService owns the artifact_cache table SQL + LRU + freshness
+        # (migrated verbatim from the old _*_artifact / _evict methods). The storage-layer
+        # LocalArtifactCache stays on Engine (uploads staging / raw_records GC call it
+        # directly) and is injected here for the bytes CRUD the service needs.
+        self.artifacts = ArtifactCacheService(cfg, self.meta, self.artifact_cache, self.objects)
         # --- new pipeline (process singletons; built lazily in _build_pipeline) ---
         self._chunks_q: asyncio.Queue | None = None
         self._embed_consumer: _PipelineEmbedConsumer | None = None
@@ -1419,111 +1424,31 @@ class Engine:
     async def _put_artifact(
         self, ns: str, object_uri: str, kind: str, data: bytes, currency: str = ""
     ) -> str:
-        """Store artifact bytes and record/refresh its artifact_cache row, then run a throttled
-        LRU sweep so the cache stays under budget. `source_key` is the caller's currency token
-        (source content hash + the producer's self-described identity) — `_read_artifact_fresh`
-        compares against it so a reuse only hits when source AND producer identity still match;
-        kinds that pass no token leave it empty."""
-        path = await asyncio.to_thread(self.artifact_cache.put_artifact, ns, object_uri, kind, data)
-        now = _now()
-        await self.meta.execute(
-            "INSERT INTO artifact_cache (namespace_id, object_uri, artifact_kind, storage_path, "
-            " source_key, size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(namespace_id, object_uri, artifact_kind) DO UPDATE SET "
-            " storage_path=excluded.storage_path, source_key=excluded.source_key, "
-            " size_bytes=excluded.size_bytes, built_at=excluded.built_at, "
-            " last_accessed=excluded.last_accessed",
-            (ns, object_uri, kind, str(path), currency, len(data), now, now),
-        )
-        self._artifact_writes += 1
-        if self._artifact_writes % 16 == 0:
-            await self._evict_artifacts_if_needed(ns)
-        return path
+        # Thin delegate to ArtifactCacheService (metadata row + LRU throttle). Kept on
+        # Engine to preserve the original signature / ArtifactStoreAdapter wiring.
+        return await self.artifacts.put_artifact(ns, object_uri, kind, data, currency)
 
     async def _drop_artifacts(self, ns: str, object_uri: str) -> None:
-        """Delete all cached artifacts of an object (bytes + artifact_cache rows) — on
-        object deletion so the cache doesn't retain orphaned bytes. 'raw_records' is the
-        message_stream materialization (jsonl); a deleted Slack/Gmail object would otherwise
-        leak it."""
-        for kind in ("converted_md", "vlm_text", "head_cache", "raw_records"):
-            try:
-                await asyncio.to_thread(self.artifact_cache.delete_artifact, ns, object_uri, kind)
-            except Exception:  # noqa: BLE001
-                pass
-        await self.meta.execute(
-            "DELETE FROM artifact_cache WHERE namespace_id=? AND object_uri=?", (ns, object_uri)
-        )
+        # Thin delegate to ArtifactCacheService.
+        await self.artifacts.drop_artifacts(ns, object_uri)
 
     async def _read_artifact(self, ns: str, object_uri: str, kind: str) -> bytes | None:
-        """Fetch artifact bytes and bump last_accessed (LRU recency) when present."""
-        data = await asyncio.to_thread(self.artifact_cache.get_artifact, ns, object_uri, kind)
-        if data is not None:
-            await self.meta.execute(
-                "UPDATE artifact_cache SET last_accessed=? "
-                "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
-                (_now(), ns, object_uri, kind),
-            )
-        return data
+        # Thin delegate to ArtifactCacheService.
+        return await self.artifacts.read_artifact(ns, object_uri, kind)
 
     async def _converted_md_stale(self, cid: str, object_uri: str, live_fp: str | None) -> bool:
-        """True when the source's live fingerprint differs from the one recorded at ingest, so
-        the cached converted_md no longer reflects the source. `live_fp` comes from the stat()
-        the read already did, so this costs one local metadata lookup. A connector that yields
-        no fingerprint (live_fp falsy) can't be cheaply checked -> serve the cached copy (the
-        deferred snapshot/recheck path for those is TODO §10.9)."""
-        if not live_fp:
-            return False
-        stored = await self.objects.get_object_fingerprint(cid, object_uri)
-        return bool(stored) and stored != live_fp
+        # Thin delegate to ArtifactCacheService (reads ObjectRepository.fingerprint).
+        return await self.artifacts.converted_md_stale(cid, object_uri, live_fp)
 
     async def _read_artifact_fresh(
         self, ns: str, object_uri: str, kind: str, currency: str
     ) -> bytes | None:
-        """Return the artifact bytes only if its stored source_key matches `currency` (same
-        source content + producer identity). A mismatch (stale content / upgraded producer)
-        returns None so the caller recomputes — this is what lets the Job Lane safely reuse the
-        Object Lane's converted_md under parallelism."""
-        row = await self.meta.fetchone(
-            "SELECT source_key FROM artifact_cache "
-            "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
-            (ns, object_uri, kind),
-        )
-        if not row or row["source_key"] != currency:
-            return None
-        return await self._read_artifact(ns, object_uri, kind)
+        # Thin delegate to ArtifactCacheService.
+        return await self.artifacts.read_artifact_fresh(ns, object_uri, kind, currency)
 
     async def _evict_artifacts_if_needed(self, ns: str) -> int:
-        """Evict least-recently-accessed artifacts until total bytes fall under
-        artifact_cache.max_size_gb. Returns the number evicted."""
-        max_bytes = int(self.cfg.artifact_cache.max_size_gb * (1 << 30))
-        row = await self.meta.fetchone(
-            "SELECT sum(size_bytes) AS total FROM artifact_cache WHERE namespace_id=?", (ns,)
-        )
-        total = (row and row["total"]) or 0
-        if total <= max_bytes:
-            return 0
-        victims = await self.meta.fetchall(
-            "SELECT object_uri, artifact_kind, size_bytes FROM artifact_cache "
-            "WHERE namespace_id=? ORDER BY last_accessed ASC",
-            (ns,),
-        )
-        evicted = 0
-        for v in victims:
-            if total <= max_bytes:
-                break
-            try:
-                await asyncio.to_thread(
-                    self.artifact_cache.delete_artifact, ns, v["object_uri"], v["artifact_kind"]
-                )
-            except Exception:  # noqa: BLE001
-                pass
-            await self.meta.execute(
-                "DELETE FROM artifact_cache WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
-                (ns, v["object_uri"], v["artifact_kind"]),
-            )
-            total -= v["size_bytes"] or 0
-            evicted += 1
-        return evicted
+        # Thin delegate to ArtifactCacheService.
+        return await self.artifacts.evict_if_needed(ns)
 
     async def _index_object(self, plugin, connector_uri: str, task: dict) -> None:
         """Handle one object_task. Change-kind branches (deleted / renamed) run inline here;
@@ -1571,24 +1496,7 @@ class Engine:
                     )
                 await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, old_full)
                 await asyncio.to_thread(self.milvus.upsert, ns, rows)
-                await asyncio.to_thread(self.artifact_cache.move_artifacts, ns, old_full, full_uri)
-                # move_artifacts moved the per-object dir; bring the artifact_cache
-                # indirection rows along too so LRU bookkeeping (size accounting,
-                # last_accessed bumps on cat) tracks the artifact under its new uri.
-                artifact_rows = await self.meta.fetchall(
-                    "SELECT artifact_kind FROM artifact_cache "
-                    "WHERE namespace_id=? AND object_uri=?",
-                    (ns, old_full),
-                )
-                for ar in artifact_rows:
-                    new_storage = str(
-                        self.artifact_cache.artifact_path(ns, full_uri, ar["artifact_kind"])
-                    )
-                    await self.meta.execute(
-                        "UPDATE artifact_cache SET object_uri=?, storage_path=? "
-                        "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
-                        (full_uri, new_storage, ns, old_full, ar["artifact_kind"]),
-                    )
+                await self.artifacts.rename_artifacts(ns, old_full, full_uri)
                 st = await plugin.stat(relpath)
                 await self.objects.delete_object_row(cid, task["old_uri"])
                 await self.objects.write_object_row(cid, relpath, st, True, "indexed", len(rows))
