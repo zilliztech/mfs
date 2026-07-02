@@ -952,7 +952,26 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
         }
         Cmd::Status => {
             let v = get(client, &format!("{base}/v1/status"), &[])?;
-            println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
+            if cli.json {
+                println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
+                return Ok(());
+            }
+            for c in v["connectors"].as_array().unwrap_or(&vec![]) {
+                println!(
+                    "{:10}  {:8}  {}  ({} objects, {} chunks)",
+                    c["type"].as_str().unwrap_or("?"),
+                    c["status"].as_str().unwrap_or("?"),
+                    c["root_uri"].as_str().unwrap_or("?"),
+                    c["object_count"].as_u64().unwrap_or(0),
+                    c["chunk_count"].as_u64().unwrap_or(0)
+                );
+            }
+            println!(
+                "jobs: {} succeeded, {} failed, {} cancelled",
+                v["jobs"]["succeeded"].as_u64().unwrap_or(0),
+                v["jobs"]["failed"].as_u64().unwrap_or(0),
+                v["jobs"]["cancelled"].as_u64().unwrap_or(0)
+            );
         }
         Cmd::Job { action } => match action {
             JobAction::List => {
