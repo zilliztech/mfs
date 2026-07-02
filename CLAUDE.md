@@ -103,11 +103,24 @@ the framework, never `os.environ[...]`.
 
 ## Releasing
 
-Versions are **lockstep** across `mfs-cli`, `mfs-server`, the SDKs, and `server-rs`.
-A single `v*` tag triggers three publish workflows (`release.yml` → CLI binaries +
-GitHub Release, `publish-crates.yml` → crates.io, `publish-pypi.yml` → PyPI via
-Trusted Publishing). `server-rs` is deliberately **not** published to PyPI. Merging
-to `main` does not publish; pushing the tag does.
+Versions are **lockstep** across `mfs-cli`, `mfs-server`, the SDKs, `server-rs`, and
+the `deployments/` image tags (Dockerfile comment + docker-compose.yml). A single
+`v*` tag triggers three publish workflows (`release.yml` → CLI binaries + GitHub
+Release, `publish-crates.yml` → crates.io, `publish-pypi.yml` → PyPI via Trusted
+Publishing). `server-rs` is deliberately **not** published to PyPI. Merging to
+`main` does not publish; pushing the tag does.
+
+The bump is **manual + CI-verified, not auto-written**: a human edits every version
+string by hand, then `lint.yml`'s `version-lockstep` job is the single source of
+truth for which files must agree — read that job to get the exact current list
+rather than trusting a stale list here. Bump every file it checks, open a PR titled
+`release: cut X.Y.Z`, merge, then tag the merge commit and push the tag — that push
+is the only irreversible step (it publishes to PyPI/crates.io).
+
+The next version number is **not** auto-inferred from `feat:` commit titles alone —
+`release-drafter` only bumps minor/major off an explicit `minor`/`breaking` label a
+maintainer adds by hand; routine `feat:` PRs default to a patch bump so 0.4.x stays
+small and incremental.
 
 ## Skills
 
