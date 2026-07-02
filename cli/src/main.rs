@@ -1683,6 +1683,29 @@ fn serve_cmd(action: &ServeAction, json: bool) -> Result<(), String> {
             let deadline = Instant::now() + Duration::from_secs(45);
             loop {
                 if tcp_probe(bind, Duration::from_millis(300)) {
+                    // The port being reachable doesn't mean *our* child bound
+                    // it — a concurrent `start` may have won the race while
+                    // ours is mid-way through a doomed bind attempt (Errno
+                    // 98) whose own graceful shutdown hasn't finished yet, so
+                    // a single try_wait() right here can still catch it
+                    // "alive". Give it a brief grace window to either exit
+                    // (proving it lost) or prove it's the one actually
+                    // serving before we trust the probe and claim success.
+                    let grace_deadline = Instant::now() + Duration::from_millis(3000);
+                    let mut lost_race = None;
+                    while Instant::now() < grace_deadline {
+                        if let Ok(Some(status)) = child.try_wait() {
+                            lost_race = Some(status);
+                            break;
+                        }
+                        std::thread::sleep(Duration::from_millis(100));
+                    }
+                    if let Some(status) = lost_race {
+                        let tail = tail_lines(&log_file, 10);
+                        return Err(format!(
+                            "failed to start: mfs-server exited ({status}) — {bind} is already held by another instance; last log lines:\n{tail}"
+                        ));
+                    }
                     std::fs::write(&pid_file, child.id().to_string()).map_err(|e| e.to_string())?;
                     println!(
                         "started mfs-server (pid {}) on {bind}; logs: {}",
@@ -1709,11 +1732,22 @@ fn serve_cmd(action: &ServeAction, json: bool) -> Result<(), String> {
         }
         ServeAction::Stop => match read_pid(&pid_file) {
             Some(pid) => {
-                let _ = std::process::Command::new("kill")
+                // `kill`'s own exit status tells us whether this call actually
+                // signaled a live process or hit one that a concurrent `stop`
+                // already reaped — don't claim credit for the latter.
+                let signaled = std::process::Command::new("kill")
                     .arg(pid.to_string())
-                    .status();
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false);
                 let _ = std::fs::remove_file(&pid_file);
-                println!("stopped (pid {pid})");
+                if signaled {
+                    println!("stopped (pid {pid})");
+                } else {
+                    println!("already stopped (pid {pid})");
+                }
             }
             None => println!("not running"),
         },
