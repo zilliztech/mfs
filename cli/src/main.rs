@@ -1015,6 +1015,10 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     body["config"] = load_config_file(c)?;
                 }
                 let v = post(client, &format!("{base}/v1/connectors/probe"), &body)?;
+                if cli.json {
+                    println!("{v}");
+                    return Ok(());
+                }
                 println!(
                     "{}  ok={}  {}",
                     v["type"].as_str().unwrap_or("?"),
