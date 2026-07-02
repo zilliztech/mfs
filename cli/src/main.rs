@@ -292,7 +292,7 @@ enum ConnectorAction {
     List,
     /// Show a connector's objects/jobs summary
     Inspect { target: String },
-    /// Re-sync a connector (alias: `mfs add <uri>`)
+    /// Re-sync a connector using its stored config
     Update {
         target: String,
         #[arg(long)]
