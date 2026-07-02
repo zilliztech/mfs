@@ -444,6 +444,8 @@ class FilePlugin(ConnectorPlugin):
     # --- read ---
     async def read(self, path: str, range: Optional[Range] = None) -> AsyncIterator[bytes]:
         real = self._real(path)
+        if not real.exists():
+            raise FileNotFoundError(path)
         if range is None:
             with open(real, "rb") as f:
                 while chunk := f.read(65536):
