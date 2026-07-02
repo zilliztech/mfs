@@ -1059,12 +1059,19 @@ class Engine:
         boundary is between objects, not within one -- a single large object already
         mid-embed keeps running regardless, so also tell the embed consumer so its
         NEXT flush (not the one already in flight) skips this job's chunks instead
-        of spending real embed time on work that will never be written."""
+        of spending real embed time on work that will never be written.
+
+        cancel_job_row's UPDATE is guarded on the non-terminal statuses and its
+        rowcount is the source of truth for the return value -- concurrent cancels
+        of the same job both see it as cancellable in the initial read below, but
+        only the one whose UPDATE actually flips the row gets True back."""
         status = await self.objects.get_job_status(job_id)
         if not status or status in ("succeeded", "failed", "cancelled"):
             return False
+        won = await self.objects.cancel_job_row(job_id)
+        if not won:
+            return False
         await self.objects.cancel_pending_running_tasks_for_job(job_id)
-        await self.objects.cancel_job_row(job_id)
         if self._embed_consumer is not None:
             self._embed_consumer.mark_job_cancelled(job_id)
         return True

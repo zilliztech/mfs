@@ -344,11 +344,16 @@ class ObjectRepository:
         )
         return status
 
-    async def cancel_job_row(self, job_id: str) -> None:
-        await self._meta.execute(
-            "UPDATE connector_jobs SET status='cancelled', finished_at=? WHERE id=?",
+    async def cancel_job_row(self, job_id: str) -> bool:
+        """Guarded on the non-terminal statuses (mirrors Engine.cancel_job's own
+        precondition) so concurrent cancels of the same job race safely: only the
+        caller whose UPDATE actually flips the row gets True back."""
+        won = await self._meta.execute_rowcount(
+            "UPDATE connector_jobs SET status='cancelled', finished_at=? "
+            "WHERE id=? AND status IN ('preparing','queued','running')",
             (_now(), job_id),
         )
+        return won == 1
 
     async def fail_inflight_job(self, job_id: str, error: str) -> None:
         await self._meta.execute(
