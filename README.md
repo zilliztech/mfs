@@ -638,7 +638,7 @@ What each section of `server.toml` configures:
 
 | Section | Configures | Default | Swap in |
 |---|---|---|---|
-| `[embedding]` | embedding provider · model · dim | local ONNX (BGE-M3 int8, no key) | `openai` · `gemini` · `voyage` · `ollama` · `local` — needs that provider's key/extra |
+| `[embedding]` | embedding provider · model · dim | local ONNX (BGE-M3 int8, no key) | `openai` · `gemini` · `voyage` · `jina` · `mistral` · `ollama` · `local` — needs that provider's key/extra |
 | `[milvus]` | vector store | Milvus Lite (file under `~/.mfs/`) | self-hosted Milvus or [Zilliz Cloud](https://cloud.zilliz.com/signup?utm_source=github&utm_medium=referral&utm_campaign=mfs-readme) — set `uri` + `token` |
 | `[database]` | metadata + transformation-cache DB | SQLite (file) | Postgres — set `dsn` |
 | `[artifact_cache]` | converted-blob cache | local fs under `~/.mfs/cache` | size / eviction knobs |

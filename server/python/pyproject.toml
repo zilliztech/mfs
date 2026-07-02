@@ -85,6 +85,8 @@ embedding-onnx = []
 # mfs_server.common.embeddings).
 gemini = ["google-genai>=0.3"]          # gemini embedding + LLM (vision-capable)
 voyage = ["voyageai>=0.3"]              # voyage-3-lite etc.
+mistral = ["mistralai>=1.0"]            # mistral-embed / codestral-embed
+# jina: no extra — talks to the REST API directly over the core httpx dep
 ollama = ["ollama>=0.4"]                # local LLM/embedding via Ollama server
 local = ["sentence-transformers>=3.0", "einops>=0.8"]   # CPU/GPU sentence-transformers
 
@@ -92,10 +94,12 @@ local = ["sentence-transformers>=3.0", "einops>=0.8"]   # CPU/GPU sentence-trans
 anthropic = ["anthropic>=0.40"]         # claude-sonnet-* (text + vision)
 
 # Convenience bundle: every provider (text + vision LLMs and remote embeddings).
-# Excludes 'local' (sentence-transformers pulls torch ~2 GB).
+# Excludes 'local' (sentence-transformers pulls torch ~2 GB). jina needs no
+# extra (core httpx), so it's already covered without appearing here.
 all-providers = [
     "google-genai>=0.3",
     "voyageai>=0.3",
+    "mistralai>=1.0",
     "ollama>=0.4",
     "anthropic>=0.40",
 ]

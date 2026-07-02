@@ -5,7 +5,8 @@ configured provider → write back. Vectors stored as packed float32. Tracks
 api_calls / cache_hits for observability/tests.
 
 Provider selection lives in `mfs_server.common.embeddings` (lazy imports).
-Supported names today: onnx (default), openai, google, voyage, ollama, local.
+Supported names today: onnx (default), openai, gemini, voyage, jina, mistral,
+ollama, local.
 """
 
 from __future__ import annotations

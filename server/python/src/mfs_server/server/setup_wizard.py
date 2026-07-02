@@ -77,6 +77,8 @@ def _embedding_choices() -> list[tuple[str, str]]:
         ("openai", "needs OPENAI_API_KEY env"),
         ("gemini", "needs `uv sync --extra gemini`"),
         ("voyage", "needs `uv sync --extra voyage`"),
+        ("jina", "needs JINA_API_KEY env (no extra — core httpx)"),
+        ("mistral", "needs `uv sync --extra mistral`"),
         ("ollama", "needs `uv sync --extra ollama` + running ollama server"),
         ("local", "needs `uv sync --extra local` (pulls torch ~2 GB)"),
     ]
@@ -141,6 +143,8 @@ def _wizard_embedding(current: EmbeddingConfig, step: int, total: int) -> dict[s
 
     if provider == "openai":
         ui.info("OPENAI_API_KEY is read from env at request time, not stored here.")
+    elif provider == "jina":
+        ui.info("JINA_API_KEY is read from env at request time, not stored here.")
     elif provider != "onnx":
         ui.info(f"Provider {provider!r} needs: uv sync --extra {provider}")
 
