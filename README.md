@@ -750,6 +750,13 @@ the easy part. See the [example](examples/open-tag-skill/) for the full walkthro
 
 ![Open Tag — delegating a PR review across Slack channels](https://github.com/user-attachments/assets/6cb1db05-dd12-4a13-a9fa-1a1bf69bcf28)
 
+Another is [`Deep Research`](examples/deep-research-skill/): the "reason and
+search over private data" job [deep-searcher](https://github.com/zilliztech/deep-searcher)
+does as a standalone framework, done here as a single skill on top of `mfs-find` —
+no vector-DB glue, no provider matrix, no custom retrieval-loop code, because MFS
+already indexes and searches, and an agent with a search tool already runs that
+loop natively once it has the strategy.
+
 ## 🗺️ Roadmap
 
 - **Multiple processing profiles** — run different sources through different
@@ -765,10 +772,11 @@ the easy part. See the [example](examples/open-tag-skill/) for the full walkthro
 
 MFS is shaped by several related projects:
 
-- [claude-context](https://github.com/zilliztech/claude-context) and
-  [memsearch](https://github.com/zilliztech/memsearch) — earlier
-  Zilliz code-search and memory-search efforts whose community
-  feedback shaped MFS's agent-facing direction.
+- [claude-context](https://github.com/zilliztech/claude-context),
+  [memsearch](https://github.com/zilliztech/memsearch), and
+  [deep-searcher](https://github.com/zilliztech/deep-searcher) — earlier
+  Zilliz code-search, memory-search, and deep-research efforts whose
+  community feedback shaped MFS's agent-facing direction.
 - [VKFS](https://github.com/ZeroZ-lab/vkfs) — a sister exploration
   of a Unix-like interface for agent access to vector-backed
   knowledge.
