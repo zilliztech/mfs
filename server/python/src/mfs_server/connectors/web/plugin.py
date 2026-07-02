@@ -82,7 +82,22 @@ class WebPlugin(ConnectorPlugin):
 
     def _allowed(self, url: str) -> bool:
         domains = self._cfg("allowed_domains", []) or []
-        return urlparse(url).netloc in domains if domains else True
+        if not domains:
+            return True
+        u = urlparse(url)
+        # An `allowed_domains` entry with a port (e.g. "127.0.0.1:18080")
+        # must match the URL's exact host:port. An entry with no port (e.g.
+        # "example.com") matches that host on ANY port, via `.hostname`
+        # (port-stripped) -- previously every entry was compared against
+        # the port-inclusive `netloc`, so a bare-host entry never matched a
+        # non-default-port URL, including the connector's own seed URL.
+        for d in domains:
+            if ":" in d:
+                if u.netloc == d:
+                    return True
+            elif u.hostname == d:
+                return True
+        return False
 
     async def healthcheck(self) -> HealthStatus:
         # The base default never makes a request, so a seed URL excluded by
@@ -264,4 +279,16 @@ class WebPlugin(ConnectorPlugin):
                     if link not in visited:
                         queue.append(link)
                 crawled += 1
+        if crawled == 0 and start and not any(self._allowed(u) for u in start):
+            # Every seed URL was excluded by allowed_domains -- this connector
+            # can never crawl anything as configured. That's almost never
+            # intentional (vs. e.g. a since-filter or transient fetch errors
+            # legitimately yielding zero *new* pages this run), so fail the
+            # job loudly instead of silently persisting an empty, "succeeded"
+            # connector -- previously the only way to notice was to realize
+            # search was returning nothing.
+            raise ValueError(
+                "0 pages crawled: every start_url was excluded by allowed_domains "
+                f"(start_urls={start!r}, allowed_domains={self._cfg('allowed_domains')!r})"
+            )
         await self.state.set("pages", pages)
