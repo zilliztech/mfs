@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Literal
+from typing import Literal, get_args
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -21,6 +21,7 @@ from starlette.requests import ClientDisconnect
 from .. import __version__
 from ..common.logging import configure_logging
 from ..config import ServerConfig, load_server_config
+from ..connectors.base import ChunkKind
 from ..engine.engine import Engine
 from .models import (
     AddRequest,
@@ -42,6 +43,8 @@ from .models import (
     ServerInfo,
     StatusResponse,
 )
+
+_VALID_CHUNK_KINDS = get_args(ChunkKind)
 
 # Canonical error codes -> suggested next actions. The endpoints
 # raise HTTPException with the canonical code as `detail` for these cases; the handler
@@ -477,7 +480,17 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
         if path:
             connector_uri, object_prefix = await eng().resolve_connector_uri(path)
         # comma-separated chunk_kinds, e.g. ?kind=body,directory_summary
-        chunk_kinds = [k.strip() for k in kind.split(",") if k.strip()] if kind else None
+        chunk_kinds = None
+        if kind is not None:
+            chunk_kinds = [k.strip() for k in kind.split(",")]
+            invalid = sorted({k for k in chunk_kinds if k not in _VALID_CHUNK_KINDS})
+            if invalid:
+                bad = ", ".join(repr(k) for k in invalid)
+                raise HTTPException(
+                    400,
+                    f"unknown chunk kind(s): {bad} -- valid kinds are: "
+                    f"{', '.join(_VALID_CHUNK_KINDS)}",
+                )
         try:
             results = await eng().search(
                 q,
