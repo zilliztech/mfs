@@ -16,16 +16,20 @@ topologies, use [Deployment](deployment.md).
 | Hosted OpenAI embeddings | `openai` embeddings | `uv tool install mfs-server`, then `mfs-server setup --section embedding` | `OPENAI_API_KEY` |
 | Google Gemini embeddings | `gemini` embeddings | `uv tool install "mfs-server[gemini]"`, then `mfs-server setup --section embedding` | `GOOGLE_API_KEY`, or Vertex AI auth for the embedding SDK |
 | Voyage embeddings | `voyage` embeddings | `uv tool install "mfs-server[voyage]"`, then `mfs-server setup --section embedding` | `VOYAGE_API_KEY` |
+| Jina embeddings | `jina` embeddings | `uv tool install mfs-server`, then `mfs-server setup --section embedding` | `JINA_API_KEY` |
+| Mistral embeddings | `mistral` embeddings | `uv tool install "mfs-server[mistral]"`, then `mfs-server setup --section embedding` | `MISTRAL_API_KEY` |
 | Local Ollama embeddings | `ollama` embeddings | `uv tool install "mfs-server[ollama]"`, then `mfs-server setup --section embedding` | Running Ollama server; `OLLAMA_HOST` is optional |
 | Local sentence-transformers embeddings | `local` embeddings | `uv tool install "mfs-server[local]"`, then `mfs-server setup --section embedding` | None; this extra pulls the sentence-transformers stack |
 | Image-description and summary setup | `openai`, `anthropic`, or `gemini` LLM/VLM | `mfs-server setup --section description` (and `--section summary`) | Provider key for the selected LLM/VLM provider |
 
 Provider names are exact. The supported embedding names are `openai`, `onnx`,
-`gemini`, `voyage`, `ollama`, and `local`.
+`gemini`, `voyage`, `jina`, `mistral`, `ollama`, and `local`.
 
 ## Install Paths
 
-The base install includes the OpenAI SDK and the default ONNX embedding stack:
+The base install includes the OpenAI SDK and the default ONNX embedding stack.
+`jina` also needs no extra — it talks to Jina's REST API over the core `httpx`
+dependency:
 
 ```bash
 uv tool install mfs-server
@@ -36,14 +40,16 @@ Alternate provider extras are separate:
 ```bash
 uv tool install "mfs-server[gemini]"
 uv tool install "mfs-server[voyage]"
+uv tool install "mfs-server[mistral]"
 uv tool install "mfs-server[ollama]"
 uv tool install "mfs-server[local]"
 uv tool install "mfs-server[anthropic]"
 uv tool install "mfs-server[all-providers]"
 ```
 
-`all-providers` installs Gemini, Voyage, Ollama, and Anthropic provider
-dependencies. It does not include `local`, because `local` pulls the larger
+`all-providers` installs Gemini, Voyage, Mistral, Ollama, and Anthropic
+provider dependencies (`jina` needs no extra, so it's already covered). It
+does not include `local`, because `local` pulls the larger
 sentence-transformers dependency stack.
 
 ## Embedding Providers
@@ -57,6 +63,8 @@ models.
 | `openai` | `text-embedding-3-small` | 1536 for the default model | Core | `OPENAI_API_KEY`; `OPENAI_BASE_URL` is optional | No local model download. Unknown model dimensions may require a trial embedding call. |
 | `gemini` | `gemini-embedding-001` | 768 for the default model | `uv tool install "mfs-server[gemini]"` or `all-providers` | `GOOGLE_API_KEY`, or Vertex AI auth with `GOOGLE_GENAI_USE_VERTEXAI=true` | Known model dimensions use a local table; unknown models require a trial embedding call. |
 | `voyage` | `voyage-3-lite` | 512 for the default model | `uv tool install "mfs-server[voyage]"` or `all-providers` | `VOYAGE_API_KEY` | Known model dimensions use a local table; unknown models require a trial embedding call. |
+| `jina` | `jina-embeddings-v4` | 2048 for the default model (Matryoshka-truncatable 256–2048) | Core (talks to the Jina REST API over `httpx`) | `JINA_API_KEY` | No local model download. Known model dimensions use a local table; unknown models fall back to 2048. |
+| `mistral` | `mistral-embed` | 1024 for the default model | `uv tool install "mfs-server[mistral]"` or `all-providers` | `MISTRAL_API_KEY` | Known model dimensions use a local table; unknown models require a trial embedding call. |
 | `ollama` | `nomic-embed-text` | Detected by a trial embed against the selected Ollama model | `uv tool install "mfs-server[ollama]"` or `all-providers` | Running Ollama server; `OLLAMA_HOST` can point at a non-default host | The selected model must be available to the Ollama server before dimension probing and embedding can succeed. |
 | `local` | `all-MiniLM-L6-v2` | Detected from sentence-transformers model metadata | `uv tool install "mfs-server[local]"` | No API key | `mfs-server run` and `mfs-server worker` preload the sentence-transformers model on the detected device: CUDA, MPS, then CPU. |
 

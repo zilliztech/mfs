@@ -24,6 +24,8 @@ _PROVIDERS: dict[str, tuple[str, str]] = {
     "onnx": ("mfs_server.common.embeddings.onnx", "OnnxEmbedding"),
     "gemini": ("mfs_server.common.embeddings.gemini", "GeminiEmbedding"),
     "voyage": ("mfs_server.common.embeddings.voyage", "VoyageEmbedding"),
+    "jina": ("mfs_server.common.embeddings.jina", "JinaEmbedding"),
+    "mistral": ("mfs_server.common.embeddings.mistral", "MistralEmbedding"),
     "ollama": ("mfs_server.common.embeddings.ollama", "OllamaEmbedding"),
     "local": ("mfs_server.common.embeddings.local", "LocalEmbedding"),
 }
@@ -35,6 +37,8 @@ DEFAULT_MODELS: dict[str, str] = {
     "onnx": "gpahal/bge-m3-onnx-int8",
     "gemini": "gemini-embedding-001",
     "voyage": "voyage-3-lite",
+    "jina": "jina-embeddings-v4",
+    "mistral": "mistral-embed",
     "ollama": "nomic-embed-text",
     "local": "all-MiniLM-L6-v2",
 }
@@ -46,6 +50,8 @@ _INSTALL_HINTS: dict[str, str] = {
     "onnx": "uv sync  (core dep)",
     "gemini": "uv sync --extra gemini",
     "voyage": "uv sync --extra voyage",
+    "jina": "uv sync  (core dep, uses httpx)",
+    "mistral": "uv sync --extra mistral",
     "ollama": "uv sync --extra ollama",
     "local": "uv sync --extra local",
 }
