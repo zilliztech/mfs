@@ -435,9 +435,22 @@ fn local_fs_path_from_target(target: &str) -> Option<String> {
 }
 
 fn remote_path(base: &str, path: &str) -> CliResult<String> {
+    // As with `add`'s target (see local_fs_path_from_target), a `file:///abs` or
+    // `file://local/abs` spelling of a local path is never itself a literal path on
+    // disk -- strip it before canonicalizing so path-scoping (search/grep/ls/cat/...)
+    // resolves it the same way the server's connector-matching does.
+    let fs_path = local_fs_path_from_target(path);
+    let canon_input = fs_path.as_deref().unwrap_or(path);
     if is_remote(base) {
-        if let Ok(abs) = std::fs::canonicalize(path) {
+        if let Ok(abs) = std::fs::canonicalize(canon_input) {
             return Ok(format!("file://{}{}", client_id()?, abs.to_string_lossy()));
+        }
+    } else if fs_path.is_some() {
+        // Rewrite to the canonical file://local<abs> identity so a URI-spelled path
+        // matches the connector's registered root_uri, which the server compares by
+        // raw string prefix for "://"-bearing scopes (no scheme normalization there).
+        if let Ok(abs) = std::fs::canonicalize(canon_input) {
+            return Ok(format!("file://local{}", abs.to_string_lossy()));
         }
     }
     Ok(path.to_string())
@@ -482,7 +495,9 @@ fn resolve_path_arg(
     base: &str,
     path: &str,
 ) -> CliResult<String> {
-    if let Ok(abs) = std::fs::canonicalize(path) {
+    let fs_path = local_fs_path_from_target(path);
+    let canon_input = fs_path.as_deref().unwrap_or(path);
+    if let Ok(abs) = std::fs::canonicalize(canon_input) {
         let abs_path = abs.to_string_lossy().to_string();
         if let Ok(status) = get(client, &format!("{base}/v1/status"), &[]) {
             if let Some(mapped) = uploaded_local_path_from_status(&status, &client_id()?, &abs_path)
@@ -1690,6 +1705,26 @@ mod tests {
         assert_eq!(local_fs_path_from_target("/tmp/foo"), None);
         assert_eq!(local_fs_path_from_target("file://cid-1/tmp/foo"), None);
         assert_eq!(local_fs_path_from_target("postgres://db/x"), None);
+    }
+
+    #[test]
+    fn remote_path_normalizes_file_uri_forms_for_local_server() {
+        let dir = temp_tree("remote-path");
+        let dir_str = dir.to_string_lossy().to_string();
+        let base = "http://127.0.0.1:13619";
+        // bare path passes through unchanged -- the server abspath()s it itself.
+        assert_eq!(remote_path(base, &dir_str).unwrap(), dir_str);
+        // both file:// spellings of the SAME local path must resolve identically,
+        // to the canonical form the server's root_uri is registered under.
+        let want = format!("file://local{dir_str}");
+        assert_eq!(
+            remote_path(base, &format!("file://{dir_str}")).unwrap(),
+            want
+        );
+        assert_eq!(
+            remote_path(base, &format!("file://local{dir_str}")).unwrap(),
+            want
+        );
     }
 
     #[test]
