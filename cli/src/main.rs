@@ -420,6 +420,20 @@ fn is_remote(base: &str) -> bool {
     !(base.contains("127.0.0.1") || base.contains("localhost") || base.contains("[::1]"))
 }
 
+/// Extract the underlying filesystem path from a `file:///abs` or `file://local/abs`
+/// target, mirroring the slicing the server's FilePlugin.derive_target does for the
+/// same two forms. Returns None for a bare path or any other file:// identity (e.g.
+/// the file://<client_id> upload identity), which callers fall back to handling as-is.
+fn local_fs_path_from_target(target: &str) -> Option<String> {
+    if target.starts_with("file:///") {
+        return Some(target["file://".len()..].to_string());
+    }
+    if target.starts_with("file://local/") {
+        return Some(target["file://local".len()..].to_string());
+    }
+    None
+}
+
 fn remote_path(base: &str, path: &str) -> CliResult<String> {
     if is_remote(base) {
         if let Ok(abs) = std::fs::canonicalize(path) {
@@ -610,13 +624,18 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             no_upload,
             yes,
         } => {
-            let is_local = std::path::Path::new(target).exists();
+            // A file:///abs or file://local/abs target is exactly as local as the bare
+            // path it encodes -- resolve it the same way the server's FilePlugin does
+            // before checking existence, so spelling a local target as a URI doesn't
+            // wrongly trip the external-connector cost-estimate prompt below.
+            let fs_path = local_fs_path_from_target(target);
+            let is_local = std::path::Path::new(fs_path.as_deref().unwrap_or(target)).exists();
             // Make a bare/relative local path absolute CLIENT-side before sending: a
             // loopback server resolves a relative path against its OWN cwd (not the user's),
             // so `mfs add ./repo` would 500 with a server-side FileNotFoundError. Canonicalizing
             // to the stable file://local<abs> identity also keeps search/cat/remove consistent.
             let canon_target: String = if is_local {
-                std::fs::canonicalize(target)
+                std::fs::canonicalize(fs_path.as_deref().unwrap_or(target))
                     .map(|p| p.to_string_lossy().into_owned())
                     .unwrap_or_else(|_| target.clone())
             } else {
@@ -1656,6 +1675,21 @@ mod tests {
     fn write_file(path: &std::path::Path, content: &str) {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, content).unwrap();
+    }
+
+    #[test]
+    fn local_fs_path_from_target_strips_file_uri_forms() {
+        assert_eq!(
+            local_fs_path_from_target("file:///tmp/foo"),
+            Some("/tmp/foo".to_string())
+        );
+        assert_eq!(
+            local_fs_path_from_target("file://local/tmp/foo"),
+            Some("/tmp/foo".to_string())
+        );
+        assert_eq!(local_fs_path_from_target("/tmp/foo"), None);
+        assert_eq!(local_fs_path_from_target("file://cid-1/tmp/foo"), None);
+        assert_eq!(local_fs_path_from_target("postgres://db/x"), None);
     }
 
     #[test]
