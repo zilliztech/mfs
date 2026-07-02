@@ -739,23 +739,33 @@ at MFS and focus on the app on top.
 - **CLI** — call the `mfs` command to build your own **skills**, **MCP servers**,
   or **plugins** on top of the same surface.
 
-One example is [`Open Tag`](examples/open-tag-skill/): a small open-source Slack
-bot you `@mention` — `@OpenClaude` or `@OpenCodex` — that gathers authorized
-context and runs the task on a CLI agent backend. It's an open, self-hosted homage
-to [Claude Tag](https://www.anthropic.com/news/introducing-claude-tag), Anthropic's
-hosted `@Claude` Slack teammate. The point is how little it takes to build: MFS already gives it one
-searchable, self-hosted memory over Slack, repos, docs, issues, and databases, so
-its strongest capability — plugging in whatever data sources you need — is also
-the easy part. See the [example](examples/open-tag-skill/) for the full walkthrough.
+### 🧩 Examples: well-known projects, rebuilt on MFS
+
+Every example under [`examples/`](examples/) replicates a well-known project on
+top of MFS — the same capability, in a fraction of the code — because MFS
+already owns the part that used to be the hard part for each of them:
+ingestion, chunking, embedding, the vector store, and hybrid search across many
+source types. What's left is thin glue, or a single skill describing a strategy.
+
+- [`claude-context`](examples/claude-context/) — a replica of
+  [claude-context](https://github.com/zilliztech/claude-context) ("make the
+  codebase the context for any coding agent"): an MCP server exposing
+  `search` + `read` over MFS, about 60 lines.
+- [`deep-research-skill`](examples/deep-research-skill/) — the "reason and
+  search over private data" job [deep-searcher](https://github.com/zilliztech/deep-searcher)
+  does as a standalone framework, done here as a single skill on top of
+  `mfs-find` — no vector-DB glue, no provider matrix, no custom
+  retrieval-loop code.
+- [`open-tag-skill`](examples/open-tag-skill/) — a self-hosted homage to
+  [Claude Tag](https://www.anthropic.com/news/introducing-claude-tag),
+  Anthropic's hosted `@Claude` Slack teammate: `@mention` a bot in Slack —
+  `@OpenClaude` or `@OpenCodex` — and it gathers authorized MFS context and
+  runs the task on a CLI agent backend.
 
 ![Open Tag — delegating a PR review across Slack channels](https://github.com/user-attachments/assets/6cb1db05-dd12-4a13-a9fa-1a1bf69bcf28)
 
-Another is [`Deep Research`](examples/deep-research-skill/): the "reason and
-search over private data" job [deep-searcher](https://github.com/zilliztech/deep-searcher)
-does as a standalone framework, done here as a single skill on top of `mfs-find` —
-no vector-DB glue, no provider matrix, no custom retrieval-loop code, because MFS
-already indexes and searches, and an agent with a search tool already runs that
-loop natively once it has the strategy.
+See [`examples/README.md`](examples/README.md) for the full list, or each
+example's own README for its install command and walkthrough.
 
 ## 🗺️ Roadmap
 
