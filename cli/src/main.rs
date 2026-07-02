@@ -141,10 +141,10 @@ enum Cmd {
         #[arg(long, visible_alias = "full")]
         force_index: bool,
         /// Bundle + upload the tree to the server even on the same host (no shared fs)
-        #[arg(long)]
+        #[arg(long, conflicts_with = "no_upload")]
         upload: bool,
         /// Re-upload every file (skip the manifest diff) and force a full re-index
-        #[arg(long)]
+        #[arg(long, conflicts_with = "no_upload")]
         force_upload: bool,
         /// Never upload; have the server read the path itself (shared fs)
         #[arg(long)]
