@@ -1742,11 +1742,27 @@ fn serve_cmd(action: &ServeAction, json: bool) -> Result<(), String> {
                     .status()
                     .map(|s| s.success())
                     .unwrap_or(false);
-                let _ = std::fs::remove_file(&pid_file);
-                if signaled {
-                    println!("stopped (pid {pid})");
-                } else {
+                if !signaled {
+                    let _ = std::fs::remove_file(&pid_file);
                     println!("already stopped (pid {pid})");
+                } else {
+                    // A signal being delivered doesn't mean the process
+                    // actually exits: one stuck in blocking (non-yielding)
+                    // work can hold SIGTERM pending indefinitely. Confirm
+                    // real death before claiming success or dropping the
+                    // pidfile out from under a still-live process — the same
+                    // pattern Restart already relies on below.
+                    let deadline = Instant::now() + Duration::from_secs(10);
+                    while pid_alive(pid) && Instant::now() < deadline {
+                        std::thread::sleep(Duration::from_millis(200));
+                    }
+                    if pid_alive(pid) {
+                        return Err(format!(
+                            "did not stop within 10s (pid {pid} still alive — likely wedged in blocking work); pidfile left in place. Use `kill -9 {pid}` to force."
+                        ));
+                    }
+                    let _ = std::fs::remove_file(&pid_file);
+                    println!("stopped (pid {pid})");
                 }
             }
             None => println!("not running"),
