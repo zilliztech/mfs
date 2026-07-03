@@ -1007,7 +1007,11 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     &format!("{base}/v1/jobs/{job_id}/cancel"),
                     &serde_json::json!({}),
                 )?;
-                println!("cancelled: {}", v["cancelled"].as_bool().unwrap_or(false));
+                if cli.json {
+                    println!("{v}");
+                } else {
+                    println!("cancelled: {}", v["cancelled"].as_bool().unwrap_or(false));
+                }
             }
         },
         Cmd::Connector { action } => match action {
