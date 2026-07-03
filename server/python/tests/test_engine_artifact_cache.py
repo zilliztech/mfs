@@ -90,6 +90,60 @@ async def asyncio_sleep(delay: float = 0.01) -> None:
     await asyncio.sleep(delay)
 
 
+class _FailingMeta:
+    """Wraps a real MetadataStore: ``execute`` / ``executemany`` raise when the SQL contains a
+    configured substring, so DB-failure paths (put orphan-bytes cleanup, rename partial-update)
+    can be exercised against the real sqlite backend. Reads pass through unchanged so the
+    method under test reaches the failing statement rather than failing earlier on a lookup."""
+
+    def __init__(self, real, *, fail_on_substr: str):
+        self._real = real
+        self._fail = fail_on_substr
+
+    async def execute(self, sql, params=()):
+        if self._fail in sql:
+            raise RuntimeError(f"simulated DB failure: {self._fail}")
+        return await self._real.execute(sql, params)
+
+    async def executemany(self, sql, rows):
+        if self._fail in sql:
+            raise RuntimeError(f"simulated DB failure: {self._fail}")
+        return await self._real.executemany(sql, rows)
+
+    async def fetchone(self, sql, params=()):
+        return await self._real.fetchone(sql, params)
+
+    async def fetchall(self, sql, params=()):
+        return await self._real.fetchall(sql, params)
+
+
+class _FlakyStore:
+    """Wraps a real LocalArtifactCache: ``delete_artifact`` raises for configured
+    ``(object_uri, artifact_kind)`` pairs, so evict's bytes-delete-failure path (keep the row,
+    don't decrement total) can be tested. All other ops pass through."""
+
+    def __init__(self, real, *, fail_on: set):
+        self._real = real
+        self._fail = fail_on  # {(object_uri, artifact_kind), ...}
+
+    def put_artifact(self, *a):
+        return self._real.put_artifact(*a)
+
+    def get_artifact(self, *a):
+        return self._real.get_artifact(*a)
+
+    def delete_artifact(self, ns, object_uri, kind):
+        if (object_uri, kind) in self._fail:
+            raise OSError("simulated bytes delete failure")
+        self._real.delete_artifact(ns, object_uri, kind)
+
+    def move_artifacts(self, *a):
+        return self._real.move_artifacts(*a)
+
+    def artifact_path(self, *a):
+        return self._real.artifact_path(*a)
+
+
 # ----------------------------------------------------------------------
 # put_artifact — row write + UPSERT + default currency
 # ----------------------------------------------------------------------
@@ -136,6 +190,24 @@ async def test_put_artifact_currency_empty():
         (eng.ns, "file:///r/a.md", "converted_md"),
     )
     assert row["source_key"] == ""  # default currency -> empty source_key
+
+
+async def test_put_artifact_db_failure_cleans_orphan_bytes():
+    """4.1: if the DB upsert fails after bytes were written, compensate by deleting the orphan
+    bytes so the cache doesn't accumulate row-less artifacts. The original DB error propagates."""
+    eng = await _build_engine()
+    eng.artifacts._meta = _FailingMeta(eng.meta, fail_on_substr="INSERT INTO artifact_cache")
+    with pytest.raises(RuntimeError, match="simulated DB failure"):
+        await eng.artifacts.put_artifact(eng.ns, "file:///r/a.md", "converted_md", b"hello")
+    assert (
+        eng.artifact_cache.get_artifact(eng.ns, "file:///r/a.md", "converted_md") is None
+    )  # bytes cleaned
+    assert (
+        await eng.meta.fetchone(
+            "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
+            (eng.ns, "file:///r/a.md"),
+        )
+    ) is None  # row was never written
 
 
 # ----------------------------------------------------------------------
@@ -277,6 +349,24 @@ async def test_drop_artifacts_missing_kind_no_raise():
     assert rows == []
 
 
+async def test_drop_artifacts_purges_unknown_kind():
+    """4.2: a kind NOT in _DROP_KINDS must still be purged on drop — the row-enumeration pass
+    covers future kinds so introducing a new artifact kind doesn't leak its bytes."""
+    eng = await _build_engine()
+    uri = "file:///r/x"
+    await eng.artifacts.put_artifact(eng.ns, uri, "future_kind", b"future")  # not in _DROP_KINDS
+    assert eng.artifact_cache.get_artifact(eng.ns, uri, "future_kind") == b"future"
+
+    await eng.artifacts.drop_artifacts(eng.ns, uri)
+
+    assert eng.artifact_cache.get_artifact(eng.ns, uri, "future_kind") is None  # bytes gone
+    assert (
+        await eng.meta.fetchone(
+            "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?", (eng.ns, uri)
+        )
+    ) is None  # row gone too
+
+
 # ----------------------------------------------------------------------
 # evict_if_needed — LRU by last_accessed ASC, <= boundary is a no-op
 # ----------------------------------------------------------------------
@@ -335,6 +425,25 @@ async def test_evict_over_budget_lru():
     assert eng.artifact_cache.get_artifact(eng.ns, "file:///r/b.md", "converted_md") == b"x" * 128
 
 
+async def test_evict_keeps_row_when_bytes_delete_fails():
+    """4.3: when bytes deletion fails, evict leaves the row (retryable on the next sweep) and
+    does not subtract from total — no invisible orphan bytes (row deleted but bytes lingering)."""
+    eng = await _build_engine(max_size_gb=256 / (1 << 30))  # max_bytes = 256
+    await eng.artifacts.put_artifact(eng.ns, "file:///r/a.md", "converted_md", b"x" * 400)
+    # total = 400 > 256; single victim a
+    eng.artifacts._store = _FlakyStore(
+        eng.artifact_cache, fail_on={("file:///r/a.md", "converted_md")}
+    )
+    evicted = await eng.artifacts.evict_if_needed(eng.ns)
+    assert evicted == 0  # a's bytes delete failed -> skipped, nothing evicted
+    assert (
+        await eng.meta.fetchone(
+            "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
+            (eng.ns, "file:///r/a.md"),
+        )
+    ) is not None  # row survives (retryable); bytes still on disk (the delete genuinely failed)
+
+
 # ----------------------------------------------------------------------
 # rename_artifacts — move dir + rewrite object_uri/storage_path
 # ----------------------------------------------------------------------
@@ -370,13 +479,73 @@ async def test_rename_artifacts_updates_rows():
     assert await eng.artifacts.read_artifact(eng.ns, new_uri, "converted_md") == b"hello"
 
 
-async def test_rename_artifacts_no_rows_noop():
+async def test_rename_artifacts_no_rows_leaves_db_unchanged():
     eng = await _build_engine()
-    # old_uri has no rows -> query returns nothing, loop doesn't run, no raise
+    # old_uri has no rows -> the row-rewrite loop doesn't run (no UPDATE issued). The FS move
+    # still runs (it may relocate an orphan dir whose row is gone) — that is the pre-service
+    # behavior, retained here; "no rows" means "no DB write", not "no side effect".
     await eng.artifacts.rename_artifacts(eng.ns, "file:///r/none.md", "file:///r/new.md")
     assert (
         await eng.meta.fetchone("SELECT 1 FROM artifact_cache WHERE namespace_id=?", (eng.ns,))
     ) is None
+
+
+async def test_rename_artifacts_multiple_kinds_atomic():
+    """4.5: multiple kinds under one object all move to the new uri in a single executemany —
+    either every row moves or none do (no partial update)."""
+    eng = await _build_engine()
+    old_uri = "file:///r/old.md"
+    new_uri = "file:///r/new.md"
+    await eng.artifacts.put_artifact(eng.ns, old_uri, "converted_md", b"md", "cur1")
+    await eng.artifacts.put_artifact(eng.ns, old_uri, "head_cache", b"head", "cur2")
+
+    await eng.artifacts.rename_artifacts(eng.ns, old_uri, new_uri)
+
+    rows = {
+        r["artifact_kind"]: r["storage_path"]
+        for r in await eng.meta.fetchall(
+            "SELECT artifact_kind, storage_path FROM artifact_cache "
+            "WHERE namespace_id=? AND object_uri=?",
+            (eng.ns, new_uri),
+        )
+    }
+    assert set(rows) == {"converted_md", "head_cache"}  # both moved
+    assert rows["converted_md"] == str(
+        eng.artifact_cache.artifact_path(eng.ns, new_uri, "converted_md")
+    )
+    assert rows["head_cache"] == str(
+        eng.artifact_cache.artifact_path(eng.ns, new_uri, "head_cache")
+    )
+    assert (
+        await eng.meta.fetchone(
+            "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
+            (eng.ns, old_uri),
+        )
+    ) is None  # none left under the old uri
+
+
+async def test_rename_artifacts_db_failure_no_partial_update():
+    """4.5: if the row-rewrite UPDATE fails, the single executemany rolls back atomically — no
+    row is partially moved. (The pre-service per-row execute loop could leave some rows at the
+    new uri and some at the old.) The FS move has already happened, so bytes are at the new uri;
+    this test locks only the DB-side no-partial-update guarantee."""
+    eng = await _build_engine()
+    old_uri = "file:///r/old.md"
+    new_uri = "file:///r/new.md"
+    await eng.artifacts.put_artifact(eng.ns, old_uri, "converted_md", b"md", "cur1")
+    await eng.artifacts.put_artifact(eng.ns, old_uri, "head_cache", b"head", "cur2")
+    eng.artifacts._meta = _FailingMeta(
+        eng.meta, fail_on_substr="UPDATE artifact_cache SET object_uri"
+    )
+
+    with pytest.raises(RuntimeError, match="simulated DB failure"):
+        await eng.artifacts.rename_artifacts(eng.ns, old_uri, new_uri)
+
+    # DB failed atomically -> NO row was partially updated; both rows still under old_uri
+    rows = await eng.meta.fetchall(
+        "SELECT object_uri FROM artifact_cache WHERE namespace_id=?", (eng.ns,)
+    )
+    assert {r["object_uri"] for r in rows} == {old_uri}
 
 
 # ----------------------------------------------------------------------

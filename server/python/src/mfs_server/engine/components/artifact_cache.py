@@ -13,6 +13,7 @@ sites + ``ArtifactStoreAdapter`` wiring stay unchanged.
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from datetime import datetime, timezone
 
 
@@ -56,15 +57,23 @@ class ArtifactCacheService:
         kinds that pass no token leave it empty."""
         path = await asyncio.to_thread(self._store.put_artifact, ns, object_uri, kind, data)
         now = _now()
-        await self._meta.execute(
-            "INSERT INTO artifact_cache (namespace_id, object_uri, artifact_kind, storage_path, "
-            " source_key, size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?,?) "
-            "ON CONFLICT(namespace_id, object_uri, artifact_kind) DO UPDATE SET "
-            " storage_path=excluded.storage_path, source_key=excluded.source_key, "
-            " size_bytes=excluded.size_bytes, built_at=excluded.built_at, "
-            " last_accessed=excluded.last_accessed",
-            (ns, object_uri, kind, str(path), currency, len(data), now, now),
-        )
+        try:
+            await self._meta.execute(
+                "INSERT INTO artifact_cache (namespace_id, object_uri, artifact_kind, storage_path, "
+                " source_key, size_bytes, built_at, last_accessed) VALUES (?,?,?,?,?,?,?,?) "
+                "ON CONFLICT(namespace_id, object_uri, artifact_kind) DO UPDATE SET "
+                " storage_path=excluded.storage_path, source_key=excluded.source_key, "
+                " size_bytes=excluded.size_bytes, built_at=excluded.built_at, "
+                " last_accessed=excluded.last_accessed",
+                (ns, object_uri, kind, str(path), currency, len(data), now, now),
+            )
+        except Exception:
+            # DB upsert failed: compensate by deleting the orphan bytes we just wrote, so the
+            # cache doesn't accumulate row-less artifacts. Best-effort — a cleanup failure is
+            # suppressed so the original DB error is what propagates.
+            with suppress(Exception):
+                await asyncio.to_thread(self._store.delete_artifact, ns, object_uri, kind)
+            raise
         self._writes += 1
         if self._writes % 16 == 0:
             await self.evict_if_needed(ns)
@@ -75,9 +84,24 @@ class ArtifactCacheService:
         object deletion so the cache doesn't retain orphaned bytes. 'raw_records' is the
         message_stream materialization (jsonl); a deleted Slack/Gmail object would otherwise
         leak it."""
+        # Best-effort purge the known kinds — covers orphan bytes whose row is already gone
+        # (the row-less bytes _DROP_KINDS was originally written to clean up).
         for kind in _DROP_KINDS:
             try:
                 await asyncio.to_thread(self._store.delete_artifact, ns, object_uri, kind)
+            except Exception:  # noqa: BLE001
+                pass
+        # Also purge any kind recorded in the row — covers future kinds not in _DROP_KINDS,
+        # so introducing a new artifact kind doesn't leak its bytes on object deletion.
+        rows = await self._meta.fetchall(
+            "SELECT artifact_kind FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
+            (ns, object_uri),
+        )
+        for r in rows:
+            try:
+                await asyncio.to_thread(
+                    self._store.delete_artifact, ns, object_uri, r["artifact_kind"]
+                )
             except Exception:  # noqa: BLE001
                 pass
         await self._meta.execute(
@@ -146,7 +170,9 @@ class ArtifactCacheService:
                     self._store.delete_artifact, ns, v["object_uri"], v["artifact_kind"]
                 )
             except Exception:  # noqa: BLE001
-                pass
+                # bytes delete failed: leave the row so it stays accounted + retryable on the
+                # next sweep, and don't subtract from total (the bytes still occupy space).
+                continue
             await self._meta.execute(
                 "DELETE FROM artifact_cache WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
                 (ns, v["object_uri"], v["artifact_kind"]),
@@ -158,18 +184,35 @@ class ArtifactCacheService:
     async def rename_artifacts(self, ns: str, old_uri: str, new_uri: str) -> None:
         """Move an object's artifact dir to its new uri and rewrite the artifact_cache rows'
         object_uri + storage_path so LRU bookkeeping (size accounting, last_accessed bumps on
-        cat) tracks the artifact under its new uri. ``move_artifacts`` is ``shutil.move`` (atomic);
-        like the original inline code, no try/except wraps it — a failure propagates and the
-        row rewrite is skipped, matching the pre-service semantics."""
+        cat) tracks the artifact under its new uri. ``move_artifacts`` is ``Path.replace``
+        (atomic on the FS layer); like the original inline code, no try/except wraps it — an
+        FS move failure propagates and the row rewrite is skipped. The per-row UPDATEs are issued
+        as a single ``executemany`` so the DB never holds a partially-renamed state (either
+        every row moves to the new uri or none do). The FS move is still ahead of the DB write
+        and not transactional with it, so a failure between the two can leave FS at the new uri
+        + DB at the old — same window as before, but the per-row partial-update case is closed.
+        """
         await asyncio.to_thread(self._store.move_artifacts, ns, old_uri, new_uri)
         artifact_rows = await self._meta.fetchall(
             "SELECT artifact_kind FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
             (ns, old_uri),
         )
-        for ar in artifact_rows:
-            new_storage = str(self._store.artifact_path(ns, new_uri, ar["artifact_kind"]))
-            await self._meta.execute(
-                "UPDATE artifact_cache SET object_uri=?, storage_path=? "
-                "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
-                (new_uri, new_storage, ns, old_uri, ar["artifact_kind"]),
+        if not artifact_rows:
+            return  # nothing to rewrite (the FS move above already relocated any orphan dir)
+        # compute every row's new storage_path up front, then issue one executemany so the
+        # UPDATE is atomic across all rows (single statement + single commit on both backends).
+        rows = [
+            (
+                new_uri,
+                str(self._store.artifact_path(ns, new_uri, r["artifact_kind"])),
+                ns,
+                old_uri,
+                r["artifact_kind"],
             )
+            for r in artifact_rows
+        ]
+        await self._meta.executemany(
+            "UPDATE artifact_cache SET object_uri=?, storage_path=? "
+            "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
+            rows,
+        )
