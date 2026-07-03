@@ -1017,7 +1017,11 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     body["config"] = load_config_file(c)?;
                 }
                 let v = post(client, &format!("{base}/v1/add"), &body)?;
-                println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
+                if cli.json {
+                    println!("{v}");
+                } else {
+                    println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
+                }
             }
             ConnectorAction::Update { target, config } => {
                 // update applies the new config to the existing connector (add ignores --config)
@@ -1026,7 +1030,11 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     body["config"] = load_config_file(c)?;
                 }
                 let v = post(client, &format!("{base}/v1/add"), &body)?;
-                println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
+                if cli.json {
+                    println!("{v}");
+                } else {
+                    println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
+                }
             }
             ConnectorAction::Probe { target, config } => {
                 let mut body = serde_json::json!({"target": target});
