@@ -941,7 +941,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             )?;
             let text = v["content"].as_str().unwrap_or("");
             let partial = v["partial"].as_bool().unwrap_or(false);
-            std::fs::write(out, text).map_err(|e| e.to_string())?;
+            std::fs::write(out, text).map_err(|e| format!("failed to write to {out}: {e}"))?;
             println!("exported {} bytes -> {}", text.len(), out);
             if partial {
                 println!(
