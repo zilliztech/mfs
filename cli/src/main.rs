@@ -198,7 +198,7 @@ enum Cmd {
         range: Option<String>,
         #[arg(long)]
         meta: bool,
-        /// Reopen a single structured record by its locator JSON, e.g. '{"pk":{"id":12}}'
+        /// Reopen a single structured record by its locator JSON, e.g. '{"id":12}'
         #[arg(long)]
         locator: Option<String>,
         /// Skeleton view: headings/symbols only
