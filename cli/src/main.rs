@@ -1820,6 +1820,15 @@ fn serve_cmd(action: &ServeAction, json: bool) -> Result<(), String> {
                 } else {
                     println!("not running");
                 }
+                // Exit non-zero whenever this CLI can't confirm a server it manages
+                // is running -- `systemctl is-active` precedent: the whole point of
+                // a status check is to be scriptable (`if mfs serve status; then
+                // ...`), and "not running" silently exiting 0 defeated that. Print
+                // first (stdout stays honest either way), then exit -- not an
+                // Err(), so this doesn't get an "error:" prefix it doesn't deserve.
+                use std::io::Write;
+                std::io::stdout().flush().ok();
+                std::process::exit(1);
             }
         },
         ServeAction::Logs => {
