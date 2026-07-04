@@ -276,7 +276,9 @@ enum ConfigAction {
 
 #[derive(Subcommand)]
 enum ConnectorAction {
-    /// Register + sync a connector (alias: `mfs add`)
+    /// Register + sync a connector — a config-only subset of `mfs add`, not a
+    /// true alias: no -y/--force-index/--since/upload flags, no cost-estimate
+    /// confirm flow. Use `mfs add` directly if you need those.
     Add {
         target: String,
         #[arg(long)]
