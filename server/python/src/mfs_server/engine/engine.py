@@ -18,25 +18,22 @@ import uuid
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 
-from ..common.converter import CONVERT_EXTS, ConverterClient
-from ..common.embedding import CachingEmbeddingClient
+from ..common.converter import CONVERT_EXTS
 from ..common.retrieval import build_filter, collapse_results, to_envelope
-from ..common.summary import CachingSummaryClient
-from ..common.vlm import CachingVlmClient
 from ..config import ServerConfig
 from ..connectors.base import SyncOptions
-from ..connectors.registry import get_plugin_cls, load_builtin
+from ..connectors.registry import get_plugin_cls
 from ..storage.file_state import FileStateStore
 from ..storage.ids import chunk_id
-from ..storage.metadata import make_metadata_store
-from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW, MilvusStore
-from ..storage.artifact_cache import make_artifact_cache
-from ..storage.transformation_cache import make_transformation_cache
+from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW
 from .adapters import ArtifactStoreAdapter, EmbedderAdapter, MilvusSinkAdapter, TxCacheAdapter
 from .components import ConnectorFactory, ConnectorLocator, CredentialService
 from .components.artifact_cache import ArtifactCacheService
 from .components.object_repository import ObjectRepository, TaskStatus
-from .pipeline import EmbedConsumer, TaskEnvelope, _EMBED_FLUSH_IDLE_MS, make_chunks_q
+from .infra import InfraStack
+from .job_lane import build_job_lane
+from .job_watcher import ConnectorJobWatcher
+from .pipeline import _EMBED_FLUSH_IDLE_MS, EmbedConsumer, TaskEnvelope, make_chunks_q
 from .producers import select_producer
 from .producers.base import (
     DescriptionConcurrencyGate,
@@ -47,8 +44,6 @@ from .producers.base import (
     cap_content,
 )
 from .producers.render import render_record, resolve_path
-from .job_watcher import ConnectorJobWatcher
-from .job_lane import build_job_lane
 from .state import ConnectorStateStore
 
 logger = logging.getLogger(__name__)
@@ -186,26 +181,17 @@ class Engine:
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
         self.ns = cfg.namespace
-        self.meta = make_metadata_store(cfg)
+        # Infra stack: constructs + lifecycles the 8 infra clients (meta/milvus/artifact_cache/tx_cache/embed/converter/vlm/summary).
+        self.infra = InfraStack(cfg)
         # ObjectRepository owns all SQL for the four tables + the advance_task guard.
         # Inject the shared meta handle + cfg (namespace derived from cfg).
-        self.objects = ObjectRepository(self.meta, cfg)
-        # ConnectorFactory owns target resolution / credential redact+resolve /
-        # plugin build. It never touches the connectors table; ObjectRepository
-        # calls connector_factory.redact(config) before persisting.
-        self.connector_factory = ConnectorFactory(cfg, self.meta)
-        self.milvus = MilvusStore(cfg)
-        self.artifact_cache = make_artifact_cache(cfg)
-        self.tx_cache = make_transformation_cache(cfg)
-        self.embed = CachingEmbeddingClient(cfg, self.tx_cache)
-        self.converter = ConverterClient(cfg)
-        self.vlm = CachingVlmClient(cfg, self.tx_cache)
-        self.summary = CachingSummaryClient(cfg, self.tx_cache)
-        # ArtifactCacheService owns the artifact_cache table SQL + LRU + freshness
-        # (migrated verbatim from the old _*_artifact / _evict methods). The storage-layer
-        # LocalArtifactCache stays on Engine (uploads staging / raw_records GC call it
-        # directly) and is injected here for the bytes CRUD the service needs.
-        self.artifacts = ArtifactCacheService(cfg, self.meta, self.artifact_cache, self.objects)
+        self.objects = ObjectRepository(self.infra.meta, cfg)
+        # ConnectorFactory owns target resolution / credential redact+resolve / plugin build.
+        self.connector_factory = ConnectorFactory(cfg, self.infra.meta)
+        # ArtifactCacheService owns artifact_cache table SQL + LRU + freshness; the bytes store (LocalArtifactCache) lives on InfraStack via the artifact_cache property.
+        self.artifacts = ArtifactCacheService(
+            cfg, self.infra.meta, self.infra.artifact_cache, self.objects
+        )
         # --- new pipeline (process singletons; built lazily in _build_pipeline) ---
         self._chunks_q: asyncio.Queue | None = None
         self._embed_consumer: _PipelineEmbedConsumer | None = None
@@ -221,15 +207,74 @@ class Engine:
         self._job_watcher = None
         self._job_watcher_task: asyncio.Task | None = None
 
+    # --- infra handle pass-through: owned by self.infra, read-write so tests can patch embed/milvus/tx_cache with fakes. ---
+    @property
+    def meta(self):
+        return self.infra.meta
+
+    @meta.setter
+    def meta(self, v):
+        self.infra.meta = v
+
+    @property
+    def milvus(self):
+        return self.infra.milvus
+
+    @milvus.setter
+    def milvus(self, v):
+        self.infra.milvus = v
+
+    @property
+    def artifact_cache(self):
+        return self.infra.artifact_cache
+
+    @artifact_cache.setter
+    def artifact_cache(self, v):
+        self.infra.artifact_cache = v
+
+    @property
+    def tx_cache(self):
+        return self.infra.tx_cache
+
+    @tx_cache.setter
+    def tx_cache(self, v):
+        self.infra.tx_cache = v
+
+    @property
+    def embed(self):
+        return self.infra.embed
+
+    @embed.setter
+    def embed(self, v):
+        self.infra.embed = v
+
+    @property
+    def converter(self):
+        return self.infra.converter
+
+    @converter.setter
+    def converter(self, v):
+        self.infra.converter = v
+
+    @property
+    def vlm(self):
+        return self.infra.vlm
+
+    @vlm.setter
+    def vlm(self, v):
+        self.infra.vlm = v
+
+    @property
+    def summary(self):
+        return self.infra.summary
+
+    @summary.setter
+    def summary(self, v):
+        self.infra.summary = v
+
     async def startup(self, *, preload_local_models: bool = False) -> None:
-        load_builtin()
-        await self.meta.connect()
-        await self.meta.init_schema()
-        await self.tx_cache.connect()
-        self.milvus.connect()
-        self.milvus.ensure_collection(self.ns)
-        if preload_local_models:
-            await self._preload_startup_models()
+        # Infra connect + schema + optional model preload
+        await self.infra.startup(preload_local_models=preload_local_models)
         self._build_pipeline()
         await self._gc_orphan_chunks()
         await self._recover_job_lane()
@@ -237,17 +282,6 @@ class Engine:
         # pool, finalizing jobs out-of-band (§5.7).
         self._job_watcher = ConnectorJobWatcher(self.meta, self._job_lane)
         self._job_watcher_task = asyncio.create_task(self._job_watcher.run())
-
-    async def _preload_startup_models(self) -> None:
-        if not self.embed.should_preload_on_server_start():
-            return
-        logger.info(
-            "preloading embedding provider %s/%s",
-            self.embed.provider_name,
-            self.embed.model,
-        )
-        await asyncio.to_thread(self.embed.preload_provider)
-        logger.info("embedding provider ready")
 
     async def _gc_orphan_chunks(self) -> int:
         """Startup reconcile: delete Milvus chunks that no committed `objects` row points at.
@@ -309,8 +343,8 @@ class Engine:
             # in-flight task's chunks aren't lost on shutdown.
             await self._embed_consumer.shutdown()
             self._embed_consumer = None
-        await self.meta.close()
-        await self.tx_cache.close()
+        # Infra close: meta + tx_cache. milvus / artifact_cache have no close method.
+        await self.infra.shutdown()
 
     # --- new pipeline: process-singleton chunks_q + EmbedConsumer (§3.1 / §5.2) ---
     def _build_pipeline(self) -> None:
