@@ -51,7 +51,9 @@ mfs add web://example-docs --config /tmp/mfs-web.toml
 - **`max_pages` is exact**: hit the cap, the rest are silently
   skipped. Re-run with a higher cap to extend.
 - **Authentication**: not supported. Public web only.
-- **robots.txt**: respected by default.
+- **robots.txt**: not currently checked or enforced; the crawler
+  indexes every reachable page within `max_pages` regardless of
+  robots.txt directives.
 - **rate limit**: built-in 1 req/sec per domain; raise via
   `--config` if you own the site.
 - **Re-crawl is full**: this connector has no per-page modification

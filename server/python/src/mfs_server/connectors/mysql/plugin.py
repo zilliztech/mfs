@@ -13,6 +13,7 @@ import aiomysql
 
 from ..base import (
     Capabilities,
+    ConnectorConfigSchema,
     ConnectorPlugin,
     Entry,
     GrepMatch,
@@ -25,6 +26,16 @@ from ..base import (
     SyncOptions,
     safe_ident,
 )
+
+
+class MySQLConfig(ConnectorConfigSchema):
+    host: str = "127.0.0.1"
+    port: int = 3306
+    user: str = "root"
+    password: Optional[str] = None
+    database: Optional[str] = None
+    max_read_rows: int = 100000
+    cursor_column: Optional[str] = None
 
 
 class MySQLPlugin(ConnectorPlugin):
@@ -42,6 +53,7 @@ class MySQLPlugin(ConnectorPlugin):
         search_pushdown=False,
         paged_cat=True,
     )
+    CONFIG_SCHEMA = MySQLConfig
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)

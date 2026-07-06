@@ -13,6 +13,7 @@ from pymongo import AsyncMongoClient
 
 from ..base import (
     Capabilities,
+    ConnectorConfigSchema,
     ConnectorPlugin,
     Entry,
     HealthStatus,
@@ -22,6 +23,13 @@ from ..base import (
     Range,
     SyncOptions,
 )
+
+
+class MongoConfig(ConnectorConfigSchema):
+    uri: Optional[str] = None
+    database: Optional[str] = None
+    max_read_docs: int = 100000
+    cursor_field: Optional[str] = None
 
 
 class MongoPlugin(ConnectorPlugin):
@@ -37,6 +45,7 @@ class MongoPlugin(ConnectorPlugin):
         delete_detection="full_scan",
         paged_cat=True,
     )
+    CONFIG_SCHEMA = MongoConfig
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)

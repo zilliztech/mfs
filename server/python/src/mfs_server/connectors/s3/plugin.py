@@ -19,6 +19,7 @@ import aioboto3
 
 from ..base import (
     Capabilities,
+    ConnectorConfigSchema,
     ConnectorPlugin,
     Entry,
     HealthStatus,
@@ -29,6 +30,15 @@ from ..base import (
     SyncOptions,
 )
 from ..file.plugin import CODE_EXT, DOC_EXT, IMAGE_EXT, TEXTBLOB_EXT
+
+
+class S3Config(ConnectorConfigSchema):
+    bucket: Optional[str] = None
+    access_key_id: Optional[str] = None
+    secret_access_key: Optional[str] = None
+    region: Optional[str] = None
+    endpoint_url: Optional[str] = None
+    prefix: str = ""
 
 
 class S3Plugin(ConnectorPlugin):
@@ -44,6 +54,7 @@ class S3Plugin(ConnectorPlugin):
         delete_detection="full_scan",
         paged_cat=True,
     )
+    CONFIG_SCHEMA = S3Config
 
     def _cfg(self, k, d=None):
         return (
@@ -142,8 +153,31 @@ class S3Plugin(ConnectorPlugin):
         key = path.lstrip("/")
         async with self._session().client("s3", **self._client_kwargs()) as s3:
             resp = await s3.get_object(Bucket=self._bucket(), Key=key)
-            async with resp["Body"] as stream:
-                yield await stream.read()
+            body = resp["Body"]
+            async with body:
+                # __aenter__ on the streaming body returns the raw aiohttp response (for
+                # connection lifecycle), not something with a chunk-sized read -- keep
+                # reading off `body` itself, which supports read(amt).
+                if range is None:
+                    while chunk := await body.read(65536):
+                        yield chunk
+                else:
+                    # line range [start, end) — stream line-by-line, same approach as the
+                    # file connector (cat --range must not buffer the whole object into memory).
+                    start, end = range.start, range.end
+                    i = 0
+                    buf = b""
+                    while chunk := await body.read(65536):
+                        buf += chunk
+                        while (nl := buf.find(b"\n")) >= 0:
+                            line, buf = buf[: nl + 1], buf[nl + 1 :]
+                            if start <= i < end:
+                                yield line
+                            i += 1
+                            if i >= end:
+                                return
+                    if buf and start <= i < end:  # trailing line without a newline
+                        yield buf
 
     async def fingerprint(self, path: str) -> Optional[str]:
         keys = await self.state.get("keys") or {}

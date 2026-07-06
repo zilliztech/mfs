@@ -298,6 +298,62 @@ class TestValidateNoPlaintextSecrets:
 
 
 # ===========================================================================
+# ConnectorFactory.validate_config — CONFIG_SCHEMA enforcement at add/update/
+# probe time, before any connection is attempted. Covers the 3 failure shapes
+# a schema-less config-parse path let through: a wrong-typed field, a bad-type
+# field with no coercion path, and a silently-ignored unknown field.
+# ===========================================================================
+
+
+class TestValidateConfig:
+    def test_valid_config_passes(self, factory: ConnectorFactory):
+        factory.validate_config("postgres", {"dsn": "env:PG_DSN", "max_read_rows": 500})
+
+    def test_numeric_field_as_string_is_coerced_not_rejected(self, factory: ConnectorFactory):
+        # pydantic's default (lax) mode coerces an unambiguous numeric string to
+        # int at the schema boundary -- the original bug wasn't that "100" is an
+        # invalid max_read_rows, it's that nothing coerced it before an
+        # internal `>` comparison crashed on a real string. This must NOT raise.
+        factory.validate_config("postgres", {"max_read_rows": "100"})
+
+    def test_wrong_type_with_no_coercion_path_is_rejected(self, factory: ConnectorFactory):
+        # A bool has no sensible coercion to the str `dsn` expects -- unlike the
+        # numeric-string case above, this should be a clean, named rejection
+        # instead of surfacing 'bool' object has no attribute 'decode' deep in
+        # asyncpg/urlparse.
+        with pytest.raises(ValueError, match="config_invalid.*dsn"):
+            factory.validate_config("postgres", {"dsn": True})
+
+    def test_unrecognized_field_is_rejected(self, factory: ConnectorFactory):
+        with pytest.raises(ValueError, match="config_invalid.*bogus_field"):
+            factory.validate_config("postgres", {"dsn": "env:PG_DSN", "bogus_field": "nonsense"})
+
+    def test_credential_ref_and_legacy_alias_and_objects_are_allowed(
+        self, factory: ConnectorFactory
+    ):
+        # Cross-cutting fields every connector config may carry regardless of
+        # type -- declared once on ConnectorConfigSchema, not per-connector.
+        factory.validate_config("postgres", {"dsn": "env:PG_DSN", "credential_ref": "env:X"})
+        factory.validate_config("postgres", {"dsn": "env:PG_DSN", "_credential_ref": "env:X"})
+        factory.validate_config(
+            "postgres", {"dsn": "env:PG_DSN", "objects": [{"match": "*.csv", "priority": 1}]}
+        )
+
+    def test_connector_without_config_schema_is_unaffected(self, factory: ConnectorFactory):
+        # file's CONFIG_SCHEMA (FileConfig) predates ConnectorConfigSchema and is
+        # a plain @dataclass, not a pydantic model -- validate_config must not
+        # try to enforce it (it was never wired up to any enforcement before
+        # this, and objects/credential_ref would break its narrow field set).
+        factory.validate_config("file", {"root": "/tmp/x", "objects": [{"match": "*"}]})
+
+    def test_non_dict_config_is_a_noop(self, factory: ConnectorFactory):
+        factory.validate_config("postgres", None)
+
+    def test_unknown_ctype_is_a_noop(self, factory: ConnectorFactory):
+        factory.validate_config("no-such-connector-type", {"anything": 1})
+
+
+# ===========================================================================
 # §7.4 PluginBuilder.build
 # ===========================================================================
 

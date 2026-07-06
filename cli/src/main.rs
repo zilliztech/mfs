@@ -6,6 +6,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -198,7 +199,7 @@ enum Cmd {
         range: Option<String>,
         #[arg(long)]
         meta: bool,
-        /// Reopen a single structured record by its locator JSON, e.g. '{"pk":{"id":12}}'
+        /// Reopen a single structured record by its locator JSON, e.g. '{"id":12}'
         #[arg(long)]
         locator: Option<String>,
         /// Skeleton view: headings/symbols only
@@ -276,7 +277,9 @@ enum ConfigAction {
 
 #[derive(Subcommand)]
 enum ConnectorAction {
-    /// Register + sync a connector (alias: `mfs add`)
+    /// Register + sync a connector — a config-only subset of `mfs add`, not a
+    /// true alias: no -y/--force-index/--since/upload flags, no cost-estimate
+    /// confirm flow. Use `mfs add` directly if you need those.
     Add {
         target: String,
         #[arg(long)]
@@ -292,7 +295,7 @@ enum ConnectorAction {
     List,
     /// Show a connector's objects/jobs summary
     Inspect { target: String },
-    /// Re-sync a connector (alias: `mfs add <uri>`)
+    /// Re-sync a connector using its stored config
     Update {
         target: String,
         #[arg(long)]
@@ -630,6 +633,15 @@ fn base_url() -> CliResult<String> {
 }
 
 fn main() {
+    // Rust ignores SIGPIPE by default, so a write to a closed pipe (`mfs ... |
+    // head`) surfaces as a panic instead of the quiet, short-write termination
+    // every other Unix CLI gets. Restore the default disposition before any I/O
+    // runs so a broken pipe just ends the process, like `cat`/`grep` do.
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
+    }
+
     let cli = Cli::parse();
     let client = reqwest::blocking::Client::new();
     let base = match base_url() {
@@ -854,7 +866,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                 return Ok(());
             }
             println!("{path}");
-            tree(client, base, &rp, *depth, "")?;
+            tree(client, base, &rp, *depth, "", &mut HashSet::new())?;
         }
         Cmd::Cat {
             path,
@@ -932,7 +944,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             )?;
             let text = v["content"].as_str().unwrap_or("");
             let partial = v["partial"].as_bool().unwrap_or(false);
-            std::fs::write(out, text).map_err(|e| e.to_string())?;
+            std::fs::write(out, text).map_err(|e| format!("failed to write to {out}: {e}"))?;
             println!("exported {} bytes -> {}", text.len(), out);
             if partial {
                 println!(
@@ -943,7 +955,26 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
         }
         Cmd::Status => {
             let v = get(client, &format!("{base}/v1/status"), &[])?;
-            println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
+            if cli.json {
+                println!("{}", serde_json::to_string_pretty(&v).unwrap_or_default());
+                return Ok(());
+            }
+            for c in v["connectors"].as_array().unwrap_or(&vec![]) {
+                println!(
+                    "{:10}  {:8}  {}  ({} objects, {} chunks)",
+                    c["type"].as_str().unwrap_or("?"),
+                    c["status"].as_str().unwrap_or("?"),
+                    c["root_uri"].as_str().unwrap_or("?"),
+                    c["object_count"].as_u64().unwrap_or(0),
+                    c["chunk_count"].as_u64().unwrap_or(0)
+                );
+            }
+            println!(
+                "jobs: {} succeeded, {} failed, {} cancelled",
+                v["jobs"]["succeeded"].as_u64().unwrap_or(0),
+                v["jobs"]["failed"].as_u64().unwrap_or(0),
+                v["jobs"]["cancelled"].as_u64().unwrap_or(0)
+            );
         }
         Cmd::Job { action } => match action {
             JobAction::List => {
@@ -979,7 +1010,11 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     &format!("{base}/v1/jobs/{job_id}/cancel"),
                     &serde_json::json!({}),
                 )?;
-                println!("cancelled: {}", v["cancelled"].as_bool().unwrap_or(false));
+                if cli.json {
+                    println!("{v}");
+                } else {
+                    println!("cancelled: {}", v["cancelled"].as_bool().unwrap_or(false));
+                }
             }
         },
         Cmd::Connector { action } => match action {
@@ -989,7 +1024,11 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     body["config"] = load_config_file(c)?;
                 }
                 let v = post(client, &format!("{base}/v1/add"), &body)?;
-                println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
+                if cli.json {
+                    println!("{v}");
+                } else {
+                    println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
+                }
             }
             ConnectorAction::Update { target, config } => {
                 // update applies the new config to the existing connector (add ignores --config)
@@ -998,7 +1037,11 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     body["config"] = load_config_file(c)?;
                 }
                 let v = post(client, &format!("{base}/v1/add"), &body)?;
-                println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
+                if cli.json {
+                    println!("{v}");
+                } else {
+                    println!("job: {}", v["job_id"].as_str().unwrap_or("?"));
+                }
             }
             ConnectorAction::Probe { target, config } => {
                 let mut body = serde_json::json!({"target": target});
@@ -1006,12 +1049,23 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                     body["config"] = load_config_file(c)?;
                 }
                 let v = post(client, &format!("{base}/v1/connectors/probe"), &body)?;
-                println!(
-                    "{}  ok={}  {}",
-                    v["type"].as_str().unwrap_or("?"),
-                    v["ok"].as_bool().unwrap_or(false),
-                    v["detail"].as_str().unwrap_or("")
-                );
+                let ok = v["ok"].as_bool().unwrap_or(false);
+                if cli.json {
+                    println!("{v}");
+                } else {
+                    println!(
+                        "{}  ok={}  {}",
+                        v["type"].as_str().unwrap_or("?"),
+                        ok,
+                        v["detail"].as_str().unwrap_or("")
+                    );
+                }
+                if !ok {
+                    use std::io::Write;
+                    std::io::stdout().flush().ok();
+                    std::process::exit(1);
+                }
+                return Ok(());
             }
             ConnectorAction::List => {
                 let v = get(client, &format!("{base}/v1/status"), &[])?;
@@ -1098,7 +1152,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                 }
             }
         },
-        Cmd::Serve { action } => return serve_cmd(action).map_err(Into::into),
+        Cmd::Serve { action } => return serve_cmd(action, cli.json).map_err(Into::into),
     }
     Ok(())
 }
@@ -1411,6 +1465,7 @@ fn tree(
     path: &str,
     depth: u32,
     prefix: &str,
+    visited: &mut HashSet<String>,
 ) -> CliResult<()> {
     if depth == 0 {
         return Ok(());
@@ -1427,11 +1482,30 @@ fn tree(
         let is_dir = e["type"].as_str() == Some("dir");
         let last = i + 1 == n;
         let branch = if last { "└── " } else { "├── " };
-        println!("{prefix}{branch}{name}{}", if is_dir { "/" } else { "" });
-        if is_dir {
+        // real_id survives symlink resolution (dev:ino), unlike the path string,
+        // which keeps growing forever around a symlink cycle. A repeated real_id
+        // means this real directory has already been walked somewhere in this
+        // tree -- stop descending instead of following the cycle until -L runs
+        // out or the process hangs. Connector types with no real_id (non-file)
+        // are simply never flagged, same as before this fix.
+        let is_cycle = is_dir
+            && e["real_id"]
+                .as_str()
+                .map(|id| !visited.insert(id.to_string()))
+                .unwrap_or(false);
+        let marker = if is_cycle {
+            " (cycle, not expanded)"
+        } else {
+            ""
+        };
+        println!(
+            "{prefix}{branch}{name}{}{marker}",
+            if is_dir { "/" } else { "" }
+        );
+        if is_dir && !is_cycle {
             let child = format!("{}/{}", path.trim_end_matches('/'), name);
             let next_prefix = format!("{prefix}{}", if last { "    " } else { "│   " });
-            tree(client, base, &child, depth - 1, &next_prefix)?;
+            tree(client, base, &child, depth - 1, &next_prefix, visited)?;
         }
     }
     Ok(())
@@ -1460,7 +1534,13 @@ fn tree_json(
             &[("path", child_path.to_string())],
         )
     };
-    root["entries"] = Value::Array(expand_tree_entries(entries, depth, &mut fetch_child)?);
+    let mut visited = HashSet::new();
+    root["entries"] = Value::Array(expand_tree_entries(
+        entries,
+        depth,
+        &mut fetch_child,
+        &mut visited,
+    )?);
     Ok(root)
 }
 
@@ -1468,6 +1548,7 @@ fn expand_tree_entries<F>(
     entries: Vec<Value>,
     depth: u32,
     fetch_child: &mut F,
+    visited: &mut HashSet<String>,
 ) -> CliResult<Vec<Value>>
 where
     F: FnMut(&str) -> CliResult<Value>,
@@ -1479,11 +1560,22 @@ where
     let mut expanded = Vec::with_capacity(entries.len());
     for mut entry in entries {
         let is_dir = entry["type"].as_str() == Some("dir");
-        if is_dir && depth > 1 {
+        // See `tree()`'s identical comment: real_id (dev:ino) catches a symlink
+        // cycle of any shape, since it survives symlink resolution where the
+        // path string doesn't.
+        let is_cycle = is_dir
+            && entry["real_id"]
+                .as_str()
+                .map(|id| !visited.insert(id.to_string()))
+                .unwrap_or(false);
+        if is_cycle {
+            entry["cycle"] = Value::Bool(true);
+        }
+        if is_dir && depth > 1 && !is_cycle {
             let children = if let Some(child_path) = entry["path"].as_str() {
                 let child = fetch_child(child_path)?;
                 let child_entries = child["entries"].as_array().cloned().unwrap_or_default();
-                expand_tree_entries(child_entries, depth - 1, fetch_child)?
+                expand_tree_entries(child_entries, depth - 1, fetch_child, visited)?
             } else {
                 Vec::new()
             };
@@ -1602,7 +1694,7 @@ fn profile_list_output(cfg: &ClientConfig, endpoint: &str, json: bool) -> String
         .join("\n")
 }
 
-fn serve_cmd(action: &ServeAction) -> Result<(), String> {
+fn serve_cmd(action: &ServeAction, json: bool) -> Result<(), String> {
     let pid_file = mfs_home().join("server.pid");
     let log_file = mfs_home().join("server.log");
     match action {
@@ -1644,6 +1736,29 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
             let deadline = Instant::now() + Duration::from_secs(45);
             loop {
                 if tcp_probe(bind, Duration::from_millis(300)) {
+                    // The port being reachable doesn't mean *our* child bound
+                    // it — a concurrent `start` may have won the race while
+                    // ours is mid-way through a doomed bind attempt (Errno
+                    // 98) whose own graceful shutdown hasn't finished yet, so
+                    // a single try_wait() right here can still catch it
+                    // "alive". Give it a brief grace window to either exit
+                    // (proving it lost) or prove it's the one actually
+                    // serving before we trust the probe and claim success.
+                    let grace_deadline = Instant::now() + Duration::from_millis(3000);
+                    let mut lost_race = None;
+                    while Instant::now() < grace_deadline {
+                        if let Ok(Some(status)) = child.try_wait() {
+                            lost_race = Some(status);
+                            break;
+                        }
+                        std::thread::sleep(Duration::from_millis(100));
+                    }
+                    if let Some(status) = lost_race {
+                        let tail = tail_lines(&log_file, 10);
+                        return Err(format!(
+                            "failed to start: mfs-server exited ({status}) — {bind} is already held by another instance; last log lines:\n{tail}"
+                        ));
+                    }
                     std::fs::write(&pid_file, child.id().to_string()).map_err(|e| e.to_string())?;
                     println!(
                         "started mfs-server (pid {}) on {bind}; logs: {}",
@@ -1670,11 +1785,38 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
         }
         ServeAction::Stop => match read_pid(&pid_file) {
             Some(pid) => {
-                let _ = std::process::Command::new("kill")
+                // `kill`'s own exit status tells us whether this call actually
+                // signaled a live process or hit one that a concurrent `stop`
+                // already reaped — don't claim credit for the latter.
+                let signaled = std::process::Command::new("kill")
                     .arg(pid.to_string())
-                    .status();
-                let _ = std::fs::remove_file(&pid_file);
-                println!("stopped (pid {pid})");
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false);
+                if !signaled {
+                    let _ = std::fs::remove_file(&pid_file);
+                    println!("already stopped (pid {pid})");
+                } else {
+                    // A signal being delivered doesn't mean the process
+                    // actually exits: one stuck in blocking (non-yielding)
+                    // work can hold SIGTERM pending indefinitely. Confirm
+                    // real death before claiming success or dropping the
+                    // pidfile out from under a still-live process — the same
+                    // pattern Restart already relies on below.
+                    let deadline = Instant::now() + Duration::from_secs(10);
+                    while pid_alive(pid) && Instant::now() < deadline {
+                        std::thread::sleep(Duration::from_millis(200));
+                    }
+                    if pid_alive(pid) {
+                        return Err(format!(
+                            "did not stop within 10s (pid {pid} still alive — likely wedged in blocking work); pidfile left in place. Use `kill -9 {pid}` to force."
+                        ));
+                    }
+                    let _ = std::fs::remove_file(&pid_file);
+                    println!("stopped (pid {pid})");
+                }
             }
             None => println!("not running"),
         },
@@ -1703,7 +1845,7 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
                 }
                 let _ = std::fs::remove_file(&pid_file);
             }
-            return serve_cmd(&ServeAction::Start { bind: bind.clone() });
+            return serve_cmd(&ServeAction::Start { bind: bind.clone() }, json);
         }
         ServeAction::Status { bind } => match read_pid(&pid_file) {
             Some(pid) if pid_alive(pid) => println!("running (pid {pid})"),
@@ -1719,19 +1861,36 @@ fn serve_cmd(action: &ServeAction) -> Result<(), String> {
                 } else {
                     println!("not running");
                 }
+                // Exit non-zero whenever this CLI can't confirm a server it manages
+                // is running -- `systemctl is-active` precedent: the whole point of
+                // a status check is to be scriptable (`if mfs serve status; then
+                // ...`), and "not running" silently exiting 0 defeated that. Print
+                // first (stdout stays honest either way), then exit -- not an
+                // Err(), so this doesn't get an "error:" prefix it doesn't deserve.
+                use std::io::Write;
+                std::io::stdout().flush().ok();
+                std::process::exit(1);
             }
         },
         ServeAction::Logs => {
             let s = std::fs::read_to_string(&log_file).unwrap_or_default();
-            for l in s
+            let lines: Vec<&str> = s
                 .lines()
                 .rev()
                 .take(40)
                 .collect::<Vec<_>>()
                 .into_iter()
                 .rev()
-            {
-                println!("{l}");
+                .collect();
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string(&lines).unwrap_or_else(|_| "[]".to_string())
+                );
+            } else {
+                for l in lines {
+                    println!("{l}");
+                }
             }
         }
     }
@@ -1915,7 +2074,8 @@ mod tests {
             }
         };
 
-        let expanded = expand_tree_entries(root_entries, 2, &mut fetch_child).unwrap();
+        let expanded =
+            expand_tree_entries(root_entries, 2, &mut fetch_child, &mut HashSet::new()).unwrap();
 
         assert_eq!(expanded[0].get("children"), None);
         assert_eq!(
@@ -1932,9 +2092,38 @@ mod tests {
             panic!("depth one should not fetch child directories")
         };
 
-        let expanded = expand_tree_entries(root_entries, 1, &mut fetch_child).unwrap();
+        let expanded =
+            expand_tree_entries(root_entries, 1, &mut fetch_child, &mut HashSet::new()).unwrap();
 
         assert_eq!(expanded[0].get("children"), None);
+    }
+
+    #[test]
+    fn expand_tree_entries_stops_at_a_repeated_real_id_symlink_cycle() {
+        // dirA and dirB each contain a symlink back to the other -- both entries
+        // carry the same real_id (dev:ino survives symlink resolution), so the
+        // second sighting must be flagged as a cycle and not recursed into,
+        // regardless of how many levels deep -L would otherwise allow.
+        let root_entries = vec![json!({
+            "name": "dirA", "path": "file://root/dirA", "type": "dir", "real_id": "1:100"
+        })];
+        let mut fetch_child = |path: &str| -> CliResult<Value> {
+            match path {
+                "file://root/dirA" => Ok(json!({
+                    "entries": [
+                        {"name": "link_to_a", "path": "file://root/dirA/link_to_a", "type": "dir", "real_id": "1:100"}
+                    ]
+                })),
+                other => panic!("should not recurse past the cycle, but fetched {other}"),
+            }
+        };
+
+        let expanded =
+            expand_tree_entries(root_entries, 10, &mut fetch_child, &mut HashSet::new()).unwrap();
+
+        let inner = &expanded[0]["children"][0];
+        assert_eq!(inner["cycle"], json!(true));
+        assert_eq!(inner.get("children"), None);
     }
 
     #[test]

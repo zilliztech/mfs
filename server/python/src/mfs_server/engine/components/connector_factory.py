@@ -21,8 +21,11 @@ from dataclasses import dataclass
 from dataclasses import replace as _replace
 from typing import Any
 
+from pydantic import ValidationError as _PydanticValidationError
+
 from ...config import ServerConfig
 from ...connectors.base import (
+    ConnectorConfigSchema,
     ConnectorContext,
     ConnectorPlugin,
     ObjectConfig,
@@ -95,6 +98,17 @@ def _match_object_config(objects_cfg: list, path: str) -> ObjectConfig | None:
         if m and (fnmatch.fnmatch(path, m) or fnmatch.fnmatch(path.lstrip("/"), m) or m in path):
             return ObjectConfig(**{k: v for k, v in o.items() if k != "match" and k in fields})
     return None
+
+
+def _summarize_validation_error(e: _PydanticValidationError) -> str:
+    """Flatten pydantic's multi-line ValidationError into one clean,
+    grep-able line naming every offending field — pydantic's own str(e) is
+    verbose and spans several lines, awkward inside a single CLI error."""
+    parts = []
+    for err in e.errors():
+        loc = ".".join(str(x) for x in err["loc"]) or "(top-level)"
+        parts.append(f"{loc}: {err['msg']}")
+    return "; ".join(parts)
 
 
 # scheme extractor for target URIs; a bare path (no scheme) defaults to file.
@@ -423,6 +437,32 @@ class ConnectorFactory:
         """Resolve env:/file: references before plugin build. Exposed for audit;
         PluginBuilder calls it internally."""
         return self._creds.resolve(value)
+
+    # --- config schema validation ---
+
+    def validate_config(self, ctype: str, config: dict) -> None:
+        """Validate a caller-supplied config against the connector's
+        CONFIG_SCHEMA (if it declares one), before any connection is
+        attempted. Callers registering/probing/estimating a connector with an
+        explicit config SHOULD call this — catches a wrong-typed value (e.g. a
+        quoted number) or an unrecognized field with one clean, named error
+        instead of a raw exception surfacing deep in the plugin's own
+        connect()/read path. A connector with no CONFIG_SCHEMA, or one that
+        predates ConnectorConfigSchema (FileConfig is a plain @dataclass, not
+        a pydantic model, and was never actually wired up to any enforcement
+        before this), is unaffected — opt-in per connector, not universal."""
+        if not isinstance(config, dict):
+            return
+        cls = get_plugin_cls(ctype)
+        schema = getattr(cls, "CONFIG_SCHEMA", None) if cls is not None else None
+        if schema is None or not (
+            isinstance(schema, type) and issubclass(schema, ConnectorConfigSchema)
+        ):
+            return
+        try:
+            schema(**config)
+        except _PydanticValidationError as e:
+            raise ValueError(f"config_invalid: {_summarize_validation_error(e)}") from e
 
     # --- plugin build ---
 

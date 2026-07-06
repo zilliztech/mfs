@@ -428,7 +428,20 @@ class FilePlugin(ConnectorPlugin):
             if spec.match_file(test):
                 continue
             if child.is_dir():
-                entries.append(Entry(name=child.name, type="dir"))
+                # (st_dev, st_ino) survives symlink resolution -- two different path
+                # spellings of the same real directory (e.g. a symlink cycle) land on
+                # the identical id, unlike the path string itself, which keeps
+                # growing forever around a cycle. Lets a directory-tree walker (CLI
+                # `tree`) detect "I've been at this real directory before" and stop
+                # recursing instead of following a symlink cycle indefinitely.
+                st = child.stat()
+                entries.append(
+                    Entry(
+                        name=child.name,
+                        type="dir",
+                        extra={"real_id": f"{st.st_dev}:{st.st_ino}"},
+                    )
+                )
             else:
                 stt = child.stat()
                 entries.append(

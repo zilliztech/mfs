@@ -29,10 +29,11 @@ class _FakeConnCtx:
 
 
 class _FakeFilePlugin:
-    """Minimal file connector: canned markdown text, document okind."""
+    """Minimal file connector: canned markdown text, document okind (or override)."""
 
-    def __init__(self, files: dict[str, str]):
+    def __init__(self, files: dict[str, str], *, okind="document"):
         self._files = files
+        self._okind = okind
         self.ctx = _FakeConnCtx()
         self.indexed: list[str] = []
 
@@ -50,7 +51,7 @@ class _FakeFilePlugin:
         )
 
     def object_kind_of(self, rel):
-        return "document"
+        return self._okind
 
     async def read(self, rel, range=None):
         yield self._files[rel].encode()
@@ -194,6 +195,37 @@ async def test_chunkable_path_drains_through_pipeline(tmp_path):
     assert all(o["search_status"] == "indexed" and o["chunk_count"] >= 1 for o in obj)
     assert sorted(plugin.indexed) == ["/api.md", "/guide.md", "/readme.md"]
 
+    await eng.meta.close()
+
+
+async def test_text_blob_routes_to_pipeline(tmp_path):
+    # .csv/.json-style objects classify as text_blob (see connectors/file/plugin.py); they must
+    # take the same producer -> chunks_q -> EmbedConsumer path as document/code, not sit
+    # metadata-only with zero chunks (_PIPELINE_OKINDS regression).
+    eng = await _build_engine(tmp_path)
+    files = {"/data.csv": "id,name\n1,alice\n2,bob\n"}
+    plugin = _FakeFilePlugin(files, okind="text_blob")
+    job_id, cid, connector_uri = "job4", "cD", "file:///repo"
+    await eng.meta.execute(
+        "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
+        " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
+        (uuid.uuid4().hex, job_id, cid, "/data.csv", None, "added", "pending", 0),
+    )
+
+    await asyncio.wait_for(
+        eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        timeout=10,
+    )
+    await eng._embed_consumer.shutdown()
+
+    all_rows = [r for _, rows in eng.milvus.upserts for r in rows]
+    assert all_rows, "expected text_blob content to be chunked and upserted"
+    assert all(r["object_uri"] == "file:///repo/data.csv" for r in all_rows)
+
+    obj = await eng.meta.fetchone(
+        "SELECT search_status, chunk_count FROM objects WHERE object_uri='/data.csv'"
+    )
+    assert obj["search_status"] == "indexed" and obj["chunk_count"] >= 1
     await eng.meta.close()
 
 

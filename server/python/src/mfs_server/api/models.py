@@ -166,6 +166,13 @@ class LsEntry(BaseModel):
         description="eligible for indexing (not binary, not opted out) — not a promise it is "
         "searchable; whether chunks were actually embedded is reported by search_status",
     )
+    real_id: Optional[str] = Field(
+        None,
+        description="symlink-resolved identity for a `dir` entry (e.g. 'dev:ino'), stable "
+        "across different path spellings of the same real directory. null for `file` "
+        "entries and for connector types that don't supply one. A recursive tree walk "
+        "should treat a repeated real_id as a symlink cycle and stop recursing into it.",
+    )
 
 
 class LsResponse(BaseModel):
