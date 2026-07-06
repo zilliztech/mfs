@@ -656,6 +656,11 @@ class Engine:
         # merge user config OVER the resolved defaults so a local path keeps its
         # auto {root, client_id} while still accepting [[objects]]/schemas/credential_ref.
         cfg_dict = {**default_config, **config} if config is not None else default_config
+        # Validate against the connector's CONFIG_SCHEMA (if any) before any
+        # connection is attempted -- a wrong-typed or unrecognized field should
+        # be a clean, named error here, not a raw exception surfacing later
+        # deep in the plugin's own connect()/read path.
+        self.connector_factory.validate_config(ctype, cfg_dict)
         existing_connector = await self.objects.get_connector_id_by_uri(connector_uri)
         cid = await self.register_or_get_connector(
             connector_uri,
@@ -1668,7 +1673,7 @@ class Engine:
         return connector_uri, object_prefix
 
     async def _resolve_readonly_config(
-        self, connector_uri: str, config: dict | None, default_config: dict
+        self, ctype: str, connector_uri: str, config: dict | None, default_config: dict
     ) -> dict:
         """Config resolution shared by probe()/estimate(). When `--config` is
         omitted, reuse an already-registered connector's stored config (as
@@ -1678,26 +1683,37 @@ class Engine:
         which produces a connection to nothing meaningful (e.g. postgres
         falling through to libpq's OS-user ambient defaults) while still
         reporting a real-looking failure, misleading the caller into thinking
-        their actual registered connector is broken."""
+        their actual registered connector is broken.
+
+        Also validates the resolved config against CONFIG_SCHEMA (if the
+        connector declares one) before returning — probe/estimate are
+        supposed to be a safe pre-flight check, so a bad config should be
+        caught here too, not just at add/update time."""
         if config is not None:
-            return {**default_config, **config}
-        row = await self.objects.get_connector_id_and_config_by_uri(connector_uri)
-        if row and row["config_json"]:
-            return json.loads(row["config_json"])
-        return default_config
+            cfg_dict = {**default_config, **config}
+        else:
+            row = await self.objects.get_connector_id_and_config_by_uri(connector_uri)
+            cfg_dict = (
+                json.loads(row["config_json"]) if row and row["config_json"] else default_config
+            )
+        self.connector_factory.validate_config(ctype, cfg_dict)
+        return cfg_dict
 
     # --- connector management: probe / inspect / remove ---
     async def probe(self, target: str, config: dict | None = None) -> dict:
         """Try-connect a connector without registering or writing state."""
         _, connector_uri, ctype, default_config = self._resolve_target(target)
-        cfg_dict = await self._resolve_readonly_config(connector_uri, config, default_config)
         plugin = None
         try:
-            # Build inside the guard: _build_plugin resolves credential refs (_resolve_ref),
-            # and a missing/unresolvable env:/file: ref is a user config error — it must come
-            # back as ok=false like a failed connect/auth, not escape to the generic 500
-            # handler. NotImplementedError (an uninstalled connector extra) is intentionally
+            # Resolve + validate config INSIDE the guard, same as the build/connect
+            # below: a config validation error is a user config error just like a
+            # missing/unresolvable env:/file: ref — it must come back as ok=false
+            # like a failed connect/auth, not escape to the generic 500 handler.
+            # NotImplementedError (an uninstalled connector extra) is intentionally
             # NOT caught here so it still renders as the 501 not_available envelope.
+            cfg_dict = await self._resolve_readonly_config(
+                ctype, connector_uri, config, default_config
+            )
             plugin, _ = self._build_plugin(ctype, cfg_dict, "probe-" + uuid.uuid4().hex)
             await plugin.connect()
             hs = await plugin.healthcheck()
@@ -1729,7 +1745,7 @@ class Engine:
         from ..processors.text import chunk_body
 
         _, connector_uri, ctype, default_config = self._resolve_target(target)
-        cfg_dict = await self._resolve_readonly_config(connector_uri, config, default_config)
+        cfg_dict = await self._resolve_readonly_config(ctype, connector_uri, config, default_config)
         tmp_cid = "estimate-" + uuid.uuid4().hex
         plugin, _ = self._build_plugin(ctype, cfg_dict, tmp_cid)
         await plugin.connect()

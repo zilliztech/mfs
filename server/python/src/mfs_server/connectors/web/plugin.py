@@ -15,6 +15,7 @@ from urllib.parse import urljoin, urlparse
 
 from ..base import (
     Capabilities,
+    ConnectorConfigSchema,
     ConnectorPlugin,
     Entry,
     HealthStatus,
@@ -24,6 +25,12 @@ from ..base import (
     Range,
     SyncOptions,
 )
+
+
+class WebConfig(ConnectorConfigSchema):
+    start_urls: list[str] = []
+    allowed_domains: list[str] = []
+    max_pages: int = 50
 
 
 class WebPlugin(ConnectorPlugin):
@@ -39,6 +46,7 @@ class WebPlugin(ConnectorPlugin):
         delete_detection="explicit",
         paged_cat=True,
     )
+    CONFIG_SCHEMA = WebConfig
 
     # Rendered page markdown, shared PROCESS-WIDE across plugin instances, keyed by
     # (connector_id, path). The in-process worker runs the index pass on a FRESH plugin

@@ -14,6 +14,8 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any, Literal, Optional, Protocol
 
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 # --- object_kind (framework-fixed) ---
 ObjectKind = Literal[
     "document",
@@ -441,6 +443,36 @@ class ConnectorContext:
         return path in self._partial
 
 
+class ConnectorConfigSchema(BaseModel):
+    """Base for a connector's `CONFIG_SCHEMA`: validated at add/update/probe
+    time, before any connection is attempted (ConnectorFactory.validate_config).
+    `extra="forbid"` catches a typo'd/unknown field instead of silently
+    ignoring it; per-field types catch a wrong-typed value (e.g. a quoted
+    number) with a clean, named error instead of a raw exception surfacing
+    deep in the plugin's own connect()/read path.
+
+    `credential_ref`/`_credential_ref` (legacy alias) and `objects`
+    ([[objects]] per-object overrides) are cross-cutting fields every
+    connector config may carry regardless of type — declared once here so
+    connector-specific schemas only need their own real fields."""
+
+    model_config = ConfigDict(extra="forbid")
+    credential_ref: Optional[str] = None
+    objects: list = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_legacy_credential_ref(cls, data: Any) -> Any:
+        # A leading-underscore key is a private-attribute name to pydantic, not
+        # a field -- it would hit extra="forbid" instead of being recognized as
+        # the same thing PluginBuilder.build() already treats as an alias for
+        # credential_ref. Fold it in before field validation runs.
+        if isinstance(data, dict) and "_credential_ref" in data:
+            data = dict(data)
+            data.setdefault("credential_ref", data.pop("_credential_ref"))
+        return data
+
+
 class ConnectorPlugin(ABC):
     # --- metadata (class attrs) ---
     NAME: str = ""
@@ -448,6 +480,10 @@ class ConnectorPlugin(ABC):
     DISPLAY_NAME: str = ""
     PROMPT: str = ""
     CAPABILITIES: Capabilities = Capabilities()
+    # Optional[type[ConnectorConfigSchema]]: when set, ConnectorFactory
+    # validates a caller-supplied config against it at add/update/probe time.
+    # Connectors without one (SaaS connectors with no local top-level config
+    # shape yet) are unaffected -- this is opt-in per connector, not universal.
     CONFIG_SCHEMA: Optional[type] = None
 
     def __init__(self, config: Any, credential: Any, *, ctx: ConnectorContext):

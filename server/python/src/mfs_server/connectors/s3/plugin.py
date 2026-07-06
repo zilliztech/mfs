@@ -19,6 +19,7 @@ import aioboto3
 
 from ..base import (
     Capabilities,
+    ConnectorConfigSchema,
     ConnectorPlugin,
     Entry,
     HealthStatus,
@@ -29,6 +30,15 @@ from ..base import (
     SyncOptions,
 )
 from ..file.plugin import CODE_EXT, DOC_EXT, IMAGE_EXT, TEXTBLOB_EXT
+
+
+class S3Config(ConnectorConfigSchema):
+    bucket: Optional[str] = None
+    access_key_id: Optional[str] = None
+    secret_access_key: Optional[str] = None
+    region: Optional[str] = None
+    endpoint_url: Optional[str] = None
+    prefix: str = ""
 
 
 class S3Plugin(ConnectorPlugin):
@@ -44,6 +54,7 @@ class S3Plugin(ConnectorPlugin):
         delete_detection="full_scan",
         paged_cat=True,
     )
+    CONFIG_SCHEMA = S3Config
 
     def _cfg(self, k, d=None):
         return (

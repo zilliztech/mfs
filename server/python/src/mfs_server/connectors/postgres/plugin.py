@@ -14,6 +14,7 @@ import asyncpg
 
 from ..base import (
     Capabilities,
+    ConnectorConfigSchema,
     ConnectorPlugin,
     Entry,
     GrepMatch,
@@ -26,6 +27,13 @@ from ..base import (
     SyncOptions,
     safe_ident,
 )
+
+
+class PostgresConfig(ConnectorConfigSchema):
+    dsn: Optional[str] = None
+    schemas: list[str] = ["public"]
+    max_read_rows: int = 100000
+    cursor_column: Optional[str] = None
 
 
 class PostgresPlugin(ConnectorPlugin):
@@ -43,6 +51,7 @@ class PostgresPlugin(ConnectorPlugin):
         search_pushdown=False,
         paged_cat=True,
     )
+    CONFIG_SCHEMA = PostgresConfig
 
     def __init__(self, config, credential, *, ctx):
         super().__init__(config, credential, ctx=ctx)
