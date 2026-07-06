@@ -120,19 +120,19 @@ async def _build_engine(tmp_path, *, batch_size=100, idle_ms=50):
     cfg.artifact_cache.root = str(tmp_path / "art")
     cfg.embedding.batch_size = batch_size
     eng = Engine(cfg)
-    eng.embed = _FakeEmbed()
-    eng.milvus = _FakeMilvus()
-    eng.tx_cache = _FakeTxCache()
+    eng.infra.embed = _FakeEmbed()
+    eng.infra.milvus = _FakeMilvus()
+    eng.infra.tx_cache = _FakeTxCache()
     eng._embed_idle_ms = idle_ms
-    await eng.meta.connect()
-    await eng.meta.init_schema()
-    await eng.meta.execute("PRAGMA foreign_keys=OFF")
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
+    await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")
     eng._build_pipeline()
     return eng
 
 
 async def _seed(eng, *, job_id, cid, object_uri):
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
         " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
         (uuid.uuid4().hex, job_id, cid, object_uri, None, "added", "pending", 0),
@@ -160,7 +160,7 @@ async def test_record_collection_routes_to_pipeline(tmp_path):
     )
     await eng._embed_consumer.shutdown()
 
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 2
     assert all(r["chunk_kind"] == "row_text" for r in rows)
     by_loc = {r["locator"]["number"]: r for r in rows}
@@ -170,12 +170,14 @@ async def test_record_collection_routes_to_pipeline(tmp_path):
     assert all(r["object_uri"] == "mongo://db/issues" for r in rows)
 
     # per-object atomic + single finalize
-    assert eng.milvus.deletes == [("mongo://db", "mongo://db/issues")]
+    assert eng.infra.milvus.deletes == [("mongo://db", "mongo://db/issues")]
     assert dict(finalized) == {"mongo://db/issues": 1}
 
-    row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/issues'")
+    row = await eng.infra.meta.fetchone(
+        "SELECT status FROM object_tasks WHERE object_uri='/issues'"
+    )
     assert row["status"] == "succeeded"
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_table_rows_uses_same_record_producer(tmp_path):
@@ -195,14 +197,14 @@ async def test_table_rows_uses_same_record_producer(tmp_path):
     )
     await eng._embed_consumer.shutdown()
 
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 1 and rows[0]["chunk_kind"] == "row_text"
     assert rows[0]["locator"]["number"] == 7
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT status FROM object_tasks WHERE object_uri='/public.users'"
     )
     assert row["status"] == "succeeded"
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_streaming_emits_multiple_batches(tmp_path):
@@ -220,10 +222,12 @@ async def test_streaming_emits_multiple_batches(tmp_path):
     )
     await eng._embed_consumer.shutdown()
 
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 25  # every record -> one row_text chunk
-    assert len(eng.milvus.upserts) > 1  # multiple flushes => streamed, not one buffered batch
+    assert len(eng.infra.milvus.upserts) > 1  # multiple flushes => streamed, not one buffered batch
     assert plugin.pulled == list(range(25))  # the record generator was fully consumed
-    row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/issues'")
+    row = await eng.infra.meta.fetchone(
+        "SELECT status FROM object_tasks WHERE object_uri='/issues'"
+    )
     assert row["status"] == "succeeded"
-    await eng.meta.close()
+    await eng.infra.meta.close()

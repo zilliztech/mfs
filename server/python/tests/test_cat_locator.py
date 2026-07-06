@@ -103,8 +103,8 @@ async def _build_engine(tmp_path) -> Engine:
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "art")
     eng = Engine(cfg)
-    await eng.meta.connect()
-    await eng.meta.init_schema()
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
     return eng
 
 
@@ -121,7 +121,7 @@ async def test_cat_with_matching_dict_locator_returns_the_record(tmp_path) -> No
 
     assert out["locator"] == {"id": "ord_1001"}
     assert "ord_1001" in out["content"]
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_cat_with_dict_locator_no_match_raises_locator_not_found(tmp_path) -> None:
@@ -136,4 +136,4 @@ async def test_cat_with_dict_locator_no_match_raises_locator_not_found(tmp_path)
     with pytest.raises(ValueError, match="locator_not_found"):
         await eng.cat("postgres://db/orders", locator={"id": "does_not_exist"})
 
-    await eng.meta.close()
+    await eng.infra.meta.close()

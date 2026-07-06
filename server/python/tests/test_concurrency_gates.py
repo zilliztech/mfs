@@ -63,8 +63,8 @@ async def test_engine_shares_one_gate_across_map_and_reduce(tmp_path):
     cfg.transformation_cache.db_path = str(tmp_path / "t.db")
     cfg.artifact_cache.root = str(tmp_path / "a")
     eng = Engine(cfg)
-    await eng.meta.connect()
-    await eng.meta.init_schema()
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
     eng._build_pipeline()
     try:
         assert eng._producer_ctx.summary_gate is eng._job_lane.summary_gate
@@ -74,4 +74,4 @@ async def test_engine_shares_one_gate_across_map_and_reduce(tmp_path):
     finally:
         await eng._job_lane.stop()
         await eng._embed_consumer.shutdown()
-        await eng.meta.close()
+        await eng.infra.meta.close()

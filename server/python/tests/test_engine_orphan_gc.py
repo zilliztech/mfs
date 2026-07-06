@@ -43,9 +43,9 @@ async def _engine_with(tmp_path, fake) -> Engine:
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "art")
     eng = Engine(cfg)
-    eng.milvus = fake
-    await eng.meta.connect()
-    await eng.meta.init_schema()
+    eng.infra.milvus = fake
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
     return eng
 
 
@@ -72,7 +72,7 @@ async def test_gc_noop_on_healthy_index(tmp_path):
     assert await eng._gc_orphan_chunks() == 0
     assert fake.deletes == []
     assert fake.distinct_calls == 0  # count-first guard: no scan on a healthy index
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_gc_purges_orphans_keeps_valid(tmp_path):
@@ -90,7 +90,7 @@ async def test_gc_purges_orphans_keeps_valid(tmp_path):
     assert sorted(fake.deletes) == sorted(
         [("file:///repo", "file:///repo/ghost.md"), ("file:///gone", "file:///gone/x.md")]
     )
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 def test_gc_scope_excludes_directory_summaries(tmp_path):

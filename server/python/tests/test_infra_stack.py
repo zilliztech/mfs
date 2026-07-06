@@ -1,12 +1,10 @@
 """InfraStack unit tests: construction order / startup sequence / preload path /
-shutdown sequence / Engine property integration.
+shutdown sequence / Engine handle exposure.
 
-See docs-dev/engine-redesign-infrastack.md §7. Monkeypatches the 8 factories +
-load_builtin in the infra module with recording mocks to assert InfraStack's
-construction and lifecycle sequence matches the original Engine. The last case
-uses a real Engine(cfg) to verify property pass-through + setter write-through
-(the contract that lets E2E tests cover eng.embed / eng.milvus / eng.tx_cache
-with fakes after construction).
+Monkeypatches the 8 factories + load_builtin in the infra module with recording
+mocks to assert InfraStack's construction and lifecycle sequence. The last case
+uses a real Engine(cfg) to verify the 8 handles live on eng.infra (no Engine-level
+properties) and that tests monkeypatch them as eng.infra.<handle> = fake.
 """
 
 from __future__ import annotations
@@ -209,12 +207,11 @@ async def test_shutdown_closes_meta_and_tx_cache_only(fake_stack):
     clients["artifact_cache"].close.assert_not_called()
 
 
-async def test_engine_property_passthrough_and_setter_write_through(tmp_path):
-    """Real Engine(cfg): 8 infra handles exposed via property (identity), setters write through
-    to self.infra (the monkeypatch contract the E2E tests rely on: eng.milvus = fake -> eng.milvus
-    is fake)."""
+async def test_engine_exposes_handles_via_infra(tmp_path):
+    """Real Engine(cfg): the 8 infra handles live on eng.infra, not on Engine.
+    Tests monkeypatch them as eng.infra.<handle> = fake (no Engine-level properties)."""
     eng = Engine(_cfg(tmp_path))
-    # property getters return the very objects InfraStack constructed
+    # Engine exposes no handle attributes of its own — they live on eng.infra.
     for name in (
         "meta",
         "milvus",
@@ -225,17 +222,12 @@ async def test_engine_property_passthrough_and_setter_write_through(tmp_path):
         "vlm",
         "summary",
     ):
-        assert getattr(eng, name) is getattr(eng.infra, name)
+        assert not hasattr(eng, name)
+        assert hasattr(eng.infra, name)
 
-    # setter writes through to self.infra (read-write property, not read-only)
+    # monkeypatch contract: tests rebind eng.infra.<handle> with fakes.
     sentinel_milvus = object()
-    eng.milvus = sentinel_milvus
-    assert eng.milvus is sentinel_milvus
+    eng.infra.milvus = sentinel_milvus
     assert eng.infra.milvus is sentinel_milvus
 
-    sentinel_embed = object()
-    eng.embed = sentinel_embed
-    assert eng.embed is sentinel_embed
-    assert eng.infra.embed is sentinel_embed
-
-    await eng.infra.shutdown()  # close the real sqlite handles opened at construction path
+    await eng.infra.shutdown()  # close the real sqlite handles opened at construction

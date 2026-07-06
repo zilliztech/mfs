@@ -36,10 +36,10 @@ async def _build_engine(tmp_path) -> Engine:
     cfg.artifact_cache.root = str(tmp_path / "artifacts")
     cfg.milvus.uri = str(tmp_path / "milvus.db")
     eng = Engine(cfg)
-    eng.milvus = _NoopMilvus()
+    eng.infra.milvus = _NoopMilvus()
     eng._job_lane = _NoopReduce()
-    await eng.meta.connect()
-    await eng.meta.init_schema()
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
     return eng
 
 
@@ -58,7 +58,7 @@ async def test_remove_rejects_registered_child_path(tmp_path):
         with pytest.raises(ValueError, match="remove_requires_connector_root"):
             await eng.remove_connector(str(root / "src"))
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()
 
 
 async def test_remove_rejects_unregistered_target(tmp_path):
@@ -67,7 +67,7 @@ async def test_remove_rejects_unregistered_target(tmp_path):
         with pytest.raises(ValueError, match="remove_requires_connector_root"):
             await eng.remove_connector(str(tmp_path / "missing"))
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()
 
 
 async def test_failed_initial_add_rolls_back_connector_registration(tmp_path):
@@ -79,10 +79,10 @@ async def test_failed_initial_add_rolls_back_connector_registration(tmp_path):
             await eng.add(str(missing), process=False)
 
         for table in ("connectors", "connector_jobs", "object_tasks", "file_state"):
-            row = await eng.meta.fetchone(f"SELECT count(*) AS n FROM {table}")
+            row = await eng.infra.meta.fetchone(f"SELECT count(*) AS n FROM {table}")
             assert row["n"] == 0
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()
 
 
 # ----------------------------------------------------------------------
@@ -124,7 +124,7 @@ async def test_add_without_config_on_drifted_connector_is_rejected(tmp_path):
         ]
         assert after == before
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()
 
 
 async def test_connector_update_without_config_on_drifted_connector_is_rejected(tmp_path):
@@ -146,7 +146,7 @@ async def test_connector_update_without_config_on_drifted_connector_is_rejected(
         ]
         assert after == before
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()
 
 
 async def test_add_with_explicit_differing_config_still_persists(tmp_path):
@@ -164,7 +164,7 @@ async def test_add_with_explicit_differing_config_still_persists(tmp_path):
         row = await eng.objects.get_connector_id_and_config_by_uri(f"file://local{root}")
         assert '"custom2"' in row["config_json"]
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()
 
 
 async def test_add_without_config_on_undrifted_connector_is_a_silent_noop(tmp_path):
@@ -187,7 +187,7 @@ async def test_add_without_config_on_undrifted_connector_is_a_silent_noop(tmp_pa
         ]
         assert after == before
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()
 
 
 async def test_add_without_config_on_brand_new_connector_is_unaffected(tmp_path):
@@ -203,4 +203,4 @@ async def test_add_without_config_on_brand_new_connector_is_unaffected(tmp_path)
         row = await eng.objects.get_connector_id_and_config_by_uri(f"file://local{root}")
         assert row is not None
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()

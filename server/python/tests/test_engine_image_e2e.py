@@ -122,22 +122,24 @@ async def _build_engine(tmp_path, *, vlm_enabled=True, vlm_concurrency=10, llm_d
         vlm_concurrency  # description_gate cap ([description].concurrency)
     )
     eng = Engine(cfg)
-    eng.embed = _FakeEmbed()
-    eng.milvus = _FakeMilvus()
+    eng.infra.embed = _FakeEmbed()
+    eng.infra.milvus = _FakeMilvus()
     eng._embed_idle_ms = 50
     llm = _FakeLLM(delay=llm_delay)
-    eng.vlm._llm = llm  # inject fake provider; keep the real CachingVlmClient + real tx_cache dedup
-    await eng.meta.connect()
-    await eng.meta.init_schema()
-    await eng.meta.execute("PRAGMA foreign_keys=OFF")  # seed object_tasks without parent rows
-    await eng.tx_cache.connect()
+    eng.infra.vlm._llm = (
+        llm  # inject fake provider; keep the real CachingVlmClient + real tx_cache dedup
+    )
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
+    await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")  # seed object_tasks without parent rows
+    await eng.infra.tx_cache.connect()
     eng._build_pipeline()
     return eng, llm
 
 
 async def _seed(eng, *, job_id, cid, files):
     for rel in files:
-        await eng.meta.execute(
+        await eng.infra.meta.execute(
             "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
             " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
             (uuid.uuid4().hex, job_id, cid, rel, None, "added", "pending", 0),
@@ -157,7 +159,7 @@ async def test_image_routes_through_pipeline(tmp_path):
     )
     await eng._embed_consumer.shutdown()
 
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 2
     assert all(r["chunk_kind"] == "vlm_description" for r in rows)
     assert all(r["locator"] is None for r in rows)
@@ -166,21 +168,23 @@ async def test_image_routes_through_pipeline(tmp_path):
 
     # the description is a model output: it lives in the transformation cache (via the VLM
     # client), not as an artifact. No vlm_text artifact is written.
-    assert eng.artifact_cache.get_artifact(eng.ns, "file:///repo/a.png", "vlm_text") is None
+    assert eng.infra.artifact_cache.get_artifact(eng.ns, "file:///repo/a.png", "vlm_text") is None
 
     # per-object atomic: delete_by_object once per image
-    assert sorted(eng.milvus.deletes) == sorted(
+    assert sorted(eng.infra.milvus.deletes) == sorted(
         [("file:///repo", "file:///repo/a.png"), ("file:///repo", "file:///repo/b.png")]
     )
 
-    task_rows = await eng.meta.fetchall("SELECT object_uri, status FROM object_tasks")
+    task_rows = await eng.infra.meta.fetchall("SELECT object_uri, status FROM object_tasks")
     assert {r["object_uri"]: r["status"] for r in task_rows} == {
         "/a.png": "succeeded",
         "/b.png": "succeeded",
     }
-    obj = await eng.meta.fetchall("SELECT object_uri, search_status, chunk_count FROM objects")
+    obj = await eng.infra.meta.fetchall(
+        "SELECT object_uri, search_status, chunk_count FROM objects"
+    )
     assert all(o["search_status"] == "indexed" and o["chunk_count"] == 1 for o in obj)
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_description_gate_caps_concurrent_vlm(tmp_path):
@@ -203,9 +207,9 @@ async def test_description_gate_caps_concurrent_vlm(tmp_path):
     assert llm.calls == 5  # five distinct images, all hit the provider
     assert llm.max_inflight <= 2  # description_gate held in-flight VLM calls to the cap
     # each image produced one vlm_description chunk, written through chunks_q to the sink
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 5 and all(r["chunk_kind"] == "vlm_description" for r in rows)
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_transformation_cache_dedups_identical_image(tmp_path):
@@ -224,12 +228,12 @@ async def test_transformation_cache_dedups_identical_image(tmp_path):
 
     # second identical image is a transformation-cache hit -> the VLM provider runs once
     assert llm.calls == 1
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 2  # both objects still get their own vlm_description chunk
     assert {r["content"] for r in rows} == {"desc:" + hashlib.sha1(same).hexdigest()[:8]}
-    statuses = await eng.meta.fetchall("SELECT status FROM object_tasks")
+    statuses = await eng.infra.meta.fetchall("SELECT status FROM object_tasks")
     assert [r["status"] for r in statuses] == ["succeeded", "succeeded"]
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_vlm_disabled_falls_back_to_metadata_only(tmp_path):
@@ -247,11 +251,11 @@ async def test_vlm_disabled_falls_back_to_metadata_only(tmp_path):
 
     # VLM off: no routing to the pipeline, no VLM call, image recorded as metadata-only
     assert llm.calls == 0
-    assert eng.milvus.upserts == []
-    row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/c.png'")
+    assert eng.infra.milvus.upserts == []
+    row = await eng.infra.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/c.png'")
     assert row["status"] == "succeeded"
-    obj = await eng.meta.fetchone(
+    obj = await eng.infra.meta.fetchone(
         "SELECT search_status, chunk_count FROM objects WHERE object_uri='/c.png'"
     )
     assert obj["search_status"] == "not_indexed" and obj["chunk_count"] == 0
-    await eng.meta.close()
+    await eng.infra.meta.close()

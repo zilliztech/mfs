@@ -28,10 +28,10 @@ async def _build_engine(tmp_path):
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "artifacts")
     eng = Engine(cfg)
-    eng.embed = _FailingEmbed()
-    eng.milvus = _FailingMilvus()
-    await eng.meta.connect()
-    await eng.meta.init_schema()
+    eng.infra.embed = _FailingEmbed()
+    eng.infra.milvus = _FailingMilvus()
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
     return eng
 
 
@@ -40,7 +40,7 @@ async def test_search_empty_namespace_returns_without_query_backend(tmp_path):
     try:
         assert await eng.search("mfs-e2e-empty-query", top_k=3) == []
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()
 
 
 async def test_search_unregistered_scope_returns_without_query_backend(tmp_path):
@@ -56,4 +56,4 @@ async def test_search_unregistered_scope_returns_without_query_backend(tmp_path)
             == []
         )
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()

@@ -41,8 +41,8 @@ async def _build_engine(tmp_path) -> Engine:
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "art")
     eng = Engine(cfg)
-    await eng.meta.connect()
-    await eng.meta.init_schema()
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
     return eng
 
 
@@ -59,4 +59,4 @@ async def test_grep_missing_path_raises_file_not_found(tmp_path) -> None:
         await eng.grep("needle", "file://local/root/does/not/exist")
 
     assert plugin.closed
-    await eng.meta.close()
+    await eng.infra.meta.close()
