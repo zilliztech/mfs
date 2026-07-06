@@ -6,6 +6,7 @@ use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::net::TcpStream;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -865,7 +866,7 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
                 return Ok(());
             }
             println!("{path}");
-            tree(client, base, &rp, *depth, "")?;
+            tree(client, base, &rp, *depth, "", &mut HashSet::new())?;
         }
         Cmd::Cat {
             path,
@@ -1464,6 +1465,7 @@ fn tree(
     path: &str,
     depth: u32,
     prefix: &str,
+    visited: &mut HashSet<String>,
 ) -> CliResult<()> {
     if depth == 0 {
         return Ok(());
@@ -1480,11 +1482,30 @@ fn tree(
         let is_dir = e["type"].as_str() == Some("dir");
         let last = i + 1 == n;
         let branch = if last { "└── " } else { "├── " };
-        println!("{prefix}{branch}{name}{}", if is_dir { "/" } else { "" });
-        if is_dir {
+        // real_id survives symlink resolution (dev:ino), unlike the path string,
+        // which keeps growing forever around a symlink cycle. A repeated real_id
+        // means this real directory has already been walked somewhere in this
+        // tree -- stop descending instead of following the cycle until -L runs
+        // out or the process hangs. Connector types with no real_id (non-file)
+        // are simply never flagged, same as before this fix.
+        let is_cycle = is_dir
+            && e["real_id"]
+                .as_str()
+                .map(|id| !visited.insert(id.to_string()))
+                .unwrap_or(false);
+        let marker = if is_cycle {
+            " (cycle, not expanded)"
+        } else {
+            ""
+        };
+        println!(
+            "{prefix}{branch}{name}{}{marker}",
+            if is_dir { "/" } else { "" }
+        );
+        if is_dir && !is_cycle {
             let child = format!("{}/{}", path.trim_end_matches('/'), name);
             let next_prefix = format!("{prefix}{}", if last { "    " } else { "│   " });
-            tree(client, base, &child, depth - 1, &next_prefix)?;
+            tree(client, base, &child, depth - 1, &next_prefix, visited)?;
         }
     }
     Ok(())
@@ -1513,7 +1534,13 @@ fn tree_json(
             &[("path", child_path.to_string())],
         )
     };
-    root["entries"] = Value::Array(expand_tree_entries(entries, depth, &mut fetch_child)?);
+    let mut visited = HashSet::new();
+    root["entries"] = Value::Array(expand_tree_entries(
+        entries,
+        depth,
+        &mut fetch_child,
+        &mut visited,
+    )?);
     Ok(root)
 }
 
@@ -1521,6 +1548,7 @@ fn expand_tree_entries<F>(
     entries: Vec<Value>,
     depth: u32,
     fetch_child: &mut F,
+    visited: &mut HashSet<String>,
 ) -> CliResult<Vec<Value>>
 where
     F: FnMut(&str) -> CliResult<Value>,
@@ -1532,11 +1560,22 @@ where
     let mut expanded = Vec::with_capacity(entries.len());
     for mut entry in entries {
         let is_dir = entry["type"].as_str() == Some("dir");
-        if is_dir && depth > 1 {
+        // See `tree()`'s identical comment: real_id (dev:ino) catches a symlink
+        // cycle of any shape, since it survives symlink resolution where the
+        // path string doesn't.
+        let is_cycle = is_dir
+            && entry["real_id"]
+                .as_str()
+                .map(|id| !visited.insert(id.to_string()))
+                .unwrap_or(false);
+        if is_cycle {
+            entry["cycle"] = Value::Bool(true);
+        }
+        if is_dir && depth > 1 && !is_cycle {
             let children = if let Some(child_path) = entry["path"].as_str() {
                 let child = fetch_child(child_path)?;
                 let child_entries = child["entries"].as_array().cloned().unwrap_or_default();
-                expand_tree_entries(child_entries, depth - 1, fetch_child)?
+                expand_tree_entries(child_entries, depth - 1, fetch_child, visited)?
             } else {
                 Vec::new()
             };
@@ -2035,7 +2074,8 @@ mod tests {
             }
         };
 
-        let expanded = expand_tree_entries(root_entries, 2, &mut fetch_child).unwrap();
+        let expanded =
+            expand_tree_entries(root_entries, 2, &mut fetch_child, &mut HashSet::new()).unwrap();
 
         assert_eq!(expanded[0].get("children"), None);
         assert_eq!(
@@ -2052,9 +2092,38 @@ mod tests {
             panic!("depth one should not fetch child directories")
         };
 
-        let expanded = expand_tree_entries(root_entries, 1, &mut fetch_child).unwrap();
+        let expanded =
+            expand_tree_entries(root_entries, 1, &mut fetch_child, &mut HashSet::new()).unwrap();
 
         assert_eq!(expanded[0].get("children"), None);
+    }
+
+    #[test]
+    fn expand_tree_entries_stops_at_a_repeated_real_id_symlink_cycle() {
+        // dirA and dirB each contain a symlink back to the other -- both entries
+        // carry the same real_id (dev:ino survives symlink resolution), so the
+        // second sighting must be flagged as a cycle and not recursed into,
+        // regardless of how many levels deep -L would otherwise allow.
+        let root_entries = vec![json!({
+            "name": "dirA", "path": "file://root/dirA", "type": "dir", "real_id": "1:100"
+        })];
+        let mut fetch_child = |path: &str| -> CliResult<Value> {
+            match path {
+                "file://root/dirA" => Ok(json!({
+                    "entries": [
+                        {"name": "link_to_a", "path": "file://root/dirA/link_to_a", "type": "dir", "real_id": "1:100"}
+                    ]
+                })),
+                other => panic!("should not recurse past the cycle, but fetched {other}"),
+            }
+        };
+
+        let expanded =
+            expand_tree_entries(root_entries, 10, &mut fetch_child, &mut HashSet::new()).unwrap();
+
+        let inner = &expanded[0]["children"][0];
+        assert_eq!(inner["cycle"], json!(true));
+        assert_eq!(inner.get("children"), None);
     }
 
     #[test]

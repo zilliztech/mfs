@@ -1976,6 +1976,7 @@ class Engine:
                     "indexable": (
                         bool(row["indexable"]) if row and row["indexable"] is not None else None
                     ),
+                    "real_id": e.extra.get("real_id"),
                 }
             )
         return {"entries": out, "capabilities": caps}
