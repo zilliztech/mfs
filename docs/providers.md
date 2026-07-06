@@ -102,6 +102,7 @@ Text summary and image-description clients use the LLM provider registry.
 | Provider | Default text and vision model | Dependency | Runtime requirement |
 |---|---|---|---|
 | `openai` | `gpt-4o-mini` | Core | `OPENAI_API_KEY`; `OPENAI_BASE_URL` is optional |
+| `openai_compatible` | _(none — set `model` explicitly)_ | Core | `base_url` (required) + `api_key` (optional) under `[summary]`/`[description]`; both accept `env:VAR` / `file:/path` refs. For any OpenAI Chat Completions-compatible endpoint (DeepSeek, Moonshot, Qwen, vLLM, Ollama's `/v1`, …). |
 | `anthropic` | `claude-sonnet-4-5-20250929` | `uv tool install "mfs-server[anthropic]"` or `all-providers` | `ANTHROPIC_API_KEY` |
 | `gemini` | `gemini-2.0-flash` | `uv tool install "mfs-server[gemini]"` or `all-providers` | `GOOGLE_API_KEY`; the Gemini provider module also documents Vertex AI auth |
 
@@ -123,6 +124,32 @@ dir = true               # summarize directories (recursive, bottom-up)
 file = false             # also summarize each individual file (~2x cost)
 include_image_description = false  # fold image-description text into directory summaries
 ```
+
+To point summary/description at an OpenAI-compatible endpoint (DeepSeek,
+Moonshot, Qwen, a local vLLM/Ollama `/v1`, …), use `provider = "openai_compatible"`
+with an explicit `base_url` and `model`. `api_key` is optional — local
+unauthenticated endpoints can leave it blank; both fields accept `env:VAR` /
+`file:/path` refs so secrets stay out of the TOML:
+
+```toml
+[summary]
+enabled = true
+provider = "openai_compatible"
+model = "deepseek-chat"
+base_url = "https://api.deepseek.com/v1"
+api_key = "env:DEEPSEEK_API_KEY"
+
+[description]
+enabled = true
+provider = "openai_compatible"
+model = "qwen2-vl-72b-instruct"
+base_url = "http://localhost:8000/v1"   # local vLLM
+api_key = ""                            # blank = placeholder (no cloud fallback)
+```
+
+`base_url` should include the path the endpoint expects (commonly `/v1`).
+`[summary]` and `[description]` are independent — they may target different
+endpoints.
 
 Configure them with their own wizard sections:
 

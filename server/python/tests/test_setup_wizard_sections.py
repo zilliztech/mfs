@@ -90,3 +90,55 @@ def test_summary_review_shows_both_lines_with_precise_terms() -> None:
     assert pairs["Directory summaries"] == "openai / gpt-4o-mini (dir + file)"
     # The old conflated "VLM" label is gone.
     assert "VLM" not in pairs
+
+
+def test_description_openai_compatible_writes_endpoint_fields() -> None:
+    out = _apply(
+        "description",
+        {},
+        {
+            "enabled": True,
+            "provider": "openai_compatible",
+            "model": "deepseek-chat",
+            "base_url": "https://api.deepseek.com/v1",
+            "api_key": "env:DEEPSEEK_API_KEY",
+        },
+    )
+    assert out["description"]["base_url"] == "https://api.deepseek.com/v1"
+    assert out["description"]["api_key"] == "env:DEEPSEEK_API_KEY"
+
+
+def test_summary_openai_compatible_writes_endpoint_fields() -> None:
+    out = _apply(
+        "summary",
+        {},
+        {
+            "enabled": True,
+            "provider": "openai_compatible",
+            "model": "deepseek-chat",
+            "dir": True,
+            "file": False,
+            "base_url": "https://api.deepseek.com/v1",
+            "api_key": "env:DEEPSEEK_API_KEY",
+        },
+    )
+    assert out["summary"]["base_url"] == "https://api.deepseek.com/v1"
+    assert out["summary"]["api_key"] == "env:DEEPSEEK_API_KEY"
+
+
+def test_summary_cloud_provider_omits_endpoint_fields() -> None:
+    # Cloud openai answers carry no base_url/api_key; the written block must
+    # not synthesize empty ones.
+    out = _apply(
+        "summary",
+        {},
+        {
+            "enabled": True,
+            "provider": "openai",
+            "model": "gpt-4o-mini",
+            "dir": True,
+            "file": False,
+        },
+    )
+    assert "base_url" not in out["summary"]
+    assert "api_key" not in out["summary"]

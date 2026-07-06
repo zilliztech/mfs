@@ -34,6 +34,8 @@ class CachingVlmClient:
         self.model = cfg.description.model
         self.prompt = cfg.description.prompt
         self.provider = cfg.description.provider
+        self.base_url = cfg.description.base_url
+        self.api_key = cfg.description.api_key
         self.version = "1"
         self.tx_cache = tx_cache
         # Lazy: server boots w/o any LLM key.
@@ -43,7 +45,11 @@ class CachingVlmClient:
 
     def _ensure_llm(self) -> Any:
         if self._llm is None:
-            self._llm = get_provider(self.provider)
+            kwargs: dict[str, Any] = {}
+            if self.provider == "openai_compatible":
+                kwargs["base_url"] = self.base_url
+                kwargs["api_key"] = self.api_key or None
+            self._llm = get_provider(self.provider, **kwargs)
         return self._llm
 
     def mime_for(self, ext: str) -> str:

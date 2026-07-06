@@ -11,7 +11,10 @@ import base64
 class AnthropicLlm:
     _DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 
-    def __init__(self) -> None:
+    def __init__(self, **_kwargs: object) -> None:
+        # ``_kwargs`` lets the registry's get_provider(**kwargs) forward
+        # base_url/api_key uniformly; this provider ignores them and reads
+        # ANTHROPIC_API_KEY from env.
         import anthropic
 
         self._client = anthropic.AsyncAnthropic()  # ANTHROPIC_API_KEY from env

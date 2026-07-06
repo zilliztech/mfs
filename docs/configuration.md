@@ -104,8 +104,8 @@ The wizard walks these sections in order:
 | `database` | `[database] backend`, `dsn` | SQLite. The same backend feeds metadata and the transformation-cache lookup table. | Use Postgres when multiple server processes need shared relational state. |
 | `cache` | `[artifact_cache] root`, `max_size_gb`, `eviction` | Local filesystem under `$MFS_HOME/cache`. | Mount a volume at `root` to persist the cache in container deployments. |
 | `auth` | top-level `auth_token` | Auto mode omits `auth_token` in TOML and creates or reuses `server.token`. | Provide a known token, or set `-` only for an intentionally open trusted network. |
-| `description` | `[description] enabled`, `provider`, `model` | Off by default. Images are listed without running a vision LLM to describe them. | Enable when you want images described and made searchable, and accept the per-image provider cost. The operation is on images only. |
-| `summary` | `[summary] enabled`, `provider`, `model`, `dir`, `file`, `include_image_description` | Off by default. No directory or file summaries are produced. | Enable to get LLM summaries of directories. `dir` covers directories (recommended); set `file = true` to also summarize each file (~2x cost). `include_image_description` folds image-description text into a directory's summary, and only has an effect when `description` is enabled. |
+| `description` | `[description] enabled`, `provider`, `model`, `base_url`, `api_key` | Off by default. Images are listed without running a vision LLM to describe them. | Enable when you want images described and made searchable, and accept the per-image provider cost. The operation is on images only. `base_url`/`api_key` apply only to `provider = "openai_compatible"`. |
+| `summary` | `[summary] enabled`, `provider`, `model`, `dir`, `file`, `include_image_description`, `base_url`, `api_key` | Off by default. No directory or file summaries are produced. | Enable to get LLM summaries of directories. `dir` covers directories (recommended); set `file = true` to also summarize each file (~2x cost). `include_image_description` folds image-description text into a directory's summary, and only has an effect when `description` is enabled. `base_url`/`api_key` apply only to `provider = "openai_compatible"`. |
 
 ??? note "Advanced and legacy TOML blocks"
     `metadata.backend` / `metadata.dsn` and `transformation_cache.backend` /
@@ -209,7 +209,7 @@ apply after TOML is loaded and default paths are resolved.
 | `MFS_METADATA_DSN` | Server | Switches the unified database backend to Postgres and applies the DSN to metadata. |
 | `MFS_TX_CACHE_DSN` | Server | Optional transformation-cache Postgres DSN. |
 | `MFS_TX_CACHE_PG` | Server | Enables Postgres for transformation cache when paired with `MFS_TX_CACHE_DSN` or `MFS_METADATA_DSN`. |
-| `OPENAI_API_KEY` | OpenAI provider SDK | Needed only when OpenAI-backed embedding, summary, or VLM settings are selected. The default ONNX path does not require it. |
+| `OPENAI_API_KEY` | OpenAI provider SDK | Needed only when the OpenAI-backed (`provider = "openai"`) embedding, summary, or VLM settings are selected. The default ONNX path does not require it. The `openai_compatible` provider does **not** read this env — set its `api_key` under `[summary]`/`[description]` instead (or leave blank for a local unauthenticated endpoint). |
 
 !!! warning "Do not use `MFS_MILVUS_*` as runtime overrides"
     Some deployment assets mention `MFS_MILVUS_URI` and `MFS_MILVUS_TOKEN`.

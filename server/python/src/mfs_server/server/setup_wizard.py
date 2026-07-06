@@ -87,9 +87,45 @@ def _embedding_choices() -> list[tuple[str, str]]:
 def _llm_choices() -> list[tuple[str, str]]:
     return [
         ("openai", "needs OPENAI_API_KEY env"),
+        (
+            "openai_compatible",
+            "custom OpenAI-compatible endpoint (base_url + api_key + model)",
+        ),
         ("anthropic", "needs `uv sync --extra anthropic` + ANTHROPIC_API_KEY"),
         ("gemini", "needs `uv sync --extra gemini` + GOOGLE_API_KEY"),
     ]
+
+
+def _prompt_openai_compatible_endpoint(
+    *, provider: str, current_base_url: str, current_api_key: str
+) -> dict[str, str]:
+    """Prompt base_url + api_key for the openai_compatible provider.
+
+    Only called when the user picks ``openai_compatible``. base_url is
+    required (no implicit cloud fallback); api_key is optional so a local
+    unauthenticated endpoint can pass a placeholder. Both accept ``env:VAR``
+    / ``file:/path`` refs.
+    """
+    from .connector_wizard import _validate_secret_ref
+
+    base_url = ui.text(
+        "Base URL",
+        default=current_base_url if current_base_url else "",
+        required=True,
+        hint="e.g. https://api.deepseek.com/v1  (include /v1 if the endpoint expects it)",
+        validate=lambda v: (
+            None
+            if v.startswith(("http://", "https://"))
+            else "base_url must start with http:// or https://"
+        ),
+    )
+    api_key = ui.text(
+        "API key",
+        default=current_api_key if current_api_key else "",
+        hint="env:VAR / file:/path / or paste — leave blank for a local unauth endpoint",
+        validate=_validate_secret_ref,
+    )
+    return {"base_url": base_url, "api_key": api_key}
 
 
 def _probe_dimension(provider: str, model: str) -> tuple[int | None, str | None]:
@@ -196,9 +232,18 @@ def _wizard_description(current: DescriptionConfig, step: int, total: int) -> di
         else VISION_DEFAULTS.get(provider, "")
     )
     model = ui.text("Vision model", default=model_default, required=True)
-    if provider != "openai":
+    answers: dict[str, Any] = {"enabled": True, "provider": provider, "model": model}
+    if provider == "openai_compatible":
+        answers.update(
+            _prompt_openai_compatible_endpoint(
+                provider=provider,
+                current_base_url=current.base_url if current.provider == provider else "",
+                current_api_key=current.api_key if current.provider == provider else "",
+            )
+        )
+    elif provider != "openai":
         ui.info(f"Provider {provider!r} needs: uv sync --extra {provider}")
-    return {"enabled": True, "provider": provider, "model": model}
+    return answers
 
 
 def _wizard_summary(
@@ -229,7 +274,14 @@ def _wizard_summary(
         else TEXT_DEFAULTS.get(provider, "")
     )
     model = ui.text("Summary model", default=model_default, required=True)
-    if provider != "openai":
+    endpoint: dict[str, str] = {}
+    if provider == "openai_compatible":
+        endpoint = _prompt_openai_compatible_endpoint(
+            provider=provider,
+            current_base_url=current.base_url if current.provider == provider else "",
+            current_api_key=current.api_key if current.provider == provider else "",
+        )
+    elif provider != "openai":
         ui.info(f"Provider {provider!r} needs: uv sync --extra {provider}")
     scope = ui.select(
         "Scope",
@@ -246,6 +298,7 @@ def _wizard_summary(
         "dir": True,
         "file": scope == "dir+file",
     }
+    answers.update(endpoint)
     # Folding image-description text into directory summaries only makes sense
     # when image description is also enabled — otherwise there is nothing to
     # fold, so the prompt would be meaningless.
@@ -440,11 +493,17 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
         # Image VLM description ([description]) — its own independent kill
         # switch. Never touches [summary].
         if answers["enabled"]:
-            current["description"] = {
+            block = {
                 "enabled": True,
                 "provider": answers["provider"],
                 "model": answers["model"],
             }
+            # base_url/api_key only meaningful for openai_compatible; written
+            # when present so switching providers doesn't strand a stale ref.
+            for k in ("base_url", "api_key"):
+                if answers.get(k):
+                    block[k] = answers[k]
+            current["description"] = block
         else:
             # Explicit off: drop any prior description.enabled=true so a second
             # pass through the wizard actually turns image description off.
@@ -462,6 +521,9 @@ def _apply(section: str, current: dict[str, Any], answers: dict[str, Any]) -> di
             }
             if "include_image_description" in answers:
                 block["include_image_description"] = answers["include_image_description"]
+            for k in ("base_url", "api_key"):
+                if answers.get(k):
+                    block[k] = answers[k]
             current["summary"] = block
         else:
             current.pop("summary", None)

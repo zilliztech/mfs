@@ -35,6 +35,8 @@ class CachingSummaryClient:
         self.enabled = cfg.summary.enabled
         self.model = cfg.summary.model
         self.provider = cfg.summary.provider
+        self.base_url = cfg.summary.base_url
+        self.api_key = cfg.summary.api_key
         self.version = "1"
         self.max_tokens = cfg.summary.max_tokens
         self.tx_cache = tx_cache
@@ -45,7 +47,11 @@ class CachingSummaryClient:
 
     def _ensure_llm(self) -> Any:
         if self._llm is None:
-            self._llm = get_provider(self.provider)
+            kwargs: dict[str, Any] = {}
+            if self.provider == "openai_compatible":
+                kwargs["base_url"] = self.base_url
+                kwargs["api_key"] = self.api_key or None
+            self._llm = get_provider(self.provider, **kwargs)
         return self._llm
 
     async def summarize(self, text: str, kind: str = "directory_summary") -> str:

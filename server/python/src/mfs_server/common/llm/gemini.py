@@ -10,7 +10,10 @@ from __future__ import annotations
 class GeminiLlm:
     _DEFAULT_MODEL = "gemini-2.0-flash"
 
-    def __init__(self) -> None:
+    def __init__(self, **_kwargs: object) -> None:
+        # ``_kwargs`` lets the registry's get_provider(**kwargs) forward
+        # base_url/api_key uniformly; this provider ignores them and reads
+        # GOOGLE_API_KEY from env.
         from google import genai
 
         self._client = genai.Client()  # GOOGLE_API_KEY from env
