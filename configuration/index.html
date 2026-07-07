@@ -2807,15 +2807,15 @@ token when the container is removed.</p>
 </tr>
 <tr>
 <td><code>description</code></td>
-<td><code>[description] enabled</code>, <code>provider</code>, <code>model</code></td>
+<td><code>[description] enabled</code>, <code>provider</code>, <code>model</code>, <code>base_url</code>, <code>api_key</code></td>
 <td>Off by default. Images are listed without running a vision LLM to describe them.</td>
-<td>Enable when you want images described and made searchable, and accept the per-image provider cost. The operation is on images only.</td>
+<td>Enable when you want images described and made searchable, and accept the per-image provider cost. The operation is on images only. <code>base_url</code>/<code>api_key</code> apply only to <code>provider = "openai_compatible"</code>.</td>
 </tr>
 <tr>
 <td><code>summary</code></td>
-<td><code>[summary] enabled</code>, <code>provider</code>, <code>model</code>, <code>dir</code>, <code>file</code>, <code>include_image_description</code></td>
+<td><code>[summary] enabled</code>, <code>provider</code>, <code>model</code>, <code>dir</code>, <code>file</code>, <code>include_image_description</code>, <code>base_url</code>, <code>api_key</code></td>
 <td>Off by default. No directory or file summaries are produced.</td>
-<td>Enable to get LLM summaries of directories. <code>dir</code> covers directories (recommended); set <code>file = true</code> to also summarize each file (~2x cost). <code>include_image_description</code> folds image-description text into a directory's summary, and only has an effect when <code>description</code> is enabled.</td>
+<td>Enable to get LLM summaries of directories. <code>dir</code> covers directories (recommended); set <code>file = true</code> to also summarize each file (~2x cost). <code>include_image_description</code> folds image-description text into a directory's summary, and only has an effect when <code>description</code> is enabled. <code>base_url</code>/<code>api_key</code> apply only to <code>provider = "openai_compatible"</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -3042,7 +3042,7 @@ apply after TOML is loaded and default paths are resolved.</p>
 <tr>
 <td><code>OPENAI_API_KEY</code></td>
 <td>OpenAI provider SDK</td>
-<td>Needed only when OpenAI-backed embedding, summary, or VLM settings are selected. The default ONNX path does not require it.</td>
+<td>Needed only when the OpenAI-backed (<code>provider = "openai"</code>) embedding, summary, or VLM settings are selected. The default ONNX path does not require it. The <code>openai_compatible</code> provider does <strong>not</strong> read this env — set its <code>api_key</code> under <code>[summary]</code>/<code>[description]</code> instead (or leave blank for a local unauthenticated endpoint).</td>
 </tr>
 </tbody>
 </table>

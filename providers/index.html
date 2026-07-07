@@ -2745,6 +2745,12 @@ so query vectors and indexed vectors come from the same embedding space:</p>
 <td><code>OPENAI_API_KEY</code>; <code>OPENAI_BASE_URL</code> is optional</td>
 </tr>
 <tr>
+<td><code>openai_compatible</code></td>
+<td><em>(none — set <code>model</code> explicitly)</em></td>
+<td>Core</td>
+<td><code>base_url</code> (required) + <code>api_key</code> (optional) under <code>[summary]</code>/<code>[description]</code>; both accept <code>env:VAR</code> / <code>file:/path</code> refs. For any OpenAI Chat Completions-compatible endpoint (DeepSeek, Moonshot, Qwen, vLLM, Ollama's <code>/v1</code>, …).</td>
+</tr>
+<tr>
 <td><code>anthropic</code></td>
 <td><code>claude-sonnet-4-5-20250929</code></td>
 <td><code>uv tool install "mfs-server[anthropic]"</code> or <code>all-providers</code></td>
@@ -2774,9 +2780,31 @@ wizard section:</p>
 <a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">file</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">             </span><span class="c1"># also summarize each individual file (~2x cost)</span>
 <a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">include_image_description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">  </span><span class="c1"># fold image-description text into directory summaries</span>
 </code></pre></div>
+<p>To point summary/description at an OpenAI-compatible endpoint (DeepSeek,
+Moonshot, Qwen, a local vLLM/Ollama <code>/v1</code>, …), use <code>provider = "openai_compatible"</code>
+with an explicit <code>base_url</code> and <code>model</code>. <code>api_key</code> is optional — local
+unauthenticated endpoints can leave it blank; both fields accept <code>env:VAR</code> /
+<code>file:/path</code> refs so secrets stay out of the TOML:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">[summary]</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai_compatible&quot;</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deepseek-chat&quot;</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">base_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://api.deepseek.com/v1&quot;</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">api_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;env:DEEPSEEK_API_KEY&quot;</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">[description]</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="n">enabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="n">provider</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;openai_compatible&quot;</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2-vl-72b-instruct&quot;</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="n">base_url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;http://localhost:8000/v1&quot;</span><span class="w">   </span><span class="c1"># local vLLM</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="n">api_key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="w">                            </span><span class="c1"># blank = placeholder (no cloud fallback)</span>
+</code></pre></div>
+<p><code>base_url</code> should include the path the endpoint expects (commonly <code>/v1</code>).
+<code>[summary]</code> and <code>[description]</code> are independent — they may target different
+endpoints.</p>
 <p>Configure them with their own wizard sections:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>description<span class="w">   </span><span class="c1"># images</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>summary<span class="w">       </span><span class="c1"># directories / files</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>description<span class="w">   </span><span class="c1"># images</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mfs-server<span class="w"> </span>setup<span class="w"> </span>--section<span class="w"> </span>summary<span class="w">       </span><span class="c1"># directories / files</span>
 </code></pre></div>
 <p>The <code>description</code> section writes only <code>[description]</code>; the <code>summary</code> section
 writes only <code>[summary]</code>. You can also set <code>MFS_SUMMARY_ENABLED</code> in the server
@@ -2791,8 +2819,8 @@ image-description text is folded into directory-summary input.</p>
 </div>
 <h2 id="conversion-and-processing">Conversion and Processing<a class="headerlink" href="#conversion-and-processing" title="Permanent link">&para;</a></h2>
 <p>Framework conversion uses MarkItDown by default:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">[conversion]</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">default</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;markitdown&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">[conversion]</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">default</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;markitdown&quot;</span>
 </code></pre></div>
 <p>The framework converter path is used for these file-form document extensions:
 <code>.pdf</code>, <code>.docx</code>, <code>.doc</code>, <code>.pptx</code>, <code>.ppt</code>, <code>.xlsx</code>, <code>.xls</code>, <code>.html</code>, and
