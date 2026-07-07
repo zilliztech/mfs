@@ -12,11 +12,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
 from mfs_server.config import ServerConfig
-from mfs_server.connectors.base import ConnectorPlugin, ObjectConfig
+from mfs_server.connectors.base import ConnectorConfigSchema, ConnectorPlugin, ObjectConfig
 from mfs_server.connectors.file.plugin import FilePlugin
 from mfs_server.connectors.github.plugin import GitHubPlugin
 from mfs_server.connectors.registry import load_builtin, register
@@ -71,6 +72,31 @@ class _FakePlugin:
 
 
 register(_FakePlugin)
+
+
+# A fake plugin carrying a real CONFIG_SCHEMA, for TestValidateConfig. Mirrors
+# PostgresConfig's field shape (dsn / max_read_rows) but registers unconditionally --
+# unlike postgres, mysql, etc., whose registration is gated behind an optional SDK
+# (load_builtin() silently skips them when e.g. asyncpg isn't installed). Exercising
+# schema enforcement against a real optional-SDK connector made these tests pass or
+# fail depending on which extras happened to be installed, rather than on the
+# behavior under test.
+class _ValidateConfigSchema(ConnectorConfigSchema):
+    dsn: Optional[str] = None
+    max_read_rows: int = 100000
+
+
+class _FakeSchemaPlugin:
+    URI_SCHEME = "mfs-fake-validate-config"
+    CONFIG_SCHEMA = _ValidateConfigSchema
+
+    def __init__(self, config, credential, ctx=None):
+        self.config = config
+        self.credential = credential
+        self.ctx = ctx
+
+
+register(_FakeSchemaPlugin)
 
 # ConnectorFactory.resolve_target dispatches via registry.get_plugin_cls, so the
 # built-in connectors (file/github at minimum) must be registered before the
@@ -306,37 +332,48 @@ class TestValidateNoPlaintextSecrets:
 
 
 class TestValidateConfig:
+    # Uses the fake "mfs-fake-validate-config" scheme registered above, not a real
+    # connector like postgres -- postgres's own registration is gated behind the
+    # optional asyncpg SDK (load_builtin() skips it silently when absent), so
+    # exercising schema enforcement through it made these tests pass or fail
+    # depending on which extras happened to be installed rather than on the
+    # behavior under test. The fake schema mirrors PostgresConfig's field shape
+    # (dsn / max_read_rows) so the cases below still cover the same 3 failure
+    # shapes; postgres's real CONFIG_SCHEMA is unaffected and still enforced in
+    # production, just not re-exercised here.
+    CTYPE = "mfs-fake-validate-config"
+
     def test_valid_config_passes(self, factory: ConnectorFactory):
-        factory.validate_config("postgres", {"dsn": "env:PG_DSN", "max_read_rows": 500})
+        factory.validate_config(self.CTYPE, {"dsn": "env:PG_DSN", "max_read_rows": 500})
 
     def test_numeric_field_as_string_is_coerced_not_rejected(self, factory: ConnectorFactory):
         # pydantic's default (lax) mode coerces an unambiguous numeric string to
         # int at the schema boundary -- the original bug wasn't that "100" is an
         # invalid max_read_rows, it's that nothing coerced it before an
         # internal `>` comparison crashed on a real string. This must NOT raise.
-        factory.validate_config("postgres", {"max_read_rows": "100"})
+        factory.validate_config(self.CTYPE, {"max_read_rows": "100"})
 
     def test_wrong_type_with_no_coercion_path_is_rejected(self, factory: ConnectorFactory):
         # A bool has no sensible coercion to the str `dsn` expects -- unlike the
         # numeric-string case above, this should be a clean, named rejection
-        # instead of surfacing 'bool' object has no attribute 'decode' deep in
-        # asyncpg/urlparse.
+        # instead of a raw exception surfacing deep in the plugin's own
+        # connect()/read path.
         with pytest.raises(ValueError, match="config_invalid.*dsn"):
-            factory.validate_config("postgres", {"dsn": True})
+            factory.validate_config(self.CTYPE, {"dsn": True})
 
     def test_unrecognized_field_is_rejected(self, factory: ConnectorFactory):
         with pytest.raises(ValueError, match="config_invalid.*bogus_field"):
-            factory.validate_config("postgres", {"dsn": "env:PG_DSN", "bogus_field": "nonsense"})
+            factory.validate_config(self.CTYPE, {"dsn": "env:PG_DSN", "bogus_field": "nonsense"})
 
     def test_credential_ref_and_legacy_alias_and_objects_are_allowed(
         self, factory: ConnectorFactory
     ):
         # Cross-cutting fields every connector config may carry regardless of
         # type -- declared once on ConnectorConfigSchema, not per-connector.
-        factory.validate_config("postgres", {"dsn": "env:PG_DSN", "credential_ref": "env:X"})
-        factory.validate_config("postgres", {"dsn": "env:PG_DSN", "_credential_ref": "env:X"})
+        factory.validate_config(self.CTYPE, {"dsn": "env:PG_DSN", "credential_ref": "env:X"})
+        factory.validate_config(self.CTYPE, {"dsn": "env:PG_DSN", "_credential_ref": "env:X"})
         factory.validate_config(
-            "postgres", {"dsn": "env:PG_DSN", "objects": [{"match": "*.csv", "priority": 1}]}
+            self.CTYPE, {"dsn": "env:PG_DSN", "objects": [{"match": "*.csv", "priority": 1}]}
         )
 
     def test_connector_without_config_schema_is_unaffected(self, factory: ConnectorFactory):
@@ -347,7 +384,7 @@ class TestValidateConfig:
         factory.validate_config("file", {"root": "/tmp/x", "objects": [{"match": "*"}]})
 
     def test_non_dict_config_is_a_noop(self, factory: ConnectorFactory):
-        factory.validate_config("postgres", None)
+        factory.validate_config(self.CTYPE, None)
 
     def test_unknown_ctype_is_a_noop(self, factory: ConnectorFactory):
         factory.validate_config("no-such-connector-type", {"anything": 1})
