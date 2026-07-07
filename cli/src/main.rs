@@ -937,20 +937,33 @@ fn run(cli: &Cli, client: &reqwest::blocking::Client, base: &str) -> CliResult<(
             // export returns the FULL object (no bare-cat size guard), but each
             // connector's own row cap still applies — surface partial=true so
             // the caller knows the file on disk is not the complete object.
+            let resolved = resolve_path_arg(client, base, path)?;
             let v = get(
                 client,
                 &format!("{base}/v1/export"),
-                &[("path", resolve_path_arg(client, base, path)?)],
+                &[("path", resolved.clone())],
             )?;
             let text = v["content"].as_str().unwrap_or("");
             let partial = v["partial"].as_bool().unwrap_or(false);
             std::fs::write(out, text).map_err(|e| format!("failed to write to {out}: {e}"))?;
-            println!("exported {} bytes -> {}", text.len(), out);
-            if partial {
+            if cli.json {
                 println!(
-                    "warning: partial export — connector capped at max_read_rows; \
-                     raise the cap or use `mfs cat --range` to page the rest"
+                    "{}",
+                    serde_json::json!({
+                        "source": v["source"].as_str().unwrap_or(&resolved),
+                        "out": out,
+                        "bytes": text.len(),
+                        "partial": partial,
+                    })
                 );
+            } else {
+                println!("exported {} bytes -> {}", text.len(), out);
+                if partial {
+                    println!(
+                        "warning: partial export — connector capped at max_read_rows; \
+                         raise the cap or use `mfs cat --range` to page the rest"
+                    );
+                }
             }
         }
         Cmd::Status => {
