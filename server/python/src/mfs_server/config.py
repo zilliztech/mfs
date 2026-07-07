@@ -174,6 +174,12 @@ class SummaryConfig(StrictConfigModel):
     max_input_kb: int = 64  # total input budget fed to one summary (truncated)
     per_file_max_kb: int = 16  # per-file truncation cap so one big file can't eat the budget
     include_image_description: bool = False  # feed image VLM text into directory summaries
+    # OpenAI-compatible endpoint override (provider == "openai_compatible"):
+    # base_url is mandatory, api_key optional (local endpoints use a placeholder).
+    # Both accept env:VAR / file:/path refs. Empty for the cloud "openai" path
+    # (which reads OPENAI_API_KEY / OPENAI_BASE_URL from env directly).
+    base_url: str = ""
+    api_key: str = ""
     concurrency: int = (
         20  # SummaryWorker pool size + LLM in-flight ceiling (was the dead batch_size)
     )
@@ -193,6 +199,10 @@ class DescriptionConfig(StrictConfigModel):
     provider: str = "openai"
     model: str = "gpt-4o-mini"
     prompt: str = "Describe this image in detail for search indexing."
+    # OpenAI-compatible endpoint override (provider == "openai_compatible"):
+    # see [summary].base_url / api_key. Mandatory base_url, optional api_key.
+    base_url: str = ""
+    api_key: str = ""
     concurrency: int = 10  # ConcurrencyGate: max in-flight VLM calls (was the dead batch_size)
 
 

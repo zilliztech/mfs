@@ -9,6 +9,12 @@ import base64
 import os
 
 from openai import AsyncOpenAI
+from openai.types.chat import (
+    ChatCompletionContentPartImageParam,
+    ChatCompletionContentPartTextParam,
+    ChatCompletionUserMessageParam,
+)
+from openai.types.chat.chat_completion_content_part_image_param import ImageURL
 
 
 class OpenAILlm:
@@ -32,7 +38,7 @@ class OpenAILlm:
     ) -> str:
         resp = await self._client.chat.completions.create(
             model=model or self._DEFAULT_MODEL,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[ChatCompletionUserMessageParam(role="user", content=prompt)],
             max_tokens=max_tokens,
             temperature=temperature,
         )
@@ -48,16 +54,17 @@ class OpenAILlm:
         max_tokens: int = 800,
     ) -> str:
         b64 = base64.b64encode(image_bytes).decode("ascii")
+        image_url = ImageURL(url=f"data:{mime};base64,{b64}")
         resp = await self._client.chat.completions.create(
             model=model or self._DEFAULT_MODEL,
             messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                ChatCompletionUserMessageParam(
+                    role="user",
+                    content=[
+                        ChatCompletionContentPartTextParam(type="text", text=prompt),
+                        ChatCompletionContentPartImageParam(type="image_url", image_url=image_url),
                     ],
-                }
+                )
             ],
             max_tokens=max_tokens,
         )
