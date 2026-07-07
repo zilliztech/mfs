@@ -36,14 +36,14 @@ async def _engine(tmp_path) -> Engine:
     cfg.artifact_cache.root = str(tmp_path / "artifacts")
     cfg.milvus.uri = str(tmp_path / "milvus.db")
     eng = Engine(cfg)
-    await eng.meta.connect()
-    await eng.meta.init_schema()
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
     return eng
 
 
 async def _assert_no_ingest_side_effects(eng: Engine, tmp_path) -> None:
     for table in ("connectors", "connector_jobs", "file_state", "object_tasks"):
-        row = await eng.meta.fetchone(f"SELECT count(*) AS n FROM {table}")
+        row = await eng.infra.meta.fetchone(f"SELECT count(*) AS n FROM {table}")
         assert row["n"] == 0
     assert not (tmp_path / "artifacts" / "files").exists()
 
@@ -66,7 +66,7 @@ async def test_legacy_upload_rejects_unsafe_tar_before_metadata_side_effects(
             await eng.ingest_upload("bad-upload", bundle, process=False)
         await _assert_no_ingest_side_effects(eng, tmp_path)
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()
 
 
 @pytest.mark.parametrize(
@@ -102,4 +102,4 @@ async def test_manifest_upload_rejects_unsafe_tar_before_metadata_side_effects(
             await eng.files_upload("client-id", "/tmp/source", bundle, process=False)
         await _assert_no_ingest_side_effects(eng, tmp_path)
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()

@@ -18,25 +18,22 @@ import uuid
 from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 
-from ..common.converter import CONVERT_EXTS, ConverterClient
-from ..common.embedding import CachingEmbeddingClient
+from ..common.converter import CONVERT_EXTS
 from ..common.retrieval import build_filter, collapse_results, to_envelope
-from ..common.summary import CachingSummaryClient
-from ..common.vlm import CachingVlmClient
 from ..config import ServerConfig
 from ..connectors.base import SyncOptions
-from ..connectors.registry import get_plugin_cls, load_builtin
+from ..connectors.registry import get_plugin_cls
 from ..storage.file_state import FileStateStore
 from ..storage.ids import chunk_id
-from ..storage.metadata import make_metadata_store
-from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW, MilvusStore
-from ..storage.artifact_cache import make_artifact_cache
-from ..storage.transformation_cache import make_transformation_cache
+from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW
 from .adapters import ArtifactStoreAdapter, EmbedderAdapter, MilvusSinkAdapter, TxCacheAdapter
 from .components import ConnectorFactory, ConnectorLocator, CredentialService
 from .components.artifact_cache import ArtifactCacheService
 from .components.object_repository import ObjectRepository, TaskStatus
-from .pipeline import EmbedConsumer, TaskEnvelope, _EMBED_FLUSH_IDLE_MS, make_chunks_q
+from .infra import InfraStack
+from .job_lane import build_job_lane
+from .job_watcher import ConnectorJobWatcher
+from .pipeline import _EMBED_FLUSH_IDLE_MS, EmbedConsumer, TaskEnvelope, make_chunks_q
 from .producers import select_producer
 from .producers.base import (
     DescriptionConcurrencyGate,
@@ -47,8 +44,6 @@ from .producers.base import (
     cap_content,
 )
 from .producers.render import render_record, resolve_path
-from .job_watcher import ConnectorJobWatcher
-from .job_lane import build_job_lane
 from .state import ConnectorStateStore
 
 logger = logging.getLogger(__name__)
@@ -186,26 +181,17 @@ class Engine:
     def __init__(self, cfg: ServerConfig):
         self.cfg = cfg
         self.ns = cfg.namespace
-        self.meta = make_metadata_store(cfg)
+        # Infra stack: constructs + lifecycles the 8 infra clients (meta/milvus/artifact_cache/tx_cache/embed/converter/vlm/summary).
+        self.infra = InfraStack(cfg)
         # ObjectRepository owns all SQL for the four tables + the advance_task guard.
         # Inject the shared meta handle + cfg (namespace derived from cfg).
-        self.objects = ObjectRepository(self.meta, cfg)
-        # ConnectorFactory owns target resolution / credential redact+resolve /
-        # plugin build. It never touches the connectors table; ObjectRepository
-        # calls connector_factory.redact(config) before persisting.
-        self.connector_factory = ConnectorFactory(cfg, self.meta)
-        self.milvus = MilvusStore(cfg)
-        self.artifact_cache = make_artifact_cache(cfg)
-        self.tx_cache = make_transformation_cache(cfg)
-        self.embed = CachingEmbeddingClient(cfg, self.tx_cache)
-        self.converter = ConverterClient(cfg)
-        self.vlm = CachingVlmClient(cfg, self.tx_cache)
-        self.summary = CachingSummaryClient(cfg, self.tx_cache)
-        # ArtifactCacheService owns the artifact_cache table SQL + LRU + freshness
-        # (migrated verbatim from the old _*_artifact / _evict methods). The storage-layer
-        # LocalArtifactCache stays on Engine (uploads staging / raw_records GC call it
-        # directly) and is injected here for the bytes CRUD the service needs.
-        self.artifacts = ArtifactCacheService(cfg, self.meta, self.artifact_cache, self.objects)
+        self.objects = ObjectRepository(self.infra.meta, cfg)
+        # ConnectorFactory owns target resolution / credential redact+resolve / plugin build.
+        self.connector_factory = ConnectorFactory(cfg, self.infra.meta)
+        # ArtifactCacheService owns artifact_cache table SQL + LRU + freshness; the bytes store (LocalArtifactCache) lives on InfraStack (self.infra.artifact_cache).
+        self.artifacts = ArtifactCacheService(
+            cfg, self.infra.meta, self.infra.artifact_cache, self.objects
+        )
         # --- new pipeline (process singletons; built lazily in _build_pipeline) ---
         self._chunks_q: asyncio.Queue | None = None
         self._embed_consumer: _PipelineEmbedConsumer | None = None
@@ -222,32 +208,15 @@ class Engine:
         self._job_watcher_task: asyncio.Task | None = None
 
     async def startup(self, *, preload_local_models: bool = False) -> None:
-        load_builtin()
-        await self.meta.connect()
-        await self.meta.init_schema()
-        await self.tx_cache.connect()
-        self.milvus.connect()
-        self.milvus.ensure_collection(self.ns)
-        if preload_local_models:
-            await self._preload_startup_models()
+        # Infra connect + schema + optional model preload
+        await self.infra.startup(preload_local_models=preload_local_models)
         self._build_pipeline()
         await self._gc_orphan_chunks()
         await self._recover_job_lane()
         # ConnectorJobWatcher runs in this same event loop as the EmbedConsumer + SummaryWorker
         # pool, finalizing jobs out-of-band (§5.7).
-        self._job_watcher = ConnectorJobWatcher(self.meta, self._job_lane)
+        self._job_watcher = ConnectorJobWatcher(self.infra.meta, self._job_lane)
         self._job_watcher_task = asyncio.create_task(self._job_watcher.run())
-
-    async def _preload_startup_models(self) -> None:
-        if not self.embed.should_preload_on_server_start():
-            return
-        logger.info(
-            "preloading embedding provider %s/%s",
-            self.embed.provider_name,
-            self.embed.model,
-        )
-        await asyncio.to_thread(self.embed.preload_provider)
-        logger.info("embedding provider ready")
 
     async def _gc_orphan_chunks(self) -> int:
         """Startup reconcile: delete Milvus chunks that no committed `objects` row points at.
@@ -262,7 +231,9 @@ class Engine:
         directory summaries have no objects row). They match unless there is genuine excess,
         so the full distinct-object scan + per-object delete runs only when orphans exist."""
         try:
-            total = await asyncio.to_thread(self.milvus.count, self.ns, self.milvus.GC_SCOPE_EXPR)
+            total = await asyncio.to_thread(
+                self.infra.milvus.count, self.ns, self.infra.milvus.GC_SCOPE_EXPR
+            )
             if total == 0:
                 return 0
             conns = await self.objects.list_connectors_summary()
@@ -275,12 +246,12 @@ class Engine:
             if total <= expected:
                 return 0  # healthy (or under-indexed, not an orphan case) — stop after the counts
             # genuine excess: enumerate non-summary objects and drop those with no committed row
-            present = await asyncio.to_thread(self.milvus.distinct_objects, self.ns)
+            present = await asyncio.to_thread(self.infra.milvus.distinct_objects, self.ns)
             deleted = 0
             for connector_uri, object_uri in present:
                 if object_uri not in valid:
                     await asyncio.to_thread(
-                        self.milvus.delete_by_object, self.ns, connector_uri, object_uri
+                        self.infra.milvus.delete_by_object, self.ns, connector_uri, object_uri
                     )
                     deleted += 1
             if deleted:
@@ -309,8 +280,8 @@ class Engine:
             # in-flight task's chunks aren't lost on shutdown.
             await self._embed_consumer.shutdown()
             self._embed_consumer = None
-        await self.meta.close()
-        await self.tx_cache.close()
+        # Infra close: meta + tx_cache. milvus / artifact_cache have no close method.
+        await self.infra.shutdown()
 
     # --- new pipeline: process-singleton chunks_q + EmbedConsumer (§3.1 / §5.2) ---
     def _build_pipeline(self) -> None:
@@ -326,19 +297,19 @@ class Engine:
         self._embed_consumer = _PipelineEmbedConsumer(
             # raw provider embed (no caching) so the consumer's TxCacheAdapter is the single
             # embed cache and there is no double-cache; cache key matches CachingEmbeddingClient.
-            EmbedderAdapter(self.embed._embed_api),
-            MilvusSinkAdapter(self.milvus, self.ns),
+            EmbedderAdapter(self.infra.embed._embed_api),
+            MilvusSinkAdapter(self.infra.milvus, self.ns),
             TxCacheAdapter(
-                self.tx_cache,
+                self.infra.tx_cache,
                 kind="embedding",
-                provider=self.embed.provider_name,
-                model=self.embed.model,
-                version=self.embed.version,
+                provider=self.infra.embed.provider_name,
+                model=self.infra.embed.model,
+                version=self.infra.embed.version,
             ),
             batch_size,
             idle_ms=self._embed_idle_ms,
             namespace_id=self.ns,
-            embed_key_fn=self.embed._key,
+            embed_key_fn=self.infra.embed._key,
         )
         self._embed_consumer.register_on_succeeded(self._on_pipeline_object_indexed)
         # ONE description gate + ONE summary gate per process (§5.5), shared by BOTH the Map
@@ -353,12 +324,12 @@ class Engine:
             artifacts=ArtifactStoreAdapter(
                 self._put_artifact,
                 self._read_artifact,
-                self.artifact_cache.artifact_path,
+                self.infra.artifact_cache.artifact_path,
                 self._read_artifact_fresh,
             ),
-            converter=self.converter,
-            vlm=self.vlm,
-            summary=self.summary,
+            converter=self.infra.converter,
+            vlm=self.infra.vlm,
+            summary=self.infra.summary,
             description_gate=self._description_gate,
             summary_gate=self._summary_gate,
         )
@@ -367,10 +338,10 @@ class Engine:
         # (files don't gate a dir) and counts a persisted directory_summary toward completion.
         self._job_lane = build_job_lane(
             self.cfg,
-            tx_cache=self.tx_cache,
-            summary=self.summary,
-            vlm=self.vlm,
-            converter=self.converter,
+            tx_cache=self.infra.tx_cache,
+            summary=self.infra.summary,
+            vlm=self.infra.vlm,
+            converter=self.infra.converter,
             chunks_q=self._chunks_q,
             artifacts=self._producer_ctx.artifacts,
             namespace_id=self.ns,
@@ -395,7 +366,7 @@ class Engine:
         if okind == "image":
             return self.cfg.description.enabled
         if okind == "table_schema":
-            return self.summary.enabled
+            return self.infra.summary.enabled
         return False
 
     async def _recover_job_lane(self) -> None:
@@ -476,7 +447,9 @@ class Engine:
             # as orphan hits (un-inspectable, un-cat-able, yet matchable). Reconcile by
             # deleting them, leaving the cursor untouched so a later sync re-does the object
             # cleanly. No-op when chunk_count == 0.
-            await asyncio.to_thread(self.milvus.delete_by_object, self.ns, connector_uri, task_uri)
+            await asyncio.to_thread(
+                self.infra.milvus.delete_by_object, self.ns, connector_uri, task_uri
+            )
             return
         await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
         await plugin.on_object_indexed(relpath)
@@ -536,7 +509,7 @@ class Engine:
                 # done once the produce loop above exhausts. Runs on success AND failure.
                 try:
                     await asyncio.to_thread(
-                        self.artifact_cache.delete_artifact, self.ns, full_uri, "raw_records"
+                        self.infra.artifact_cache.delete_artifact, self.ns, full_uri, "raw_records"
                     )
                 except Exception:  # noqa: BLE001 — GC of a temp artifact must never fail the task
                     pass
@@ -830,7 +803,7 @@ class Engine:
             raise ValueError("invalid or empty upload bundle") from e
 
         staging, connector_uri, cid = await self._staging_connector(name, "")
-        fs = FileStateStore(self.meta, self.ns, cid)
+        fs = FileStateStore(self.infra.meta, self.ns, cid)
 
         def _safe(rel: str) -> str:
             dest = os.path.realpath(os.path.join(staging, rel))
@@ -869,7 +842,7 @@ class Engine:
         import hashlib
 
         sub = hashlib.sha1(f"{client_id}:{root}".encode()).hexdigest()[:16]
-        return os.path.realpath(str(self.artifact_cache.files_root(self.ns, sub)))
+        return os.path.realpath(str(self.infra.artifact_cache.files_root(self.ns, sub)))
 
     async def _staging_connector(self, client_id: str, root: str):
         """(staging_dir, connector_uri, connector_id). The connector's stable identity is
@@ -887,7 +860,7 @@ class Engine:
         server-side file_state (the same table the file connector uses) and return which
         paths' bytes are needed + deletion candidates (with sha1/inode for rename pairing)."""
         staging, connector_uri, cid = await self._staging_connector(client_id, root)
-        fs = FileStateStore(self.meta, self.ns, cid)
+        fs = FileStateStore(self.infra.meta, self.ns, cid)
         # file_state stores connector-relative paths with a leading '/' (same convention as
         # the file connector, so object_uri = connector_uri + path joins cleanly); the client
         # speaks slash-less relpaths, so normalize on the boundary.
@@ -948,7 +921,7 @@ class Engine:
             raise ValueError("invalid or empty upload bundle") from e
 
         staging, connector_uri, cid = await self._staging_connector(client_id, root)
-        fs = FileStateStore(self.meta, self.ns, cid)
+        fs = FileStateStore(self.infra.meta, self.ns, cid)
 
         def _safe(base: str, rel: str) -> str:
             dest = os.path.realpath(os.path.join(base, rel))
@@ -1114,7 +1087,7 @@ class Engine:
             if aborted is None:
                 jrow = await self.objects.get_job_state_and_status(job["id"])
                 if jrow and jrow["status"] == "succeeded" and jrow["state_snapshot"]:
-                    await ConnectorStateStore(self.meta, cid).apply(
+                    await ConnectorStateStore(self.infra.meta, cid).apply(
                         json.loads(jrow["state_snapshot"])
                     )
         except Exception as e:  # noqa: BLE001
@@ -1373,7 +1346,7 @@ class Engine:
             # finalized before its chunks are in Milvus (§6.1) and the dir tree's file
             # notifications have all fired.
             await self._await_map_drained(job_id)
-            if self.summary.enabled and self._job_lane is not None:
+            if self.infra.summary.enabled and self._job_lane is not None:
                 # Job Lane (§3.5): the dir tree was accumulated during sync and is driven
                 # bottom-up by the SummaryWorker pool (sub-dirs before parents), in parallel
                 # with the Object Lane. Block until every directory_summary for this job is
@@ -1508,7 +1481,7 @@ class Engine:
 
         if kind == "deleted":
             await self.objects.delete_object_row(cid, relpath)
-            await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
+            await asyncio.to_thread(self.infra.milvus.delete_by_object, ns, connector_uri, full_uri)
             await self._drop_artifacts(ns, full_uri)  # purge cached artifact bytes too
             await plugin.on_object_deleted(relpath)
             return
@@ -1517,7 +1490,7 @@ class Engine:
             old_full = connector_uri + task["old_uri"]
             # rename = chunk_id rewrite, REUSE vectors (zero re-embed)
             old_chunks = await asyncio.to_thread(
-                self.milvus.get_chunks_by_object, ns, connector_uri, old_full
+                self.infra.milvus.get_chunks_by_object, ns, connector_uri, old_full
             )
             if old_chunks:
                 rows = []
@@ -1539,8 +1512,10 @@ class Engine:
                             "indexed_at": ch.get("indexed_at") or int(time.time() * 1000),
                         }
                     )
-                await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, old_full)
-                await asyncio.to_thread(self.milvus.upsert, ns, rows)
+                await asyncio.to_thread(
+                    self.infra.milvus.delete_by_object, ns, connector_uri, old_full
+                )
+                await asyncio.to_thread(self.infra.milvus.upsert, ns, rows)
                 await self.artifacts.rename_artifacts(ns, old_full, full_uri)
                 st = await plugin.stat(relpath)
                 await self.objects.delete_object_row(cid, task["old_uri"])
@@ -1548,7 +1523,7 @@ class Engine:
                 await plugin.on_object_indexed(relpath)
                 return  # reused vectors — no chunk/embed
             # fallback (old had no chunks): drop refs, index new normally below
-            await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, old_full)
+            await asyncio.to_thread(self.infra.milvus.delete_by_object, ns, connector_uri, old_full)
             await self.objects.delete_object_row(cid, task["old_uri"])
 
         st = await plugin.stat(relpath)
@@ -1595,7 +1570,7 @@ class Engine:
             # A rebuild that produced no chunks (object became binary / indexable=false /
             # document emptied / empty VLM or summary) must still purge chunks from a previous
             # index, else search keeps returning stale content.
-            await asyncio.to_thread(self.milvus.delete_by_object, ns, connector_uri, full_uri)
+            await asyncio.to_thread(self.infra.milvus.delete_by_object, ns, connector_uri, full_uri)
         await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
         await plugin.on_object_indexed(relpath)
 
@@ -1636,14 +1611,18 @@ class Engine:
             return []
         expr = build_filter(self.ns, connector_uri, object_prefix, chunk_kinds)
         if mode == "keyword":
-            hits = await asyncio.to_thread(self.milvus.sparse_search, self.ns, query, top_k, expr)
+            hits = await asyncio.to_thread(
+                self.infra.milvus.sparse_search, self.ns, query, top_k, expr
+            )
         else:
-            qvec = (await self.embed.batch_embed([query]))[0]
+            qvec = (await self.infra.embed.batch_embed([query]))[0]
             if mode == "semantic":
-                hits = await asyncio.to_thread(self.milvus.search_dense, self.ns, qvec, top_k, expr)
+                hits = await asyncio.to_thread(
+                    self.infra.milvus.search_dense, self.ns, qvec, top_k, expr
+                )
             else:  # hybrid
                 hits = await asyncio.to_thread(
-                    self.milvus.hybrid_search,
+                    self.infra.milvus.hybrid_search,
                     self.ns,
                     qvec,
                     query,
@@ -1846,7 +1825,9 @@ class Engine:
             # probe/estimate can never accrete orphan state nothing will ever clean up).
             for tbl in ("file_state", "connector_state"):
                 try:
-                    await self.meta.execute(f"DELETE FROM {tbl} WHERE connector_id=?", (tmp_cid,))
+                    await self.infra.meta.execute(
+                        f"DELETE FROM {tbl} WHERE connector_id=?", (tmp_cid,)
+                    )
                 except Exception:  # noqa: BLE001
                     pass
 
@@ -1917,7 +1898,7 @@ class Engine:
                 break
             await asyncio.sleep(0.1)
         # 1. Milvus chunks for this connector partition (worker has now stopped writing)
-        await asyncio.to_thread(self.milvus.delete_by_connector, self.ns, connector_uri)
+        await asyncio.to_thread(self.infra.milvus.delete_by_connector, self.ns, connector_uri)
         # 2. best-effort artifact bytes per object
         objs = await self.objects.list_object_uris_for_connector(cid)
         for o in objs:
@@ -1929,7 +1910,7 @@ class Engine:
             ("connector_state", "connector_id"),
             ("file_state", "connector_id"),
         ):
-            await self.meta.execute(f"DELETE FROM {tbl} WHERE {col}=?", (cid,))
+            await self.infra.meta.execute(f"DELETE FROM {tbl} WHERE {col}=?", (cid,))
         await self.objects.delete_connector(cid)
         return True
 
@@ -2135,7 +2116,7 @@ class Engine:
                     raw = bytearray()
                     async for ch in plugin.read(rel):
                         raw += ch
-                    text = await self.converter.convert(bytes(raw), ext)
+                    text = await self.infra.converter.convert(bytes(raw), ext)
                 else:
                     art = await self._read_artifact(self.ns, curi + rel, "converted_md")
                     if art is not None:
@@ -2153,7 +2134,7 @@ class Engine:
                 async for ch in plugin.read(rel):
                     raw += ch
                 try:
-                    return await self.vlm.describe(bytes(raw), ext)
+                    return await self.infra.vlm.describe(bytes(raw), ext)
                 except Exception:  # noqa: BLE001 — fall through to the raw read on provider error
                     pass
             if text is None:
@@ -2208,7 +2189,7 @@ class Engine:
                     raw = bytearray()
                     async for ch in plugin.read(rel):
                         raw += ch
-                    text = await self.converter.convert(bytes(raw), ext)
+                    text = await self.infra.converter.convert(bytes(raw), ext)
                     self._warn_if_huge_export(curi + rel, text)
                     return text, False
                 art = await self._read_artifact(self.ns, curi + rel, "converted_md")
@@ -2227,7 +2208,7 @@ class Engine:
                 async for ch in plugin.read(rel):
                     raw += ch
                 try:
-                    text = await self.vlm.describe(bytes(raw), ext)
+                    text = await self.infra.vlm.describe(bytes(raw), ext)
                     self._warn_if_huge_export(curi + rel, text)
                     return text, False
                 except Exception:  # noqa: BLE001 — fall through to the raw read on provider error
@@ -2405,7 +2386,9 @@ class Engine:
                 return results
             # 2b BM25 over indexed objects in scope
             expr = build_filter(self.ns, curi, scope_prefix)
-            hits = await asyncio.to_thread(self.milvus.sparse_search, self.ns, pattern, top_k, expr)
+            hits = await asyncio.to_thread(
+                self.infra.milvus.sparse_search, self.ns, pattern, top_k, expr
+            )
             for h in hits:
                 e = h.get("entity", h)
                 results.append(

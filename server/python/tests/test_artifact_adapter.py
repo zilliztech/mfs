@@ -47,11 +47,11 @@ async def _build_engine(tmp_path, *, max_size_gb):
     cfg.artifact_cache.root = str(tmp_path / "art")
     cfg.artifact_cache.max_size_gb = max_size_gb
     eng = Engine(cfg)
-    eng.embed = _FakeEmbed()
-    eng.milvus = _FakeMilvus()
-    eng.tx_cache = _FakeTxCache()
-    await eng.meta.connect()
-    await eng.meta.init_schema()
+    eng.infra.embed = _FakeEmbed()
+    eng.infra.milvus = _FakeMilvus()
+    eng.infra.tx_cache = _FakeTxCache()
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
     eng._build_pipeline()
     return eng
 
@@ -61,7 +61,7 @@ async def test_adapter_put_records_row_and_get_bumps_recency(tmp_path):
     art = eng._producer_ctx.artifacts
 
     await art.put_artifact(eng.ns, "file:///r/a.md", "converted_md", b"hello")
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT size_bytes, last_accessed FROM artifact_cache "
         "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
         (eng.ns, "file:///r/a.md", "converted_md"),
@@ -71,13 +71,13 @@ async def test_adapter_put_records_row_and_get_bumps_recency(tmp_path):
 
     got = await art.get_artifact(eng.ns, "file:///r/a.md", "converted_md")
     assert got == b"hello"
-    row2 = await eng.meta.fetchone(
+    row2 = await eng.infra.meta.fetchone(
         "SELECT last_accessed FROM artifact_cache "
         "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
         (eng.ns, "file:///r/a.md", "converted_md"),
     )
     assert row2["last_accessed"] >= first_access  # recency bumped on read
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_adapter_put_enforces_size_cap(tmp_path):
@@ -91,11 +91,11 @@ async def test_adapter_put_enforces_size_cap(tmp_path):
     for i in range(16):
         await art.put_artifact(eng.ns, f"file:///r/f{i}.bin", "head_cache", blob)
 
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT sum(size_bytes) AS total FROM artifact_cache WHERE namespace_id=?", (eng.ns,)
     )
     assert (row["total"] or 0) <= max_bytes  # eviction kept the cache under budget
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_drop_artifacts_purges_raw_records(tmp_path):
@@ -108,10 +108,12 @@ async def test_drop_artifacts_purges_raw_records(tmp_path):
 
     await eng._drop_artifacts(eng.ns, uri)
 
-    rows = await eng.meta.fetchall(
+    rows = await eng.infra.meta.fetchall(
         "SELECT artifact_kind FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
         (eng.ns, uri),
     )
     assert rows == []  # every kind, raw_records included, removed from the index
-    assert eng.artifact_cache.get_artifact(eng.ns, uri, "raw_records") is None  # bytes gone too
-    await eng.meta.close()
+    assert (
+        eng.infra.artifact_cache.get_artifact(eng.ns, uri, "raw_records") is None
+    )  # bytes gone too
+    await eng.infra.meta.close()

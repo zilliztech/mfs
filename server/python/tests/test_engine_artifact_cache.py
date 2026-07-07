@@ -47,7 +47,7 @@ async def _reset_and_close():
     while _ENGINES:
         eng = _ENGINES.pop()
         try:
-            await eng.meta.close()
+            await eng.infra.meta.close()
         except Exception:  # noqa: BLE001 — teardown must never mask a test failure
             pass
 
@@ -64,11 +64,11 @@ async def _build_engine(*, max_size_gb: float = 1.0) -> Engine:
     cfg.artifact_cache.root = str(_SHARED_ART)
     cfg.artifact_cache.max_size_gb = max_size_gb
     eng = Engine(cfg)
-    await eng.meta.connect()
-    await eng.meta.init_schema()
-    await eng.meta.execute("PRAGMA foreign_keys=OFF")  # seed rows without parent FKs
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
+    await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")  # seed rows without parent FKs
     for tbl in _RESET_TABLES:
-        await eng.meta.execute(f"DELETE FROM {tbl}")
+        await eng.infra.meta.execute(f"DELETE FROM {tbl}")
     _ENGINES.append(eng)
     return eng
 
@@ -154,7 +154,7 @@ async def test_put_artifact_writes_row():
     path = await eng.artifacts.put_artifact(
         eng.ns, "file:///r/a.md", "converted_md", b"hello", "cur1"
     )
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT storage_path, source_key, size_bytes, built_at, last_accessed "
         "FROM artifact_cache WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
         (eng.ns, "file:///r/a.md", "converted_md"),
@@ -171,7 +171,7 @@ async def test_put_artifact_upsert_idempotent():
     eng = await _build_engine()
     for _ in range(2):
         await eng.artifacts.put_artifact(eng.ns, "file:///r/a.md", "converted_md", b"hello", "cur1")
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT count(*) AS n FROM artifact_cache "
         "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
         (eng.ns, "file:///r/a.md", "converted_md"),
@@ -184,7 +184,7 @@ async def test_put_artifact_currency_empty():
     await eng.artifacts.put_artifact(
         eng.ns, "file:///r/a.md", "converted_md", b"hello"
     )  # no currency
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT source_key FROM artifact_cache "
         "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
         (eng.ns, "file:///r/a.md", "converted_md"),
@@ -196,14 +196,14 @@ async def test_put_artifact_db_failure_cleans_orphan_bytes():
     """4.1: if the DB upsert fails after bytes were written, compensate by deleting the orphan
     bytes so the cache doesn't accumulate row-less artifacts. The original DB error propagates."""
     eng = await _build_engine()
-    eng.artifacts._meta = _FailingMeta(eng.meta, fail_on_substr="INSERT INTO artifact_cache")
+    eng.artifacts._meta = _FailingMeta(eng.infra.meta, fail_on_substr="INSERT INTO artifact_cache")
     with pytest.raises(RuntimeError, match="simulated DB failure"):
         await eng.artifacts.put_artifact(eng.ns, "file:///r/a.md", "converted_md", b"hello")
     assert (
-        eng.artifact_cache.get_artifact(eng.ns, "file:///r/a.md", "converted_md") is None
+        eng.infra.artifact_cache.get_artifact(eng.ns, "file:///r/a.md", "converted_md") is None
     )  # bytes cleaned
     assert (
-        await eng.meta.fetchone(
+        await eng.infra.meta.fetchone(
             "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
             (eng.ns, "file:///r/a.md"),
         )
@@ -218,7 +218,7 @@ async def test_put_artifact_db_failure_cleans_orphan_bytes():
 async def test_read_artifact_hit_bumps_last_accessed():
     eng = await _build_engine()
     await eng.artifacts.put_artifact(eng.ns, "file:///r/a.md", "converted_md", b"hello")
-    before = await eng.meta.fetchone(
+    before = await eng.infra.meta.fetchone(
         "SELECT last_accessed FROM artifact_cache "
         "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
         (eng.ns, "file:///r/a.md", "converted_md"),
@@ -229,7 +229,7 @@ async def test_read_artifact_hit_bumps_last_accessed():
     await asyncio_sleep()  # ensure the recency timestamp strictly advances
     got = await eng.artifacts.read_artifact(eng.ns, "file:///r/a.md", "converted_md")
     assert got == b"hello"
-    after = await eng.meta.fetchone(
+    after = await eng.infra.meta.fetchone(
         "SELECT last_accessed FROM artifact_cache "
         "WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
         (eng.ns, "file:///r/a.md", "converted_md"),
@@ -242,7 +242,7 @@ async def test_read_artifact_miss_no_write():
     got = await eng.artifacts.read_artifact(eng.ns, "file:///r/none.md", "converted_md")
     assert got is None  # miss
     # no row was ever written, so a miss must not create one
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=? AND artifact_kind=?",
         (eng.ns, "file:///r/none.md", "converted_md"),
     )
@@ -324,14 +324,14 @@ async def test_drop_artifacts_purges_kinds_and_rows():
 
     await eng.artifacts.drop_artifacts(eng.ns, uri)
 
-    rows = await eng.meta.fetchall(
+    rows = await eng.infra.meta.fetchall(
         "SELECT artifact_kind FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
         (eng.ns, uri),
     )
     assert rows == []  # every kind row removed
     # bytes gone too (all four kinds)
     for kind in ("converted_md", "vlm_text", "head_cache", "raw_records"):
-        assert eng.artifact_cache.get_artifact(eng.ns, uri, kind) is None
+        assert eng.infra.artifact_cache.get_artifact(eng.ns, uri, kind) is None
 
 
 async def test_drop_artifacts_missing_kind_no_raise():
@@ -342,7 +342,7 @@ async def test_drop_artifacts_missing_kind_no_raise():
 
     await eng.artifacts.drop_artifacts(eng.ns, uri)
 
-    rows = await eng.meta.fetchall(
+    rows = await eng.infra.meta.fetchall(
         "SELECT artifact_kind FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
         (eng.ns, uri),
     )
@@ -355,13 +355,13 @@ async def test_drop_artifacts_purges_unknown_kind():
     eng = await _build_engine()
     uri = "file:///r/x"
     await eng.artifacts.put_artifact(eng.ns, uri, "future_kind", b"future")  # not in _DROP_KINDS
-    assert eng.artifact_cache.get_artifact(eng.ns, uri, "future_kind") == b"future"
+    assert eng.infra.artifact_cache.get_artifact(eng.ns, uri, "future_kind") == b"future"
 
     await eng.artifacts.drop_artifacts(eng.ns, uri)
 
-    assert eng.artifact_cache.get_artifact(eng.ns, uri, "future_kind") is None  # bytes gone
+    assert eng.infra.artifact_cache.get_artifact(eng.ns, uri, "future_kind") is None  # bytes gone
     assert (
-        await eng.meta.fetchone(
+        await eng.infra.meta.fetchone(
             "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?", (eng.ns, uri)
         )
     ) is None  # row gone too
@@ -378,7 +378,7 @@ async def test_evict_under_budget_noop():
     evicted = await eng.artifacts.evict_if_needed(eng.ns)
     assert evicted == 0  # total (40) < max_bytes (256)
     assert (
-        await eng.meta.fetchone(
+        await eng.infra.meta.fetchone(
             "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
             (eng.ns, "file:///r/a.md"),
         )
@@ -392,7 +392,7 @@ async def test_evict_boundary_equal():
     evicted = await eng.artifacts.evict_if_needed(eng.ns)
     assert evicted == 0  # exactly at budget -> not over -> no eviction
     assert (
-        await eng.meta.fetchone(
+        await eng.infra.meta.fetchone(
             "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
             (eng.ns, "file:///r/a.md"),
         )
@@ -416,13 +416,16 @@ async def test_evict_over_budget_lru():
 
     survivors = {
         r["object_uri"]
-        for r in await eng.meta.fetchall(
+        for r in await eng.infra.meta.fetchall(
             "SELECT object_uri FROM artifact_cache WHERE namespace_id=?", (eng.ns,)
         )
     }
     assert survivors == {"file:///r/b.md", "file:///r/c.md"}  # oldest evicted, bytes + row gone
-    assert eng.artifact_cache.get_artifact(eng.ns, "file:///r/a.md", "converted_md") is None
-    assert eng.artifact_cache.get_artifact(eng.ns, "file:///r/b.md", "converted_md") == b"x" * 128
+    assert eng.infra.artifact_cache.get_artifact(eng.ns, "file:///r/a.md", "converted_md") is None
+    assert (
+        eng.infra.artifact_cache.get_artifact(eng.ns, "file:///r/b.md", "converted_md")
+        == b"x" * 128
+    )
 
 
 async def test_evict_keeps_row_when_bytes_delete_fails():
@@ -432,12 +435,12 @@ async def test_evict_keeps_row_when_bytes_delete_fails():
     await eng.artifacts.put_artifact(eng.ns, "file:///r/a.md", "converted_md", b"x" * 400)
     # total = 400 > 256; single victim a
     eng.artifacts._store = _FlakyStore(
-        eng.artifact_cache, fail_on={("file:///r/a.md", "converted_md")}
+        eng.infra.artifact_cache, fail_on={("file:///r/a.md", "converted_md")}
     )
     evicted = await eng.artifacts.evict_if_needed(eng.ns)
     assert evicted == 0  # a's bytes delete failed -> skipped, nothing evicted
     assert (
-        await eng.meta.fetchone(
+        await eng.infra.meta.fetchone(
             "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
             (eng.ns, "file:///r/a.md"),
         )
@@ -458,7 +461,7 @@ async def test_rename_artifacts_updates_rows():
     await eng.artifacts.rename_artifacts(eng.ns, old_uri, new_uri)
 
     # row rewritten to the new uri + storage_path points at the new uri's path
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT object_uri, storage_path, source_key FROM artifact_cache "
         "WHERE namespace_id=? AND object_uri=?",
         (eng.ns, new_uri),
@@ -466,11 +469,11 @@ async def test_rename_artifacts_updates_rows():
     assert row is not None
     assert row["source_key"] == "cur1"  # source_key preserved
     assert row["storage_path"] == str(
-        eng.artifact_cache.artifact_path(eng.ns, new_uri, "converted_md")
+        eng.infra.artifact_cache.artifact_path(eng.ns, new_uri, "converted_md")
     )
     # old uri has no row
     assert (
-        await eng.meta.fetchone(
+        await eng.infra.meta.fetchone(
             "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
             (eng.ns, old_uri),
         )
@@ -486,7 +489,9 @@ async def test_rename_artifacts_no_rows_leaves_db_unchanged():
     # behavior, retained here; "no rows" means "no DB write", not "no side effect".
     await eng.artifacts.rename_artifacts(eng.ns, "file:///r/none.md", "file:///r/new.md")
     assert (
-        await eng.meta.fetchone("SELECT 1 FROM artifact_cache WHERE namespace_id=?", (eng.ns,))
+        await eng.infra.meta.fetchone(
+            "SELECT 1 FROM artifact_cache WHERE namespace_id=?", (eng.ns,)
+        )
     ) is None
 
 
@@ -503,7 +508,7 @@ async def test_rename_artifacts_multiple_kinds_atomic():
 
     rows = {
         r["artifact_kind"]: r["storage_path"]
-        for r in await eng.meta.fetchall(
+        for r in await eng.infra.meta.fetchall(
             "SELECT artifact_kind, storage_path FROM artifact_cache "
             "WHERE namespace_id=? AND object_uri=?",
             (eng.ns, new_uri),
@@ -511,13 +516,13 @@ async def test_rename_artifacts_multiple_kinds_atomic():
     }
     assert set(rows) == {"converted_md", "head_cache"}  # both moved
     assert rows["converted_md"] == str(
-        eng.artifact_cache.artifact_path(eng.ns, new_uri, "converted_md")
+        eng.infra.artifact_cache.artifact_path(eng.ns, new_uri, "converted_md")
     )
     assert rows["head_cache"] == str(
-        eng.artifact_cache.artifact_path(eng.ns, new_uri, "head_cache")
+        eng.infra.artifact_cache.artifact_path(eng.ns, new_uri, "head_cache")
     )
     assert (
-        await eng.meta.fetchone(
+        await eng.infra.meta.fetchone(
             "SELECT 1 FROM artifact_cache WHERE namespace_id=? AND object_uri=?",
             (eng.ns, old_uri),
         )
@@ -535,14 +540,14 @@ async def test_rename_artifacts_db_failure_no_partial_update():
     await eng.artifacts.put_artifact(eng.ns, old_uri, "converted_md", b"md", "cur1")
     await eng.artifacts.put_artifact(eng.ns, old_uri, "head_cache", b"head", "cur2")
     eng.artifacts._meta = _FailingMeta(
-        eng.meta, fail_on_substr="UPDATE artifact_cache SET object_uri"
+        eng.infra.meta, fail_on_substr="UPDATE artifact_cache SET object_uri"
     )
 
     with pytest.raises(RuntimeError, match="simulated DB failure"):
         await eng.artifacts.rename_artifacts(eng.ns, old_uri, new_uri)
 
     # DB failed atomically -> NO row was partially updated; both rows still under old_uri
-    rows = await eng.meta.fetchall(
+    rows = await eng.infra.meta.fetchall(
         "SELECT object_uri FROM artifact_cache WHERE namespace_id=?", (eng.ns,)
     )
     assert {r["object_uri"] for r in rows} == {old_uri}

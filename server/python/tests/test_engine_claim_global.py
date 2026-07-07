@@ -96,20 +96,20 @@ async def _build_engine(tmp_path):
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "art")
     eng = Engine(cfg)
-    eng.embed = _FakeEmbed()
-    eng.milvus = _FakeMilvus()
-    eng.tx_cache = _FakeTxCache()
+    eng.infra.embed = _FakeEmbed()
+    eng.infra.milvus = _FakeMilvus()
+    eng.infra.tx_cache = _FakeTxCache()
     eng._embed_idle_ms = 30
-    await eng.meta.connect()
-    await eng.meta.init_schema()
-    await eng.meta.execute("PRAGMA foreign_keys=OFF")
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
+    await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")
     eng._build_pipeline()
     return eng
 
 
 async def _seed(eng, *, job_id, cid, object_uri, started_at):
     # explicit started_at so the global ORDER BY priority, started_at is deterministic
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
         " change_kind, status, priority, attempts, started_at) VALUES (?,?,?,?,?,?,?,?,0,?)",
         (uuid.uuid4().hex, job_id, cid, object_uri, None, "added", "pending", 0, started_at),
@@ -136,7 +136,9 @@ async def test_single_loop_drains_other_jobs_tasks(tmp_path):
     await eng._embed_consumer.shutdown()
 
     # global proof: jobB's tasks were drained by the jobA-owned loop
-    rows = await eng.meta.fetchall("SELECT object_uri, connector_job_id, status FROM object_tasks")
+    rows = await eng.infra.meta.fetchall(
+        "SELECT object_uri, connector_job_id, status FROM object_tasks"
+    )
     assert {r["object_uri"]: r["status"] for r in rows} == {
         "/a1.md": "succeeded",
         "/b1.md": "succeeded",
@@ -146,7 +148,7 @@ async def test_single_loop_drains_other_jobs_tasks(tmp_path):
     assert {r["connector_job_id"] for r in rows} == {"jobA", "jobB"}
     # deterministic global order (priority, started_at) -> interleaved across the two jobs
     assert plugin.processed == ["/a1.md", "/b1.md", "/a2.md", "/b2.md"]
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_claim_scoped_to_connector(tmp_path):
@@ -165,12 +167,12 @@ async def test_claim_scoped_to_connector(tmp_path):
     )
     await eng._embed_consumer.shutdown()
 
-    rows = await eng.meta.fetchall("SELECT object_uri, status FROM object_tasks")
+    rows = await eng.infra.meta.fetchall("SELECT object_uri, status FROM object_tasks")
     statuses = {r["object_uri"]: r["status"] for r in rows}
     assert statuses["/a.md"] == "succeeded"  # c1's task drained
     assert statuses["/b.md"] == "pending"  # c2's task left for c2's own loop
     assert plugin.processed == ["/a.md"]  # the wrong-connector task was never read
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_concurrent_loops_drain_both_jobs(tmp_path):
@@ -212,10 +214,10 @@ async def test_concurrent_loops_drain_both_jobs(tmp_path):
     )
     await eng._embed_consumer.shutdown()
 
-    rows = await eng.meta.fetchall("SELECT object_uri, status FROM object_tasks")
+    rows = await eng.infra.meta.fetchall("SELECT object_uri, status FROM object_tasks")
     assert len(rows) == 8
     assert all(r["status"] == "succeeded" for r in rows)
     # every task processed exactly once (no double-claim across the two loops)
     assert sorted(plugin.processed) == sorted(texts)
     assert len(plugin.processed) == 8
-    await eng.meta.close()
+    await eng.infra.meta.close()

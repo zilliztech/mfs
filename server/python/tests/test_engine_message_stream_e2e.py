@@ -122,13 +122,13 @@ async def _build_engine(tmp_path):
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "art")
     eng = Engine(cfg)
-    eng.embed = _FakeEmbed()
-    eng.milvus = _FakeMilvus()
-    eng.tx_cache = _FakeTxCache()
+    eng.infra.embed = _FakeEmbed()
+    eng.infra.milvus = _FakeMilvus()
+    eng.infra.tx_cache = _FakeTxCache()
     eng._embed_idle_ms = 50
-    await eng.meta.connect()
-    await eng.meta.init_schema()
-    await eng.meta.execute("PRAGMA foreign_keys=OFF")
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
+    await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")
     eng._build_pipeline()
     return eng
 
@@ -145,7 +145,7 @@ async def test_message_stream_routes_through_pipeline(tmp_path):
     }
     plugin = _FakeSlackPlugin(records)
     job_id, cid, connector_uri = "job1", "cA", "slack://acme"
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
         " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
         (uuid.uuid4().hex, job_id, cid, "/general", None, "added", "pending", 0),
@@ -161,7 +161,7 @@ async def test_message_stream_routes_through_pipeline(tmp_path):
     )
     await eng._embed_consumer.shutdown()
 
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     # two threads (A, B) -> two thread_aggregate chunks
     assert len(rows) == 2
     assert all(r["chunk_kind"] == "thread_aggregate" for r in rows)
@@ -174,21 +174,25 @@ async def test_message_stream_routes_through_pipeline(tmp_path):
     assert "U9: B standalone" in by_thread["B"]
 
     # per-object atomic: one delete for the channel object
-    assert eng.milvus.deletes == [("slack://acme", "slack://acme/general")]
+    assert eng.infra.milvus.deletes == [("slack://acme", "slack://acme/general")]
     # per-task pending hit zero exactly once
     assert dict(finalized) == {"slack://acme/general": 1}
 
     # task + objects row
-    row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/general'")
+    row = await eng.infra.meta.fetchone(
+        "SELECT status FROM object_tasks WHERE object_uri='/general'"
+    )
     assert row["status"] == "succeeded"
-    obj = await eng.meta.fetchone(
+    obj = await eng.infra.meta.fetchone(
         "SELECT search_status, chunk_count FROM objects WHERE object_uri='/general'"
     )
     assert obj["search_status"] == "indexed" and obj["chunk_count"] == 2
 
     # raw_records jsonl GC'd after the task succeeded (§5.4)
-    assert eng.artifact_cache.get_artifact(eng.ns, "slack://acme/general", "raw_records") is None
-    await eng.meta.close()
+    assert (
+        eng.infra.artifact_cache.get_artifact(eng.ns, "slack://acme/general", "raw_records") is None
+    )
+    await eng.infra.meta.close()
 
 
 async def test_long_thread_splits_into_subchunks(tmp_path):
@@ -201,7 +205,7 @@ async def test_long_thread_splits_into_subchunks(tmp_path):
     }
     plugin = _FakeSlackPlugin(records)
     job_id, cid, connector_uri = "job2", "cB", "slack://acme"
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
         " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
         (uuid.uuid4().hex, job_id, cid, "/general", None, "added", "pending", 0),
@@ -213,13 +217,17 @@ async def test_long_thread_splits_into_subchunks(tmp_path):
     )
     await eng._embed_consumer.shutdown()
 
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) > 1  # one long thread split into multiple size-bounded sub-chunks
     for i, r in enumerate(rows):
         assert r["chunk_kind"] == "thread_aggregate"
         assert r["locator"]["thread_ts"] == "T"
         assert r["locator"]["chunk_index"] == i
-    row = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE object_uri='/general'")
+    row = await eng.infra.meta.fetchone(
+        "SELECT status FROM object_tasks WHERE object_uri='/general'"
+    )
     assert row["status"] == "succeeded"
-    assert eng.artifact_cache.get_artifact(eng.ns, "slack://acme/general", "raw_records") is None
-    await eng.meta.close()
+    assert (
+        eng.infra.artifact_cache.get_artifact(eng.ns, "slack://acme/general", "raw_records") is None
+    )
+    await eng.infra.meta.close()

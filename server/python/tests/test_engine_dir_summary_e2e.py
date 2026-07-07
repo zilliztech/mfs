@@ -116,15 +116,15 @@ async def _build_engine(tmp_path):
     cfg.summary.enabled = True  # turns on the Reduce subsystem
     cfg.embedding.batch_size = 1  # flush each chunk immediately so order is deterministic
     eng = Engine(cfg)
-    eng.embed = _FakeEmbed()
-    eng.milvus = _FakeMilvus()
-    eng.tx_cache = _FakeTxCache()
+    eng.infra.embed = _FakeEmbed()
+    eng.infra.milvus = _FakeMilvus()
+    eng.infra.tx_cache = _FakeTxCache()
     eng._embed_idle_ms = 50
-    await eng.meta.connect()
-    await eng.meta.init_schema()
-    await eng.meta.execute("PRAGMA foreign_keys=OFF")
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
+    await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")
     eng._build_pipeline()  # builds + starts the EmbedConsumer AND the Reduce subsystem
-    eng.summary._llm = _FakeSummaryLLM()  # inject fake chat provider for directory summaries
+    eng.infra.summary._llm = _FakeSummaryLLM()  # inject fake chat provider for directory summaries
     return eng
 
 
@@ -135,7 +135,7 @@ async def test_dir_summary_reduce_subsystem(tmp_path):
     # simulate the sync loop: register the job, feed object changes, finalize the tree
     eng._job_lane.register_job(job_id, connector_uri, _FakeFilePlugin(_FILES))
     for rel in _FILES:
-        await eng.meta.execute(
+        await eng.infra.meta.execute(
             "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
             " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
             (uuid.uuid4().hex, job_id, cid, rel, None, "added", "pending", 0),
@@ -153,7 +153,7 @@ async def test_dir_summary_reduce_subsystem(tmp_path):
     await asyncio.wait_for(eng._job_lane.await_done(job_id), timeout=10)
     await eng._embed_consumer.shutdown()
 
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     dir_rows = [r for r in rows if r["chunk_kind"] == "directory_summary"]
     # three directory summaries: sub1, sub2, root
     assert {r["object_uri"] for r in dir_rows} == {"file:///r/sub1", "file:///r/sub2", "file:///r/"}
@@ -165,17 +165,17 @@ async def test_dir_summary_reduce_subsystem(tmp_path):
     assert all(r["content"].startswith("DIRSUMMARY") for r in dir_rows)
 
     # dir_summary is never an object_task: NO dir_summary object_tasks were ever created
-    n = await eng.meta.fetchone(
+    n = await eng.infra.meta.fetchone(
         "SELECT count(*) AS n FROM object_tasks WHERE change_kind='dir_summary'"
     )
     assert n["n"] == 0
 
     # per-object atomic for each directory_summary (delete before upsert)
-    assert ("file:///r", "file:///r/sub1") in eng.milvus.deletes
-    assert ("file:///r", "file:///r/") in eng.milvus.deletes
+    assert ("file:///r", "file:///r/sub1") in eng.infra.milvus.deletes
+    assert ("file:///r", "file:///r/") in eng.infra.milvus.deletes
 
     # the file Map tasks succeeded
-    statuses = await eng.meta.fetchall("SELECT status FROM object_tasks")
+    statuses = await eng.infra.meta.fetchall("SELECT status FROM object_tasks")
     assert [s["status"] for s in statuses] == ["succeeded", "succeeded"]
 
     # DirTree evicted on job completion (§6.4.6)
@@ -184,7 +184,7 @@ async def test_dir_summary_reduce_subsystem(tmp_path):
     assert job_id not in eng._job_lane.queue.job_queues
 
     await eng._job_lane.stop()
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_binary_file_does_not_wedge_reduce(tmp_path):
@@ -198,7 +198,7 @@ async def test_binary_file_does_not_wedge_reduce(tmp_path):
 
     eng._job_lane.register_job(job_id, connector_uri, _FakeFilePlugin(files))
     for rel in files:
-        await eng.meta.execute(
+        await eng.infra.meta.execute(
             "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
             " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
             (uuid.uuid4().hex, job_id, cid, rel, None, "added", "pending", 0),
@@ -218,14 +218,14 @@ async def test_binary_file_does_not_wedge_reduce(tmp_path):
     await asyncio.wait_for(eng._job_lane.await_done(job_id), timeout=10)
     await eng._embed_consumer.shutdown()
 
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     dir_rows = [r for r in rows if r["chunk_kind"] == "directory_summary"]
     assert {r["object_uri"] for r in dir_rows} == {"file:///r/sub", "file:///r/"}
     # the binary was indexed metadata-only (no chunks), the doc produced a body chunk
-    statuses = await eng.meta.fetchall("SELECT object_uri, status FROM object_tasks")
+    statuses = await eng.infra.meta.fetchall("SELECT object_uri, status FROM object_tasks")
     assert {s["object_uri"]: s["status"] for s in statuses} == {
         "/sub/a.md": "succeeded",
         "/sub/data.bin": "succeeded",
     }
     await eng._job_lane.stop()
-    await eng.meta.close()
+    await eng.infra.meta.close()

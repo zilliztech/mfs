@@ -68,7 +68,7 @@ async def _reset_and_close():
     while _ENGINES:
         eng = _ENGINES.pop()
         try:
-            await eng.meta.close()
+            await eng.infra.meta.close()
         except Exception:  # noqa: BLE001 — teardown must never mask a test failure
             pass
 
@@ -85,12 +85,12 @@ async def _build_engine(tmp_path=None) -> Engine:
     cfg.transformation_cache.db_path = str(_SHARED_TX)
     cfg.artifact_cache.root = str(_SHARED_ART)
     eng = Engine(cfg)
-    await eng.meta.connect()
-    await eng.meta.init_schema()
-    await eng.meta.execute("PRAGMA foreign_keys=OFF")  # seed rows without parent FKs
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
+    await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")  # seed rows without parent FKs
     # Wipe residue from a prior test: the shared file persists across tests in the run.
     for tbl in _RESET_TABLES:
-        await eng.meta.execute(f"DELETE FROM {tbl}")
+        await eng.infra.meta.execute(f"DELETE FROM {tbl}")
     _ENGINES.append(eng)
     return eng
 
@@ -106,7 +106,7 @@ def _stat(rel: str) -> PathStat:
 
 
 async def _seed_connector(eng, *, cid="cA", status="active", root_uri="file:///repo"):
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO connectors (id, namespace_id, root_uri, type, status, config_json, registered_at) "
         "VALUES (?,?,?,?,?,?,?)",
         (cid, eng.ns, root_uri, "file", status, "{}", datetime.now(timezone.utc).isoformat()),
@@ -114,7 +114,7 @@ async def _seed_connector(eng, *, cid="cA", status="active", root_uri="file:///r
 
 
 async def _seed_job(eng, *, job_id, cid, status="running", heartbeat=None):
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO connector_jobs (id, namespace_id, connector_id, op_kind, trigger, status, "
         " started_at, heartbeat) VALUES (?,?,?,?,?,?,?,?)",
         (
@@ -142,7 +142,7 @@ async def _seed_task(
     attempts=0,
     priority=0,
 ):
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
         " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,?)",
         (task_id, job_id, cid, object_uri, None, change_kind, status, priority, attempts),
@@ -150,7 +150,7 @@ async def _seed_task(
 
 
 async def _task_status(eng, task_id) -> str | None:
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT status, last_error FROM object_tasks WHERE id=?", (task_id,)
     )
     return row
@@ -369,7 +369,7 @@ async def test_open_sync_job_reopens_failed_and_pending_tasks(tmp_path):
     )
     job_id = await eng.objects.open_sync_job("cA", process=True)
     assert job_id
-    rows = await eng.meta.fetchall(
+    rows = await eng.infra.meta.fetchall(
         "SELECT id, connector_job_id, status, change_kind FROM object_tasks WHERE connector_id=?",
         ("cA",),
     )
@@ -410,7 +410,7 @@ async def test_finalize_job_success_counts(tmp_path):
     await _seed_task(eng, task_id="t3", job_id="j1", cid="cS", status="cancelled")
     status = await eng.objects.finalize_job("j1", None)
     assert status == "succeeded"
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT total_objects, succeeded_objects, failed_objects, cancelled_objects, error "
         "FROM connector_jobs WHERE id=?",
         ("j1",),
@@ -433,7 +433,7 @@ async def test_write_object_row_upsert_updates_in_place(tmp_path):
     st = _stat("/a.md")
     await eng.objects.write_object_row("cA", "/a.md", st, True, "indexed", 7)
     await eng.objects.write_object_row("cA", "/a.md", st, False, "not_indexed", 0)
-    rows = await eng.meta.fetchall("SELECT * FROM objects WHERE connector_id=?", ("cA",))
+    rows = await eng.infra.meta.fetchall("SELECT * FROM objects WHERE connector_id=?", ("cA",))
     assert len(rows) == 1  # UPSERT, not a second row
     r = rows[0]
     assert r["search_status"] == "not_indexed"
@@ -448,7 +448,7 @@ async def test_delete_object_row(tmp_path):
     await eng.objects.write_object_row("cA", "/a.md", _stat("/a.md"), True, "indexed", 1)
     await eng.objects.delete_object_row("cA", "/a.md")
     assert (
-        await eng.meta.fetchone(
+        await eng.infra.meta.fetchone(
             "SELECT 1 FROM objects WHERE connector_id=? AND object_uri=?", ("cA", "/a.md")
         )
         is None
@@ -467,31 +467,34 @@ async def test_delete_three_tables_leaves_connector_and_state(tmp_path):
     await _seed_task(eng, task_id="t1", job_id="j1", cid="cA")
     await eng.objects.write_object_row("cA", "/a.md", _stat("/a.md"), True, "indexed", 1)
     # out-of-scope tables must survive
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO connector_state (connector_id, key, value, updated_at) VALUES (?,?,?,?)",
         ("cA", "cursor", "v", datetime.now(timezone.utc).isoformat()),
     )
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO file_state (namespace_id, connector_id, path, status) VALUES (?,?,?,?)",
         (eng.ns, "cA", "/a.md", "indexed"),
     )
     await eng.objects.delete_object_task_job_rows_for_connector("cA")
     assert (
-        await eng.meta.fetchone("SELECT 1 FROM object_tasks WHERE connector_id=?", ("cA",)) is None
-    )
-    assert (
-        await eng.meta.fetchone("SELECT 1 FROM connector_jobs WHERE connector_id=?", ("cA",))
+        await eng.infra.meta.fetchone("SELECT 1 FROM object_tasks WHERE connector_id=?", ("cA",))
         is None
     )
-    assert await eng.meta.fetchone("SELECT 1 FROM objects WHERE connector_id=?", ("cA",)) is None
-    # connector row + connector_state + file_state untouched (caller-owned)
-    assert await eng.meta.fetchone("SELECT 1 FROM connectors WHERE id=?", ("cA",)) is not None
     assert (
-        await eng.meta.fetchone("SELECT 1 FROM connector_state WHERE connector_id=?", ("cA",))
+        await eng.infra.meta.fetchone("SELECT 1 FROM connector_jobs WHERE connector_id=?", ("cA",))
+        is None
+    )
+    assert (
+        await eng.infra.meta.fetchone("SELECT 1 FROM objects WHERE connector_id=?", ("cA",)) is None
+    )
+    # connector row + connector_state + file_state untouched (caller-owned)
+    assert await eng.infra.meta.fetchone("SELECT 1 FROM connectors WHERE id=?", ("cA",)) is not None
+    assert (
+        await eng.infra.meta.fetchone("SELECT 1 FROM connector_state WHERE connector_id=?", ("cA",))
         is not None
     )
     assert (
-        await eng.meta.fetchone("SELECT 1 FROM file_state WHERE connector_id=?", ("cA",))
+        await eng.infra.meta.fetchone("SELECT 1 FROM file_state WHERE connector_id=?", ("cA",))
         is not None
     )
 

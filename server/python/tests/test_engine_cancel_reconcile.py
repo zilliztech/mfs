@@ -44,10 +44,10 @@ async def _build_engine(tmp_path) -> Engine:
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "art")
     eng = Engine(cfg)
-    eng.milvus = _RecordingMilvus()
-    await eng.meta.connect()
-    await eng.meta.init_schema()
-    await eng.meta.execute("PRAGMA foreign_keys=OFF")  # seed object_tasks without parent rows
+    eng.infra.milvus = _RecordingMilvus()
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
+    await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")  # seed object_tasks without parent rows
     return eng
 
 
@@ -62,7 +62,7 @@ def _stat(rel: str) -> PathStat:
 
 
 async def _seed_task(eng, *, task_id, job_id, cid, object_uri, status):
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
         " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
         (task_id, job_id, cid, object_uri, None, "added", status, 0),
@@ -93,14 +93,14 @@ async def test_cancelled_pipeline_object_purges_orphan_chunks(tmp_path):
     await eng._on_pipeline_object_indexed(task_uri, job_id, chunk_count=3, partial=False)
 
     # the chunks it upserted are reconciled away, keyed by the full object uri
-    assert eng.milvus.deletes == [(eng.ns, connector_uri, task_uri)]
+    assert eng.infra.milvus.deletes == [(eng.ns, connector_uri, task_uri)]
     # no objects row is committed (nothing for search to resolve) and the cursor isn't advanced
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT * FROM objects WHERE connector_id=? AND object_uri=?", (cid, relpath)
     )
     assert row is None
     assert plugin.indexed == []
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_running_pipeline_object_commits_normally(tmp_path):
@@ -125,13 +125,13 @@ async def test_running_pipeline_object_commits_normally(tmp_path):
     await eng._on_pipeline_object_indexed(task_uri, job_id, chunk_count=3, partial=False)
 
     # not cancelled: no reconcile delete, objects row committed, cursor advanced, task succeeded
-    assert eng.milvus.deletes == []
-    row = await eng.meta.fetchone(
+    assert eng.infra.milvus.deletes == []
+    row = await eng.infra.meta.fetchone(
         "SELECT search_status, chunk_count FROM objects WHERE connector_id=? AND object_uri=?",
         (cid, relpath),
     )
     assert row["search_status"] == "indexed" and row["chunk_count"] == 3
     assert plugin.indexed == [relpath]
-    t = await eng.meta.fetchone("SELECT status FROM object_tasks WHERE id=?", (task_id,))
+    t = await eng.infra.meta.fetchone("SELECT status FROM object_tasks WHERE id=?", (task_id,))
     assert t["status"] == "succeeded"
-    await eng.meta.close()
+    await eng.infra.meta.close()

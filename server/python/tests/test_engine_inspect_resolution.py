@@ -12,8 +12,8 @@ async def _build_engine(tmp_path):
     cfg.transformation_cache.db_path = str(tmp_path / "tx.db")
     cfg.artifact_cache.root = str(tmp_path / "artifacts")
     eng = Engine(cfg)
-    await eng.meta.connect()
-    await eng.meta.init_schema()
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
     return eng
 
 
@@ -36,7 +36,7 @@ async def test_inspect_matches_uploaded_child_uri_to_connector(tmp_path):
         assert child is not None
         assert child["root_uri"] == root["root_uri"] == root_uri
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()
 
 
 async def test_inspect_matches_local_child_path_to_connector(tmp_path):
@@ -59,4 +59,4 @@ async def test_inspect_matches_local_child_path_to_connector(tmp_path):
         assert inspected is not None
         assert inspected["root_uri"] == root_uri
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()

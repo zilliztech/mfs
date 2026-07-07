@@ -41,10 +41,10 @@ async def _build_engine(tmp_path) -> Engine:
     cfg.artifact_cache.root = str(tmp_path / "artifacts")
     cfg.milvus.uri = str(tmp_path / "milvus.db")
     eng = Engine(cfg)
-    eng.milvus = _NoopMilvus()
+    eng.infra.milvus = _NoopMilvus()
     eng._job_lane = _NoopJobLane()
-    await eng.meta.connect()
-    await eng.meta.init_schema()
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
     return eng
 
 
@@ -78,7 +78,7 @@ async def test_objects_priority_override_wins_and_falls_back_end_to_end(tmp_path
 
         cid = await eng.objects.get_connector_id_by_uri(root_uri)
         assert cid is not None
-        rows = await eng.meta.fetchall(
+        rows = await eng.infra.meta.fetchall(
             "SELECT object_uri, priority FROM object_tasks WHERE connector_id=?", (cid,)
         )
         by_uri = {r["object_uri"].lstrip("/"): r["priority"] for r in rows}
@@ -96,4 +96,4 @@ async def test_objects_priority_override_wins_and_falls_back_end_to_end(tmp_path
         assert order.index("README.md") < order.index("src/main.py")
         assert order.index("src/main.py") < order.index("archive/old.txt")
     finally:
-        await eng.meta.close()
+        await eng.infra.meta.close()

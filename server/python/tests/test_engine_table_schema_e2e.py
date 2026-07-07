@@ -116,22 +116,24 @@ async def _build_engine(tmp_path, *, summary_enabled=True):
     cfg.artifact_cache.root = str(tmp_path / "art")
     cfg.summary.enabled = summary_enabled
     eng = Engine(cfg)
-    eng.embed = _FakeEmbed()
-    eng.milvus = _FakeMilvus()
-    eng.tx_cache = _FakeTxCache()
+    eng.infra.embed = _FakeEmbed()
+    eng.infra.milvus = _FakeMilvus()
+    eng.infra.tx_cache = _FakeTxCache()
     eng._embed_idle_ms = 50
     llm = _FakeLLM()
-    eng.summary.enabled = summary_enabled
-    eng.summary._llm = llm  # inject fake chat provider; keep real CachingSummaryClient + tx_cache
-    await eng.meta.connect()
-    await eng.meta.init_schema()
-    await eng.meta.execute("PRAGMA foreign_keys=OFF")
+    eng.infra.summary.enabled = summary_enabled
+    eng.infra.summary._llm = (
+        llm  # inject fake chat provider; keep real CachingSummaryClient + tx_cache
+    )
+    await eng.infra.meta.connect()
+    await eng.infra.meta.init_schema()
+    await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")
     eng._build_pipeline()
     return eng, llm
 
 
 async def _seed(eng, *, job_id, cid, object_uri):
-    await eng.meta.execute(
+    await eng.infra.meta.execute(
         "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
         " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
         (uuid.uuid4().hex, job_id, cid, object_uri, None, "added", "pending", 0),
@@ -151,7 +153,7 @@ async def test_table_schema_routes_to_pipeline(tmp_path):
     )
     await eng._embed_consumer.shutdown()
 
-    rows = [r for batch in eng.milvus.upserts for r in batch]
+    rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 1
     assert rows[0]["chunk_kind"] == "schema_summary"
     assert rows[0]["locator"] is None
@@ -159,11 +161,11 @@ async def test_table_schema_routes_to_pipeline(tmp_path):
     assert rows[0]["object_uri"] == "postgres://db/public.users"
     assert llm.calls == 1
 
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT status FROM object_tasks WHERE object_uri='/public.users'"
     )
     assert row["status"] == "succeeded"
-    await eng.meta.close()
+    await eng.infra.meta.close()
 
 
 async def test_table_schema_summary_disabled_metadata_only(tmp_path):
@@ -181,13 +183,13 @@ async def test_table_schema_summary_disabled_metadata_only(tmp_path):
 
     # summary off: no routing, no LLM call, metadata-only
     assert llm.calls == 0
-    assert eng.milvus.upserts == []
-    obj = await eng.meta.fetchone(
+    assert eng.infra.milvus.upserts == []
+    obj = await eng.infra.meta.fetchone(
         "SELECT search_status, chunk_count FROM objects WHERE object_uri='/public.users'"
     )
     assert obj["search_status"] == "not_indexed" and obj["chunk_count"] == 0
-    row = await eng.meta.fetchone(
+    row = await eng.infra.meta.fetchone(
         "SELECT status FROM object_tasks WHERE object_uri='/public.users'"
     )
     assert row["status"] == "succeeded"
-    await eng.meta.close()
+    await eng.infra.meta.close()
