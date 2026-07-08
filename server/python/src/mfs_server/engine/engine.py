@@ -151,11 +151,11 @@ class Engine:
     # here), and _pending_finalize is owned solely by the supervisor (stash_finalize).
     @property
     def _embed_consumer(self):
-        return self.pipeline._embed_consumer
+        return self.pipeline.embed_consumer
 
     @property
     def _job_lane(self):
-        return self.pipeline._job_lane
+        return self.pipeline.job_lane
 
     @property
     def _producer_ctx(self):
@@ -370,7 +370,7 @@ class Engine:
             stop_hb = asyncio.Event()
             hb = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
             # Job Lane: build this job's in-memory dir tree as sync() yields (§6.4).
-            self.pipeline._job_lane.register_job(job_id, connector_uri, plugin)
+            self.pipeline.job_lane.register_job(job_id, connector_uri, plugin)
             try:
                 async for ch in plugin.sync(opts):
                     if ch.kind == "deleted" and (
@@ -402,7 +402,7 @@ class Engine:
                         # purely about what the summary folds — not about completion accounting.)
                         okind = plugin.object_kind_of(ch.uri)
                         if self.pipeline.routes_to_pipeline(okind):
-                            self.pipeline._job_lane.on_yield_object_change(job_id, ch.uri, okind)
+                            self.pipeline.job_lane.on_yield_object_change(job_id, ch.uri, okind)
             finally:
                 stop_hb.set()
                 hb.cancel()
@@ -413,7 +413,7 @@ class Engine:
             # sync enumeration finished: finalize the dir tree (pushes every leaf dir; parents
             # are pushed bottom-up as their sub-dir summaries land). Done for both inline and
             # enqueue models so an in-process worker can drain the summaries later.
-            self.pipeline._job_lane.on_sync_done(job_id)
+            self.pipeline.job_lane.on_sync_done(job_id)
             if not process:
                 # enqueue model: stash staged state on the job; the worker commits it only
                 # after the job succeeds, so a failed background job doesn't
@@ -693,8 +693,8 @@ class Engine:
         unconditionally afterward (§6.4.6)."""
         await self.objects.finalize_job(job_id, aborted)
         # job reached a terminal state: free the Job Lane's in-memory dir tree (§6.4.6)
-        if self.pipeline._job_lane is not None:
-            self.pipeline._job_lane.evict_job(job_id)
+        if self.pipeline.job_lane is not None:
+            self.pipeline.job_lane.evict_job(job_id)
 
     # --- standalone worker: poll DB queue, process queued jobs ---
     async def cancel_job(self, job_id: str) -> bool:
@@ -716,8 +716,8 @@ class Engine:
         if not won:
             return False
         await self.objects.cancel_pending_running_tasks_for_job(job_id)
-        if self.pipeline._embed_consumer is not None:
-            self.pipeline._embed_consumer.mark_job_cancelled(job_id)
+        if self.pipeline.embed_consumer is not None:
+            self.pipeline.embed_consumer.mark_job_cancelled(job_id)
         return True
 
     async def _claim_queued_job(self) -> dict | None:
@@ -946,8 +946,8 @@ class Engine:
                     # bookkeeping into the EmbedConsumer before failing. Reset that per-task
                     # state so the re-pump below behaves like a fresh attempt (§6.1): runs
                     # delete_by_object again and counts only the retry's chunks.
-                    if self.pipeline._embed_consumer is not None:
-                        self.pipeline._embed_consumer.on_task_retry(task["id"])
+                    if self.pipeline.embed_consumer is not None:
+                        self.pipeline.embed_consumer.on_task_retry(task["id"])
                     # exponential backoff capped at backoff_max_ms: a flat
                     # initial-only sleep ignored backoff_max_ms entirely and hammered a
                     # rate-limited provider at a fixed cadence.
@@ -1012,13 +1012,13 @@ class Engine:
             # finalized before its chunks are in Milvus (§6.1) and the dir tree's file
             # notifications have all fired.
             await self._await_map_drained(job_id)
-            if self.infra.summary.enabled and self.pipeline._job_lane is not None:
+            if self.infra.summary.enabled and self.pipeline.job_lane is not None:
                 # Job Lane (§3.5): the dir tree was accumulated during sync and is driven
                 # bottom-up by the SummaryWorker pool (sub-dirs before parents), in parallel
                 # with the Object Lane. Block until every directory_summary for this job is
                 # computed AND persisted,
                 # so the job isn't marked succeeded before its summaries are in Milvus.
-                await self.pipeline._job_lane.await_done(job_id)
+                await self.pipeline.job_lane.await_done(job_id)
             return None
         finally:
             stop_hb.set()

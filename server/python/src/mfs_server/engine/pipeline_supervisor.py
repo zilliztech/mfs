@@ -123,7 +123,7 @@ class PipelineSupervisor:
         self._ns = cfg.namespace
         # --- process singletons (built lazily in _build_pipeline) ---
         self._chunks_q: asyncio.Queue | None = None
-        self._embed_consumer: _PipelineEmbedConsumer | None = None
+        self.embed_consumer: _PipelineEmbedConsumer | None = None
         self._producer_ctx: ProducerContext | None = None
         # full_uri -> (cid, relpath, stat, indexable, plugin, task_id) for pipeline-path objects
         # whose objects-table row + object_tasks status are written by _on_object_indexed
@@ -131,10 +131,10 @@ class PipelineSupervisor:
         self._pending_finalize: dict[str, tuple] = {}
         self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
         # Job Lane (dir_summary lane); built in _build_pipeline, inert when summary off.
-        self._job_lane = None
+        self.job_lane = None
         # ConnectorJobWatcher: out-of-band job completion / cancel / job-lane-evict (§5.7).
-        self._job_watcher = None
-        self._job_watcher_task: asyncio.Task | None = None
+        self.job_watcher = None
+        self.job_watcher_task: asyncio.Task | None = None
 
     # --- public API (Engine reaches via self.pipeline.xxx) ---
 
@@ -170,7 +170,7 @@ class PipelineSupervisor:
         (delete_by_object once on the first chunk, then upsert - the §6.1 per-object atomic
         invariant) and fires the success hooks, which write the objects row + flip the
         object_tasks status. The caller marks nothing for this task ('deferred')."""
-        if self._embed_consumer is None:
+        if self.embed_consumer is None:
             self._build_pipeline()
         task_id = task["id"]
         job_id = task.get("connector_job_id")
@@ -227,29 +227,29 @@ class PipelineSupervisor:
         await self._recover_job_lane()
         # ConnectorJobWatcher runs in this same event loop as the EmbedConsumer + SummaryWorker
         # pool, finalizing jobs out-of-band (§5.7).
-        self._job_watcher = ConnectorJobWatcher(self._infra.meta, self._job_lane)
-        self._job_watcher_task = asyncio.create_task(self._job_watcher.run())
+        self.job_watcher = ConnectorJobWatcher(self._infra.meta, self.job_lane)
+        self.job_watcher_task = asyncio.create_task(self.job_watcher.run())
 
     async def shutdown(self) -> None:
         """Stop the watcher + Job Lane + EmbedConsumer in their original order (formerly
         Engine.shutdown steps 1-3). Infra (meta + tx_cache) is closed separately by Engine."""
-        if self._job_watcher is not None:
-            self._job_watcher.stop()
-            if self._job_watcher_task is not None:
+        if self.job_watcher is not None:
+            self.job_watcher.stop()
+            if self.job_watcher_task is not None:
                 try:
-                    await self._job_watcher_task
+                    await self.job_watcher_task
                 except (asyncio.CancelledError, Exception):  # noqa: BLE001
                     pass
-            self._job_watcher = None
-        if self._job_lane is not None:
+            self.job_watcher = None
+        if self.job_lane is not None:
             # stop the SummaryWorker pool first so no new dir chunks are produced, then
             # drain whatever already reached the queue.
-            await self._job_lane.stop()
-        if self._embed_consumer is not None:
+            await self.job_lane.stop()
+        if self.embed_consumer is not None:
             # drain the queue + flush the final batch before the loop closes, so an
             # in-flight task's chunks aren't lost on shutdown.
-            await self._embed_consumer.shutdown()
-            self._embed_consumer = None
+            await self.embed_consumer.shutdown()
+            self.embed_consumer = None
 
     # --- EmbedConsumer finalize hook (registered via register_on_succeeded; signature fixed) ---
 
@@ -317,11 +317,11 @@ class PipelineSupervisor:
         lazily from pump so the pipeline path works even if a caller skipped startup). The
         EmbedConsumer is shared across all jobs so embed batches fill across connectors
         (§5.2)."""
-        if self._embed_consumer is not None:
+        if self.embed_consumer is not None:
             return
         batch_size = self._cfg.embedding.batch_size
         self._chunks_q = make_chunks_q(batch_size)
-        self._embed_consumer = _PipelineEmbedConsumer(
+        self.embed_consumer = _PipelineEmbedConsumer(
             # raw provider embed (no caching) so the consumer's TxCacheAdapter is the single
             # embed cache and there is no double-cache; cache key matches CachingEmbeddingClient.
             EmbedderAdapter(self._infra.embed._embed_api),
@@ -338,7 +338,7 @@ class PipelineSupervisor:
             namespace_id=self._ns,
             embed_key_fn=self._infra.embed._key,
         )
-        self._embed_consumer.register_on_succeeded(self._on_object_indexed)
+        self.embed_consumer.register_on_succeeded(self._on_object_indexed)
         # ONE description gate + ONE summary gate per process (§5.5), shared by BOTH the Map
         # producers (image / table_schema) and the Job Lane SummaryWorker pool, so every VLM /
         # summary provider call - wherever it originates - draws from the same in-flight budget
@@ -363,7 +363,7 @@ class PipelineSupervisor:
         # Job Lane (§3.5): dir summaries emit into the SAME chunks_q. Its on_embed_succeeded
         # is registered alongside the Object Lane per-task hook; it ignores file successes
         # (files don't gate a dir) and counts a persisted directory_summary toward completion.
-        self._job_lane = build_job_lane(
+        self.job_lane = build_job_lane(
             self._cfg,
             tx_cache=self._infra.tx_cache,
             summary=self._infra.summary,
@@ -375,9 +375,9 @@ class PipelineSupervisor:
             description_gate=self._description_gate,
             summary_gate=self._summary_gate,
         )
-        self._embed_consumer.register_on_succeeded(self._job_lane.on_embed_succeeded)
-        self._embed_consumer.start(self._chunks_q)
-        self._job_lane.start()  # no-op unless cfg.summary.enabled
+        self.embed_consumer.register_on_succeeded(self.job_lane.on_embed_succeeded)
+        self.embed_consumer.start(self._chunks_q)
+        self.job_lane.start()  # no-op unless cfg.summary.enabled
 
     async def _gc_orphan_chunks(self) -> int:
         """Startup reconcile: delete Milvus chunks that no committed `objects` row points at.
@@ -428,7 +428,7 @@ class PipelineSupervisor:
         crash (§6.4.5). Best-effort: a per-job failure is logged and skipped, never blocking
         boot. Already-written directory summaries are recomputed (idempotent + summary-cache
         cheap) rather than queried back from Milvus."""
-        if self._job_lane is None or not self._job_lane.enabled:
+        if self.job_lane is None or not self.job_lane.enabled:
             return
 
         try:
@@ -450,6 +450,6 @@ class PipelineSupervisor:
                     (r["object_uri"], plugin.object_kind_of(r["object_uri"]), r["status"])
                     for r in rows
                 ]
-                self._job_lane.recover_job(job_id, connector_uri, plugin, objects, [])
+                self.job_lane.recover_job(job_id, connector_uri, plugin, objects, [])
             except Exception as e:  # noqa: BLE001
                 logger.warning("Job Lane recovery for job %s failed: %s", job_id, e)
