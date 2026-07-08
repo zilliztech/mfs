@@ -49,6 +49,7 @@ stable URI**, driven by two skills your agent loads:
 <p align="center">
   <img src="https://github.com/user-attachments/assets/1430d872-4184-4fb3-9168-a0b715dc621a" alt="MFS architecture: clients (CLI, SDKs, agent skills) talk to mfs-server, which unifies many context sources into one searchable namespace" width="880" />
 </p>
+
 ## 🚀 Quick start
 
 ### Start the server
