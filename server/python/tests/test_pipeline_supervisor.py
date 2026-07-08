@@ -125,11 +125,11 @@ async def test_construct_lazy(tmp_path):
         sup = eng.pipeline
         assert isinstance(sup, PipelineSupervisor)
         assert sup._chunks_q is None
-        assert sup._embed_consumer is None
+        assert sup.embed_consumer is None
         assert sup._producer_ctx is None
-        assert sup._job_lane is None
-        assert sup._job_watcher is None
-        assert sup._job_watcher_task is None
+        assert sup.job_lane is None
+        assert sup.job_watcher is None
+        assert sup.job_watcher_task is None
         assert sup._pending_finalize == {}
     finally:
         await eng.infra.meta.close()
@@ -140,8 +140,8 @@ async def test_engine_forwards_to_supervisor(tmp_path):
     eng = await _build_engine(tmp_path)
     try:
         assert eng.pipeline is not None
-        assert eng._embed_consumer is eng.pipeline._embed_consumer
-        assert eng._job_lane is eng.pipeline._job_lane
+        assert eng._embed_consumer is eng.pipeline.embed_consumer
+        assert eng._job_lane is eng.pipeline.job_lane
         assert eng._producer_ctx is eng.pipeline._producer_ctx
         assert eng.pipeline._obj is eng.objects
         assert eng.pipeline._art is eng.artifacts
@@ -345,7 +345,7 @@ async def test_recover_job_lane_uses_factory_built_plugin(tmp_path):
     eng.pipeline._obj.get_connector_root_type_config = _get_connector_root_type_config
     eng.pipeline._obj.list_job_tasks_excluding_dir_summary = _list_job_tasks_excluding_dir_summary
     eng.pipeline._factory.build_plugin = _build_plugin
-    eng.pipeline._job_lane.recover_job = _recover_job
+    eng.pipeline.job_lane.recover_job = _recover_job
     try:
         await eng.pipeline._recover_job_lane()
         assert captured.get("plugin") is fake_plugin  # D2: factory.build_plugin(...).plugin
@@ -388,13 +388,13 @@ async def test_startup_order(tmp_path):
         await eng.pipeline.startup()
         assert calls[:3] == ["build", "gc", "recover"]
         assert "watcher_init" in calls
-        assert eng.pipeline._job_watcher_task is not None
+        assert eng.pipeline.job_watcher_task is not None
     finally:
         ps_mod.ConnectorJobWatcher = orig_watcher
-        if eng.pipeline._job_watcher_task is not None:
-            eng.pipeline._job_watcher_task.cancel()
+        if eng.pipeline.job_watcher_task is not None:
+            eng.pipeline.job_watcher_task.cancel()
             try:
-                await eng.pipeline._job_watcher_task
+                await eng.pipeline.job_watcher_task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
                 pass
         await eng.infra.meta.close()
@@ -420,13 +420,13 @@ async def test_shutdown_order(tmp_path):
         async def shutdown(self):
             calls.append("ec_shutdown")
 
-    eng.pipeline._job_watcher = _FakeWatcher()
-    eng.pipeline._job_watcher_task = asyncio.create_task(_watcher_run())
-    eng.pipeline._job_lane = _FakeLane()
-    eng.pipeline._embed_consumer = _FakeEC()
+    eng.pipeline.job_watcher = _FakeWatcher()
+    eng.pipeline.job_watcher_task = asyncio.create_task(_watcher_run())
+    eng.pipeline.job_lane = _FakeLane()
+    eng.pipeline.embed_consumer = _FakeEC()
     try:
         await eng.pipeline.shutdown()
         assert calls == ["watcher_stop", "watcher_run", "lane_stop", "ec_shutdown"]
-        assert eng.pipeline._embed_consumer is None  # nulled after shutdown
+        assert eng.pipeline.embed_consumer is None  # nulled after shutdown
     finally:
         await eng.infra.meta.close()
