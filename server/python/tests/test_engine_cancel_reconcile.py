@@ -79,18 +79,21 @@ async def test_cancelled_pipeline_object_purges_orphan_chunks(tmp_path):
         eng, task_id=task_id, job_id=job_id, cid=cid, object_uri=relpath, status="cancelled"
     )
     plugin = _Plugin()
-    eng._pending_finalize[task_uri] = (
-        cid,
-        connector_uri,
-        relpath,
-        _stat(relpath),
-        True,
-        plugin,
-        task_id,
+    eng.pipeline.stash_finalize(
+        task_uri,
+        (
+            cid,
+            connector_uri,
+            relpath,
+            _stat(relpath),
+            True,
+            plugin,
+            task_id,
+        ),
     )
 
     # the consumer reports chunks landed, but the completion claim is lost (task != running)
-    await eng._on_pipeline_object_indexed(task_uri, job_id, chunk_count=3, partial=False)
+    await eng.pipeline._on_object_indexed(task_uri, job_id, chunk_count=3, partial=False)
 
     # the chunks it upserted are reconciled away, keyed by the full object uri
     assert eng.infra.milvus.deletes == [(eng.ns, connector_uri, task_uri)]
@@ -112,17 +115,20 @@ async def test_running_pipeline_object_commits_normally(tmp_path):
         eng, task_id=task_id, job_id=job_id, cid=cid, object_uri=relpath, status="running"
     )
     plugin = _Plugin()
-    eng._pending_finalize[task_uri] = (
-        cid,
-        connector_uri,
-        relpath,
-        _stat(relpath),
-        True,
-        plugin,
-        task_id,
+    eng.pipeline.stash_finalize(
+        task_uri,
+        (
+            cid,
+            connector_uri,
+            relpath,
+            _stat(relpath),
+            True,
+            plugin,
+            task_id,
+        ),
     )
 
-    await eng._on_pipeline_object_indexed(task_uri, job_id, chunk_count=3, partial=False)
+    await eng.pipeline._on_object_indexed(task_uri, job_id, chunk_count=3, partial=False)
 
     # not cancelled: no reconcile delete, objects row committed, cursor advanced, task succeeded
     assert eng.infra.milvus.deletes == []

@@ -121,11 +121,11 @@ async def _build_engine(tmp_path):
     eng.infra.embed = _FakeEmbed()
     eng.infra.milvus = _FakeMilvus()
     eng.infra.tx_cache = _FakeTxCache()
-    eng._embed_idle_ms = 50  # responsive idle flush so the small job drains fast
+    eng.pipeline._embed_idle_ms = 50  # responsive idle flush so the small job drains fast
     await eng.infra.meta.connect()
     await eng.infra.meta.init_schema()
     await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")  # seed object_tasks without parent rows
-    eng._build_pipeline()
+    eng.pipeline._build_pipeline()
     return eng
 
 

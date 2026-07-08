@@ -69,7 +69,7 @@ async def test_gc_noop_on_healthy_index(tmp_path):
     await eng._write_object_row(cid, "/a.md", _stat("/a.md"), True, "indexed", 2)
     await eng._write_object_row(cid, "/b.md", _stat("/b.md"), True, "indexed", 3)
 
-    assert await eng._gc_orphan_chunks() == 0
+    assert await eng.pipeline._gc_orphan_chunks() == 0
     assert fake.deletes == []
     assert fake.distinct_calls == 0  # count-first guard: no scan on a healthy index
     await eng.infra.meta.close()
@@ -86,7 +86,7 @@ async def test_gc_purges_orphans_keeps_valid(tmp_path):
     cid = await _seed_connector(eng, "file:///repo")
     await eng._write_object_row(cid, "/a.md", _stat("/a.md"), True, "indexed", 5)
 
-    assert await eng._gc_orphan_chunks() == 2
+    assert await eng.pipeline._gc_orphan_chunks() == 2
     assert sorted(fake.deletes) == sorted(
         [("file:///repo", "file:///repo/ghost.md"), ("file:///gone", "file:///gone/x.md")]
     )

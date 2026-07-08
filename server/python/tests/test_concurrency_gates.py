@@ -65,7 +65,7 @@ async def test_engine_shares_one_gate_across_map_and_reduce(tmp_path):
     eng = Engine(cfg)
     await eng.infra.meta.connect()
     await eng.infra.meta.init_schema()
-    eng._build_pipeline()
+    eng.pipeline._build_pipeline()
     try:
         assert eng._producer_ctx.summary_gate is eng._job_lane.summary_gate
         assert eng._producer_ctx.description_gate is eng._job_lane.description_gate

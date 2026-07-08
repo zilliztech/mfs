@@ -123,11 +123,11 @@ async def _build_engine(tmp_path, *, batch_size=100, idle_ms=50):
     eng.infra.embed = _FakeEmbed()
     eng.infra.milvus = _FakeMilvus()
     eng.infra.tx_cache = _FakeTxCache()
-    eng._embed_idle_ms = idle_ms
+    eng.pipeline._embed_idle_ms = idle_ms
     await eng.infra.meta.connect()
     await eng.infra.meta.init_schema()
     await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")
-    eng._build_pipeline()
+    eng.pipeline._build_pipeline()
     return eng
 
 

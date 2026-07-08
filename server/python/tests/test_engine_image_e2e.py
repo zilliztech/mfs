@@ -124,7 +124,7 @@ async def _build_engine(tmp_path, *, vlm_enabled=True, vlm_concurrency=10, llm_d
     eng = Engine(cfg)
     eng.infra.embed = _FakeEmbed()
     eng.infra.milvus = _FakeMilvus()
-    eng._embed_idle_ms = 50
+    eng.pipeline._embed_idle_ms = 50
     llm = _FakeLLM(delay=llm_delay)
     eng.infra.vlm._llm = (
         llm  # inject fake provider; keep the real CachingVlmClient + real tx_cache dedup
@@ -133,7 +133,7 @@ async def _build_engine(tmp_path, *, vlm_enabled=True, vlm_concurrency=10, llm_d
     await eng.infra.meta.init_schema()
     await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")  # seed object_tasks without parent rows
     await eng.infra.tx_cache.connect()
-    eng._build_pipeline()
+    eng.pipeline._build_pipeline()
     return eng, llm
 
 
@@ -197,9 +197,7 @@ async def test_description_gate_caps_concurrent_vlm(tmp_path):
 
     async def index(rel):
         task = {"id": uuid.uuid4().hex, "change_kind": "added", "connector_job_id": "j"}
-        await eng._index_via_pipeline(
-            plugin, connector_uri, rel, connector_uri + rel, "image", task
-        )
+        await eng.pipeline.pump(plugin, connector_uri, rel, connector_uri + rel, "image", task)
 
     await asyncio.wait_for(asyncio.gather(*[index(rel) for rel in files]), timeout=10)
     await eng._embed_consumer.shutdown()

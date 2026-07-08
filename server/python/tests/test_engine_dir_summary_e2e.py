@@ -119,11 +119,11 @@ async def _build_engine(tmp_path):
     eng.infra.embed = _FakeEmbed()
     eng.infra.milvus = _FakeMilvus()
     eng.infra.tx_cache = _FakeTxCache()
-    eng._embed_idle_ms = 50
+    eng.pipeline._embed_idle_ms = 50
     await eng.infra.meta.connect()
     await eng.infra.meta.init_schema()
     await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")
-    eng._build_pipeline()  # builds + starts the EmbedConsumer AND the Reduce subsystem
+    eng.pipeline._build_pipeline()  # builds + starts the EmbedConsumer AND the Reduce subsystem
     eng.infra.summary._llm = _FakeSummaryLLM()  # inject fake chat provider for directory summaries
     return eng
 
@@ -205,7 +205,7 @@ async def test_binary_file_does_not_wedge_reduce(tmp_path):
         )
         # mirror the engine sync loop: only pipeline okinds enter the dir tree
         okind = "binary" if rel.endswith(".bin") else "document"
-        if eng._routes_to_pipeline(okind):
+        if eng.pipeline.routes_to_pipeline(okind):
             eng._job_lane.on_yield_object_change(job_id, rel, okind)
     eng._job_lane.on_sync_done(job_id)
 

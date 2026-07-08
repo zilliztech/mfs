@@ -52,7 +52,7 @@ async def _build_engine(tmp_path, *, max_size_gb):
     eng.infra.tx_cache = _FakeTxCache()
     await eng.infra.meta.connect()
     await eng.infra.meta.init_schema()
-    eng._build_pipeline()
+    eng.pipeline._build_pipeline()
     return eng
 
 
