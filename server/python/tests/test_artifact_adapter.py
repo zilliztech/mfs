@@ -58,7 +58,7 @@ async def _build_engine(tmp_path, *, max_size_gb):
 
 async def test_adapter_put_records_row_and_get_bumps_recency(tmp_path):
     eng = await _build_engine(tmp_path, max_size_gb=1.0)
-    art = eng._producer_ctx.artifacts
+    art = eng.pipeline.producer_ctx.artifacts
 
     await art.put_artifact(eng.ns, "file:///r/a.md", "converted_md", b"hello")
     row = await eng.infra.meta.fetchone(
@@ -85,7 +85,7 @@ async def test_adapter_put_enforces_size_cap(tmp_path):
     # sweep (it runs every 16 writes) so the cached total falls back under the cap.
     max_bytes = 256 * 1024
     eng = await _build_engine(tmp_path, max_size_gb=max_bytes / (1 << 30))
-    art = eng._producer_ctx.artifacts
+    art = eng.pipeline.producer_ctx.artifacts
 
     blob = b"x" * (64 * 1024)
     for i in range(16):

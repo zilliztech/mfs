@@ -1,25 +1,20 @@
 """PipelineSupervisor - per-Engine instance container for the pipeline process singletons.
 
 Owns the lazy construction of the chunks_q + EmbedConsumer + ProducerContext + concurrency
-gates + JobLane (formerly ``Engine._build_pipeline``), the startup health checks
-(orphan-chunk GC + Job Lane crash recovery + ConnectorJobWatcher, formerly
-``Engine._gc_orphan_chunks`` / ``Engine._recover_job_lane`` / watcher wiring), and the
-finalize hook (``_on_object_indexed`` + ``pump`` + ``_pending_finalize``, formerly
-``Engine._on_pipeline_object_indexed`` / ``_index_via_pipeline``).
+gates + JobLane, the startup health checks (orphan-chunk GC + Job Lane crash recovery +
+ConnectorJobWatcher), and the per-object finalize hook driven by the EmbedConsumer's success
+callback.
 
-Engine reaches these through read-only properties (``_embed_consumer`` / ``_job_lane`` /
-``_producer_ctx``) plus a handful of explicit public methods (``routes_to_pipeline`` /
-``pump`` / ``stash_finalize``) so the ``_drain_job`` / ``_index_object`` / ``cancel_job`` /
-``_process_with_retry`` / ``_run_job`` / ``_finalize_job`` call sites stay semantically
-unchanged.
+The Object Lane (per-object producers) and the Job Lane (directory summaries) both emit into
+the same chunks_q; one EmbedConsumer drains it across all connector jobs and fires the
+finalize hook, which writes the `objects` row + flips the `object_tasks` status. `pump` is
+the non-blocking producer entry; `stash_finalize` holds the per-object context the hook pops
+when the task's chunks land.
 
-Scope: assembly + lifecycle + pump + finalize ONLY. No business orchestration (drain /
-index_object / retry belong to the future IngestOrchestrator / WorkerScheduler), and no
-artifact-LRU SQL (reused through the injected ``ArtifactCacheService``).
-
-Core invariant (engine-redesign.md §5 + docs/ingest-pipeline.md): a chunk exists in Milvus
-iff a committed ``objects`` row points at it (dir_summary is the deliberate exception). The
-``_on_object_indexed`` claim->won-check->delete-or-write body must stay in one method.
+Core invariant (docs/ingest-pipeline.md): a chunk exists in Milvus iff a committed `objects`
+row points at it (dir_summary is the deliberate exception). `_on_object_indexed` runs the
+claim -> won-check -> delete-or-write sequence as one atomic body, so a cancel race can
+neither leave an orphan chunk nor commit a row for a cancelled task.
 """
 
 from __future__ import annotations
@@ -124,7 +119,7 @@ class PipelineSupervisor:
         # --- process singletons (built lazily in _build_pipeline) ---
         self._chunks_q: asyncio.Queue | None = None
         self.embed_consumer: _PipelineEmbedConsumer | None = None
-        self._producer_ctx: ProducerContext | None = None
+        self.producer_ctx: ProducerContext | None = None
         # full_uri -> (cid, relpath, stat, indexable, plugin, task_id) for pipeline-path objects
         # whose objects-table row + object_tasks status are written by _on_object_indexed
         # when the EmbedConsumer reports the task done.
@@ -174,7 +169,7 @@ class PipelineSupervisor:
             self._build_pipeline()
         task_id = task["id"]
         job_id = task.get("connector_job_id")
-        producer = select_producer(okind, self._producer_ctx)
+        producer = select_producer(okind, self.producer_ctx)
         try:
             if producer is None:
                 # unreachable for routed okinds; emit a bare EndOfTask so the consumer finalizes
@@ -345,7 +340,7 @@ class PipelineSupervisor:
         # ([description].concurrency / [summary].concurrency).
         self._description_gate = DescriptionConcurrencyGate(self._cfg.description.concurrency)
         self._summary_gate = SummaryConcurrencyGate(self._cfg.summary.concurrency)
-        self._producer_ctx = ProducerContext(
+        self.producer_ctx = ProducerContext(
             cfg=self._cfg,
             namespace_id=self._ns,
             artifacts=ArtifactStoreAdapter(
@@ -370,7 +365,7 @@ class PipelineSupervisor:
             vlm=self._infra.vlm,
             converter=self._infra.converter,
             chunks_q=self._chunks_q,
-            artifacts=self._producer_ctx.artifacts,
+            artifacts=self.producer_ctx.artifacts,
             namespace_id=self._ns,
             description_gate=self._description_gate,
             summary_gate=self._summary_gate,

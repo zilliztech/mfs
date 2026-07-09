@@ -126,7 +126,7 @@ async def test_construct_lazy(tmp_path):
         assert isinstance(sup, PipelineSupervisor)
         assert sup._chunks_q is None
         assert sup.embed_consumer is None
-        assert sup._producer_ctx is None
+        assert sup.producer_ctx is None
         assert sup.job_lane is None
         assert sup.job_watcher is None
         assert sup.job_watcher_task is None
@@ -135,14 +135,11 @@ async def test_construct_lazy(tmp_path):
         await eng.infra.meta.close()
 
 
-# 9. Engine integration smoke: read-only properties forward; supervisor holds Engine's deps
+# 9. Engine integration smoke: supervisor holds Engine's deps
 async def test_engine_forwards_to_supervisor(tmp_path):
     eng = await _build_engine(tmp_path)
     try:
         assert eng.pipeline is not None
-        assert eng._embed_consumer is eng.pipeline.embed_consumer
-        assert eng._job_lane is eng.pipeline.job_lane
-        assert eng._producer_ctx is eng.pipeline._producer_ctx
         assert eng.pipeline._obj is eng.objects
         assert eng.pipeline._art is eng.artifacts
         assert eng.pipeline._factory is eng.connector_factory
@@ -189,7 +186,7 @@ async def test_build_pipeline_wires_artifact_adapter_to_cache_service(tmp_path):
     eng = await _build_engine(tmp_path)
     eng.pipeline._build_pipeline()
     try:
-        adapter = eng.pipeline._producer_ctx.artifacts
+        adapter = eng.pipeline.producer_ctx.artifacts
         # the adapter's callables are bound to ArtifactCacheService (not Engine's thin
         # _put_artifact / _read_artifact delegates) - §2.7. Bound methods are a fresh
         # object per attribute access, so compare the bound self, not identity.
@@ -197,8 +194,8 @@ async def test_build_pipeline_wires_artifact_adapter_to_cache_service(tmp_path):
         assert adapter._read.__self__ is eng.artifacts
         assert adapter._read_fresh.__self__ is eng.artifacts
     finally:
-        await eng._job_lane.stop()
-        await eng._embed_consumer.shutdown()
+        await eng.pipeline.job_lane.stop()
+        await eng.pipeline.embed_consumer.shutdown()
         await eng.infra.meta.close()
 
 
@@ -313,15 +310,15 @@ async def test_pump_pops_pending_finalize_on_produce_error(tmp_path):
             ps_mod.select_producer = original
         assert full_uri not in eng.pipeline._pending_finalize  # pop #2
     finally:
-        await eng._job_lane.stop()
-        await eng._embed_consumer.shutdown()
+        await eng.pipeline.job_lane.stop()
+        await eng.pipeline.embed_consumer.shutdown()
         await eng.infra.meta.close()
 
 
 # 7. _recover_job_lane rebuilds via factory.build_plugin(...).plugin (D2 unpack)
 async def test_recover_job_lane_uses_factory_built_plugin(tmp_path):
     eng = await _build_engine(tmp_path)
-    eng.cfg.summary.enabled = True  # so _job_lane.enabled is True
+    eng.cfg.summary.enabled = True  # so pipeline.job_lane.enabled is True
     eng.pipeline._build_pipeline()
     fake_plugin = _FakeRecoverPlugin()
     captured: dict = {}
@@ -350,8 +347,8 @@ async def test_recover_job_lane_uses_factory_built_plugin(tmp_path):
         await eng.pipeline._recover_job_lane()
         assert captured.get("plugin") is fake_plugin  # D2: factory.build_plugin(...).plugin
     finally:
-        await eng._job_lane.stop()
-        await eng._embed_consumer.shutdown()
+        await eng.pipeline.job_lane.stop()
+        await eng.pipeline.embed_consumer.shutdown()
         await eng.infra.meta.close()
 
 

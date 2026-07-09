@@ -133,15 +133,15 @@ async def test_dir_summary_reduce_subsystem(tmp_path):
     job_id, cid, connector_uri = "job1", "cA", "file:///r"
 
     # simulate the sync loop: register the job, feed object changes, finalize the tree
-    eng._job_lane.register_job(job_id, connector_uri, _FakeFilePlugin(_FILES))
+    eng.pipeline.job_lane.register_job(job_id, connector_uri, _FakeFilePlugin(_FILES))
     for rel in _FILES:
         await eng.infra.meta.execute(
             "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
             " change_kind, status, priority, attempts) VALUES (?,?,?,?,?,?,?,?,0)",
             (uuid.uuid4().hex, job_id, cid, rel, None, "added", "pending", 0),
         )
-        eng._job_lane.on_yield_object_change(job_id, rel, "document")
-    eng._job_lane.on_sync_done(job_id)
+        eng.pipeline.job_lane.on_yield_object_change(job_id, rel, "document")
+    eng.pipeline.job_lane.on_sync_done(job_id)
 
     # Map phase: index the files. Their success hooks notify the Reduce subsystem.
     plugin = _FakeFilePlugin(_FILES)
@@ -150,8 +150,8 @@ async def test_dir_summary_reduce_subsystem(tmp_path):
         timeout=10,
     )
     # block until every directory_summary is computed + persisted
-    await asyncio.wait_for(eng._job_lane.await_done(job_id), timeout=10)
-    await eng._embed_consumer.shutdown()
+    await asyncio.wait_for(eng.pipeline.job_lane.await_done(job_id), timeout=10)
+    await eng.pipeline.embed_consumer.shutdown()
 
     rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     dir_rows = [r for r in rows if r["chunk_kind"] == "directory_summary"]
@@ -179,11 +179,11 @@ async def test_dir_summary_reduce_subsystem(tmp_path):
     assert [s["status"] for s in statuses] == ["succeeded", "succeeded"]
 
     # DirTree evicted on job completion (§6.4.6)
-    eng._job_lane.evict_job(job_id)
-    assert job_id not in eng._job_lane.builders
-    assert job_id not in eng._job_lane.queue.job_queues
+    eng.pipeline.job_lane.evict_job(job_id)
+    assert job_id not in eng.pipeline.job_lane.builders
+    assert job_id not in eng.pipeline.job_lane.queue.job_queues
 
-    await eng._job_lane.stop()
+    await eng.pipeline.job_lane.stop()
     await eng.infra.meta.close()
 
 
@@ -196,7 +196,7 @@ async def test_binary_file_does_not_wedge_reduce(tmp_path):
     job_id, cid, connector_uri = "jobB", "cB", "file:///r"
     files = {"/sub/a.md": "# A\n\nalpha", "/sub/data.bin": "binary-blob"}
 
-    eng._job_lane.register_job(job_id, connector_uri, _FakeFilePlugin(files))
+    eng.pipeline.job_lane.register_job(job_id, connector_uri, _FakeFilePlugin(files))
     for rel in files:
         await eng.infra.meta.execute(
             "INSERT INTO object_tasks (id, connector_job_id, connector_id, object_uri, old_uri, "
@@ -206,8 +206,8 @@ async def test_binary_file_does_not_wedge_reduce(tmp_path):
         # mirror the engine sync loop: only pipeline okinds enter the dir tree
         okind = "binary" if rel.endswith(".bin") else "document"
         if eng.pipeline.routes_to_pipeline(okind):
-            eng._job_lane.on_yield_object_change(job_id, rel, okind)
-    eng._job_lane.on_sync_done(job_id)
+            eng.pipeline.job_lane.on_yield_object_change(job_id, rel, okind)
+    eng.pipeline.job_lane.on_sync_done(job_id)
 
     plugin = _FakeFilePlugin(files)
     await asyncio.wait_for(
@@ -215,8 +215,8 @@ async def test_binary_file_does_not_wedge_reduce(tmp_path):
         timeout=10,
     )
     # would hang here if the binary's parent pending were stuck
-    await asyncio.wait_for(eng._job_lane.await_done(job_id), timeout=10)
-    await eng._embed_consumer.shutdown()
+    await asyncio.wait_for(eng.pipeline.job_lane.await_done(job_id), timeout=10)
+    await eng.pipeline.embed_consumer.shutdown()
 
     rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     dir_rows = [r for r in rows if r["chunk_kind"] == "directory_summary"]
@@ -227,5 +227,5 @@ async def test_binary_file_does_not_wedge_reduce(tmp_path):
         "/sub/a.md": "succeeded",
         "/sub/data.bin": "succeeded",
     }
-    await eng._job_lane.stop()
+    await eng.pipeline.job_lane.stop()
     await eng.infra.meta.close()

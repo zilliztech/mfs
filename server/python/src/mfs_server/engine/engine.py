@@ -138,28 +138,11 @@ class Engine:
         self.artifacts = ArtifactCacheService(
             cfg, self.infra.meta, self.infra.artifact_cache, self.objects
         )
-        # Pipeline process singletons (chunks_q / EmbedConsumer / ProducerContext / JobLane /
-        # Watcher / _pending_finalize) - assembled + lifecycle'd by PipelineSupervisor.
+        # Pipeline process singletons (EmbedConsumer / ProducerContext / JobLane / Watcher / _pending_finalize) - assembled + lifecycle by PipelineSupervisor;
+        # reach via self.pipeline.*. _pending_finalize is owned solely by the supervisor (stash_finalize).
         self.pipeline = PipelineSupervisor(
             cfg, self.infra, self.artifacts, self.objects, self.connector_factory
         )
-
-    # --- pipeline singleton read access (forwarded to PipelineSupervisor) ---
-    # Read-only properties so tests reading eng._embed_consumer / eng._job_lane /
-    # eng._producer_ctx keep working unchanged. Engine's own call sites reach the supervisor
-    # directly via self.pipeline.* (4b D3); writes also go through self.pipeline.* (no setters
-    # here), and _pending_finalize is owned solely by the supervisor (stash_finalize).
-    @property
-    def _embed_consumer(self):
-        return self.pipeline.embed_consumer
-
-    @property
-    def _job_lane(self):
-        return self.pipeline.job_lane
-
-    @property
-    def _producer_ctx(self):
-        return self.pipeline._producer_ctx
 
     async def startup(self, *, preload_local_models: bool = False) -> None:
         # Infra connect + schema + optional model preload, then the pipeline process singletons
