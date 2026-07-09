@@ -1746,7 +1746,23 @@ fn serve_cmd(action: &ServeAction, json: bool) -> Result<(), String> {
             // confirms fork/exec worked, not that the server ever became
             // reachable. Poll for either a successful bind or the child
             // exiting early, and report whichever actually happened.
-            let deadline = Instant::now() + Duration::from_secs(45);
+            //
+            // Two independent timeouts instead of one flat clock: a flat 45s
+            // deadline from process-spawn treats legitimate slow startup work
+            // (orphan-chunk GC, a cold first-run embedding-model download) the
+            // same as a genuine hang, and has been observed timing out at 44s
+            // on real GC work alone. SILENCE_TIMEOUT instead watches whether
+            // the server's own log is still growing — real work keeps writing
+            // log lines and keeps resetting this clock, so slow-but-progressing
+            // startup never falsely trips it. TOTAL_TIMEOUT is a generous
+            // backstop in case something loops forever while still logging.
+            // Either way, on timeout the just-spawned child is killed before
+            // returning the error — it must never be left running untracked.
+            const SILENCE_TIMEOUT: Duration = Duration::from_secs(20);
+            const TOTAL_TIMEOUT: Duration = Duration::from_secs(600);
+            let overall_deadline = Instant::now() + TOTAL_TIMEOUT;
+            let mut last_log_len = std::fs::metadata(&log_file).map(|m| m.len()).unwrap_or(0);
+            let mut last_progress = Instant::now();
             loop {
                 if tcp_probe(bind, Duration::from_millis(300)) {
                     // The port being reachable doesn't mean *our* child bound
@@ -1786,11 +1802,32 @@ fn serve_cmd(action: &ServeAction, json: bool) -> Result<(), String> {
                         "mfs-server exited during startup ({status}); last log lines:\n{tail}"
                     ));
                 }
-                if Instant::now() >= deadline {
+                let cur_log_len = std::fs::metadata(&log_file)
+                    .map(|m| m.len())
+                    .unwrap_or(last_log_len);
+                if cur_log_len > last_log_len {
+                    last_log_len = cur_log_len;
+                    last_progress = Instant::now();
+                }
+                let now = Instant::now();
+                if now.duration_since(last_progress) >= SILENCE_TIMEOUT {
+                    let pid = child.id();
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    let tail = tail_lines(&log_file, 10);
                     return Err(format!(
-                        "mfs-server on {bind} did not become reachable within 45s (pid {} still running); check {}",
-                        child.id(),
-                        log_file.display()
+                        "mfs-server on {bind} produced no log output for {}s and never became reachable (pid {pid} killed); last log lines:\n{tail}",
+                        SILENCE_TIMEOUT.as_secs()
+                    ));
+                }
+                if now >= overall_deadline {
+                    let pid = child.id();
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    let tail = tail_lines(&log_file, 10);
+                    return Err(format!(
+                        "mfs-server on {bind} did not become reachable within {}s total (pid {pid} killed); last log lines:\n{tail}",
+                        TOTAL_TIMEOUT.as_secs()
                     ));
                 }
                 std::thread::sleep(Duration::from_millis(500));
