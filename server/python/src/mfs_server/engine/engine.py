@@ -33,7 +33,7 @@ from .components.object_repository import ObjectRepository, TaskStatus
 from .infra import InfraStack
 from .job_lane import build_job_lane
 from .job_watcher import ConnectorJobWatcher
-from .pipeline import _EMBED_FLUSH_IDLE_MS, EmbedConsumer, TaskEnvelope, make_chunks_q
+from .pipeline import _EMBED_FLUSH_IDLE_MS, EmbedConsumer, TaskEnvelope, _json_safe, make_chunks_q
 from .producers import select_producer
 from .producers.base import (
     DescriptionConcurrencyGate,
@@ -160,7 +160,7 @@ class _PipelineEmbedConsumer(EmbedConsumer):
             "content": content,
             "dense_vec": vec,
             "chunk_kind": chunk.chunk_kind,
-            "metadata": chunk.metadata,
+            "metadata": _json_safe(chunk.metadata),
             "indexed_at": int(time.time() * 1000),
         }
 
