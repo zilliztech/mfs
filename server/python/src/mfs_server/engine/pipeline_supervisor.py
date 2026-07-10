@@ -23,6 +23,7 @@ import asyncio
 import json as _json
 import logging
 import time
+from typing import AsyncIterator, cast
 
 from ..config import ServerConfig
 from ..storage.ids import chunk_id
@@ -39,6 +40,7 @@ from .producers.base import (
     DescriptionConcurrencyGate,
     EndOfTask,
     ObjectTask,
+    ProducedItem,
     ProducerContext,
     SummaryConcurrencyGate,
     cap_content,
@@ -167,6 +169,11 @@ class PipelineSupervisor:
         object_tasks status. The caller marks nothing for this task ('deferred')."""
         if self.embed_consumer is None:
             self._build_pipeline()
+        # _build_pipeline set self._chunks_q; pull a local so the type checker carries the
+        # non-None guarantee across the awaits below (self._chunks_q is typed Optional, and
+        # Pyright does not narrow an instance attribute across the method-call boundary).
+        chunks_q = self._chunks_q
+        assert chunks_q is not None
         task_id = task["id"]
         job_id = task.get("connector_job_id")
         producer = select_producer(okind, self.producer_ctx)
@@ -174,7 +181,7 @@ class PipelineSupervisor:
             if producer is None:
                 # unreachable for routed okinds; emit a bare EndOfTask so the consumer finalizes
                 # (zero-chunk) and the success hook still writes the metadata-only objects row.
-                await self._chunks_q.put(
+                await chunks_q.put(
                     TaskEnvelope(task_id, full_uri, connector_uri, job_id, EndOfTask())
                 )
             else:
@@ -188,13 +195,20 @@ class PipelineSupervisor:
                     plugin=plugin,
                     ocfg=plugin.ctx.object_config_for(relpath),
                 )
-                async for item in producer.produce(otask):
-                    await self._chunks_q.put(
-                        TaskEnvelope(task_id, full_uri, connector_uri, job_id, item)
-                    )
-        except Exception:
-            # produce() failed before all chunks were enqueued: drop the stashed finalize
-            # context so no objects row is written, then re-raise for _process_with_retry.
+                # ChunksProducer.produce is declared ``async def -> AsyncIterator`` but the
+                # implementations are async generators (``async def`` + ``yield``), so a call
+                # returns an AsyncGenerator, not a coroutine - iterate directly, no ``await``.
+                # The cast only pacifies the type checker; it is a no-op at runtime.
+                chunks = cast(AsyncIterator[ProducedItem], cast(object, producer.produce(otask)))
+                async for item in chunks:
+                    await chunks_q.put(TaskEnvelope(task_id, full_uri, connector_uri, job_id, item))
+        except BaseException:
+            # produce() failed or was cancelled before its EndOfTask landed: the consumer
+            # only finalizes a task whose EndOfTask it saw (pipeline.py _maybe_finalize), so
+            # the stashed finalize context would otherwise leak and could later write an
+            # objects row for a dead task. Drop it, then re-raise so _process_with_retry
+            # sees the failure / cancel. BaseException (not Exception) so CancelledError
+            # is covered too - the cleanup is a non-blocking dict.pop, and we re-raise.
             self._pending_finalize.pop(full_uri, None)
             raise
         finally:
@@ -209,8 +223,10 @@ class PipelineSupervisor:
                         full_uri,
                         "raw_records",
                     )
-                except Exception:  # noqa: BLE001 - GC of a temp artifact must never fail the task
-                    pass
+                except Exception as e:  # noqa: BLE001 - GC of a temp artifact must never fail the task
+                    logger.exception(
+                        "message_stream raw_records GC failed for %s; ignoring", full_uri, e
+                    )
 
     # --- lifecycle ---
 
@@ -233,8 +249,12 @@ class PipelineSupervisor:
             if self.job_watcher_task is not None:
                 try:
                     await self.job_watcher_task
-                except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                    pass
+                except asyncio.CancelledError:
+                    pass  # expected during shutdown
+                except Exception as e:  # noqa: BLE001 - shutdown must not abort on a watcher crash
+                    logger.exception(
+                        "ConnectorJobWatcher task ended with an error: %s; ignoring", e
+                    )
             self.job_watcher = None
         if self.job_lane is not None:
             # stop the SummaryWorker pool first so no new dir chunks are produced, then
@@ -315,8 +335,12 @@ class PipelineSupervisor:
         if self.embed_consumer is not None:
             return
         batch_size = self._cfg.embedding.batch_size
-        self._chunks_q = make_chunks_q(batch_size)
-        self.embed_consumer = PipelineEmbedConsumer(
+        # Build into locals, assign to the instance fields last: self.embed_consumer /
+        # self._chunks_q are typed Optional (None until built), and Pyright does not narrow an
+        # instance attribute across the intervening self.* writes + function calls below, so
+        # register_on_succeeded / start would flag as "member of None". A local stays narrowed.
+        chunks_q = make_chunks_q(batch_size)
+        consumer = PipelineEmbedConsumer(
             # raw provider embed (no caching) so the consumer's TxCacheAdapter is the single
             # embed cache and there is no double-cache; cache key matches CachingEmbeddingClient.
             EmbedderAdapter(self._infra.embed.embed_api),
@@ -333,7 +357,7 @@ class PipelineSupervisor:
             namespace_id=self._ns,
             embed_key_fn=self._infra.embed.key,
         )
-        self.embed_consumer.register_on_succeeded(self._on_object_indexed)
+        consumer.register_on_succeeded(self._on_object_indexed)
         # ONE description gate + ONE summary gate per process (§5.5), shared by BOTH the Map
         # producers (image / table_schema) and the Job Lane SummaryWorker pool, so every VLM /
         # summary provider call - wherever it originates - draws from the same in-flight budget
@@ -364,15 +388,19 @@ class PipelineSupervisor:
             summary=self._infra.summary,
             vlm=self._infra.vlm,
             converter=self._infra.converter,
-            chunks_q=self._chunks_q,
+            chunks_q=chunks_q,
             artifacts=self.producer_ctx.artifacts,
             namespace_id=self._ns,
             description_gate=self._description_gate,
             summary_gate=self._summary_gate,
         )
-        self.embed_consumer.register_on_succeeded(self.job_lane.on_embed_succeeded)
-        self.embed_consumer.start(self._chunks_q)
+        consumer.register_on_succeeded(self.job_lane.on_embed_succeeded)
+        consumer.start(chunks_q)
         self.job_lane.start()  # no-op unless cfg.summary.enabled
+        # Publish only once fully wired - the idempotent guard above reads self.embed_consumer,
+        # and pump() reads self._chunks_q, so both must be set before this method returns.
+        self._chunks_q = chunks_q
+        self.embed_consumer = consumer
 
     async def _gc_orphan_chunks(self) -> int:
         """Startup reconcile: delete Milvus chunks that no committed `objects` row points at.
@@ -429,7 +457,9 @@ class PipelineSupervisor:
         try:
             jobs = await self._obj.list_running_jobs()
         except Exception as e:  # noqa: BLE001 - recovery must never wedge startup
-            logger.error(e)
+            logger.exception(
+                "Job Lane recovery aborted while listing running jobs: %s; skipping", e
+            )
             return
         for job in jobs:
             job_id, cid = job["id"], job["connector_id"]
