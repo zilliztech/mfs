@@ -36,6 +36,7 @@ class JobStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
+    PARTIAL = "partial"  # ran to completion but >=1 object_task failed
     FAILED = "failed"
     CANCELLED = "cancelled"
 
@@ -81,6 +82,7 @@ _JOB_TRANSITIONS: frozenset[tuple[JobStatus, JobStatus]] = frozenset(
         (JobStatus.QUEUED, JobStatus.FAILED),  # worker connect failure
         (JobStatus.QUEUED, JobStatus.CANCELLED),  # cancel / remove
         (JobStatus.RUNNING, JobStatus.SUCCEEDED),  # finalize
+        (JobStatus.RUNNING, JobStatus.PARTIAL),  # finalize: >=1 object_task failed
         (JobStatus.RUNNING, JobStatus.FAILED),  # finalize / reclaim / worker failure
         (JobStatus.RUNNING, JobStatus.CANCELLED),  # cancel / remove
         (JobStatus.RUNNING, JobStatus.QUEUED),  # reclaim: re-queue stale running
@@ -194,14 +196,6 @@ class ObjectRepository:
             "UPDATE object_tasks SET status='failed', finished_at=?, last_error=? "
             "WHERE connector_job_id=? AND status='running'",
             (_now(), str(error)[:300], job_id),
-        )
-
-    async def reassign_running_tasks(self, to_job_id: str, from_job_id: str) -> None:
-        """Hand a dead job's in-flight tasks to its in-flight sibling."""
-        await self._meta.execute(
-            "UPDATE object_tasks SET status='pending', connector_job_id=? "
-            "WHERE connector_job_id=? AND status='running'",
-            (to_job_id, from_job_id),
         )
 
     async def reset_running_tasks_to_pending(self, job_id: str) -> None:
@@ -326,6 +320,8 @@ class ObjectRepository:
             status = "cancelled"
         elif aborted:
             status = "failed"
+        elif cmap.get("failed", 0) > 0:
+            status = "partial"
         else:
             status = "succeeded"
         await self._meta.execute(
@@ -366,13 +362,6 @@ class ObjectRepository:
         await self._meta.execute(
             "UPDATE connector_jobs SET status='failed', finished_at=?, "
             "error='reclaimed: enumeration abandoned' WHERE id=? AND status='preparing'",
-            (_now(), job_id),
-        )
-
-    async def fail_superseded_job(self, job_id: str) -> None:
-        await self._meta.execute(
-            "UPDATE connector_jobs SET status='failed', finished_at=?, "
-            "error='reclaimed: superseded by in-flight job' WHERE id=? AND status='running'",
             (_now(), job_id),
         )
 
@@ -441,13 +430,6 @@ class ObjectRepository:
             "SELECT id, connector_id FROM connector_jobs WHERE status='running' "
             "AND heartbeat IS NOT NULL AND heartbeat < ?",
             (cutoff,),
-        )
-
-    async def find_inflight_sibling(self, cid: str, job_id: str) -> dict | None:
-        return await self._meta.fetchone(
-            "SELECT id FROM connector_jobs WHERE connector_id=? "
-            "AND status IN ('queued', 'preparing') AND id<>? LIMIT 1",
-            (cid, job_id),
         )
 
     async def get_running_job_heartbeat(self, cid: str) -> dict | None:

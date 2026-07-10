@@ -224,6 +224,26 @@ async def test_partial_flag_round_trips_into_row():
     assert row["partial"] is True
 
 
+async def test_decimal_metadata_value_is_coerced_to_a_json_safe_type():
+    # A Postgres NUMERIC/MONEY column deserializes to decimal.Decimal, which json
+    # has no native representation for -- Milvus's upsert doesn't reject just that
+    # field, it fails the WHOLE flush batch. _build_row must sanitize metadata
+    # before a chunk ever reaches that call.
+    from decimal import Decimal
+
+    c, embedder, milvus, tx = _consumer(batch_size=1)
+    q = make_chunks_q(1)
+    c.start(q)
+    env = _chunk_env("T", "a")
+    env.payload.metadata = {"amount": Decimal("129.00"), "status": "pending"}
+    await q.put(env)
+    await c.shutdown()
+    row = milvus.upsert.call_args.args[0][0]
+    assert row["metadata"]["amount"] == "129.00"
+    assert row["metadata"]["status"] == "pending"
+    milvus.upsert.assert_awaited_once()  # the batch actually reached Milvus, not dropped as failed
+
+
 async def test_success_callback_carries_chunk_count_and_partial():
     # the success hook receives (task_uri, job_id, chunk_count, partial, error); chunk_count is
     # cumulative across flushes and partial ORs every chunk's + the EndOfTask's flag.

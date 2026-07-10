@@ -28,6 +28,8 @@ from ..base import (
 class MongoConfig(ConnectorConfigSchema):
     uri: Optional[str] = None
     database: Optional[str] = None
+    # strict=True is set at the ConnectorConfigSchema base (connectors/base.py)
+    # so a quoted number ("50") is rejected outright instead of silently coerced.
     max_read_docs: int = 100000
     cursor_field: Optional[str] = None
 
@@ -55,6 +57,23 @@ class MongoPlugin(ConnectorPlugin):
         return (
             self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
         )
+
+    @staticmethod
+    def _int_limit(field: str, value) -> int:
+        """Coerce a config-derived doc-limit to int, raising a clean, named
+        error instead of TypeErroring deep in a `> lim` comparison. Config
+        registered via ConnectorFactory.validate_config (strict=True on
+        ConnectorConfigSchema) can no longer persist a non-int here going
+        forward, but a row written before that validation existed can still
+        carry a raw string -- this is the last-line guard against that so
+        a legacy bad config produces a clean error, not a raw HTTP 500."""
+        try:
+            return int(value)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"config_invalid: {field}: expected an integer, got {value!r} "
+                "-- re-register the connector with a numeric value (not a quoted string)"
+            ) from e
 
     def _db(self):
         return self._client[self._cfg("database")]
@@ -124,7 +143,7 @@ class MongoPlugin(ConnectorPlugin):
     async def read_records(self, path: str, range: Optional[Range] = None) -> AsyncIterator[dict]:
         parts = self._parts(path)
         if len(parts) == 2 and parts[1] == "documents.jsonl":
-            lim = self._cfg("max_read_docs", 100000)
+            lim = self._int_limit("max_read_docs", self._cfg("max_read_docs", 100000))
             # sort by _id: every collection has it, it's always indexed,
             # and ascending order is stable across reads. Without this
             # find() returns docs in natural (insertion / storage) order

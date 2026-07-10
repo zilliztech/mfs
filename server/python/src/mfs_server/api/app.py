@@ -595,6 +595,14 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
                 raise HTTPException(400, code)
             if code == "locator_not_found":
                 raise HTTPException(404, "locator_not_found")
+            if code.startswith("config_invalid:"):
+                # A persisted connector config with a bad value (e.g. a
+                # pre-fix row carrying max_read_rows as a quoted string) --
+                # same shape/status as the config_invalid raised by
+                # ConnectorFactory.validate_config at add/probe time, so cat
+                # returns a clean 400 instead of a raw 500 from an unguarded
+                # `> lim` comparison deep in the plugin.
+                raise HTTPException(400, code)
             raise HTTPException(404, code)
         except FileNotFoundError as e:
             raise HTTPException(404, str(e))

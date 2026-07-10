@@ -449,14 +449,23 @@ class ConnectorConfigSchema(BaseModel):
     `extra="forbid"` catches a typo'd/unknown field instead of silently
     ignoring it; per-field types catch a wrong-typed value (e.g. a quoted
     number) with a clean, named error instead of a raw exception surfacing
-    deep in the plugin's own connect()/read path.
+    deep in the plugin's own connect()/read path. `strict=True` additionally
+    stops pydantic from silently *coercing* a quoted number ("50") into an
+    int -- without it, a typo'd string round-trips through validation
+    successfully, but the raw string is what a plugin's own config dict
+    lookup (`self._cfg(...)`) actually sees at runtime (validate_config only
+    validates a throwaway schema instance; it never writes the coerced value
+    back into the config dict that gets persisted/used) -- e.g. mysql/mongo's
+    `> lim` comparison in read_records() then TypeErrors on 'int' vs 'str'.
+    Rejecting the wrong type outright here, before that dict is ever
+    persisted, is the safe fix (as opposed to relying on coercion).
 
     `credential_ref`/`_credential_ref` (legacy alias) and `objects`
     ([[objects]] per-object overrides) are cross-cutting fields every
     connector config may carry regardless of type — declared once here so
     connector-specific schemas only need their own real fields."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
     credential_ref: Optional[str] = None
     objects: list = Field(default_factory=list)
 
