@@ -109,7 +109,7 @@ class PipelineSupervisor:
         self._ns = cfg.namespace
         self._chunks_q: asyncio.Queue | None = None
         self.embed_consumer: PipelineEmbedConsumer | None = None
-        self.producer_ctx: ProducerContext
+        self.producer_ctx: ProducerContext | None = None
         # full_uri -> finalize context for objects awaiting _on_object_indexed.
         self._pending_finalize: dict[str, tuple] = {}
         self._embed_idle_ms = _EMBED_FLUSH_IDLE_MS
