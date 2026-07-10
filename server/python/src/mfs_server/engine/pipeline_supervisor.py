@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 _WORKER_CONNECT_TIMEOUT_S = 30
 
 
-class _PipelineEmbedConsumer(EmbedConsumer):
+class PipelineEmbedConsumer(EmbedConsumer):
     """EmbedConsumer wired for the real Milvus + embedding cache: supplies the embed cache key
     (provider/model/version aware, shared with CachingEmbeddingClient) and the Milvus row shape
     (chunk_id PK + namespace_id + indexed_at)."""
@@ -118,8 +118,8 @@ class PipelineSupervisor:
         self._ns = cfg.namespace
         # --- process singletons (built lazily in _build_pipeline) ---
         self._chunks_q: asyncio.Queue | None = None
-        self.embed_consumer: _PipelineEmbedConsumer | None = None
-        self.producer_ctx: ProducerContext | None = None
+        self.embed_consumer: PipelineEmbedConsumer | None = None
+        self.producer_ctx: ProducerContext
         # full_uri -> (cid, relpath, stat, indexable, plugin, task_id) for pipeline-path objects
         # whose objects-table row + object_tasks status are written by _on_object_indexed
         # when the EmbedConsumer reports the task done.
@@ -316,10 +316,10 @@ class PipelineSupervisor:
             return
         batch_size = self._cfg.embedding.batch_size
         self._chunks_q = make_chunks_q(batch_size)
-        self.embed_consumer = _PipelineEmbedConsumer(
+        self.embed_consumer = PipelineEmbedConsumer(
             # raw provider embed (no caching) so the consumer's TxCacheAdapter is the single
             # embed cache and there is no double-cache; cache key matches CachingEmbeddingClient.
-            EmbedderAdapter(self._infra.embed._embed_api),
+            EmbedderAdapter(self._infra.embed.embed_api),
             MilvusSinkAdapter(self._infra.milvus, self._ns),
             TxCacheAdapter(
                 self._infra.tx_cache,
@@ -331,7 +331,7 @@ class PipelineSupervisor:
             batch_size,
             idle_ms=self._embed_idle_ms,
             namespace_id=self._ns,
-            embed_key_fn=self._infra.embed._key,
+            embed_key_fn=self._infra.embed.key,
         )
         self.embed_consumer.register_on_succeeded(self._on_object_indexed)
         # ONE description gate + ONE summary gate per process (§5.5), shared by BOTH the Map
@@ -428,7 +428,8 @@ class PipelineSupervisor:
 
         try:
             jobs = await self._obj.list_running_jobs()
-        except Exception:  # noqa: BLE001 - recovery must never wedge startup
+        except Exception as e:  # noqa: BLE001 - recovery must never wedge startup
+            logger.error(e)
             return
         for job in jobs:
             job_id, cid = job["id"], job["connector_id"]

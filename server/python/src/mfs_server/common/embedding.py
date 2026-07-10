@@ -92,7 +92,7 @@ class CachingEmbeddingClient:
                 self.dim,
             )
 
-    def _key(self, text: str) -> str:
+    def key(self, text: str) -> str:
         return cache_key(
             sha1_hex(text.encode()), "embedding", self.provider_name, self.model, self.version
         )
@@ -100,7 +100,7 @@ class CachingEmbeddingClient:
     async def batch_embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
-        keys = [self._key(t) for t in texts]
+        keys = [self.key(t) for t in texts]
         cached = await self.tx_cache.batch_get(keys)
         result: list[list[float] | None] = [None] * len(texts)
         miss_idx: list[int] = []
@@ -112,7 +112,7 @@ class CachingEmbeddingClient:
                 miss_idx.append(i)
         if miss_idx:
             miss_texts = [texts[i] for i in miss_idx]
-            vecs = await self._embed_api(miss_texts)
+            vecs = await self.embed_api(miss_texts)
             puts = []
             for j, i in enumerate(miss_idx):
                 result[i] = vecs[j]
@@ -131,7 +131,7 @@ class CachingEmbeddingClient:
             await self.tx_cache.batch_put(puts)
         return result  # type: ignore[return-value]
 
-    async def _embed_api(self, texts: list[str]) -> list[list[float]]:
+    async def embed_api(self, texts: list[str]) -> list[list[float]]:
         # Provider handles its own internal batching (see e.g. utils.batched_embed).
         provider = self._ensure_provider()
         vecs = await provider.embed(texts)
