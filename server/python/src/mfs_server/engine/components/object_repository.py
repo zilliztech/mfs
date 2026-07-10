@@ -36,6 +36,7 @@ class JobStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
     SUCCEEDED = "succeeded"
+    PARTIAL = "partial"  # ran to completion but >=1 object_task failed
     FAILED = "failed"
     CANCELLED = "cancelled"
 
@@ -81,6 +82,7 @@ _JOB_TRANSITIONS: frozenset[tuple[JobStatus, JobStatus]] = frozenset(
         (JobStatus.QUEUED, JobStatus.FAILED),  # worker connect failure
         (JobStatus.QUEUED, JobStatus.CANCELLED),  # cancel / remove
         (JobStatus.RUNNING, JobStatus.SUCCEEDED),  # finalize
+        (JobStatus.RUNNING, JobStatus.PARTIAL),  # finalize: >=1 object_task failed
         (JobStatus.RUNNING, JobStatus.FAILED),  # finalize / reclaim / worker failure
         (JobStatus.RUNNING, JobStatus.CANCELLED),  # cancel / remove
         (JobStatus.RUNNING, JobStatus.QUEUED),  # reclaim: re-queue stale running
@@ -318,6 +320,8 @@ class ObjectRepository:
             status = "cancelled"
         elif aborted:
             status = "failed"
+        elif cmap.get("failed", 0) > 0:
+            status = "partial"
         else:
             status = "succeeded"
         await self._meta.execute(

@@ -113,7 +113,7 @@ class ConnectorJobWatcher:
                 "SELECT status FROM connector_jobs WHERE id=?", (job_id,)
             )
             status = row["status"] if row else None
-            if status in ("cancelled", "failed", "succeeded"):
+            if status in ("cancelled", "failed", "succeeded", "partial"):
                 if status == "cancelled":
                     await self.meta.execute(
                         "UPDATE object_tasks SET status='cancelled' "

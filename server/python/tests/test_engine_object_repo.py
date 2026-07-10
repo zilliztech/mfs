@@ -188,6 +188,7 @@ def test_job_transitions_table_is_exactly_the_documented_set():
             (JobStatus.QUEUED, JobStatus.FAILED),
             (JobStatus.QUEUED, JobStatus.CANCELLED),
             (JobStatus.RUNNING, JobStatus.SUCCEEDED),
+            (JobStatus.RUNNING, JobStatus.PARTIAL),
             (JobStatus.RUNNING, JobStatus.FAILED),
             (JobStatus.RUNNING, JobStatus.CANCELLED),
             (JobStatus.RUNNING, JobStatus.QUEUED),
@@ -401,7 +402,7 @@ async def test_finalize_job_aborted_means_failed(tmp_path):
     assert status == "failed"
 
 
-async def test_finalize_job_success_counts(tmp_path):
+async def test_finalize_job_partial_counts(tmp_path):
     eng = await _build_engine(tmp_path)
     await _seed_connector(eng, cid="cS")
     await _seed_job(eng, job_id="j1", cid="cS", status="running")
@@ -409,7 +410,9 @@ async def test_finalize_job_success_counts(tmp_path):
     await _seed_task(eng, task_id="t2", job_id="j1", cid="cS", status="failed")
     await _seed_task(eng, task_id="t3", job_id="j1", cid="cS", status="cancelled")
     status = await eng.objects.finalize_job("j1", None)
-    assert status == "succeeded"
+    # a job with any failed task is "partial", not "succeeded" -- reporting
+    # "succeeded" here would be self-contradictory with failed_objects > 0.
+    assert status == "partial"
     row = await eng.infra.meta.fetchone(
         "SELECT total_objects, succeeded_objects, failed_objects, cancelled_objects, error "
         "FROM connector_jobs WHERE id=?",
@@ -420,6 +423,16 @@ async def test_finalize_job_success_counts(tmp_path):
     assert row["failed_objects"] == 1
     assert row["cancelled_objects"] == 1
     assert row["error"] is None
+
+
+async def test_finalize_job_all_succeeded(tmp_path):
+    eng = await _build_engine(tmp_path)
+    await _seed_connector(eng, cid="cS2")
+    await _seed_job(eng, job_id="j2", cid="cS2", status="running")
+    await _seed_task(eng, task_id="t1", job_id="j2", cid="cS2", status="succeeded")
+    await _seed_task(eng, task_id="t2", job_id="j2", cid="cS2", status="succeeded")
+    status = await eng.objects.finalize_job("j2", None)
+    assert status == "succeeded"
 
 
 # ----------------------------------------------------------------------
