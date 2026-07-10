@@ -588,13 +588,15 @@ async def test_connector_drift_count_indexed(tmp_path):
 
 async def test_stale_reclaim_helpers(tmp_path):
     eng = await _build_engine(tmp_path)
-    await _seed_connector(eng)
+    # Two connectors, not one: ux_jobs_one_active allows at most one non-terminal job
+    # (preparing/queued/running) per connector, so a preparing+running pair can no longer
+    # coexist on the same connector — each stale scenario gets its own connector instead.
+    await _seed_connector(eng, cid="cA")
+    await _seed_connector(eng, cid="cB", root_uri="file:///repo-b")
     stale_hb = "2020-01-01T00:00:00+00:00"  # older than the cutoff below
     cutoff = "2021-01-01T00:00:00+00:00"  # mirrors _reclaim_stale_jobs' now - stale_after_s
     await _seed_job(eng, job_id="jp", cid="cA", status="preparing", heartbeat=stale_hb)
-    await _seed_job(eng, job_id="jr", cid="cA", status="running", heartbeat=stale_hb)
-    # the unique index ux_jobs_one_pending would block two preparing/queued; 'running' is
-    # separate. Both stale listings return the right rows.
+    await _seed_job(eng, job_id="jr", cid="cB", status="running", heartbeat=stale_hb)
     prep = await eng.objects.list_stale_preparing_jobs(cutoff)
     assert {r["id"] for r in prep} == {"jp"}
     run = await eng.objects.list_stale_running_jobs(cutoff)

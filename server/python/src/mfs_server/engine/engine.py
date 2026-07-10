@@ -1128,9 +1128,9 @@ class Engine:
         other orphan, which would wedge crash-recovery for all connectors."""
         cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
 
-        # Fail stale 'preparing' jobs FIRST: one whose process died mid-enumeration never
-        # started running, and while it lingers it holds the connector's ux_jobs_one_pending
-        # slot — which would make the running->queued reset below raise a UNIQUE violation.
+        # Fail stale 'preparing' jobs: one whose process died mid-enumeration never started
+        # running, and while it lingers it holds the connector's one-active-job slot, blocking
+        # any new sync from being enqueued for that connector at all.
         try:
             stale_prep = await self.objects.list_stale_preparing_jobs(cutoff)
         except Exception as e:  # noqa: BLE001
@@ -1149,16 +1149,8 @@ class Engine:
             return
         for j in stale:
             try:
-                # If the connector still has another in-flight enqueue (queued OR a non-stale
-                # 'preparing'), flipping this orphan to 'queued' would violate
-                # ux_jobs_one_pending. Hand its in-flight tasks to that job and fail the orphan
-                # instead. The 'preparing' case matters: a preparing sibling holds the pending
-                # slot too, so without it the reclaim would raise UNIQUE and silently abort.
-                sibling = await self.objects.find_inflight_sibling(j["connector_id"], j["id"])
-                if sibling:
-                    await self.objects.reassign_running_tasks(sibling["id"], j["id"])
-                    await self.objects.fail_superseded_job(j["id"])
-                    continue
+                # ux_jobs_one_active guarantees no other non-terminal job exists for this
+                # connector right now, so the requeue below can never collide with a sibling.
                 # reset the dead worker's in-flight tasks back to pending FIRST, else the
                 # re-claiming worker sees only 'pending', finds none, and finalizes the job
                 # 'succeeded' while a task is still stuck 'running' (P1 crash-recovery gap).

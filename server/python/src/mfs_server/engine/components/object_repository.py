@@ -196,14 +196,6 @@ class ObjectRepository:
             (_now(), str(error)[:300], job_id),
         )
 
-    async def reassign_running_tasks(self, to_job_id: str, from_job_id: str) -> None:
-        """Hand a dead job's in-flight tasks to its in-flight sibling."""
-        await self._meta.execute(
-            "UPDATE object_tasks SET status='pending', connector_job_id=? "
-            "WHERE connector_job_id=? AND status='running'",
-            (to_job_id, from_job_id),
-        )
-
     async def reset_running_tasks_to_pending(self, job_id: str) -> None:
         """Reset a dead worker's in-flight tasks back to pending before re-queuing the job."""
         await self._meta.execute(
@@ -369,13 +361,6 @@ class ObjectRepository:
             (_now(), job_id),
         )
 
-    async def fail_superseded_job(self, job_id: str) -> None:
-        await self._meta.execute(
-            "UPDATE connector_jobs SET status='failed', finished_at=?, "
-            "error='reclaimed: superseded by in-flight job' WHERE id=? AND status='running'",
-            (_now(), job_id),
-        )
-
     async def requeue_stale_running_job(self, job_id: str) -> None:
         await self._meta.execute(
             "UPDATE connector_jobs SET status='queued' WHERE id=? AND status='running'",
@@ -441,13 +426,6 @@ class ObjectRepository:
             "SELECT id, connector_id FROM connector_jobs WHERE status='running' "
             "AND heartbeat IS NOT NULL AND heartbeat < ?",
             (cutoff,),
-        )
-
-    async def find_inflight_sibling(self, cid: str, job_id: str) -> dict | None:
-        return await self._meta.fetchone(
-            "SELECT id FROM connector_jobs WHERE connector_id=? "
-            "AND status IN ('queued', 'preparing') AND id<>? LIMIT 1",
-            (cid, job_id),
         )
 
     async def get_running_job_heartbeat(self, cid: str) -> dict | None:
