@@ -15,7 +15,7 @@ services:
     build:
       context: ../..
       dockerfile: deployments/docker/Dockerfile
-    image: mfs-server:0.4.4
+    image: mfs-server:0.4.5
     command: ["run", "--bind", "0.0.0.0:13619"]
     environment:
       # omit to use bundled Milvus Lite under /data; set to use Zilliz Cloud
@@ -46,6 +46,6 @@ volumes:
 #
 #   postgres:    image: postgres:16          # metadata  (MFS_METADATA_DSN=postgresql://...)
 #   (artifact cache is local — mount a shared RWX volume at /data/cache across pods)
-#   mfs-api:     image: mfs-server:0.4.4      # command: ["api",    "--bind", "0.0.0.0:13619"]
-#   mfs-worker:  image: mfs-server:0.4.4      # command: ["worker", "--concurrency", "auto"]
+#   mfs-api:     image: mfs-server:0.4.5      # command: ["api",    "--bind", "0.0.0.0:13619"]
+#   mfs-worker:  image: mfs-server:0.4.5      # command: ["worker", "--concurrency", "auto"]
 # ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 [project]
 name = "mfs_sdk"
-version = "0.4.4"
+version = "0.4.5"
 description = "MFS"
 authors = [
   {name = "OpenAPI Generator Community",email = "team@openapitools.org"},

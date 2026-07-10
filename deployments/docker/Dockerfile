@@ -6,7 +6,7 @@
 # Build context = repo root:
 #   docker build -f deployments/docker/Dockerfile \
 #                --build-arg EXTRAS="[all-connectors]" \
-#                -t mfs-server:0.4.4 .
+#                -t mfs-server:0.4.5 .
 #
 # Layer caching strategy (matters a lot — without it every code edit re-pulls
 # all of pymilvus / onnxruntime / markitdown / huggingface-hub / ... ~ minutes):
