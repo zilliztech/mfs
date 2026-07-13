@@ -22,7 +22,7 @@ class EmbedderAdapter:
     """Adapt an embed callable to pipeline.Embedder.
 
     Wraps a raw `async (texts) -> vectors` function — for the real wiring (driver.py)
-    that is CachingEmbeddingClient._embed_api (the underlying provider call), so the
+    that is CachingEmbeddingClient.embed_api (the underlying provider call), so the
     EmbedConsumer's own TxCacheAdapter is the single embed cache and there is no
     double-caching. A plain CachingEmbeddingClient.batch_embed also fits this shape."""
 

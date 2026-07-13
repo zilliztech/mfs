@@ -27,10 +27,10 @@ class _FakeEmbed:
     model = "fake-model"
     version = "1"
 
-    def _key(self, text):
+    def key(self, text):
         return "k:" + text
 
-    async def _embed_api(self, texts):
+    async def embed_api(self, texts):
         return [[0.1] for _ in texts]
 
 
