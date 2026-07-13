@@ -654,7 +654,7 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
         # (objects.chunk_count is already maintained per object). One grouped LEFT JOIN —
         # connectors with nothing indexed yet still report 0/0 — so status surfaces store
         # state without a full Milvus scan.
-        conns = await eng().meta.fetchall(
+        conns = await eng().infra.meta.fetchall(
             "SELECT c.root_uri AS root_uri, c.type AS type, c.status AS status, "
             "  COUNT(o.object_uri) AS object_count, "
             "  COALESCE(SUM(o.chunk_count), 0) AS chunk_count "
@@ -662,7 +662,7 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
             "WHERE c.namespace_id=? GROUP BY c.id, c.root_uri, c.type, c.status",
             (cfg.namespace,),
         )
-        jobs = await eng().meta.fetchall(
+        jobs = await eng().infra.meta.fetchall(
             "SELECT status, count(*) AS n FROM connector_jobs GROUP BY status"
         )
         return StatusResponse(
@@ -671,7 +671,7 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
 
     @app.get("/v1/jobs", response_model=list[JobResponse], operation_id="listJobs", tags=["ingest"])
     async def list_jobs(limit: int = 20) -> list[JobResponse]:
-        rows = await eng().meta.fetchall(
+        rows = await eng().infra.meta.fetchall(
             "SELECT * FROM connector_jobs ORDER BY started_at DESC LIMIT ?", (limit,)
         )
         return [JobResponse(**{k: dict(r).get(k) for k in JobResponse.model_fields}) for r in rows]
@@ -680,7 +680,7 @@ def create_app(cfg: ServerConfig | None = None, *, preload_local_models: bool = 
         "/v1/jobs/{job_id}", response_model=JobResponse, operation_id="getJob", tags=["ingest"]
     )
     async def job(job_id: str) -> JobResponse:
-        row = await eng().meta.fetchone("SELECT * FROM connector_jobs WHERE id=?", (job_id,))
+        row = await eng().infra.meta.fetchone("SELECT * FROM connector_jobs WHERE id=?", (job_id,))
         if not row:
             raise HTTPException(404, "job not found")
         return JobResponse(**{k: dict(row).get(k) for k in JobResponse.model_fields})
