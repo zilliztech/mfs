@@ -52,6 +52,67 @@ stable URI**, driven by two skills your agent loads:
 
 ## 🚀 Quick start
 
+### Start the server
+
+**Server** — start it in one terminal:
+
+- **Option A — uv tool** (no clone; installs from PyPI, reads local paths directly)
+
+```bash
+uv tool install mfs-server && mfs-server run
+```
+
+Wait until the server logs show `Application startup complete` before switching to the client terminal.
+
+- **Option B — Docker Compose** (isolated; builds the image from source)
+
+```bash
+git clone https://github.com/zilliztech/mfs.git && cd mfs
+
+docker compose -f deployments/compose/docker-compose.yml up --build
+```
+
+The first build takes a few minutes. The ~600 MB embedding model downloads on the first `mfs add` and is cached in the `mfs-data` volume.
+
+### Install the CLI
+
+**Client** — in another terminal, install the CLI and point it at the server:
+
+```bash
+cargo install mfs-cli
+```
+
+### Set environment variables
+
+```bash
+# server address
+export MFS_API_URL=http://127.0.0.1:13619
+
+# option A: reads ~/.mfs/server.token automatically — no export needed
+# option B: read the token the container auto-generated
+export MFS_API_TOKEN="$(docker compose -f deployments/compose/docker-compose.yml exec -T mfs-server cat /data/server.token)"
+```
+
+Create a tiny sample tree:
+
+```bash
+mkdir -p /tmp/hello-mfs
+echo "Print a greeting to the user." > /tmp/hello-mfs/greet.txt
+```
+
+Then index and search it:
+
+```bash
+mfs add --upload /tmp/hello-mfs
+# --upload bundles + sends the tree to the container
+# (omit it under option A: the server reads the path in place)
+mfs search "where the greeting is printed" /tmp/hello-mfs
+```
+
+> macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if prompted about an unidentified developer.
+
+### Skill install
+
 Install the skills once:
 
 ```bash
@@ -85,24 +146,6 @@ For project-level installs, re-run the `npx skills add` command to update.
 
 </details>
 
-<details>
-<summary>Prefer the shell, no agent?</summary>
-
-Run a local server, install the CLI, and drive the same loop directly:
-
-```bash
-# server — install once as a uv tool, then run
-uv tool install mfs-server && mfs-server run
-
-# CLI — `cargo install mfs-cli`, or the installer on the releases page
-mfs add /tmp/hello-mfs
-mfs search "where the greeting is printed" /tmp/hello-mfs
-```
-
-> macOS: run `xattr -d com.apple.quarantine $(which mfs)` once if prompted about
-> an unidentified developer.
-
-</details>
 
 📥 Then open your agent (Claude Code, Codex, …) and ask in plain language. First,
 ingest something:
