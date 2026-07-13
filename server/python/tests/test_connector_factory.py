@@ -346,12 +346,16 @@ class TestValidateConfig:
     def test_valid_config_passes(self, factory: ConnectorFactory):
         factory.validate_config(self.CTYPE, {"dsn": "env:PG_DSN", "max_read_rows": 500})
 
-    def test_numeric_field_as_string_is_coerced_not_rejected(self, factory: ConnectorFactory):
-        # pydantic's default (lax) mode coerces an unambiguous numeric string to
-        # int at the schema boundary -- the original bug wasn't that "100" is an
-        # invalid max_read_rows, it's that nothing coerced it before an
-        # internal `>` comparison crashed on a real string. This must NOT raise.
-        factory.validate_config(self.CTYPE, {"max_read_rows": "100"})
+    def test_numeric_field_as_string_is_rejected(self, factory: ConnectorFactory):
+        # ConnectorConfigSchema sets strict=True: a quoted number ("100") must be
+        # rejected outright, not silently coerced. Lax coercion only fixed the
+        # *schema's* type -- validate_config validates a throwaway schema
+        # instance and never writes the coerced value back into the config
+        # dict a plugin actually reads at runtime, so a quoted string used to
+        # sail through validation and still reach read_records()'s `> lim`
+        # comparison as a str, crashing with TypeError deep in the plugin.
+        with pytest.raises(ValueError, match="config_invalid.*max_read_rows"):
+            factory.validate_config(self.CTYPE, {"max_read_rows": "100"})
 
     def test_wrong_type_with_no_coercion_path_is_rejected(self, factory: ConnectorFactory):
         # A bool has no sensible coercion to the str `dsn` expects -- unlike the

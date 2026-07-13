@@ -32,6 +32,8 @@ from ..base import (
 class PostgresConfig(ConnectorConfigSchema):
     dsn: Optional[str] = None
     schemas: list[str] = ["public"]
+    # strict=True is set at the ConnectorConfigSchema base (connectors/base.py)
+    # so a quoted number ("100") is rejected outright instead of silently coerced.
     max_read_rows: int = 100000
     cursor_column: Optional[str] = None
 

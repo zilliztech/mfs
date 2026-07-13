@@ -43,7 +43,7 @@ async def _meta(tmp_path):
 
 async def _job(meta, *, status):
     jid = uuid.uuid4().hex
-    cid = uuid.uuid4().hex  # distinct connector per job (ux_jobs_one_running is per-connector)
+    cid = uuid.uuid4().hex  # distinct connector per job (ux_jobs_one_active is per-connector)
     await meta.execute(
         "INSERT INTO connector_jobs (id, namespace_id, connector_id, op_kind, trigger, status, started_at) "
         "VALUES (?,?,?,?,?,?,?)",

@@ -34,6 +34,8 @@ class MySQLConfig(ConnectorConfigSchema):
     user: str = "root"
     password: Optional[str] = None
     database: Optional[str] = None
+    # strict=True is set at the ConnectorConfigSchema base (connectors/base.py)
+    # so a quoted number ("50") is rejected outright instead of silently coerced.
     max_read_rows: int = 100000
     cursor_column: Optional[str] = None
 
@@ -63,6 +65,23 @@ class MySQLPlugin(ConnectorPlugin):
         return (
             self.config.get(k, d) if isinstance(self.config, dict) else getattr(self.config, k, d)
         )
+
+    @staticmethod
+    def _int_limit(field: str, value) -> int:
+        """Coerce a config-derived row-limit to int, raising a clean, named
+        error instead of TypeErroring deep in a `> lim` comparison. Config
+        registered via ConnectorFactory.validate_config (strict=True on
+        ConnectorConfigSchema) can no longer persist a non-int here going
+        forward, but a row written before that validation existed can still
+        carry a raw string -- this is the last-line guard against that so
+        a legacy bad config produces a clean error, not a raw HTTP 500."""
+        try:
+            return int(value)
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"config_invalid: {field}: expected an integer, got {value!r} "
+                "-- re-register the connector with a numeric value (not a quoted string)"
+            ) from e
 
     async def connect(self) -> None:
         self._pool = await aiomysql.create_pool(
@@ -151,7 +170,7 @@ class MySQLPlugin(ConnectorPlugin):
             yield {"table": parts[0], "columns": await self._columns(parts[0])}
             return
         if len(parts) == 2 and parts[1] == "rows.jsonl":
-            lim = self._cfg("max_read_rows", 100000)
+            lim = self._int_limit("max_read_rows", self._cfg("max_read_rows", 100000))
             t = safe_ident(parts[0])
             # ORDER BY 1 pins the first column as a deterministic sort key. On
             # well-designed tables this is the PK / surrogate id; on legacy

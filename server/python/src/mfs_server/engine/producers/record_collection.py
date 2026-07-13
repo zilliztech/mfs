@@ -40,7 +40,19 @@ class RecordCollectionProducer:
         full_uri = task.full_uri
         ocfg = task.config()
         records = task.plugin.read_records(task.object_uri)
-        if records is None or not ocfg.text_fields:
+        if records is None:
+            yield EndOfTask()
+            return
+        if not ocfg.text_fields:
+            # Not a misconfiguration on its own — an object legitimately having no
+            # text_fields mapping is a valid setup (e.g. this object type isn't meant
+            # to be searchable). Log a breadcrumb, not a warning, so it's still visible
+            # to whoever's watching but doesn't read as "something's wrong here."
+            logger.info(
+                "%s: no text_fields configured — 0 chunks (set [[objects]].text_fields "
+                "if this object should be searchable)",
+                full_uri,
+            )
             yield EndOfTask()
             return
 
@@ -125,4 +137,15 @@ class RecordCollectionProducer:
             )
         # partial if chunk_max truncated OR the connector capped its read.
         was_capped = task.plugin.ctx.was_partial(task.object_uri)
+        # Breadcrumb on the normal path too — a deliberate departure from this
+        # producer's (and its sibling producers') usual silence-on-success
+        # convention, so `emitted` is visible without needing chunk_count from a
+        # separate inspect call.
+        logger.info(
+            "%s: emitted %d chunk(s) from %d record(s) using text_fields %s",
+            full_uri,
+            emitted,
+            i,
+            list(ocfg.text_fields),
+        )
         yield EndOfTask(partial=truncated or was_capped)

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import logging
 from _asyncio import Task
 from dataclasses import dataclass
@@ -43,6 +44,24 @@ _CHUNKS_Q_MIN_MAXSIZE = 200  # floor for the bounded chunks_q (derived from batc
 def _make_chunks_q_maxsize(batch_size: int) -> int:
     """chunks_q bound = max(200, batch_size * 2) (§3.1 / §7.3 _CHUNKS_Q_MAXSIZE)."""
     return max(_CHUNKS_Q_MIN_MAXSIZE, batch_size * 2)
+
+
+def _json_safe(metadata: dict) -> dict:
+    """Coerce a chunk's metadata to values Milvus can actually store as JSON.
+
+    A `metadata_fields` value straight from a DB row can be a type JSON has no
+    native representation for -- most commonly `decimal.Decimal` from a
+    NUMERIC/MONEY column, but the same gap applies to `datetime`/`date`/`UUID`/
+    etc. Milvus's upsert doesn't reject just the bad field -- it fails the
+    entire flush batch (every chunk queued alongside it, not just the one with
+    the bad value), so this must run before a chunk ever reaches that call.
+    `default=str` stringifies whatever `json` doesn't already know, matching
+    the same pattern already used for the head_cache artifact in
+    RecordCollectionProducer; round-tripping through dumps/loads keeps this
+    generic instead of hardcoding a type allowlist."""
+    if not metadata:
+        return metadata
+    return json.loads(json.dumps(metadata, default=str))
 
 
 def make_chunks_q(batch_size: int) -> asyncio.Queue:
@@ -462,6 +481,6 @@ class EmbedConsumer:
             "locator": chunk.locator,
             "content": content,
             "dense_vec": vec,
-            "metadata": chunk.metadata,
+            "metadata": _json_safe(chunk.metadata),
             "partial": chunk.partial,
         }

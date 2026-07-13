@@ -88,12 +88,20 @@ SQLITE_DDL = [
         error             TEXT,
         state_snapshot    TEXT
     )""",
-    "CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_one_running ON connector_jobs (connector_id) WHERE status = 'running'",
-    # one in-flight enqueue per connector covers BOTH 'preparing' (job reserved, still
-    # enumerating — NOT yet claimable by a worker) and 'queued' (enumeration done, ready).
-    # Replaces an older queued-only index; drop it first so existing DBs pick up the change.
+    # One non-terminal job per connector, full stop — 'preparing' (reserved, still
+    # enumerating), 'queued' (enumeration done, ready), and 'running' (a worker has it)
+    # used to be guarded by two separate indexes, which let a running job's connector
+    # accept a brand new preparing/queued job the instant the running one's own enqueue
+    # slot freed up (on queued->running claim). Two jobs then pumped chunks for the same
+    # objects into the same embed pipeline concurrently, and since Milvus chunk_id is
+    # content-addressed (not job-scoped), a shared flush batch could silently dedup away
+    # one job's rows while it still reported "succeeded" with zero chunks. Replaces both
+    # the old two-index split and an even older queued-only index; drop them first so
+    # existing DBs pick up the change.
     "DROP INDEX IF EXISTS ux_jobs_one_queued",
-    "CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_one_pending ON connector_jobs (connector_id) WHERE status IN ('preparing','queued')",
+    "DROP INDEX IF EXISTS ux_jobs_one_running",
+    "DROP INDEX IF EXISTS ux_jobs_one_pending",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_one_active ON connector_jobs (connector_id) WHERE status IN ('preparing','queued','running')",
     """
     CREATE TABLE IF NOT EXISTS object_tasks (
         id                TEXT PRIMARY KEY,

@@ -420,9 +420,14 @@ class Engine:
                     await plugin.close()
                 except Exception:  # noqa: BLE001
                     pass
-        if aborted is None:
+        status = await self._finalize_job(job_id, aborted)
+        # only commit the cursor on a fully clean run -- a partial job's failed
+        # objects (and the successful ones alongside them) get reconsidered on
+        # the next sync rather than the cursor skipping past them. Each
+        # connector's own fingerprint check keeps that cheap (already-succeeded
+        # objects get skipped quickly; only the failed ones redo real work).
+        if aborted is None and status == "succeeded":
             await ctx.state.commit()
-        await self._finalize_job(job_id, aborted)
         return job_id
 
     async def ingest_upload(
@@ -669,15 +674,16 @@ class Engine:
         await self._drain_job(job_id, cid, connector_uri, "file", stored_cfg, full, None, process)
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
 
-    async def _finalize_job(self, job_id: str, aborted: str | None) -> None:
+    async def _finalize_job(self, job_id: str, aborted: str | None) -> str:
         """Set terminal job status + per-status object counts. Thin delegate to
-        ObjectRepository.finalize_job (which owns the cancelled > failed > succeeded
-        terminal selection + the counts UPDATE); the Job Lane dir tree is evicted
-        unconditionally afterward (§6.4.6)."""
-        await self.objects.finalize_job(job_id, aborted)
+        ObjectRepository.finalize_job (which owns the cancelled > partial > failed >
+        succeeded terminal selection + the counts UPDATE); the Job Lane dir tree is
+        evicted unconditionally afterward (§6.4.6). Returns the terminal status."""
+        status = await self.objects.finalize_job(job_id, aborted)
         # job reached a terminal state: free the Job Lane's in-memory dir tree (§6.4.6)
         if self.pipeline.job_lane is not None:
             self.pipeline.job_lane.evict_job(job_id)
+        return status
 
     # --- standalone worker: poll DB queue, process queued jobs ---
     async def cancel_job(self, job_id: str) -> bool:
@@ -693,7 +699,7 @@ class Engine:
         of the same job both see it as cancellable in the initial read below, but
         only the one whose UPDATE actually flips the row gets True back."""
         status = await self.objects.get_job_status(job_id)
-        if not status or status in ("succeeded", "failed", "cancelled"):
+        if not status or status in ("succeeded", "partial", "failed", "cancelled"):
             return False
         won = await self.objects.cancel_job_row(job_id)
         if not won:
@@ -731,8 +737,13 @@ class Engine:
             await asyncio.wait_for(plugin.connect(), timeout=_WORKER_CONNECT_TIMEOUT_S)
             aborted = await self._run_job(job["id"], cid, connector_uri, plugin)
             await self._finalize_job(job["id"], aborted)
-            # commit the deferred connector state only now that the job succeeded:
-            # a failed/cancelled background job leaves the cursor where it was.
+            # commit the deferred connector state only on a FULLY clean run: a
+            # failed/cancelled/partial job leaves the cursor where it was, so a
+            # partial job's failed objects (and the successful ones alongside
+            # them) get reconsidered on the next sync rather than the cursor
+            # skipping past them. Each connector's own fingerprint check keeps
+            # that cheap -- the already-succeeded objects get skipped quickly,
+            # only the failed ones actually redo real work.
             if aborted is None:
                 jrow = await self.objects.get_job_state_and_status(job["id"])
                 if jrow and jrow["status"] == "succeeded" and jrow["state_snapshot"]:
@@ -777,9 +788,9 @@ class Engine:
         other orphan, which would wedge crash-recovery for all connectors."""
         cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
 
-        # Fail stale 'preparing' jobs FIRST: one whose process died mid-enumeration never
-        # started running, and while it lingers it holds the connector's ux_jobs_one_pending
-        # slot — which would make the running->queued reset below raise a UNIQUE violation.
+        # Fail stale 'preparing' jobs: one whose process died mid-enumeration never started
+        # running, and while it lingers it holds the connector's one-active-job slot, blocking
+        # any new sync from being enqueued for that connector at all.
         try:
             stale_prep = await self.objects.list_stale_preparing_jobs(cutoff)
         except Exception as e:  # noqa: BLE001
@@ -798,16 +809,8 @@ class Engine:
             return
         for j in stale:
             try:
-                # If the connector still has another in-flight enqueue (queued OR a non-stale
-                # 'preparing'), flipping this orphan to 'queued' would violate
-                # ux_jobs_one_pending. Hand its in-flight tasks to that job and fail the orphan
-                # instead. The 'preparing' case matters: a preparing sibling holds the pending
-                # slot too, so without it the reclaim would raise UNIQUE and silently abort.
-                sibling = await self.objects.find_inflight_sibling(j["connector_id"], j["id"])
-                if sibling:
-                    await self.objects.reassign_running_tasks(sibling["id"], j["id"])
-                    await self.objects.fail_superseded_job(j["id"])
-                    continue
+                # ux_jobs_one_active guarantees no other non-terminal job exists for this
+                # connector right now, so the requeue below can never collide with a sibling.
                 # reset the dead worker's in-flight tasks back to pending FIRST, else the
                 # re-claiming worker sees only 'pending', finds none, and finalizes the job
                 # 'succeeded' while a task is still stuck 'running' (P1 crash-recovery gap).

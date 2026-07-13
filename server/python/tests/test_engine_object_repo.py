@@ -188,6 +188,7 @@ def test_job_transitions_table_is_exactly_the_documented_set():
             (JobStatus.QUEUED, JobStatus.FAILED),
             (JobStatus.QUEUED, JobStatus.CANCELLED),
             (JobStatus.RUNNING, JobStatus.SUCCEEDED),
+            (JobStatus.RUNNING, JobStatus.PARTIAL),
             (JobStatus.RUNNING, JobStatus.FAILED),
             (JobStatus.RUNNING, JobStatus.CANCELLED),
             (JobStatus.RUNNING, JobStatus.QUEUED),
@@ -401,7 +402,7 @@ async def test_finalize_job_aborted_means_failed(tmp_path):
     assert status == "failed"
 
 
-async def test_finalize_job_success_counts(tmp_path):
+async def test_finalize_job_partial_counts(tmp_path):
     eng = await _build_engine(tmp_path)
     await _seed_connector(eng, cid="cS")
     await _seed_job(eng, job_id="j1", cid="cS", status="running")
@@ -409,7 +410,9 @@ async def test_finalize_job_success_counts(tmp_path):
     await _seed_task(eng, task_id="t2", job_id="j1", cid="cS", status="failed")
     await _seed_task(eng, task_id="t3", job_id="j1", cid="cS", status="cancelled")
     status = await eng.objects.finalize_job("j1", None)
-    assert status == "succeeded"
+    # a job with any failed task is "partial", not "succeeded" -- reporting
+    # "succeeded" here would be self-contradictory with failed_objects > 0.
+    assert status == "partial"
     row = await eng.infra.meta.fetchone(
         "SELECT total_objects, succeeded_objects, failed_objects, cancelled_objects, error "
         "FROM connector_jobs WHERE id=?",
@@ -420,6 +423,16 @@ async def test_finalize_job_success_counts(tmp_path):
     assert row["failed_objects"] == 1
     assert row["cancelled_objects"] == 1
     assert row["error"] is None
+
+
+async def test_finalize_job_all_succeeded(tmp_path):
+    eng = await _build_engine(tmp_path)
+    await _seed_connector(eng, cid="cS2")
+    await _seed_job(eng, job_id="j2", cid="cS2", status="running")
+    await _seed_task(eng, task_id="t1", job_id="j2", cid="cS2", status="succeeded")
+    await _seed_task(eng, task_id="t2", job_id="j2", cid="cS2", status="succeeded")
+    status = await eng.objects.finalize_job("j2", None)
+    assert status == "succeeded"
 
 
 # ----------------------------------------------------------------------
@@ -588,13 +601,15 @@ async def test_connector_drift_count_indexed(tmp_path):
 
 async def test_stale_reclaim_helpers(tmp_path):
     eng = await _build_engine(tmp_path)
-    await _seed_connector(eng)
+    # Two connectors, not one: ux_jobs_one_active allows at most one non-terminal job
+    # (preparing/queued/running) per connector, so a preparing+running pair can no longer
+    # coexist on the same connector — each stale scenario gets its own connector instead.
+    await _seed_connector(eng, cid="cA")
+    await _seed_connector(eng, cid="cB", root_uri="file:///repo-b")
     stale_hb = "2020-01-01T00:00:00+00:00"  # older than the cutoff below
     cutoff = "2021-01-01T00:00:00+00:00"  # mirrors _reclaim_stale_jobs' now - stale_after_s
     await _seed_job(eng, job_id="jp", cid="cA", status="preparing", heartbeat=stale_hb)
-    await _seed_job(eng, job_id="jr", cid="cA", status="running", heartbeat=stale_hb)
-    # the unique index ux_jobs_one_pending would block two preparing/queued; 'running' is
-    # separate. Both stale listings return the right rows.
+    await _seed_job(eng, job_id="jr", cid="cB", status="running", heartbeat=stale_hb)
     prep = await eng.objects.list_stale_preparing_jobs(cutoff)
     assert {r["id"] for r in prep} == {"jp"}
     run = await eng.objects.list_stale_running_jobs(cutoff)
