@@ -28,6 +28,7 @@ import asyncio
 import hashlib
 import json
 import logging
+from _asyncio import Task
 from dataclasses import dataclass
 from typing import Awaitable, Callable, Optional, Protocol, Union, runtime_checkable
 
@@ -204,7 +205,7 @@ class EmbedConsumer:
         self._on_succeeded.append(callback)
 
     # --- lifecycle ---
-    def start(self, chunks_q: asyncio.Queue) -> asyncio.Task:
+    def start(self, chunks_q: asyncio.Queue) -> Task | None:
         """Spawn run() as a background task and remember it for shutdown()."""
         self._q = chunks_q
         self._task = asyncio.create_task(self.run(chunks_q))

@@ -71,10 +71,10 @@ class _FakeEmbed:
     model = "fake-model"
     version = "1"
 
-    def _key(self, text):
+    def key(self, text):
         return "k:" + hashlib.sha1(text.encode()).hexdigest()
 
-    async def _embed_api(self, texts):
+    async def embed_api(self, texts):
         return [[0.1, 0.2, 0.3] for _ in texts]
 
 
@@ -121,11 +121,11 @@ async def _build_engine(tmp_path):
     eng.infra.embed = _FakeEmbed()
     eng.infra.milvus = _FakeMilvus()
     eng.infra.tx_cache = _FakeTxCache()
-    eng._embed_idle_ms = 50  # responsive idle flush so the small job drains fast
+    eng.pipeline._embed_idle_ms = 50  # responsive idle flush so the small job drains fast
     await eng.infra.meta.connect()
     await eng.infra.meta.init_schema()
     await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")  # seed object_tasks without parent rows
-    eng._build_pipeline()
+    eng.pipeline._build_pipeline()
     return eng
 
 
@@ -148,7 +148,7 @@ async def test_chunkable_path_drains_through_pipeline(tmp_path):
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     # all chunk rows are body chunks, routed through chunks_q to the (fake) Milvus sink
     all_rows = [r for _, rows in eng.infra.milvus.upserts for r in rows]
@@ -218,7 +218,7 @@ async def test_text_blob_routes_to_pipeline(tmp_path):
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     all_rows = [r for _, rows in eng.infra.milvus.upserts for r in rows]
     assert all_rows, "expected text_blob content to be chunked and upserted"
@@ -247,7 +247,7 @@ async def test_empty_document_marks_not_indexed_and_purges(tmp_path):
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     # zero chunks: still marked succeeded, objects row not_indexed, stale chunks purged
     row = await eng.infra.meta.fetchone(

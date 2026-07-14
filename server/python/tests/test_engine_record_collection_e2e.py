@@ -82,12 +82,12 @@ class _FakeEmbed:
     model = "fake-model"
     version = "1"
 
-    def _key(self, text):
+    def key(self, text):
         import hashlib
 
         return "k:" + hashlib.sha1(text.encode()).hexdigest()
 
-    async def _embed_api(self, texts):
+    async def embed_api(self, texts):
         return [[0.1, 0.2] for _ in texts]
 
 
@@ -123,11 +123,11 @@ async def _build_engine(tmp_path, *, batch_size=100, idle_ms=50):
     eng.infra.embed = _FakeEmbed()
     eng.infra.milvus = _FakeMilvus()
     eng.infra.tx_cache = _FakeTxCache()
-    eng._embed_idle_ms = idle_ms
+    eng.pipeline._embed_idle_ms = idle_ms
     await eng.infra.meta.connect()
     await eng.infra.meta.init_schema()
     await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")
-    eng._build_pipeline()
+    eng.pipeline._build_pipeline()
     return eng
 
 
@@ -152,13 +152,13 @@ async def test_record_collection_routes_to_pipeline(tmp_path):
     await _seed(eng, job_id=job_id, cid=cid, object_uri="/issues")
 
     finalized = Counter()
-    eng._embed_consumer.register_on_succeeded(lambda uri, j, *a: finalized.update([uri]))
+    eng.pipeline.embed_consumer.register_on_succeeded(lambda uri, j, *a: finalized.update([uri]))
 
     await asyncio.wait_for(
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 2
@@ -195,7 +195,7 @@ async def test_table_rows_uses_same_record_producer(tmp_path):
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 1 and rows[0]["chunk_kind"] == "row_text"
@@ -220,7 +220,7 @@ async def test_streaming_emits_multiple_batches(tmp_path):
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=15,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 25  # every record -> one row_text chunk

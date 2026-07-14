@@ -91,10 +91,10 @@ class _FakeEmbed:
     model = "fake-model"
     version = "1"
 
-    def _key(self, text):
+    def key(self, text):
         return "k:" + hashlib.sha1(text.encode()).hexdigest()
 
-    async def _embed_api(self, texts):
+    async def embed_api(self, texts):
         return [[0.1, 0.2] for _ in texts]
 
 
@@ -124,7 +124,7 @@ async def _build_engine(tmp_path, *, vlm_enabled=True, vlm_concurrency=10, llm_d
     eng = Engine(cfg)
     eng.infra.embed = _FakeEmbed()
     eng.infra.milvus = _FakeMilvus()
-    eng._embed_idle_ms = 50
+    eng.pipeline._embed_idle_ms = 50
     llm = _FakeLLM(delay=llm_delay)
     eng.infra.vlm._llm = (
         llm  # inject fake provider; keep the real CachingVlmClient + real tx_cache dedup
@@ -133,7 +133,7 @@ async def _build_engine(tmp_path, *, vlm_enabled=True, vlm_concurrency=10, llm_d
     await eng.infra.meta.init_schema()
     await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")  # seed object_tasks without parent rows
     await eng.infra.tx_cache.connect()
-    eng._build_pipeline()
+    eng.pipeline._build_pipeline()
     return eng, llm
 
 
@@ -157,7 +157,7 @@ async def test_image_routes_through_pipeline(tmp_path):
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) == 2
@@ -197,12 +197,10 @@ async def test_description_gate_caps_concurrent_vlm(tmp_path):
 
     async def index(rel):
         task = {"id": uuid.uuid4().hex, "change_kind": "added", "connector_job_id": "j"}
-        await eng._index_via_pipeline(
-            plugin, connector_uri, rel, connector_uri + rel, "image", task
-        )
+        await eng.pipeline.pump(plugin, connector_uri, rel, connector_uri + rel, "image", task)
 
     await asyncio.wait_for(asyncio.gather(*[index(rel) for rel in files]), timeout=10)
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     assert llm.calls == 5  # five distinct images, all hit the provider
     assert llm.max_inflight <= 2  # description_gate held in-flight VLM calls to the cap
@@ -224,7 +222,7 @@ async def test_transformation_cache_dedups_identical_image(tmp_path):
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     # second identical image is a transformation-cache hit -> the VLM provider runs once
     assert llm.calls == 1
@@ -247,7 +245,7 @@ async def test_vlm_disabled_falls_back_to_metadata_only(tmp_path):
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     # VLM off: no routing to the pipeline, no VLM call, image recorded as metadata-only
     assert llm.calls == 0

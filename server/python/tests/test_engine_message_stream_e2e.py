@@ -85,12 +85,12 @@ class _FakeEmbed:
     model = "fake-model"
     version = "1"
 
-    def _key(self, text):
+    def key(self, text):
         import hashlib
 
         return "k:" + hashlib.sha1(text.encode()).hexdigest()
 
-    async def _embed_api(self, texts):
+    async def embed_api(self, texts):
         return [[0.1, 0.2] for _ in texts]
 
 
@@ -125,11 +125,11 @@ async def _build_engine(tmp_path):
     eng.infra.embed = _FakeEmbed()
     eng.infra.milvus = _FakeMilvus()
     eng.infra.tx_cache = _FakeTxCache()
-    eng._embed_idle_ms = 50
+    eng.pipeline._embed_idle_ms = 50
     await eng.infra.meta.connect()
     await eng.infra.meta.init_schema()
     await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")
-    eng._build_pipeline()
+    eng.pipeline._build_pipeline()
     return eng
 
 
@@ -153,13 +153,13 @@ async def test_message_stream_routes_through_pipeline(tmp_path):
 
     # extra success hook: prove the channel task finalizes exactly once
     finalized = Counter()
-    eng._embed_consumer.register_on_succeeded(lambda uri, j, *a: finalized.update([uri]))
+    eng.pipeline.embed_consumer.register_on_succeeded(lambda uri, j, *a: finalized.update([uri]))
 
     await asyncio.wait_for(
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     # two threads (A, B) -> two thread_aggregate chunks
@@ -215,7 +215,7 @@ async def test_long_thread_splits_into_subchunks(tmp_path):
         eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     rows = [r for batch in eng.infra.milvus.upserts for r in batch]
     assert len(rows) > 1  # one long thread split into multiple size-bounded sub-chunks

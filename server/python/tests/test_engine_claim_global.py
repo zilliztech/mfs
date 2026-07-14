@@ -63,12 +63,12 @@ class _FakeEmbed:
     model = "fake-model"
     version = "1"
 
-    def _key(self, text):
+    def key(self, text):
         import hashlib
 
         return "k:" + hashlib.sha1(text.encode()).hexdigest()
 
-    async def _embed_api(self, texts):
+    async def embed_api(self, texts):
         return [[0.1, 0.2] for _ in texts]
 
 
@@ -99,11 +99,11 @@ async def _build_engine(tmp_path):
     eng.infra.embed = _FakeEmbed()
     eng.infra.milvus = _FakeMilvus()
     eng.infra.tx_cache = _FakeTxCache()
-    eng._embed_idle_ms = 30
+    eng.pipeline._embed_idle_ms = 30
     await eng.infra.meta.connect()
     await eng.infra.meta.init_schema()
     await eng.infra.meta.execute("PRAGMA foreign_keys=OFF")
-    eng._build_pipeline()
+    eng.pipeline._build_pipeline()
     return eng
 
 
@@ -133,7 +133,7 @@ async def test_single_loop_drains_other_jobs_tasks(tmp_path):
         eng._run_job_loop("jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     # global proof: jobB's tasks were drained by the jobA-owned loop
     rows = await eng.infra.meta.fetchall(
@@ -165,7 +165,7 @@ async def test_claim_scoped_to_connector(tmp_path):
         eng._run_job_loop("job1", "c1", "file:///repo1", plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     rows = await eng.infra.meta.fetchall("SELECT object_uri, status FROM object_tasks")
     statuses = {r["object_uri"]: r["status"] for r in rows}
@@ -212,7 +212,7 @@ async def test_concurrent_loops_drain_both_jobs(tmp_path):
         ),
         timeout=15,
     )
-    await eng._embed_consumer.shutdown()
+    await eng.pipeline.embed_consumer.shutdown()
 
     rows = await eng.infra.meta.fetchall("SELECT object_uri, status FROM object_tasks")
     assert len(rows) == 8
