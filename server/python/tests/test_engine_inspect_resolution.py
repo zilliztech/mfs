@@ -23,7 +23,7 @@ async def test_inspect_matches_uploaded_child_uri_to_connector(tmp_path):
         staging = tmp_path / "staging"
         staging.mkdir()
         root_uri = "file://client-1/tmp/project"
-        await eng.register_or_get_connector(
+        await eng.ingest.register_or_get_connector(
             root_uri,
             "file",
             {"root": str(staging), "client_id": "client-1", "upload_mode": True},
@@ -48,7 +48,7 @@ async def test_inspect_matches_local_child_path_to_connector(tmp_path):
         child_path = nested / "app.py"
         child_path.write_text("print('hello')\n")
         root_uri = f"file://local{root}"
-        await eng.register_or_get_connector(
+        await eng.ingest.register_or_get_connector(
             root_uri,
             "file",
             {"root": str(root), "client_id": "local"},
