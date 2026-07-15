@@ -1,4 +1,4 @@
-"""Proof that _claim_batch pulls pending tasks across the JOBS of one connector (not just the
+"""Proof that claim_batch pulls pending tasks across the JOBS of one connector (not just the
 loop's own job), while staying scoped to that connector. Both jobs here belong to the SAME
 connector, so the loop's bound plugin processes every claimed task correctly; tasks of a
 different connector are NOT claimed (they need that connector's plugin — a cross-connector
@@ -130,7 +130,7 @@ async def test_single_loop_drains_other_jobs_tasks(tmp_path):
 
     # run ONE loop whose owning job is jobA; with the per-job filter gone it ALSO drains jobB.
     await asyncio.wait_for(
-        eng.ingest._run_job_loop("jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop("jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -162,7 +162,7 @@ async def test_claim_scoped_to_connector(tmp_path):
 
     # loop owns connector c1 only
     await asyncio.wait_for(
-        eng.ingest._run_job_loop("job1", "c1", "file:///repo1", plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop("job1", "c1", "file:///repo1", plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -207,12 +207,8 @@ async def test_concurrent_loops_drain_both_jobs(tmp_path):
     # jobB too.
     await asyncio.wait_for(
         asyncio.gather(
-            eng.ingest._run_job_loop(
-                "jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0
-            ),
-            eng.ingest._run_job_loop(
-                "jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0
-            ),
+            eng.ingest.run_job_loop("jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0),
+            eng.ingest.run_job_loop("jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0),
         ),
         timeout=15,
     )

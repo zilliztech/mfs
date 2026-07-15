@@ -1,7 +1,7 @@
 """IngestOrchestrator: end-to-end execution of a sync ingest job.
 
 Job pipeline:
-    add -> _open_sync_job -> _drain_job -> _run_job -> _finalize_job -> commit cursor
+    add -> open_sync_job -> drain_job -> run_job -> finalize_job -> commit cursor
           register          enumerate    map phase   terminal status
                             + dir tree   claim / retry / circuit-breaker / heartbeat
 
@@ -346,9 +346,9 @@ class IngestOrchestrator:
             else (json.loads(row0["config_json"]) if row0 and row0["config_json"] else cfg_dict)
         )
 
-        job_id = await self._open_sync_job(cid, process)
+        job_id = await self.open_sync_job(cid, process)
         try:
-            return await self._drain_job(
+            return await self.drain_job(
                 job_id, cid, connector_uri, ctype, stored_cfg, full, since, process
             )
         except Exception:
@@ -399,14 +399,14 @@ class IngestOrchestrator:
         await self._obj.insert_connector(cid, connector_uri, ctype, json.dumps(stored))
         return cid
 
-    async def _open_sync_job(self, cid: str, process: bool) -> str:
+    async def open_sync_job(self, cid: str, process: bool) -> str:
         """Reserve the one-in-flight-sync slot for a connector and inherit its
         leftover tasks. Raises connector_removing / sync_already_running. Callers
         that mutate state MUST call this before mutating, so a rejected sync leaves
         nothing half-applied."""
         return await self._obj.open_sync_job(cid, process)
 
-    async def _drain_job(
+    async def drain_job(
         self,
         job_id: str,
         cid: str,
@@ -432,7 +432,7 @@ class IngestOrchestrator:
             # Heartbeat during enumeration too, else a slow connector looks stale and
             # gets reclaimed mid-enumeration.
             stop_hb = asyncio.Event()
-            hb = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
+            hb = asyncio.create_task(self.heartbeat_loop(job_id, stop_hb))
             # Build this job's in-memory dir tree as sync() yields.
             self._pipeline.job_lane.register_job(job_id, connector_uri, plugin)
             try:
@@ -478,11 +478,11 @@ class IngestOrchestrator:
                 # enumeration, avoiding a worker finalizing it 'succeeded' pre-tasks.
                 await self._obj.queue_preparing_job(job_id)
                 return job_id
-            aborted = await self._run_job(job_id, cid, connector_uri, plugin)
+            aborted = await self.run_job(job_id, cid, connector_uri, plugin)
         except Exception as e:  # noqa: BLE001
             # Drop half-enqueued tasks and finalize 'failed' to free the slot.
             await self._obj.cancel_pending_tasks_for_job(job_id)
-            await self._finalize_job(job_id, f"sync_error: {e}")
+            await self.finalize_job(job_id, f"sync_error: {e}")
             raise
         finally:
             if plugin is not None:
@@ -490,13 +490,13 @@ class IngestOrchestrator:
                     await plugin.close()
                 except Exception:  # noqa: BLE001
                     pass
-        status = await self._finalize_job(job_id, aborted)
+        status = await self.finalize_job(job_id, aborted)
         # Commit the cursor only on a clean run; partial jobs get reconsidered next sync.
         if aborted is None and status == "succeeded":
             await ctx.state.commit()
         return job_id
 
-    async def _finalize_job(self, job_id: str, aborted: str | None) -> str:
+    async def finalize_job(self, job_id: str, aborted: str | None) -> str:
         """Set terminal job status + per-status object counts, then evict the Job
         Lane dir tree. Returns the terminal status."""
         status = await self._obj.finalize_job(job_id, aborted)
@@ -523,7 +523,7 @@ class IngestOrchestrator:
 
     # --- map-phase execution: claim / retry / circuit breaker / heartbeat ---
 
-    async def _claim_batch(self, limit: int, connector_id: str) -> list[dict]:
+    async def claim_batch(self, limit: int, connector_id: str) -> list[dict]:
         """Claim up to `limit` pending tasks for one connector, ordered by priority
         then age. Scoped per-connector because each task runs with this connector's
         plugin. The `change_kind != 'dir_summary'` guard excludes stray rows
@@ -531,7 +531,7 @@ class IngestOrchestrator:
         return await self._obj.claim_tasks(connector_id, limit)
 
     @staticmethod
-    def _classify_error(e: Exception) -> str:
+    def classify_error(e: Exception) -> str:
         """Classify an embedding/provider error as 'auth' (bad key, non-retryable),
         'quota' (exhausted, non-retryable), or 'retryable' (transient). 'auth'/'quota'
         are global: the caller aborts the whole job rather than grinding every object."""
@@ -552,7 +552,7 @@ class IngestOrchestrator:
             return "quota"
         return "retryable"
 
-    async def _process_with_retry(self, plugin, connector_uri: str, task: dict) -> str | None:
+    async def process_with_retry(self, plugin, connector_uri: str, task: dict) -> str | None:
         """Returns None on success, 'retryable_exhausted', 'skipped', or an
         embedding_* code. 'skipped' = a local per-object event (source vanished /
         type changed): recorded as status='skipped', breaker untouched."""
@@ -574,17 +574,17 @@ class IngestOrchestrator:
                 logger.info("object %s skipped (source disappeared mid-sync)", uri)
                 return "skipped"
             except Exception as e:  # noqa: BLE001
-                kind = self._classify_error(e)
+                kind = self.classify_error(e)
                 if kind in ("auth", "quota"):
                     # Global non-retryable failure: abort the whole job on first occurrence.
                     code = "embedding_auth_failed" if kind == "auth" else "embedding_quota_exceeded"
                     await self._obj.mark_task_failed(task["id"], f"{code}: {e}")
-                    self._warn_object_failed(connector_uri, task, e)
+                    self.warn_object_failed(connector_uri, task, e)
                     return code
                 if str(e).startswith("field_missing"):
                     # Deterministic [[objects]] config error: don't retry, fail fast.
                     await self._obj.mark_task_failed(task["id"], str(e))
-                    self._warn_object_failed(connector_uri, task, e)
+                    self.warn_object_failed(connector_uri, task, e)
                     return "retryable_exhausted"
                 if attempt < max_r:
                     # Reset per-task embed state before retry: the failed producer may
@@ -599,12 +599,12 @@ class IngestOrchestrator:
                     await _a.sleep(delay_ms / 1000)
                     continue
                 await self._obj.mark_task_failed(task["id"], str(e))
-                self._warn_object_failed(connector_uri, task, e)
+                self.warn_object_failed(connector_uri, task, e)
                 return "retryable_exhausted"
         return "retryable_exhausted"
 
     @staticmethod
-    def _warn_object_failed(connector_uri: str, task: dict, e: Exception) -> None:
+    def warn_object_failed(connector_uri: str, task: dict, e: Exception) -> None:
         """Log a WARNING naming the failed object + reason; object_tasks rows (and
         their last_error) are pruned after the job, so the aggregate count alone
         wouldn't say which object failed."""
@@ -614,14 +614,14 @@ class IngestOrchestrator:
             reason = reason[:297] + "..."
         logger.warning("object %s failed: %s", uri, reason)
 
-    async def _should_stop(self, job_id: str, cid: str) -> bool:
+    async def should_stop(self, job_id: str, cid: str) -> bool:
         """Stop the job if cancelled or its connector is being removed, so no Milvus
         writes happen after teardown begins."""
         if await self._obj.get_job_status(job_id) == "cancelled":
             return True
         return await self._obj.get_connector_status(cid) == "removing"
 
-    async def _heartbeat_loop(self, job_id: str, stop: asyncio.Event) -> None:
+    async def heartbeat_loop(self, job_id: str, stop: asyncio.Event) -> None:
         """Keep the job's heartbeat fresh on a fixed cadence while the worker holds
         it. Tying the heartbeat to this loop's liveness makes a stale heartbeat mean
         'worker process dead' (not 'one slow object')."""
@@ -632,19 +632,19 @@ class IngestOrchestrator:
             except asyncio.TimeoutError:
                 pass
 
-    async def _run_job(self, job_id: str, cid: str, connector_uri: str, plugin) -> str | None:
+    async def run_job(self, job_id: str, cid: str, connector_uri: str, plugin) -> str | None:
         """Returns None on normal completion, or a circuit-breaker reason string."""
         threshold = self._cfg.object_task.consecutive_fatal_threshold
         consec_fail = 0  # consecutive object failures (fatal OR retries exhausted)
         stop_hb = asyncio.Event()
-        hb_task = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
+        hb_task = asyncio.create_task(self.heartbeat_loop(job_id, stop_hb))
         try:
-            r = await self._run_job_loop(job_id, cid, connector_uri, plugin, threshold, consec_fail)
+            r = await self.run_job_loop(job_id, cid, connector_uri, plugin, threshold, consec_fail)
             if r is not None:
                 return r  # map phase aborted (cancel / circuit breaker)
             # Wait for the EmbedConsumer to write all pumped chunks + flip task
             # status before finalizing.
-            await self._await_map_drained(job_id)
+            await self.await_map_drained(job_id)
             if self._infra.summary.enabled and self._pipeline.job_lane is not None:
                 # Wait for all directory summaries to be computed + persisted before
                 # marking the job done.
@@ -658,7 +658,7 @@ class IngestOrchestrator:
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
                 pass
 
-    async def _await_map_drained(self, job_id: str) -> None:
+    async def await_map_drained(self, job_id: str) -> None:
         """Block until this job has no running map tasks (all pumped chunks written +
         status flipped by the success hook)."""
         while True:
@@ -666,23 +666,23 @@ class IngestOrchestrator:
                 return
             await asyncio.sleep(0.05)
 
-    async def _run_job_loop(
+    async def run_job_loop(
         self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int, consec_fail: int
     ) -> str | None:
         # Claim this connector's pending object_tasks (dir_summary is Job-Lane-owned,
         # not a task).
         while True:
-            if await self._should_stop(job_id, cid):
+            if await self.should_stop(job_id, cid):
                 return "cancelled"
-            tasks = await self._claim_batch(64, cid)
+            tasks = await self.claim_batch(64, cid)
             if not tasks:
                 break
             for t in tasks:
                 # Re-check the stop boundary before each task: a cancel/remove can
                 # land mid-batch.
-                if await self._should_stop(job_id, cid):
+                if await self.should_stop(job_id, cid):
                     return "cancelled"
-                r = await self._process_with_retry(plugin, connector_uri, t)
+                r = await self.process_with_retry(plugin, connector_uri, t)
                 if r is None:
                     # Inline okind done; only flip a task we still own (a task
                     # cancelled out from under us isn't revived to succeeded).

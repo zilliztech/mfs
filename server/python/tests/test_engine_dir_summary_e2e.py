@@ -146,7 +146,7 @@ async def test_dir_summary_reduce_subsystem(tmp_path):
     # Map phase: index the files. Their success hooks notify the Reduce subsystem.
     plugin = _FakeFilePlugin(_FILES)
     await asyncio.wait_for(
-        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     # block until every directory_summary is computed + persisted
@@ -211,7 +211,7 @@ async def test_binary_file_does_not_wedge_reduce(tmp_path):
 
     plugin = _FakeFilePlugin(files)
     await asyncio.wait_for(
-        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     # would hang here if the binary's parent pending were stuck
