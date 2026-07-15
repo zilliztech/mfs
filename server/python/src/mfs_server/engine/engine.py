@@ -13,23 +13,20 @@ import json
 import logging
 import os
 import re
-import time
 import uuid
-from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 
 from ..common.converter import CONVERT_EXTS
 from ..common.retrieval import build_filter, collapse_results, to_envelope
 from ..config import ServerConfig
 from ..connectors.base import SyncOptions
-from ..connectors.registry import get_plugin_cls
 from ..storage.file_state import FileStateStore
-from ..storage.ids import chunk_id
 from ..storage.milvus import MILVUS_MAX_RESULT_WINDOW
 from .components import ConnectorFactory, ConnectorLocator, CredentialService
 from .components.artifact_cache import ArtifactCacheService
-from .components.object_repository import ObjectRepository, TaskStatus
+from .components.object_repository import ObjectRepository
 from .infra import InfraStack
+from .ingest import IngestOrchestrator
 from .pipeline_supervisor import PipelineSupervisor
 from .producers.render import render_record, resolve_path
 from .state import ConnectorStateStore
@@ -40,33 +37,8 @@ _HEAD_CACHE_N = 100  # rows pre-cached per structured object to speed `head`
 _BARE_CAT_MAX_BYTES = 5 * 1024 * 1024  # bare `cat` (no range) rejects objects larger than this
 _GREP_LINEAR_SCAN_MAX = 200  # cap on not-indexed files a single grep scans linearly
 _JOB_STALE_AFTER_S = 120  # no heartbeat for this long => worker presumed dead
-_HEARTBEAT_INTERVAL_S = 10  # worker refreshes its job heartbeat this often (<< stale)
 _WORKER_CONNECT_TIMEOUT_S = 30  # bound plugin.connect() in the worker so a hanging/unreachable
 # connector fails its job cleanly instead of blocking the single in-process worker forever
-
-# Local, per-object events that aren't systemic failures: the source disappeared
-# (file deleted mid-sync), or its path type changed (file <-> dir under us). These
-# happen normally when a user edits / git-checkouts / cleans up while `mfs add` runs,
-# so they must NOT retry and must NOT count toward consecutive_fatal_threshold. The
-# circuit breaker exists to stop on "the source is systemically broken" (auth/rate
-# limit/network), not on "I lost a few files".
-_PER_OBJECT_SKIP_ERRORS: tuple = (
-    FileNotFoundError,
-    NotADirectoryError,
-    IsADirectoryError,
-)
-
-
-def _normalize_json(s: str) -> str:
-    """Sort-key + strip-whitespace normalize a JSON object string so two configs
-    with identical contents but different key ordering / whitespace compare
-    equal. Used to detect real config drift vs cosmetic re-serialization."""
-    import json as _json
-
-    try:
-        return _json.dumps(_json.loads(s), sort_keys=True, separators=(",", ":"))
-    except (ValueError, TypeError):
-        return s
 
 
 def _now() -> str:
@@ -143,6 +115,14 @@ class Engine:
         self.pipeline = PipelineSupervisor(
             cfg, self.infra, self.artifacts, self.objects, self.connector_factory
         )
+        # IngestOrchestrator owns end-to-end sync-job execution (register -> drain ->
+        # map-phase process -> index -> finalize -> cancel). bind_remover wires the
+        # add-failure rollback to Engine.remove_connector (stage-5 ConnectorManager
+        # will swap in its own .remove).
+        self.ingest = IngestOrchestrator(
+            cfg, self.infra, self.connector_factory, self.pipeline, self.objects, self.artifacts
+        )
+        self.ingest.bind_remover(self.remove_connector)
 
     async def startup(self, *, preload_local_models: bool = False) -> None:
         # Infra connect + schema + optional model preload, then the pipeline process singletons
@@ -182,59 +162,6 @@ class Engine:
         # lives in the single security entry point; this keeps the old call sites.
         return CredentialService.redact(value, key_is_secret)
 
-    async def register_or_get_connector(
-        self,
-        connector_uri: str,
-        ctype: str,
-        config: dict,
-        overwrite_config: bool = False,
-        config_explicit: bool = True,
-    ) -> str:
-        import json
-
-        # reject plaintext secrets outright — redact() is defense-in-depth, not the
-        # gate; a rejected literal here can never round-trip into a stored
-        # placeholder that a later rebuild mistakes for a real credential.
-        self.connector_factory.validate_credentials(config)
-        stored = self.connector_factory.redact(config)
-        row = await self.objects.get_connector_id_and_config_by_uri(connector_uri)
-        if row:
-            # `mfs connector update --config` re-registers an existing connector: refresh
-            # its stored config so changed text_fields / scope / credential_ref take effect.
-            # `mfs add --config` on an already-registered connector persists the new config
-            # and WARNs about the indexing implication, rather than silently dropping it.
-            # Existing chunks are NOT re-embedded
-            # under the new config until the user re-syncs with --force-index. The
-            # warning is suppressed when nothing actually changed (same config dict
-            # passed by the upload-mode staging shortcut on every call).
-            new_json = json.dumps(stored, sort_keys=True)
-            old_json = row["config_json"] or "{}"
-            drift = _normalize_json(new_json) != _normalize_json(old_json)
-            if drift and not config_explicit:
-                # --config was omitted entirely: `config` here is just a URI-derived
-                # default, not something the caller asked for. Persisting it would
-                # silently drop the real stored config (credentials, schemas,
-                # [[objects]] mappings) with zero warning — refuse instead of
-                # guessing. Nothing has been written yet at this point.
-                raise ValueError("config_required")
-            if overwrite_config or drift:
-                await self.objects.update_connector_config(row["id"], json.dumps(stored))
-                if drift and not overwrite_config:
-                    # Count what's actually at risk so the warning is concrete
-                    # rather than scary boilerplate.
-                    indexed = await self.objects.count_indexed_objects(row["id"])
-                    logger.warning(
-                        "--config differs from stored config for %s; persisted, but %d "
-                        "existing indexed object(s) retain the OLD config until you re-sync "
-                        "with `mfs add --force-index`.",
-                        connector_uri,
-                        indexed,
-                    )
-            return row["id"]
-        cid = uuid.uuid4().hex
-        await self.objects.insert_connector(cid, connector_uri, ctype, json.dumps(stored))
-        return cid
-
     @staticmethod
     def _resolve_ref(v):
         # Thin delegate to ConnectorFactory (CredentialService.resolve). Kept as a
@@ -260,175 +187,12 @@ class Engine:
     ) -> str:
         """Register + sync + enqueue tasks. process=True (AIO default): run the job
         inline and return when done. process=False: leave the job 'queued' for a
-        standalone worker to pick up via run_worker_*(). On an already-
-        registered connector, --config is ignored unless update_config (change
-        config via `mfs connector update`, not a re-sync)."""
-        import json
-
-        _, connector_uri, ctype, default_config = self._resolve_target(target)
-        # --since requires the plugin to actually filter records by opts.since.
-        # cursor_kind only names which field the plugin's own delta logic uses;
-        # since_pushdown is the explicit "I honor opts.since" opt-in. Reject
-        # early on connectors that lack it — better than silently full-scanning
-        # and letting the user believe --since worked.
-        if since:
-            cls = get_plugin_cls(ctype)
-            if cls is not None and not getattr(cls.CAPABILITIES, "since_pushdown", False):
-                raise ValueError("since_unsupported")
-        # merge user config OVER the resolved defaults so a local path keeps its
-        # auto {root, client_id} while still accepting [[objects]]/schemas/credential_ref.
-        cfg_dict = {**default_config, **config} if config is not None else default_config
-        # Validate against the connector's CONFIG_SCHEMA (if any) before any
-        # connection is attempted -- a wrong-typed or unrecognized field should
-        # be a clean, named error here, not a raw exception surfacing later
-        # deep in the plugin's own connect()/read path.
-        self.connector_factory.validate_config(ctype, cfg_dict)
-        existing_connector = await self.objects.get_connector_id_by_uri(connector_uri)
-        cid = await self.register_or_get_connector(
-            connector_uri,
-            ctype,
-            cfg_dict,
-            overwrite_config=update_config,
-            config_explicit=config is not None,
+        standalone worker to pick up via run_worker_*(). On an already-registered
+        connector, --config is ignored unless update_config (change config via
+        `mfs connector update`, not a re-sync)."""
+        return await self.ingest.add(
+            target, config, full=full, since=since, process=process, update_config=update_config
         )
-        row0 = await self.objects.get_connector_config_and_status(cid)
-        if row0 and row0["status"] == "removing":
-            raise ValueError("connector_removing")
-        # this session uses the caller's full config (raw secrets intact); the persisted copy
-        # is redacted. A later re-sync/worker rebuild reads the persisted config and resolves
-        # secrets from credential_ref (env) — so persistent runs must use credential_ref.
-        stored_cfg = (
-            cfg_dict
-            if config is not None
-            else (json.loads(row0["config_json"]) if row0 and row0["config_json"] else cfg_dict)
-        )
-
-        job_id = await self._open_sync_job(cid, process)
-        try:
-            return await self._drain_job(
-                job_id, cid, connector_uri, ctype, stored_cfg, full, since, process
-            )
-        except Exception:
-            if existing_connector is None:
-                with suppress(Exception):
-                    await self.remove_connector(connector_uri)
-            raise
-
-    async def _open_sync_job(self, cid: str, process: bool) -> str:
-        """Reserve the one-in-flight-sync slot for a connector and inherit
-        its leftover tasks. Raises connector_removing / sync_already_running. Callers that
-        mutate state (e.g. upload) MUST call this BEFORE mutating, so a rejected sync leaves
-        nothing half-applied. Thin delegate to ObjectRepository.open_sync_job (which owns the
-        connector_removing guard, the unique-constraint -> sync_already_running mapping, and
-        the leftover-task reopen)."""
-        return await self.objects.open_sync_job(cid, process)
-
-    async def _drain_job(
-        self,
-        job_id: str,
-        cid: str,
-        connector_uri: str,
-        ctype: str,
-        stored_cfg: dict,
-        full: bool,
-        since: str | None,
-        process: bool,
-    ) -> str:
-        """Run a reserved sync job: enumerate (plugin.sync) -> enqueue object_tasks ->
-        process inline (process=True) or leave queued for a worker."""
-        plugin = None
-        ctx = None
-        aborted: str | None = None
-        try:
-            # build/connect/enumerate are all inside the try: if any of them raises (e.g. a
-            # real filesystem permission error during plugin.sync()), the reserved job would
-            # otherwise stay 'running' (process=True) or 'queued' (process=False) forever,
-            # and the connector's next sync would hit ux_jobs_one_* -> sync_already_running.
-            plugin, ctx = self._build_plugin(ctype, stored_cfg, cid)
-            await plugin.connect()
-            opts = SyncOptions(full=full, since=since)
-            # Keep the job's heartbeat warm during enumeration too: a slow-enumerating
-            # connector would otherwise look stale and be reclaimed mid-enumeration (the
-            # job is 'running'/'preparing' here with no other heartbeat source).
-            stop_hb = asyncio.Event()
-            hb = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
-            # Job Lane: build this job's in-memory dir tree as sync() yields (§6.4).
-            self.pipeline.job_lane.register_job(job_id, connector_uri, plugin)
-            try:
-                async for ch in plugin.sync(opts):
-                    if ch.kind == "deleted" and (
-                        ctx.enumeration_mode == "incremental"
-                        or getattr(plugin.CAPABILITIES, "delete_detection", "") == "never"
-                    ):
-                        # only the unsafe 'incremental' mode skips deletes; 'full' (diff) and
-                        # 'explicit_only' (yielded events, e.g. upload) honor them
-                        continue  # never-delete connectors (slack/gmail) keep the index
-                    tid = uuid.uuid4().hex
-                    # a user [[objects]] `priority =` match overrides the connector's own
-                    # task_priority() default (e.g. file's README/tests/vendor buckets).
-                    user_priority = plugin.ctx.object_config_for(ch.uri).priority
-                    await self.objects.insert_task(
-                        tid,
-                        job_id,
-                        cid,
-                        ch.uri,
-                        ch.old_uri,
-                        ch.kind,
-                        user_priority if user_priority is not None else plugin.task_priority(ch),
-                    )
-                    if ch.kind != "deleted":
-                        # Accumulate the dir tree (okind passed in — no extra DB hit, §6.4.1).
-                        # We only register pipeline okinds: those are the foldable children a
-                        # directory summary draws on. A non-pipeline okind (binary, image with
-                        # [description] off, table_schema with [summary] off) would fold to
-                        # nothing anyway, so it is skipped. (Files do not gate a dir, so this is
-                        # purely about what the summary folds — not about completion accounting.)
-                        okind = plugin.object_kind_of(ch.uri)
-                        if self.pipeline.routes_to_pipeline(okind):
-                            self.pipeline.job_lane.on_yield_object_change(job_id, ch.uri, okind)
-            finally:
-                stop_hb.set()
-                hb.cancel()
-                try:
-                    await hb
-                except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                    pass
-            # sync enumeration finished: finalize the dir tree (pushes every leaf dir; parents
-            # are pushed bottom-up as their sub-dir summaries land). Done for both inline and
-            # enqueue models so an in-process worker can drain the summaries later.
-            self.pipeline.job_lane.on_sync_done(job_id)
-            if not process:
-                # enqueue model: stash staged state on the job; the worker commits it only
-                # after the job succeeds, so a failed background job doesn't
-                # advance the cursor past objects that never got indexed.
-                await self.objects.set_job_state_snapshot(job_id, json.dumps(ctx.state.snapshot()))
-                # ONLY NOW expose the job to workers: it was 'preparing' (unclaimable) during
-                # enumeration, so a worker couldn't claim it, find zero tasks, and finalize it
-                # 'succeeded' before the tasks above were inserted (lost-task race).
-                await self.objects.queue_preparing_job(job_id)
-                return job_id
-            aborted = await self._run_job(job_id, cid, connector_uri, plugin)
-        except Exception as e:  # noqa: BLE001
-            # drop the half-enqueued (incomplete enumeration) tasks and finalize the job
-            # 'failed' so the in-flight slot is freed, then re-raise for the caller/API.
-            await self.objects.cancel_pending_tasks_for_job(job_id)
-            await self._finalize_job(job_id, f"sync_error: {e}")
-            raise
-        finally:
-            if plugin is not None:
-                try:
-                    await plugin.close()
-                except Exception:  # noqa: BLE001
-                    pass
-        status = await self._finalize_job(job_id, aborted)
-        # only commit the cursor on a fully clean run -- a partial job's failed
-        # objects (and the successful ones alongside them) get reconsidered on
-        # the next sync rather than the cursor skipping past them. Each
-        # connector's own fingerprint check keeps that cheap (already-succeeded
-        # objects get skipped quickly; only the failed ones redo real work).
-        if aborted is None and status == "succeeded":
-            await ctx.state.commit()
-        return job_id
 
     async def ingest_upload(
         self, name: str, data: bytes, fmt: str = "tar", process: bool = True
@@ -474,7 +238,7 @@ class Engine:
                 #                               staging (zip-slip via a directory, not a file)
             # reserve the sync slot BEFORE mutating staging/file_state (so a rejected sync —
             # sync_already_running — leaves nothing half-applied), then stage the tree.
-            job_id = await self._open_sync_job(cid, process)
+            job_id = await self.ingest._open_sync_job(cid, process)
             tf.extractall(staging)  # validated above
             for m in members:
                 if m.isdir():
@@ -487,7 +251,9 @@ class Engine:
                 )
         crow = await self.objects.get_connector_config(cid)
         stored_cfg = json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
-        await self._drain_job(job_id, cid, connector_uri, "file", stored_cfg, False, None, process)
+        await self.ingest._drain_job(
+            job_id, cid, connector_uri, "file", stored_cfg, False, None, process
+        )
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
 
     # --- manifest-diff upload protocol: stable identity
@@ -504,7 +270,7 @@ class Engine:
         original local path; the bytes physically live in a server-side staging dir."""
         staging = self._staging_root(client_id, root)
         connector_uri = f"file://{client_id}{root}"
-        cid = await self.register_or_get_connector(
+        cid = await self.ingest.register_or_get_connector(
             connector_uri, "file", {"root": staging, "client_id": client_id, "upload_mode": True}
         )
         return staging, connector_uri, cid
@@ -615,7 +381,7 @@ class Engine:
             # bundle fully validated in temp; NOW reserve the sync slot. If a sync is
             # already in flight this raises sync_already_running and the staging area +
             # file_state are still untouched.
-            job_id = await self._open_sync_job(cid, process)
+            job_id = await self.ingest._open_sync_job(cid, process)
 
             # --- apply to staging + file_state (status='staged') ---
             for r in renames:  # 1) renames: verify server sha1, mv, carry file_state
@@ -671,43 +437,16 @@ class Engine:
         stored_cfg = _json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
         # full=True (--force-index / --force-upload): upload-mode sync also re-yields the
         # already-indexed staging rows so a forced rebuild re-embeds the whole tree.
-        await self._drain_job(job_id, cid, connector_uri, "file", stored_cfg, full, None, process)
+        await self.ingest._drain_job(
+            job_id, cid, connector_uri, "file", stored_cfg, full, None, process
+        )
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
-
-    async def _finalize_job(self, job_id: str, aborted: str | None) -> str:
-        """Set terminal job status + per-status object counts. Thin delegate to
-        ObjectRepository.finalize_job (which owns the cancelled > partial > failed >
-        succeeded terminal selection + the counts UPDATE); the Job Lane dir tree is
-        evicted unconditionally afterward (§6.4.6). Returns the terminal status."""
-        status = await self.objects.finalize_job(job_id, aborted)
-        # job reached a terminal state: free the Job Lane's in-memory dir tree (§6.4.6)
-        if self.pipeline.job_lane is not None:
-            self.pipeline.job_lane.evict_job(job_id)
-        return status
 
     # --- standalone worker: poll DB queue, process queued jobs ---
     async def cancel_job(self, job_id: str) -> bool:
         """Cancel a job: mark it + its pending/running tasks cancelled. A running
-        worker stops at the next per-object boundary (checked in _run_job). That
-        boundary is between objects, not within one -- a single large object already
-        mid-embed keeps running regardless, so also tell the embed consumer so its
-        NEXT flush (not the one already in flight) skips this job's chunks instead
-        of spending real embed time on work that will never be written.
-
-        cancel_job_row's UPDATE is guarded on the non-terminal statuses and its
-        rowcount is the source of truth for the return value -- concurrent cancels
-        of the same job both see it as cancellable in the initial read below, but
-        only the one whose UPDATE actually flips the row gets True back."""
-        status = await self.objects.get_job_status(job_id)
-        if not status or status in ("succeeded", "partial", "failed", "cancelled"):
-            return False
-        won = await self.objects.cancel_job_row(job_id)
-        if not won:
-            return False
-        await self.objects.cancel_pending_running_tasks_for_job(job_id)
-        if self.pipeline.embed_consumer is not None:
-            self.pipeline.embed_consumer.mark_job_cancelled(job_id)
-        return True
+        worker stops at the next per-object boundary (checked in ingest._run_job)."""
+        return await self.ingest.cancel_job(job_id)
 
     async def _claim_queued_job(self) -> dict | None:
         """Atomically claim the oldest queued job. Multi-worker safe: the claim is a
@@ -735,8 +474,8 @@ class Engine:
             # no longer resolve) must fail THIS job cleanly, not block the single in-process
             # sqlite worker forever — one bad connector cannot be allowed to wedge all ingest.
             await asyncio.wait_for(plugin.connect(), timeout=_WORKER_CONNECT_TIMEOUT_S)
-            aborted = await self._run_job(job["id"], cid, connector_uri, plugin)
-            await self._finalize_job(job["id"], aborted)
+            aborted = await self.ingest._run_job(job["id"], cid, connector_uri, plugin)
+            await self.ingest._finalize_job(job["id"], aborted)
             # commit the deferred connector state only on a FULLY clean run: a
             # failed/cancelled/partial job leaves the cursor where it was, so a
             # partial job's failed objects (and the successful ones alongside
@@ -839,247 +578,6 @@ class Engine:
 
         await asyncio.gather(*[_loop() for _ in range(n)])
 
-    async def _claim_batch(self, limit: int, connector_id: str) -> list[dict]:
-        """Claim up to `limit` pending tasks for ONE connector, ordered by priority then age,
-        so a worker coroutine picks up the highest-priority pending task across that connector's
-        jobs (a late high-priority job interleaves with an older one). The `change_kind !=
-        'dir_summary'` clause is a defensive guard: dir_summary is never enqueued as an
-        object_task — the Job Lane (§3.5) owns it entirely — so it only excludes a
-        stray row.
-
-        Scoped to connector_id because the worker loop processes each claimed task with the
-        plugin bound to THIS connector. A global claim would hand another connector's task to
-        the wrong plugin, reading the wrong source; a true cross-connector worker pool needs
-        per-task plugin resolution, which is a separate change. Per-connector parallelism is
-        preserved: each connector's drain runs its own loop(s).
-
-        Thin delegate to ObjectRepository.claim_tasks (conditional UPDATE guarded on
-        status='pending'; returns only rows this worker flipped, so concurrent workers never
-        double-process a task)."""
-        return await self.objects.claim_tasks(connector_id, limit)
-
-    @staticmethod
-    def _classify_error(e: Exception) -> str:
-        """Classify an embedding/provider error:
-          'auth'      — bad/unauthorized key (OpenAI 401 / AuthenticationError)
-          'quota'     — billing/quota exhausted (insufficient_quota / 402)
-          'retryable' — transient (429 rate-limit / 5xx / timeout)
-        'auth' and 'quota' are GLOBAL and non-retryable: a known-bad key or empty balance
-        fails identically for every object, so the caller aborts the whole job with the
-        documented embedding_auth_failed / embedding_quota_exceeded code instead of grinding
-        each object (and masking the run as a 0-indexed 'succeeded')."""
-        m = str(e).lower()
-        nm = type(e).__name__.lower()
-        auth_markers = (
-            "invalid_api_key",
-            "invalid x-api-key",
-            "authentication",
-            "unauthorized",
-            "permission denied",
-            "401",
-        )
-        if any(k in m for k in auth_markers) or "authentication" in nm or "permissiondenied" in nm:
-            return "auth"
-        # quota exhausted is distinct from a transient 429 rate-limit (which stays retryable):
-        # OpenAI signals it with insufficient_quota; 402 is payment-required.
-        if "insufficient_quota" in m or "402" in m:
-            return "quota"
-        return "retryable"
-
-    async def _process_with_retry(self, plugin, connector_uri: str, task: dict) -> str | None:
-        """Returns None on success, 'fatal', 'retryable_exhausted', or 'skipped'.
-        'skipped' means a local per-object event (source disappeared, path type changed)
-        — the object is recorded as status='skipped' and the breaker is left alone."""
-        import asyncio as _a
-
-        max_r = self.cfg.object_task.max_retries
-        for attempt in range(max_r + 1):
-            try:
-                # None = inline okind done (caller marks succeeded); "deferred" = pipeline
-                # okind whose completion is flipped async by the EmbedConsumer success hook.
-                return await self._index_object(plugin, connector_uri, task)
-            except _PER_OBJECT_SKIP_ERRORS as e:
-                # Source vanished / type changed mid-sync. No point retrying (the file
-                # really is gone), and counting this toward the consecutive-fatal breaker
-                # would let a `git checkout` / cleanup of 5+ files nuke a 500-file job
-                # (D53). Record as 'skipped' so it's visible in object_tasks without
-                # inflating failed_objects.
-                await self.objects.mark_task_skipped(
-                    task["id"], f"{type(e).__name__}: source disappeared mid-sync"
-                )
-                uri = f"{connector_uri}{task.get('object_uri', '')}"
-                logger.info("object %s skipped (source disappeared mid-sync)", uri)
-                return "skipped"
-            except Exception as e:  # noqa: BLE001
-                kind = self._classify_error(e)
-                if kind in ("auth", "quota"):
-                    # Global, non-retryable provider failure: return the documented code so
-                    # _run_job_loop aborts the whole job (status=failed, error=<code>) on the
-                    # first occurrence rather than retrying or marking the run 'succeeded'.
-                    code = "embedding_auth_failed" if kind == "auth" else "embedding_quota_exceeded"
-                    await self.objects.mark_task_failed(task["id"], f"{code}: {e}")
-                    self._warn_object_failed(connector_uri, task, e)
-                    return code
-                if str(e).startswith("field_missing"):
-                    # Deterministic [[objects]] config error (text_field key absent from the
-                    # records) — retrying re-reads the same records to no avail. Fail this
-                    # object immediately with the documented code so the user fixes the config.
-                    await self.objects.mark_task_failed(task["id"], str(e))
-                    self._warn_object_failed(connector_uri, task, e)
-                    return "retryable_exhausted"
-                if attempt < max_r:
-                    # A pipeline okind whose producer raised may have pumped partial chunks +
-                    # bookkeeping into the EmbedConsumer before failing. Reset that per-task
-                    # state so the re-pump below behaves like a fresh attempt (§6.1): runs
-                    # delete_by_object again and counts only the retry's chunks.
-                    if self.pipeline.embed_consumer is not None:
-                        self.pipeline.embed_consumer.on_task_retry(task["id"])
-                    # exponential backoff capped at backoff_max_ms: a flat
-                    # initial-only sleep ignored backoff_max_ms entirely and hammered a
-                    # rate-limited provider at a fixed cadence.
-                    delay_ms = min(
-                        self.cfg.object_task.backoff_initial_ms * (2**attempt),
-                        self.cfg.object_task.backoff_max_ms,
-                    )
-                    await _a.sleep(delay_ms / 1000)
-                    continue
-                await self.objects.mark_task_failed(task["id"], str(e))
-                self._warn_object_failed(connector_uri, task, e)
-                return "retryable_exhausted"
-        return "retryable_exhausted"
-
-    @staticmethod
-    def _warn_object_failed(connector_uri: str, task: dict, e: Exception) -> None:
-        """One-line server-log WARNING when an object is finally marked failed. object_tasks
-        rows (and their last_error) are pruned after the job, so without this a user only sees
-        the aggregate `failed_objects: N` with no way to learn which object failed or why.
-        Pairs with the 'Milvus backend:' / dim-mismatch startup logs."""
-        uri = f"{connector_uri}{task.get('object_uri', '')}"
-        reason = f"{type(e).__name__}: {e}".replace("\n", " ").strip()
-        if len(reason) > 300:
-            reason = reason[:297] + "..."
-        logger.warning("object %s failed: %s", uri, reason)
-
-    async def _should_stop(self, job_id: str, cid: str) -> bool:
-        """A task boundary must stop the job if it was cancelled OR its connector is being
-        removed — so no _index_object runs (writing Milvus) after teardown begins."""
-        if await self.objects.get_job_status(job_id) == "cancelled":
-            return True
-        return await self.objects.get_connector_status(cid) == "removing"
-
-    async def _heartbeat_loop(self, job_id: str, stop: asyncio.Event) -> None:
-        """Keep a job's heartbeat fresh for the WHOLE time a worker holds it, on a fixed
-        cadence independent of how long any single object takes. A per-task-only refresh
-        let a single object slower than the stale window (large PDF convert + embed) look
-        like a dead worker, so remove()/reclaim would cancel the job and tear the connector
-        down mid-write — the orphan-chunk race again. Tying the heartbeat to this coroutine's
-        liveness makes 'fresh heartbeat' mean exactly 'worker process alive': if the worker
-        dies the loop stops with it and the heartbeat goes stale (the intended signal)."""
-        while not stop.is_set():
-            await self.objects.refresh_heartbeat(job_id)
-            try:
-                await asyncio.wait_for(stop.wait(), timeout=_HEARTBEAT_INTERVAL_S)
-            except asyncio.TimeoutError:
-                pass
-
-    async def _run_job(self, job_id: str, cid: str, connector_uri: str, plugin) -> str | None:
-        """Returns None on normal completion, or a circuit-breaker reason string.
-        Consecutive fatal failures abort the job."""
-        threshold = self.cfg.object_task.consecutive_fatal_threshold
-        consec_fail = 0  # consecutive object failures (fatal OR retries exhausted)
-        stop_hb = asyncio.Event()
-        hb_task = asyncio.create_task(self._heartbeat_loop(job_id, stop_hb))
-        try:
-            r = await self._run_job_loop(job_id, cid, connector_uri, plugin, threshold, consec_fail)
-            if r is not None:
-                return r  # map phase aborted (cancel / circuit breaker)
-            # The pump enqueued every map task without blocking; wait for the
-            # EmbedConsumer to write them and flip their object_tasks status, so the job isn't
-            # finalized before its chunks are in Milvus (§6.1) and the dir tree's file
-            # notifications have all fired.
-            await self._await_map_drained(job_id)
-            if self.infra.summary.enabled and self.pipeline.job_lane is not None:
-                # Job Lane (§3.5): the dir tree was accumulated during sync and is driven
-                # bottom-up by the SummaryWorker pool (sub-dirs before parents), in parallel
-                # with the Object Lane. Block until every directory_summary for this job is
-                # computed AND persisted,
-                # so the job isn't marked succeeded before its summaries are in Milvus.
-                await self.pipeline.job_lane.await_done(job_id)
-            return None
-        finally:
-            stop_hb.set()
-            hb_task.cancel()
-            try:
-                await hb_task
-            except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                pass
-
-    async def _await_map_drained(self, job_id: str) -> None:
-        """Block until this job has no still-running map tasks — i.e. the EmbedConsumer has
-        written every pumped task's chunks and the success hook flipped it to a terminal
-        status. The heartbeat (held by _run_job) stays warm meanwhile; the consumer's idle
-        flush guarantees forward progress so this can't wedge while the consumer is alive."""
-        while True:
-            if await self.objects.count_running_tasks(job_id) == 0:
-                return
-            await asyncio.sleep(0.05)
-
-    async def _run_job_loop(
-        self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int, consec_fail: int
-    ) -> str | None:
-        # Object Lane claims this connector's pending object_tasks. dir_summary is not an
-        # object_task — the Job Lane owns it (§3.5), driven by the success notifications.
-        while True:
-            if await self._should_stop(job_id, cid):
-                return "cancelled"
-            tasks = await self._claim_batch(64, cid)
-            if not tasks:
-                break
-            for t in tasks:
-                # re-check the stop boundary before EACH task (not just per batch): a
-                # concurrent cancel/remove can land mid-batch, and we must not keep writing
-                # chunks for a connector being torn down. The heartbeat
-                # is kept warm by the background _heartbeat_loop, so even a multi-minute
-                # single object won't be mistaken for a dead worker.
-                if await self._should_stop(job_id, cid):
-                    return "cancelled"
-                r = await self._process_with_retry(plugin, connector_uri, t)
-                if r is None:
-                    # inline okind (deleted/renamed/binary/metadata-only) done synchronously.
-                    # only flip a task we still own: a conditional UPDATE means a task that
-                    # was cancelled out from under us (remove/cancel) is NOT revived to succeeded.
-                    await self.objects.advance_task(
-                        t["id"], TaskStatus.SUCCEEDED, from_status=TaskStatus.RUNNING
-                    )
-                    consec_fail = 0
-                elif r == "deferred":
-                    # pipeline okind: chunks enqueued; the EmbedConsumer success hook flips this
-                    # task to 'succeeded' once they're written. The pump does NOT block or mark.
-                    consec_fail = 0
-                elif r == "skipped":
-                    # Per-object local event (source vanished / type changed); the row was
-                    # already marked status='skipped' inside _process_with_retry. We DID
-                    # make forward progress on the job (this object is no longer pending),
-                    # so reset the breaker — otherwise a bursty wave of `rm`s would slowly
-                    # accumulate consec_fail across many objects and still trip it later.
-                    consec_fail = 0
-                elif r in ("embedding_auth_failed", "embedding_quota_exceeded"):
-                    # Global, non-retryable failure (bad key / no quota): abort the whole job
-                    # at once with the documented code — every object would fail identically,
-                    # so grinding them (or finishing 'succeeded' with 0 indexed) just hides it.
-                    await self.objects.cancel_pending_running_tasks_for_job(job_id)
-                    return r
-                else:
-                    # retryable_exhausted counts toward the breaker: a provider that rate-limits
-                    # (429) or times out on every object is classified retryable, and without
-                    # counting it the job would grind the whole connector, burning
-                    # (max_retries+1) calls per object.
-                    consec_fail += 1
-                    if consec_fail >= threshold:
-                        await self.objects.cancel_pending_running_tasks_for_job(job_id)
-                        return "circuit_breaker_tripped"
-        return None
-
     async def _read_text(self, plugin, relpath: str) -> str:
         return (await self._read_bytes(plugin, relpath)).decode("utf-8", errors="replace")
 
@@ -1119,115 +617,6 @@ class Engine:
     async def _evict_artifacts_if_needed(self, ns: str) -> int:
         # Thin delegate to ArtifactCacheService.
         return await self.artifacts.evict_if_needed(ns)
-
-    async def _index_object(self, plugin, connector_uri: str, task: dict) -> None:
-        """Handle one object_task. Change-kind branches (deleted / renamed) run inline here;
-        indexable objects that route to the pipeline are produced + embedded asynchronously
-        (returns 'deferred'); everything else falls to the metadata-only tail. Per-object
-        atomic: delete_by_object then upsert all of this object's chunks (§6.1)."""
-        relpath = task["object_uri"]
-        kind = task["change_kind"]
-        cid = task["connector_id"]
-        ns = self.ns
-        full_uri = connector_uri + relpath
-
-        if kind == "deleted":
-            await self.objects.delete_object_row(cid, relpath)
-            await asyncio.to_thread(self.infra.milvus.delete_by_object, ns, connector_uri, full_uri)
-            await self._drop_artifacts(ns, full_uri)  # purge cached artifact bytes too
-            await plugin.on_object_deleted(relpath)
-            return
-
-        if kind == "renamed" and task["old_uri"]:
-            old_full = connector_uri + task["old_uri"]
-            # rename = chunk_id rewrite, REUSE vectors (zero re-embed)
-            old_chunks = await asyncio.to_thread(
-                self.infra.milvus.get_chunks_by_object, ns, connector_uri, old_full
-            )
-            if old_chunks:
-                rows = []
-                for ch in old_chunks:
-                    loc = ch.get("locator")
-                    rows.append(
-                        {
-                            "chunk_id": chunk_id(
-                                ns, connector_uri, full_uri, ch["chunk_kind"], loc
-                            ),
-                            "namespace_id": ns,
-                            "connector_uri": connector_uri,
-                            "object_uri": full_uri,
-                            "locator": loc,
-                            "content": ch["content"],
-                            "dense_vec": ch["dense_vec"],
-                            "chunk_kind": ch["chunk_kind"],
-                            "metadata": ch.get("metadata") or {},
-                            "indexed_at": ch.get("indexed_at") or int(time.time() * 1000),
-                        }
-                    )
-                await asyncio.to_thread(
-                    self.infra.milvus.delete_by_object, ns, connector_uri, old_full
-                )
-                await asyncio.to_thread(self.infra.milvus.upsert, ns, rows)
-                await self.artifacts.rename_artifacts(ns, old_full, full_uri)
-                st = await plugin.stat(relpath)
-                await self.objects.delete_object_row(cid, task["old_uri"])
-                await self.objects.write_object_row(cid, relpath, st, True, "indexed", len(rows))
-                await plugin.on_object_indexed(relpath)
-                return  # reused vectors — no chunk/embed
-            # fallback (old had no chunks): drop refs, index new normally below
-            await asyncio.to_thread(self.infra.milvus.delete_by_object, ns, connector_uri, old_full)
-            await self.objects.delete_object_row(cid, task["old_uri"])
-
-        st = await plugin.stat(relpath)
-        okind = plugin.object_kind_of(relpath)
-        chunk_count = 0
-        search_status = "not_indexed"
-        top_cfg = plugin.ctx.object_config_for(relpath)
-        # `indexable` is binary-vs-not by object_kind, AND can be opted out per
-        # [[objects]] config indexable=false: record the object so it
-        # shows in ls/inspect, but skip all chunk/embed/Milvus work.
-        indexable = okind not in ("binary",) and top_cfg.indexable
-
-        if not indexable:
-            pass  # binary / opted-out: metadata-only, no chunk/embed (gated below)
-        elif self.pipeline.routes_to_pipeline(okind):
-            # Pipeline path (§3.1 / §3.2): document/code via TextChunksProducer, image via
-            # ImageChunksProducer, etc. The Chunk stream is embedded + upserted by the process-
-            # level EmbedConsumer; delete_by_object is done once by the consumer (first chunk).
-            # The objects-table row + on_object_indexed are written by _on_object_indexed
-            # when the consumer reports the task done, so stash the per-object context and
-            # return before the shared inline tail.
-            self.pipeline.stash_finalize(
-                full_uri,
-                (
-                    cid,
-                    connector_uri,
-                    relpath,
-                    st,
-                    indexable,
-                    plugin,
-                    task["id"],
-                ),
-            )
-            await self.pipeline.pump(plugin, connector_uri, relpath, full_uri, okind, task)
-            # "deferred": the producer chunks are enqueued; the EmbedConsumer success hook
-            # (_on_object_indexed) writes the objects row + flips status when they land.
-            # _run_job_loop must NOT mark this task succeeded — its chunks aren't written yet.
-            return "deferred"
-
-        # Directory summaries are NOT produced here per enumerated object. They are built
-        # bottom-up by the independent Job Lane (engine/job_lane/, §3.5) from the
-        # in-memory dir tree, so a parent folder's summary can fold in its children's summaries.
-
-        # Inline tail — only reached for NON-pipeline okinds (pipeline okinds return early
-        # above; their objects row is written by _on_object_indexed).
-        if chunk_count == 0:
-            # A rebuild that produced no chunks (object became binary / indexable=false /
-            # document emptied / empty VLM or summary) must still purge chunks from a previous
-            # index, else search keeps returning stale content.
-            await asyncio.to_thread(self.infra.milvus.delete_by_object, ns, connector_uri, full_uri)
-        await self._write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
-        await plugin.on_object_indexed(relpath)
 
     # --- search ---
     async def _has_registered_search_scope(self, connector_uri: str | None) -> bool:

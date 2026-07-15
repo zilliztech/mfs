@@ -56,7 +56,7 @@ def _stat(rel: str) -> PathStat:
 
 
 async def _seed_connector(eng: Engine, root_uri: str) -> str:
-    return await eng.register_or_get_connector(
+    return await eng.ingest.register_or_get_connector(
         root_uri, "file", {"root": "/x", "client_id": "local"}
     )
 

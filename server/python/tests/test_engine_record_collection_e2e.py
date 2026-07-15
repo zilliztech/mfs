@@ -155,7 +155,7 @@ async def test_record_collection_routes_to_pipeline(tmp_path):
     eng.pipeline.embed_consumer.register_on_succeeded(lambda uri, j, *a: finalized.update([uri]))
 
     await asyncio.wait_for(
-        eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -192,7 +192,7 @@ async def test_table_rows_uses_same_record_producer(tmp_path):
     await _seed(eng, job_id=job_id, cid=cid, object_uri="/public.users")
 
     await asyncio.wait_for(
-        eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -217,7 +217,7 @@ async def test_streaming_emits_multiple_batches(tmp_path):
     await _seed(eng, job_id=job_id, cid=cid, object_uri="/issues")
 
     await asyncio.wait_for(
-        eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=15,
     )
     await eng.pipeline.embed_consumer.shutdown()

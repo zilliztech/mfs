@@ -130,7 +130,7 @@ async def test_single_loop_drains_other_jobs_tasks(tmp_path):
 
     # run ONE loop whose owning job is jobA; with the per-job filter gone it ALSO drains jobB.
     await asyncio.wait_for(
-        eng._run_job_loop("jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop("jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -162,7 +162,7 @@ async def test_claim_scoped_to_connector(tmp_path):
 
     # loop owns connector c1 only
     await asyncio.wait_for(
-        eng._run_job_loop("job1", "c1", "file:///repo1", plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop("job1", "c1", "file:///repo1", plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -207,8 +207,12 @@ async def test_concurrent_loops_drain_both_jobs(tmp_path):
     # jobB too.
     await asyncio.wait_for(
         asyncio.gather(
-            eng._run_job_loop("jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0),
-            eng._run_job_loop("jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0),
+            eng.ingest._run_job_loop(
+                "jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0
+            ),
+            eng.ingest._run_job_loop(
+                "jobA", cid, connector_uri, plugin, threshold=5, consec_fail=0
+            ),
         ),
         timeout=15,
     )

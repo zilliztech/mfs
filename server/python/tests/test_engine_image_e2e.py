@@ -154,7 +154,7 @@ async def test_image_routes_through_pipeline(tmp_path):
     await _seed(eng, job_id=job_id, cid=cid, files=files)
 
     await asyncio.wait_for(
-        eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -219,7 +219,7 @@ async def test_transformation_cache_dedups_identical_image(tmp_path):
     await _seed(eng, job_id=job_id, cid=cid, files=files)
 
     await asyncio.wait_for(
-        eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -242,7 +242,7 @@ async def test_vlm_disabled_falls_back_to_metadata_only(tmp_path):
     await _seed(eng, job_id=job_id, cid=cid, files=files)
 
     await asyncio.wait_for(
-        eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()

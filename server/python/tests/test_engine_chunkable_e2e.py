@@ -145,7 +145,7 @@ async def test_chunkable_path_drains_through_pipeline(tmp_path):
     plugin = _FakeFilePlugin(_FILES)
 
     await asyncio.wait_for(
-        eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -215,7 +215,7 @@ async def test_text_blob_routes_to_pipeline(tmp_path):
     )
 
     await asyncio.wait_for(
-        eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -244,7 +244,7 @@ async def test_empty_document_marks_not_indexed_and_purges(tmp_path):
     )
 
     await asyncio.wait_for(
-        eng._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()

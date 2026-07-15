@@ -49,7 +49,7 @@ async def test_remove_rejects_registered_child_path(tmp_path):
         root = tmp_path / "repo"
         (root / "src").mkdir(parents=True)
         root_uri = f"file://local{root}"
-        await eng.register_or_get_connector(
+        await eng.ingest.register_or_get_connector(
             root_uri,
             "file",
             {"root": str(root), "client_id": "local"},
