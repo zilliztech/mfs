@@ -148,7 +148,7 @@ async def test_table_schema_routes_to_pipeline(tmp_path):
     await _seed(eng, job_id=job_id, cid=cid, object_uri="/public.users")
 
     await asyncio.wait_for(
-        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -176,7 +176,7 @@ async def test_table_schema_summary_disabled_metadata_only(tmp_path):
     await _seed(eng, job_id=job_id, cid=cid, object_uri="/public.users")
 
     await asyncio.wait_for(
-        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()

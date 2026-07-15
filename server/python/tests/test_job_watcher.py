@@ -103,7 +103,7 @@ async def test_cancel_cleans_pending_and_evicts(tmp_path):
 
 async def test_watcher_does_not_trip_breaker_on_failures(tmp_path):
     # The watcher is reconciliation only — it does NOT fail jobs on a cumulative failed count.
-    # The circuit breaker lives in _run_job_loop (consecutive failures). A running job with
+    # The circuit breaker lives in run_job_loop (consecutive failures). A running job with
     # failures AND still-pending work must be left running by the watcher.
     meta = await _meta(tmp_path)
     j = await _job(meta, status="running")
@@ -124,7 +124,7 @@ async def test_watcher_does_not_trip_breaker_on_failures(tmp_path):
 
 async def test_all_tasks_terminal_with_failures_completes(tmp_path):
     # When every task is terminal (some failed, none live) the job is a normal completion ->
-    # 'succeeded' (partial-success; failed_objects is recorded by _finalize_job, not here).
+    # 'succeeded' (partial-success; failed_objects is recorded by finalize_job, not here).
     meta = await _meta(tmp_path)
     j = await _job(meta, status="running")
     await _task(meta, j, status="failed")

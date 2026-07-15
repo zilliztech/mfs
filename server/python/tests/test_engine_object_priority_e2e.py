@@ -1,6 +1,6 @@
 """End-to-end: a user `[[objects]] priority=` override changes the processing order of a
 real `add()` on a real file connector — drives the actual `plugin.sync()` enumeration +
-`_drain_job` task insertion, no fakes on that path. Verifies both that the override lands
+`drain_job` task insertion, no fakes on that path. Verifies both that the override lands
 on the right objects and that untouched objects still fall back to the connector's own
 `task_priority()` buckets (§6.3), and that the DB claim order (priority ASC, existing
 behavior) reflects it end to end."""

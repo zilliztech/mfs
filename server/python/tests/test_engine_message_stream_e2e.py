@@ -156,7 +156,7 @@ async def test_message_stream_routes_through_pipeline(tmp_path):
     eng.pipeline.embed_consumer.register_on_succeeded(lambda uri, j, *a: finalized.update([uri]))
 
     await asyncio.wait_for(
-        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -212,7 +212,7 @@ async def test_long_thread_splits_into_subchunks(tmp_path):
     )
 
     await asyncio.wait_for(
-        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()

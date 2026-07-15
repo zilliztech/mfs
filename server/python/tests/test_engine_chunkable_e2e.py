@@ -1,6 +1,6 @@
 """End-to-end: engine drains document/code ObjectTasks through the NEW pipeline path.
 
-Drives the real Engine worker loop (`_run_job_loop`) with a fake file connector and fake
+Drives the real Engine worker loop (`run_job_loop`) with a fake file connector and fake
 Milvus / embedder / tx_cache (no live network, no real embedding model). Asserts the
 producer -> chunks_q -> EmbedConsumer path embeds + upserts body chunks, preserves heading
 boundaries, deletes once per object (§6.1), and flips tasks to 'succeeded' in sqlite.
@@ -145,7 +145,7 @@ async def test_chunkable_path_drains_through_pipeline(tmp_path):
     plugin = _FakeFilePlugin(_FILES)
 
     await asyncio.wait_for(
-        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -215,7 +215,7 @@ async def test_text_blob_routes_to_pipeline(tmp_path):
     )
 
     await asyncio.wait_for(
-        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()
@@ -244,7 +244,7 @@ async def test_empty_document_marks_not_indexed_and_purges(tmp_path):
     )
 
     await asyncio.wait_for(
-        eng.ingest._run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
+        eng.ingest.run_job_loop(job_id, cid, connector_uri, plugin, threshold=5, consec_fail=0),
         timeout=10,
     )
     await eng.pipeline.embed_consumer.shutdown()

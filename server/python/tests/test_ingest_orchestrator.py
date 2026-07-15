@@ -3,9 +3,9 @@
 Covers the NEW structure introduced by the extraction: the Engine->ingest wiring +
 ``bind_remover`` back-reference, and ``ObjectIndexer``'s four exits (deleted /
 renamed-reuse / renamed-empty-fallthrough / pipeline 'deferred' / metadata-only).
-The moved methods (``add`` / ``_drain_job`` / ``_run_job`` / ``_process_with_retry``
+The moved methods (``add`` / ``drain_job`` / ``run_job`` / ``process_with_retry``
 / ...) are behavior-covered by the existing E2E suite (``test_engine_*.py``), which
-now drives ``eng.ingest._run_job_loop`` etc.; this file adds structural unit cover for
+now drives ``eng.ingest.run_job_loop`` etc.; this file adds structural unit cover for
 the new dispatch + back-reference.
 """
 
@@ -64,7 +64,7 @@ class _RecArtifacts:
 class _FakeInfra:
     def __init__(self, milvus) -> None:
         self.milvus = milvus
-        # _run_job reads self._infra.summary.enabled; not exercised by indexer tests
+        # run_job reads self._infra.summary.enabled; not exercised by indexer tests
 
 
 class _FakePipeline:

@@ -238,7 +238,7 @@ class Engine:
                 #                               staging (zip-slip via a directory, not a file)
             # reserve the sync slot BEFORE mutating staging/file_state (so a rejected sync —
             # sync_already_running — leaves nothing half-applied), then stage the tree.
-            job_id = await self.ingest._open_sync_job(cid, process)
+            job_id = await self.ingest.open_sync_job(cid, process)
             tf.extractall(staging)  # validated above
             for m in members:
                 if m.isdir():
@@ -251,7 +251,7 @@ class Engine:
                 )
         crow = await self.objects.get_connector_config(cid)
         stored_cfg = json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
-        await self.ingest._drain_job(
+        await self.ingest.drain_job(
             job_id, cid, connector_uri, "file", stored_cfg, False, None, process
         )
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
@@ -381,7 +381,7 @@ class Engine:
             # bundle fully validated in temp; NOW reserve the sync slot. If a sync is
             # already in flight this raises sync_already_running and the staging area +
             # file_state are still untouched.
-            job_id = await self.ingest._open_sync_job(cid, process)
+            job_id = await self.ingest.open_sync_job(cid, process)
 
             # --- apply to staging + file_state (status='staged') ---
             for r in renames:  # 1) renames: verify server sha1, mv, carry file_state
@@ -437,7 +437,7 @@ class Engine:
         stored_cfg = _json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
         # full=True (--force-index / --force-upload): upload-mode sync also re-yields the
         # already-indexed staging rows so a forced rebuild re-embeds the whole tree.
-        await self.ingest._drain_job(
+        await self.ingest.drain_job(
             job_id, cid, connector_uri, "file", stored_cfg, full, None, process
         )
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
@@ -445,7 +445,7 @@ class Engine:
     # --- standalone worker: poll DB queue, process queued jobs ---
     async def cancel_job(self, job_id: str) -> bool:
         """Cancel a job: mark it + its pending/running tasks cancelled. A running
-        worker stops at the next per-object boundary (checked in ingest._run_job)."""
+        worker stops at the next per-object boundary (checked in ingest.run_job)."""
         return await self.ingest.cancel_job(job_id)
 
     async def _claim_queued_job(self) -> dict | None:
@@ -474,8 +474,8 @@ class Engine:
             # no longer resolve) must fail THIS job cleanly, not block the single in-process
             # sqlite worker forever — one bad connector cannot be allowed to wedge all ingest.
             await asyncio.wait_for(plugin.connect(), timeout=_WORKER_CONNECT_TIMEOUT_S)
-            aborted = await self.ingest._run_job(job["id"], cid, connector_uri, plugin)
-            await self.ingest._finalize_job(job["id"], aborted)
+            aborted = await self.ingest.run_job(job["id"], cid, connector_uri, plugin)
+            await self.ingest.finalize_job(job["id"], aborted)
             # commit the deferred connector state only on a FULLY clean run: a
             # failed/cancelled/partial job leaves the cursor where it was, so a
             # partial job's failed objects (and the successful ones alongside
@@ -914,15 +914,15 @@ class Engine:
             connector_uri = matched["root_uri"]
         # preempt any in-flight sync. Mark 'removing' (new syncs ->
         # connector_removing; a running worker observes it at its next task boundary via
-        # _should_stop and exits). Cancel only the not-yet-started work (queued job +
+        # should_stop and exits). Cancel only the not-yet-started work (queued job +
         # pending tasks). Crucially DON'T flip the running job ourselves — its status
-        # leaving 'running' is the signal that the worker has exited _run_job and no
+        # leaving 'running' is the signal that the worker has exited run_job and no
         # _index_object is mid-write; only then is it safe to delete the data.
         await self.objects.set_connector_removing(cid)
         await self.objects.cancel_pending_tasks_for_connector(cid)
         await self.objects.cancel_queued_preparing_jobs(cid)
-        # Wait for the worker to leave 'running' — that transition (set in _finalize_job
-        # after _run_job's loop exits) is the proof the last _index_object's Milvus upsert
+        # Wait for the worker to leave 'running' — that transition (set in finalize_job
+        # after run_job's loop exits) is the proof the last _index_object's Milvus upsert
         # has completed, so it's the only safe moment to delete. Don't bound this by wall
         # clock (the old ~10s cap would delete out from under an object still mid-write,
         # re-opening the orphan-chunk race); instead trust the heartbeat. A live worker
