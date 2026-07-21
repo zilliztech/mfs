@@ -1,10 +1,12 @@
 """UploadService: tar + manifest-diff upload protocol.
 
-Extracted verbatim from the Engine god-class (engine-redesign §4.7 stage 5).
-Method bodies are unchanged; only `self.<dep>` resolution targets moved (see
-docs-dev/engine-redesign-read-upload.md §3.3). BundleValidator / StagingLocator
-extraction and the shared five-step Template Method are follow-up (§2.5) -
-this round is pure relocation to preserve behavior.
+Extracted from the Engine god-class (engine-redesign §4.7 stage 5). Stage-5
+relocation landed in c10db97; this round (stage 6 follow-up) extracts
+BundleValidator (tar probe + zip-slip guard) and StagingLocator (staging path +
+connector registration) as standalone classes, plus a shared _drain_after_upload
+tail (partial Template Method). The staging-step bodies (extractall vs
+renames/bytes/deletions) stay inline - they differ enough that a shared
+template would risk behavior drift (left as a future follow-up).
 """
 
 from __future__ import annotations
@@ -35,6 +37,69 @@ def _validate_upload_member(m) -> None:
         raise ValueError(f"unsafe path in archive: {rel}")
 
 
+class BundleValidator:
+    """Validate an upload bundle IS a readable, non-empty tar BEFORE registering
+    a connector, so a garbage / empty bundle returns a clean 400 and leaves no
+    residual connector behind. zip-slip / links / unsafe paths raise here.
+
+    require_meta=False (tar snapshot): every member is member-validated.
+    require_meta=True (manifest-diff): `.mfs-meta.json` is checked to be a file
+    and parsed; other members are member-validated. Returns (members, meta|None)."""
+
+    @staticmethod
+    def validate(data: bytes, *, require_meta: bool = False):
+        import io
+        import json as _json
+        import tarfile
+
+        try:
+            with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as probe:
+                members = probe.getmembers()
+                if not members:
+                    raise ValueError("invalid or empty upload bundle")
+                for m in members:
+                    if require_meta and m.name == ".mfs-meta.json":
+                        if not m.isfile():
+                            raise ValueError("invalid upload metadata")
+                        continue
+                    _validate_upload_member(m)
+                meta = None
+                if require_meta:
+                    mm = next((m for m in members if m.name == ".mfs-meta.json"), None)
+                    if mm:
+                        meta = _json.loads(probe.extractfile(mm).read().decode())
+        except tarfile.TarError as e:
+            raise ValueError("invalid or empty upload bundle") from e
+        return members, meta
+
+
+class StagingLocator:
+    """Staging path + connector registration. The connector's stable identity is
+    file://<client_id><client-abs-root> so the user can later search / remove by
+    the original local path; the bytes physically live in a server-side staging dir."""
+
+    def __init__(self, infra, ns, ingest):
+        self._infra = infra
+        self._ns = ns
+        self._ingest = ingest
+
+    def root(self, client_id: str, root: str) -> str:
+        import hashlib
+
+        sub = hashlib.sha1(f"{client_id}:{root}".encode()).hexdigest()[:16]
+        return os.path.realpath(str(self._infra.artifact_cache.files_root(self._ns, sub)))
+
+    async def connector(self, client_id: str, root: str):
+        staging = self.root(client_id, root)
+        connector_uri = f"file://{client_id}{root}"
+        cid = await self._ingest.register_or_get_connector(
+            connector_uri,
+            "file",
+            {"root": staging, "client_id": client_id, "upload_mode": True},
+        )
+        return staging, connector_uri, cid
+
+
 class UploadService:
     """CS upload (tar snapshot) + manifest-diff upload (byte-diff + index-diff).
     Reuses the already-public IngestOrchestrator entrypoints (register_or_get_connector /
@@ -46,6 +111,19 @@ class UploadService:
         self._objects = objects
         self._ingest = ingest
         self._ns = cfg.namespace
+        self._locator = StagingLocator(infra, self._ns, ingest)
+
+    async def _drain_after_upload(
+        self, cid: str, connector_uri: str, job_id: str, full: bool, process: bool
+    ) -> None:
+        """Shared tail: read the stored config then drain the sync job. full=True
+        (--force-index / --force-upload) re-yields already-indexed staging rows so
+        a forced rebuild re-embeds the whole tree."""
+        crow = await self._objects.get_connector_config(cid)
+        stored_cfg = json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
+        await self._ingest.drain_job(
+            job_id, cid, connector_uri, "file", stored_cfg, full, None, process
+        )
 
     async def ingest_upload(
         self, name: str, data: bytes, fmt: str = "tar", process: bool = True
@@ -60,20 +138,9 @@ class UploadService:
         import io
         import tarfile
 
-        # Validate the body IS a readable, non-empty tar BEFORE registering a connector, so a
-        # garbage / empty bundle returns a clean 400 and leaves no residual connector behind
-        # (a non-tar throws tarfile.ReadError; an all-zero body parses as an empty archive).
-        try:
-            with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as _probe:
-                members = _probe.getmembers()
-                if not members:
-                    raise ValueError("invalid or empty upload bundle")
-                for m in members:
-                    _validate_upload_member(m)
-        except tarfile.TarError as e:
-            raise ValueError("invalid or empty upload bundle") from e
+        members, _meta = BundleValidator.validate(data)
 
-        staging, connector_uri, cid = await self._staging_connector(name, "")
+        staging, connector_uri, cid = await self._locator.connector(name, "")
         fs = FileStateStore(self._infra.meta, self._ns, cid)
 
         def _safe(rel: str) -> str:
@@ -102,37 +169,14 @@ class UploadService:
                 await fs.upsert(
                     _norm_rel(m.name), st.st_size, st.st_mtime_ns, st.st_ino, sha1, status="staged"
                 )
-        crow = await self._objects.get_connector_config(cid)
-        stored_cfg = json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
-        await self._ingest.drain_job(
-            job_id, cid, connector_uri, "file", stored_cfg, False, None, process
-        )
+        await self._drain_after_upload(cid, connector_uri, job_id, False, process)
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}
-
-    # --- manifest-diff upload protocol: stable identity
-    #     file://<client_id><abs-root>, byte-diff + index-diff both on the file_state table ---
-    def _staging_root(self, client_id: str, root: str) -> str:
-        import hashlib
-
-        sub = hashlib.sha1(f"{client_id}:{root}".encode()).hexdigest()[:16]
-        return os.path.realpath(str(self._infra.artifact_cache.files_root(self._ns, sub)))
-
-    async def _staging_connector(self, client_id: str, root: str):
-        """(staging_dir, connector_uri, connector_id). The connector's stable identity is
-        file://<client_id><client-abs-root> so the user can later search / remove by the
-        original local path; the bytes physically live in a server-side staging dir."""
-        staging = self._staging_root(client_id, root)
-        connector_uri = f"file://{client_id}{root}"
-        cid = await self._ingest.register_or_get_connector(
-            connector_uri, "file", {"root": staging, "client_id": client_id, "upload_mode": True}
-        )
-        return staging, connector_uri, cid
 
     async def files_manifest(self, client_id: str, root: str, files: list[dict]) -> dict:
         """Step ②: diff the client's stat-only manifest against the
         server-side file_state (the same table the file connector uses) and return which
         paths' bytes are needed + deletion candidates (with sha1/inode for rename pairing)."""
-        staging, connector_uri, cid = await self._staging_connector(client_id, root)
+        staging, connector_uri, cid = await self._locator.connector(client_id, root)
         fs = FileStateStore(self._infra.meta, self._ns, cid)
         # file_state stores connector-relative paths with a leading '/' (same convention as
         # the file connector, so object_uri = connector_uri + path joins cleanly); the client
@@ -173,27 +217,9 @@ class UploadService:
         import tarfile
         import tempfile
 
-        # Validate the bundle IS a readable, non-empty tar BEFORE registering a connector, so a
-        # garbage / empty bundle returns a clean 400 and leaves no residual connector behind
-        # (a non-tar throws tarfile.ReadError; an all-zero body parses as an empty archive).
-        try:
-            with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:*") as _probe:
-                members = _probe.getmembers()
-                if not members:
-                    raise ValueError("invalid or empty upload bundle")
-                for m in members:
-                    if m.name == ".mfs-meta.json":
-                        if not m.isfile():
-                            raise ValueError("invalid upload metadata")
-                        continue
-                    _validate_upload_member(m)
-                mm = next((m for m in members if m.name == ".mfs-meta.json"), None)
-                if mm:
-                    _json.loads(_probe.extractfile(mm).read().decode())
-        except tarfile.TarError as e:
-            raise ValueError("invalid or empty upload bundle") from e
+        _members, meta = BundleValidator.validate(bundle, require_meta=True)
 
-        staging, connector_uri, cid = await self._staging_connector(client_id, root)
+        staging, connector_uri, cid = await self._locator.connector(client_id, root)
         fs = FileStateStore(self._infra.meta, self._ns, cid)
 
         def _safe(base: str, rel: str) -> str:
@@ -286,11 +312,5 @@ class UploadService:
                     )
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-        crow = await self._objects.get_connector_config(cid)
-        stored_cfg = _json.loads(crow["config_json"]) if crow and crow["config_json"] else {}
-        # full=True (--force-index / --force-upload): upload-mode sync also re-yields the
-        # already-indexed staging rows so a forced rebuild re-embeds the whole tree.
-        await self._ingest.drain_job(
-            job_id, cid, connector_uri, "file", stored_cfg, full, None, process
-        )
+        await self._drain_after_upload(cid, connector_uri, job_id, full, process)
         return {"job_id": job_id, "connector_uri": connector_uri, "staging": staging}

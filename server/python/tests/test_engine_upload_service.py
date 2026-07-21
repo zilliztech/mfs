@@ -89,19 +89,19 @@ def _build_upload():
 
 def test_staging_root_calls_files_root_with_sha1_sub():
     up = _build_upload()
-    root = up._staging_root("client-1", "/repo")
+    root = up._locator.root("client-1", "/repo")
     expected_sub = hashlib.sha1("client-1:/repo".encode()).hexdigest()[:16]
-    assert up._infra.artifact_cache.calls[-1][1] == expected_sub
+    assert up._locator._infra.artifact_cache.calls[-1][1] == expected_sub
     assert isinstance(root, str)
     assert "staging" in root
 
 
 async def test_staging_connector_registers_file_connector_with_stable_uri():
     up = _build_upload()
-    staging, connector_uri, cid = await up._staging_connector("client-1", "/repo")
+    staging, connector_uri, cid = await up._locator.connector("client-1", "/repo")
     assert cid == "cid-fake"
     assert connector_uri == "file://client-1/repo"
-    assert up._ingest.register_calls == [
+    assert up._locator._ingest.register_calls == [
         (
             "file://client-1/repo",
             "file",
