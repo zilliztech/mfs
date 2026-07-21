@@ -165,8 +165,8 @@ async def test_engine_forwards_to_ingest(tmp_path):
         assert eng.ingest._art is eng.artifacts
         assert eng.ingest._infra is eng.infra
         assert eng.ingest._ns == eng.ns
-        # __init__ wired bind_remover to Engine.remove_connector
-        assert eng.ingest._remove_connector == eng.remove_connector
+        # __init__ wired bind_remover to connector_manager.remove_connector
+        assert eng.ingest._remove_connector == eng.connector_manager.remove_connector
     finally:
         await eng.infra.meta.close()
 

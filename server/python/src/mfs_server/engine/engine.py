@@ -8,25 +8,19 @@ per-object atomic writes + job inheritance + circuit breaker.
 
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
-import os
-import uuid
-from datetime import datetime, timedelta, timezone
 
 from ..config import ServerConfig
-from ..connectors.base import SyncOptions
-from .components import ConnectorFactory, ConnectorLocator, CredentialService
+from .components import ConnectorFactory, CredentialService
 from .components.artifact_cache import ArtifactCacheService
 from .components.object_repository import ObjectRepository
 from .components.reads import ReadService
 from .components.upload import UploadService
 from .infra import InfraStack
 from .ingest import IngestOrchestrator
+from .manage import ConnectorManager
 from .pipeline_supervisor import PipelineSupervisor
-from .producers.render import render_record
-from .worker import WorkerScheduler, _JOB_STALE_AFTER_S
+from .worker import WorkerScheduler
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +52,6 @@ class Engine:
         self.ingest = IngestOrchestrator(
             cfg, self.infra, self.connector_factory, self.pipeline, self.objects, self.artifacts
         )
-        self.ingest.bind_remover(self.remove_connector)
         # ReadService owns the read path (search/ls/cat/head/tail/grep/export/resolve_connector_uri).
         # Locators (open_path/match_connector) are ReadService public methods connecting directly
         # to ConnectorFactory + ObjectRepository - no reverse reference to Engine (D1).
@@ -74,6 +67,12 @@ class Engine:
         self.worker = WorkerScheduler(
             cfg, self.infra, self.connector_factory, self.objects, self.ingest
         )
+        # ConnectorManager: probe/estimate/inspect/remove. bind_remover now wires the
+        # add-failure rollback directly to connector_manager.remove.
+        self.connector_manager = ConnectorManager(
+            cfg, self.infra, self.connector_factory, self.objects, self.artifacts
+        )
+        self.ingest.bind_remover(self.connector_manager.remove_connector)
 
     async def startup(self, *, preload_local_models: bool = False) -> None:
         # Infra connect + schema + optional model preload, then the pipeline process singletons
@@ -95,14 +94,7 @@ class Engine:
         await self.objects.write_object_row(cid, relpath, st, indexable, search_status, chunk_count)
 
     # --- target resolution (file-only path) ---
-    def _resolve_target(self, target: str) -> tuple[str, str, str, dict]:
-        # Thin delegate to ConnectorFactory (dispatches to the plugin class's
-        # derive_target). Kept on Engine to preserve the original signature /
-        # call sites.
-        r = self.connector_factory.resolve_target(target)
-        return r.ctype, r.connector_uri, r.scheme, r.config
 
-    @classmethod
     def _is_secret_key(cls, key: str) -> bool:
         # Thin delegate to ConnectorFactory (CredentialService).
         return CredentialService.is_secret_key(key)
@@ -119,12 +111,6 @@ class Engine:
         # staticmethod for the original call sites; the single security entry point
         # does the actual env:/file:/secret:/vault: handling.
         return CredentialService.resolve(v)
-
-    def _build_plugin(self, ctype: str, config: dict, connector_id: str):
-        # Thin delegate to ConnectorFactory (PluginBuilder). Returns the original
-        # (plugin, ctx) tuple so all call sites stay unchanged.
-        built = self.connector_factory.build_plugin(ctype, config, connector_id)
-        return built.plugin, built.ctx
 
     # --- add (register + sync + worker) ---
     async def add(
@@ -166,15 +152,6 @@ class Engine:
     async def run_worker_forever(self, *a, **kw):
         return await self.worker.run_forever(*a, **kw)
 
-    async def _read_text(self, plugin, relpath: str) -> str:
-        return (await self._read_bytes(plugin, relpath)).decode("utf-8", errors="replace")
-
-    async def _read_bytes(self, plugin, relpath: str) -> bytes:
-        buf = bytearray()
-        async for chunk in plugin.read(relpath):
-            buf += chunk
-        return bytes(buf)
-
     # --- artifact cache: bytes on the local filesystem + a metadata row
     #     in artifact_cache, with LRU size eviction ---
     async def _put_artifact(
@@ -214,280 +191,22 @@ class Engine:
     async def resolve_connector_uri(self, *a, **kw):
         return await self.reads.resolve_connector_uri(*a, **kw)
 
-    async def _resolve_readonly_config(
-        self, ctype: str, connector_uri: str, config: dict | None, default_config: dict
-    ) -> dict:
-        """Config resolution shared by probe()/estimate(). When `--config` is
-        omitted, reuse an already-registered connector's stored config (as
-        inspect() does) instead of silently falling back to a URI-derived
-        default — for schemes where the URI alone can't reconstruct real
-        connection info (postgres/mysql/mongo/s3/web), that default is `{}`,
-        which produces a connection to nothing meaningful (e.g. postgres
-        falling through to libpq's OS-user ambient defaults) while still
-        reporting a real-looking failure, misleading the caller into thinking
-        their actual registered connector is broken.
-
-        Also validates the resolved config against CONFIG_SCHEMA (if the
-        connector declares one) before returning — probe/estimate are
-        supposed to be a safe pre-flight check, so a bad config should be
-        caught here too, not just at add/update time."""
-        if config is not None:
-            cfg_dict = {**default_config, **config}
-        else:
-            row = await self.objects.get_connector_id_and_config_by_uri(connector_uri)
-            cfg_dict = (
-                json.loads(row["config_json"]) if row and row["config_json"] else default_config
-            )
-        self.connector_factory.validate_config(ctype, cfg_dict)
-        return cfg_dict
-
     # --- connector management: probe / inspect / remove ---
-    async def probe(self, target: str, config: dict | None = None) -> dict:
-        """Try-connect a connector without registering or writing state."""
-        _, connector_uri, ctype, default_config = self._resolve_target(target)
-        plugin = None
-        try:
-            # Resolve + validate config INSIDE the guard, same as the build/connect
-            # below: a config validation error is a user config error just like a
-            # missing/unresolvable env:/file: ref — it must come back as ok=false
-            # like a failed connect/auth, not escape to the generic 500 handler.
-            # NotImplementedError (an uninstalled connector extra) is intentionally
-            # NOT caught here so it still renders as the 501 not_available envelope.
-            cfg_dict = await self._resolve_readonly_config(
-                ctype, connector_uri, config, default_config
-            )
-            plugin, _ = self._build_plugin(ctype, cfg_dict, "probe-" + uuid.uuid4().hex)
-            await plugin.connect()
-            hs = await plugin.healthcheck()
-            return {"target": connector_uri, "type": ctype, "ok": hs.ok, "detail": hs.detail}
-        except NotImplementedError:
-            raise
-        except Exception as e:  # noqa: BLE001
-            return {"target": connector_uri, "type": ctype, "ok": False, "detail": str(e)}
-        finally:
-            if plugin is not None:
-                try:
-                    await plugin.close()
-                except Exception:  # noqa: BLE001
-                    pass
+    async def probe(self, *a, **kw):
+        return await self.connector_manager.probe(*a, **kw)
 
-    async def estimate(
-        self,
-        target: str,
-        config: dict | None = None,
-        since: str | None = None,
-        sample_objects: int = 3,
-        sample_records: int = 1000,
-    ) -> dict:
-        """Zero-billing pre-flight estimate: enumerate the object set
-        (metadata-only) and run the chunker + local tokenizer on a small sample to
-        extrapolate physical work (chunks / tokens). Never calls the embedding API or
-        writes Milvus — the user sees the prompt before any money is spent. Returns
-        physical quantities only (no $/time, per design)."""
-        from ..processors.text import chunk_body
+    async def estimate(self, *a, **kw):
+        return await self.connector_manager.estimate(*a, **kw)
 
-        _, connector_uri, ctype, default_config = self._resolve_target(target)
-        cfg_dict = await self._resolve_readonly_config(ctype, connector_uri, config, default_config)
-        tmp_cid = "estimate-" + uuid.uuid4().hex
-        plugin, _ = self._build_plugin(ctype, cfg_dict, tmp_cid)
-        await plugin.connect()
-        try:
-            # Gate on the connector's own try-connect so a bad root (e.g. a single
-            # file instead of a directory) surfaces the plugin's descriptive detail
-            # rather than a cryptic walk failure mapped to connector_unhealthy.
-            hs = await plugin.healthcheck()
-            if not hs.ok:
-                raise ValueError(hs.detail or "connector_unhealthy")
-            obj_uris: list[str] = []
-            # dry_run: enumerate object URIs without hashing bytes or writing any state
-            # estimate must be side-effect-free and cheap.
-            async for ch in plugin.sync(SyncOptions(full=True, dry_run=True, since=since)):
-                if ch.kind != "deleted":
-                    obj_uris.append(ch.uri)
-                if len(obj_uris) >= 200000:
-                    break
-            total = len(obj_uris)
-            try:
-                import tiktoken
+    async def inspect(self, *a, **kw):
+        return await self.connector_manager.inspect(*a, **kw)
 
-                enc = tiktoken.get_encoding("cl100k_base")
-                ntok = lambda s: len(enc.encode(s))  # noqa: E731
-            except Exception:  # noqa: BLE001 - tokenizer unavailable -> ~4 chars/token
-                ntok = lambda s: max(1, len(s) // 4)  # noqa: E731
-            s_chunks = s_tokens = s_objs = 0
-            for rel in obj_uris[:sample_objects]:
-                okind = plugin.object_kind_of(rel)
-                texts: list[str] = []
-                if okind in ("document", "code", "text_blob"):
-                    ext = os.path.splitext(rel)[1].lower()
-                    text = await self._read_text(plugin, rel)
-                    texts = [
-                        t for t, _ in chunk_body(text, okind, ext, self.cfg.chunking.chunk_size)
-                    ]
-                elif okind in ("table_rows", "record_collection", "message_stream"):
-                    ocfg = plugin.ctx.object_config_for(rel)
-                    records = plugin.read_records(rel)
-                    sampled = 0  # records actually consumed (≤ sample_records)
-                    if records is not None and ocfg.text_fields:
-                        try:
-                            async for rec in records:
-                                t = render_record(rec, ocfg.text_fields, ocfg.render_template)
-                                if t.strip():
-                                    texts.append(t)
-                                sampled += 1
-                                if sampled >= sample_records:
-                                    break
-                        finally:
-                            # Breaking out of `async for` does NOT close the async generator,
-                            # so a connector that yields from inside `async with pool.acquire()`
-                            # (mysql/postgres/mongo) keeps a DB connection pinned by the
-                            # suspended generator; the estimate's `plugin.close()` then deadlocks
-                            # in pool.wait_closed() waiting for that connection. Explicitly close
-                            # the generator after the capped sample so the connection is released.
-                            aclose = getattr(records, "aclose", None)
-                            if aclose is not None:
-                                await aclose()
-                    # Ask the plugin for the real record count; if cheap and known,
-                    # extrapolate per-record averages over the full count instead of
-                    # summing the truncated sample. Otherwise fall back to summing
-                    # what we sampled (matches the old behavior — a known
-                    # under-count when one object contains many records).
-                    rec_total: int | None = None
-                    if okind in ("table_rows", "record_collection", "message_stream"):
-                        try:
-                            rec_total = await plugin.record_count(rel)
-                        except Exception:  # noqa: BLE001 - estimate must never fail
-                            rec_total = None
-                    if rec_total is not None and rec_total > sampled > 0 and texts:
-                        per_rec_chunks = len(texts) / sampled
-                        per_rec_tokens = sum(ntok(t) for t in texts) / sampled
-                        s_chunks += per_rec_chunks * rec_total
-                        s_tokens += per_rec_tokens * rec_total
-                        texts = []  # already accounted for, don't re-count below
-                if texts:
-                    s_chunks += len(texts)
-                    s_tokens += sum(ntok(t) for t in texts)
-                s_objs += 1
-            per_chunks = (s_chunks / s_objs) if s_objs else 0
-            per_tokens = (s_tokens / s_objs) if s_objs else 0
-            return {
-                "target": connector_uri,
-                "type": ctype,
-                "objects": total,
-                "sampled_objects": s_objs,
-                "est_chunks": int(per_chunks * total),
-                "est_tokens": int(per_tokens * total),
-            }
-        finally:
-            try:
-                await plugin.close()
-            except Exception:  # noqa: BLE001
-                pass
-            # belt-and-suspenders: drop any rows a connector's sync may have written under
-            # the throwaway estimate id (dry_run covers file; this catches the rest so a
-            # probe/estimate can never accrete orphan state nothing will ever clean up).
-            for tbl in ("file_state", "connector_state"):
-                try:
-                    await self.infra.meta.execute(
-                        f"DELETE FROM {tbl} WHERE connector_id=?", (tmp_cid,)
-                    )
-                except Exception:  # noqa: BLE001
-                    pass
-
-    async def inspect(self, target: str) -> dict | None:
-        """Connector row + object/job summary."""
-        match = await self._match_connector(target)
-        if match is not None:
-            matched, _ = match
-            row = await self.objects.get_connector_row(matched["id"])
-        else:
-            _, connector_uri, _, _ = self._resolve_target(target)
-            row = await self.objects.get_connector_row_by_uri(connector_uri)
-        if not row:
-            return None
-        cid = row["id"]
-        objs = await self.objects.summarize_objects_by_search_status(cid)
-        jobs = await self.objects.summarize_jobs_by_status(cid)
-        total = await self.objects.summarize_objects_totals(cid)
-        return {
-            **dict(row),
-            "objects": {o["search_status"]: o["n"] for o in objs},
-            "object_count": total["n"] or 0,
-            "chunk_count": total["chunks"] or 0,
-            "jobs": {j["status"]: j["n"] for j in jobs},
-        }
-
-    async def remove_connector(self, target: str) -> bool:
-        """Remove a connector and everything it owns: Milvus chunks, artifacts, and all
-        metadata rows (objects / tasks / jobs / state / file_state)."""
-        _, connector_uri, _, _ = self._resolve_target(target)
-        cid = await self.objects.get_connector_id_by_uri(connector_uri)
-        if not cid:
-            match = await self._match_connector(target)
-            if match is None:
-                raise ValueError("remove_requires_connector_root")
-            matched, rel = match
-            if rel != "/":
-                raise ValueError("remove_requires_connector_root")
-            cid = matched["id"]
-            connector_uri = matched["root_uri"]
-        # preempt any in-flight sync. Mark 'removing' (new syncs ->
-        # connector_removing; a running worker observes it at its next task boundary via
-        # should_stop and exits). Cancel only the not-yet-started work (queued job +
-        # pending tasks). Crucially DON'T flip the running job ourselves — its status
-        # leaving 'running' is the signal that the worker has exited run_job and no
-        # _index_object is mid-write; only then is it safe to delete the data.
-        await self.objects.set_connector_removing(cid)
-        await self.objects.cancel_pending_tasks_for_connector(cid)
-        await self.objects.cancel_queued_preparing_jobs(cid)
-        # Wait for the worker to leave 'running' — that transition (set in finalize_job
-        # after run_job's loop exits) is the proof the last _index_object's Milvus upsert
-        # has completed, so it's the only safe moment to delete. Don't bound this by wall
-        # clock (the old ~10s cap would delete out from under an object still mid-write,
-        # re-opening the orphan-chunk race); instead trust the heartbeat. A live worker
-        # refreshes it per task, so we keep waiting; only a stale heartbeat means the
-        # worker died/stuck, in which case WE take the job over and then delete.
-        stale_after_s = _JOB_STALE_AFTER_S
-        while True:
-            running = await self.objects.get_running_job_heartbeat(cid)
-            if not running:
-                break
-            cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
-            if not running["heartbeat"] or running["heartbeat"] < cutoff:
-                # worker is dead or wedged — reclaim: cancel its in-flight tasks + the job
-                # so the 'running' row clears and no later write can resurrect it.
-                await self.objects.cancel_pending_running_tasks_for_job(running["id"])
-                await self.objects.cancel_running_job(running["id"])
-                break
-            await asyncio.sleep(0.1)
-        # 1. Milvus chunks for this connector partition (worker has now stopped writing)
-        await asyncio.to_thread(self.infra.milvus.delete_by_connector, self.ns, connector_uri)
-        # 2. best-effort artifact bytes per object
-        objs = await self.objects.list_object_uris_for_connector(cid)
-        for o in objs:
-            await self._drop_artifacts(self.ns, connector_uri + o["object_uri"])
-        # 3. metadata rows — the three target tables via the repo; connector_state / file_state
-        # are out of this repo's four-table scope and stay here.
-        await self.objects.delete_object_task_job_rows_for_connector(cid)
-        for tbl, col in (
-            ("connector_state", "connector_id"),
-            ("file_state", "connector_id"),
-        ):
-            await self.infra.meta.execute(f"DELETE FROM {tbl} WHERE {col}=?", (cid,))
-        await self.objects.delete_connector(cid)
-        return True
+    async def remove_connector(self, *a, **kw):
+        return await self.connector_manager.remove_connector(*a, **kw)
 
     # --- connector locator: kept on Engine for inspect/remove_connector until
     #     ConnectorManager wiring (stage 5). ReadService has its own open_path /
     #     match_connector (direct factory+objects connect, D1). ---
-    async def _match_connector(self, path: str) -> tuple[dict, str] | None:
-        """Find the registered connector whose root is the longest prefix of `path`;
-        return (connector_row, relpath) or None. Used by inspect/remove_connector
-        (connector management). Thin delegate to
-        ConnectorLocator.match; rows are fetched from ObjectRepository so the factory
-        stays SQL-free."""
-        rows = await self.objects.list_connectors_all()
-        return ConnectorLocator.match(rows, path)
 
     async def ls(self, *a, **kw):
         return await self.reads.ls(*a, **kw)
