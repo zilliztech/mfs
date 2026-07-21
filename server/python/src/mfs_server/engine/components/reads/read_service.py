@@ -13,15 +13,20 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import re
 
 from ....common.converter import CONVERT_EXTS
 from ....common.retrieval import build_filter, collapse_results, to_envelope
 from ....storage.milvus import MILVUS_MAX_RESULT_WINDOW
 from ..connector_factory import ConnectorLocator
+from .grep_strategies import (
+    BM25Grep,
+    GrepChain,
+    GrepContext,
+    LinearGrep,
+    PushdownGrep,
+)
 from .text_views import (
     _BARE_CAT_MAX_BYTES,
-    _GREP_LINEAR_SCAN_MAX,
     _HEAD_CACHE_N,
     _density_view,
     _locator_matches,
@@ -41,6 +46,9 @@ class ReadService:
         self._objects = objects
         self._artifacts = artifacts
         self._ns = cfg.namespace
+        self._grep_chain = GrepChain(
+            [PushdownGrep(), BM25Grep(self._infra.milvus, self._ns), LinearGrep(self._objects)]
+        )
 
     # --- locators: direct connect to factory + objects, no Engine back-reference (D1) ---
     async def open_path(self, path: str):
@@ -517,12 +525,7 @@ class ReadService:
         self, pattern: str, path: str, top_k: int = 100, regex: bool = False
     ) -> list[dict]:
         """Dispatch: pushdown (file: none) -> BM25 (indexed scope) -> linear scan
-        (not_indexed objects in scope). The linear scan uses the native
-        accelerator (mfs_server_rs) when the object is a real local file, else falls
-        back to reading bytes + pure-Python regex."""
-        from ....common import accel
-        from ....connectors.base import GrepOptions
-
+        (not_indexed objects in scope), via the GrepStrategy chain (stage 6)."""
         cid, curi, rel, plugin = await self.open_path(path)
         scope_prefix = (curi + rel) if rel != "/" else None
         try:
@@ -532,113 +535,10 @@ class ReadService:
             # matches). Stat it explicitly so a bad path 404s like ls/cat instead of
             # looking like a real, empty search.
             await plugin.stat(rel)
-            results: list[dict] = []
-            # 2a connector grep pushdown: exact, source-side (e.g.
-            # SQL ILIKE for structured connectors). Returns None when unsupported.
             ocfg = plugin.ctx.object_config_for(rel)
-            try:
-                gen = await plugin.grep(
-                    pattern,
-                    rel,
-                    GrepOptions(
-                        pattern=pattern,
-                        text_fields=ocfg.text_fields,
-                        metadata_fields=ocfg.metadata_fields,
-                    ),
-                )
-            except Exception:  # noqa: BLE001 - pushdown failure shouldn't kill grep
-                gen = None
-            if gen is not None:
-                async for gm in gen:
-                    # Structured pushdown carries gm.locator (PK dict); text/code
-                    # pushdown carries gm.line_no. locator.lines is 1-based
-                    # half-open [s,e), so a single line n is [n, n+1] - not
-                    # [n, n], which would round-trip as an empty slice.
-                    loc = (
-                        gm.locator
-                        if gm.locator is not None
-                        else ({"lines": [gm.line_no, gm.line_no + 1]} if gm.line_no else None)
-                    )
-                    results.append(
-                        {
-                            "source": curi + gm.path,
-                            "locator": loc,
-                            "content": gm.content,
-                            "via": "pushdown",
-                        }
-                    )
-                return results
-            # 2b BM25 over indexed objects in scope
-            expr = build_filter(self._ns, curi, scope_prefix)
-            hits = await asyncio.to_thread(
-                self._infra.milvus.sparse_search, self._ns, pattern, top_k, expr
+            ctx = GrepContext(
+                pattern, path, top_k, regex, cid, curi, rel, plugin, scope_prefix, ocfg
             )
-            for h in hits:
-                e = h.get("entity", h)
-                results.append(
-                    {
-                        "source": e.get("object_uri"),
-                        "locator": e.get("locator"),
-                        "content": e.get("content"),
-                        "via": "bm25",
-                    }
-                )
-            # 2c linear scan over not_indexed objects in scope (file connector)
-            root_abs = (
-                curi.replace("file://local", "", 1) if curi.startswith("file://local") else None
-            )
-            # Path-component boundary, same fix as build_filter: scope `/src` must match the
-            # object itself OR `/src/...`, NOT a sibling `/src-old`. Escape SQL LIKE wildcards
-            # ('_'/'%') in the literal prefix so a path with '_' doesn't over-match either.
-            not_idx = await self._objects.list_not_indexed_in_scope(cid, rel)
-            if len(not_idx) > _GREP_LINEAR_SCAN_MAX:
-                # don't silently scan a subset and imply it was exhaustive - tell the agent
-                # so it can narrow the path or index first.
-                results.append(
-                    {
-                        "source": None,
-                        "locator": None,
-                        "via": "notice",
-                        "content": f"(grep linear scan capped at {_GREP_LINEAR_SCAN_MAX} of "
-                        f"{len(not_idx)} not-indexed files in scope; narrow the path "
-                        f"or run `mfs add` to index them for complete results)",
-                    }
-                )
-            for o in not_idx[:_GREP_LINEAR_SCAN_MAX]:
-                relp = o["object_uri"]
-                try:
-                    abs_file = (root_abs + relp) if root_abs else None
-                    if abs_file and os.path.isfile(abs_file):
-                        # native (or pure-Python) streaming grep straight off disk
-                        for ln, line in await asyncio.to_thread(
-                            accel.linear_grep_file, abs_file, pattern, False, regex, 200
-                        ):
-                            results.append(
-                                {
-                                    "source": curi + relp,
-                                    "locator": {"lines": [ln, ln + 1]},
-                                    "content": line,
-                                    "via": "linear",
-                                }
-                            )
-                    else:
-                        rx = re.compile(pattern if regex else re.escape(pattern))
-                        buf = bytearray()
-                        async for ch in plugin.read(relp):
-                            buf += ch
-                        text = bytes(buf).decode("utf-8", errors="replace")
-                        for i, line in enumerate(text.splitlines(), 1):
-                            if rx.search(line):
-                                results.append(
-                                    {
-                                        "source": curi + relp,
-                                        "locator": {"lines": [i, i + 1]},
-                                        "content": line,
-                                        "via": "linear",
-                                    }
-                                )
-                except Exception:  # noqa: BLE001
-                    pass
-            return results
+            return await self._grep_chain.run(ctx)
         finally:
             await plugin.close()

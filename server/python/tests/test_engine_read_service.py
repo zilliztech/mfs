@@ -116,7 +116,7 @@ def _build_reads(factory=None, objects=None):
     cfg = ServerConfig()
     return ReadService(
         cfg,
-        SimpleNamespace(),
+        SimpleNamespace(milvus=SimpleNamespace()),
         factory or _FakeFactory(),
         objects or _FakeObjects(),
         _FakeArtifacts(),
