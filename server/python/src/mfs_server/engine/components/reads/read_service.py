@@ -18,6 +18,17 @@ from ....common.converter import CONVERT_EXTS
 from ....common.retrieval import build_filter, collapse_results, to_envelope
 from ....storage.milvus import MILVUS_MAX_RESULT_WINDOW
 from ..connector_factory import ConnectorLocator
+from .cat_strategies import (
+    ArtifactTextStrategy,
+    CatContext,
+    CatRouter,
+    ImageDescriptionStrategy,
+    LocatorLinesStrategy,
+    LocatorRecordStrategy,
+    MetaStrategy,
+    PlainTextStrategy,
+    StructuredStreamStrategy,
+)
 from .grep_strategies import (
     BM25Grep,
     GrepChain,
@@ -26,10 +37,7 @@ from .grep_strategies import (
     PushdownGrep,
 )
 from .text_views import (
-    _BARE_CAT_MAX_BYTES,
     _HEAD_CACHE_N,
-    _density_view,
-    _locator_matches,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,6 +56,17 @@ class ReadService:
         self._ns = cfg.namespace
         self._grep_chain = GrepChain(
             [PushdownGrep(), BM25Grep(self._infra.milvus, self._ns), LinearGrep(self._objects)]
+        )
+        self._cat_router = CatRouter(
+            [
+                MetaStrategy(),
+                LocatorLinesStrategy(),
+                LocatorRecordStrategy(),
+                StructuredStreamStrategy(),
+                ArtifactTextStrategy(self._artifacts, self._infra, self._ns),
+                ImageDescriptionStrategy(self._infra, self._cfg),
+                PlainTextStrategy(),
+            ]
         )
 
     # --- locators: direct connect to factory + objects, no Engine back-reference (D1) ---
@@ -182,167 +201,34 @@ class ReadService:
         density: str | None = None,
         locator: dict | None = None,
     ):
-        import json as _json
-        from contextlib import aclosing
-
-        from ....connectors.base import Range
-
+        """Dispatch cat's branch matrix via the CatRouter strategy table (stage 6)."""
         cid, curi, rel, plugin = await self.open_path(path)
         try:
             st = await plugin.stat(rel)
             if st.type == "dir":
                 raise IsADirectoryError(path)
-            if meta:
-                return {
-                    "source": curi + rel,
-                    "media_type": st.media_type,
-                    "size_hint": st.size_hint,
-                    "fingerprint": st.fingerprint,
-                }
             okind = plugin.object_kind_of(rel)
             structured = okind in ("table_rows", "record_collection", "message_stream")
-            # Binary objects have no line-based view - reading them with --range
-            # would return mojibake (UTF-8 errors="replace") under the guise of a
-            # text slice. Refuse cleanly so the caller falls back to `export`.
+            # Binary objects have no line-based view - --range would return mojibake.
             if range is not None and okind == "binary":
                 raise ValueError("range_unsupported")
-
-            # --- locator with reserved "lines" key: route to the range path ---
-            # Body / code / document chunks store identity as {"lines":[s,e]};
-            # reopening one means slicing the file by line range, not iterating
-            # structured records. locator.lines is 1-based half-open (matches
-            # how cat --range is exposed); plugin.read takes 0-based half-open.
-            if (
-                locator is not None
-                and isinstance(locator, dict)
-                and "lines" in locator
-                and len(locator) == 1
-                and not structured
-            ):
-                s, e = int(locator["lines"][0]), int(locator["lines"][1])
-                rg = Range(max(0, s - 1), max(0, e - 1))
-                buf = bytearray()
-                async for ch in plugin.read(rel, rg):
-                    buf += ch
-                return bytes(buf).decode("utf-8", errors="replace")
-
-            # --- locator: reopen a single structured record ---
-            if locator is not None:
-                records = plugin.read_records(rel)
-                if records is None:
-                    raise ValueError("range_unsupported")  # not a structured object
-                ocfg = plugin.ctx.object_config_for(rel)
-                i = 0
-                # aclosing: a match returns mid-iteration, so the record generator must be
-                # closed deterministically - else a connector holding a cursor/transaction
-                # (e.g. asyncpg) leaks the connection and pool.close() later blocks ~60s.
-                async with aclosing(records):
-                    async for rec in records:
-                        if _locator_matches(rec, ocfg, i, locator):
-                            return {
-                                "source": curi + rel,
-                                "locator": locator,
-                                "content": _json.dumps(rec, default=str, ensure_ascii=False),
-                            }
-                        i += 1
-                raise ValueError("locator_not_found")
-
-            # --- structured object: range pushdown over records (lazy, not materialized) ---
-            if structured:
-                if range is None:
-                    # Bare cat of a structured object: stream the records as JSONL
-                    # into a buffer up to _BARE_CAT_MAX_BYTES, then return. Small
-                    # objects (Slack users.jsonl, small GitHub issue feeds, dozens-
-                    # of-row tables) fit comfortably and round-trip as JSONL. Large
-                    # ones (a postgres table with 1M rows) blow the budget mid-
-                    # stream and raise the same object_too_large_for_cat so the
-                    # caller still falls back to head / cat --range / export.
-                    records = plugin.read_records(rel)
-                    if records is None:
-                        raise ValueError("object_too_large_for_cat")
-                    budget = _BARE_CAT_MAX_BYTES
-                    out: list[str] = []
-                    size = 0
-                    async with aclosing(records):
-                        async for rec in records:
-                            line = _json.dumps(rec, default=str, ensure_ascii=False)
-                            size += len(line.encode("utf-8")) + 1  # +1 newline
-                            if size > budget:
-                                raise ValueError("object_too_large_for_cat")
-                            out.append(line)
-                    return "\n".join(out)
-                start, end = range[0], range[1]
-                # Pass Range(0, end) - a LIMIT-only hint - and slice [start, end) HERE, in one
-                # place. Connectors disagree on whether they honor the Range: the DB ones
-                # (mysql/postgres/mongo/bigquery) push OFFSET start + LIMIT down, while the SaaS
-                # ones (jira/slack/notion/…) ignore it and return from row 0 - yet ALL declare
-                # paged_cat=True, so the engine can't tell them apart. Pushing OFFSET start AND
-                # then re-slicing `i >= start` double-applied the offset on the DB connectors, so
-                # `cat --range 100:200` returned an empty/wrong page. With offset=0 every
-                # connector returns rows from 0 and the single `i >= start` slice is correct for
-                # both. (Trade-off: the DB connectors lose OFFSET pushdown and read `end` rows for
-                # a deep page - still LIMIT-bounded; restoring true offset-pushdown needs an
-                # explicit "range honored" capability - see human_todo [dborder/D65].)
-                records = plugin.read_records(rel, Range(0, end))
-                if records is not None:
-                    out, i = [], 0
-                    async with aclosing(records):  # break-early must close the generator
-                        async for rec in records:
-                            if i >= end:
-                                break
-                            if i >= start:
-                                out.append(_json.dumps(rec, default=str, ensure_ascii=False))
-                            i += 1
-                    return "\n".join(out)
-
             ext = os.path.splitext(rel)[1].lower()
-            text: str | None = None
-            # converted markdown artifact: pdf/docx/html (CONVERT_EXTS) AND web/github pages,
-            # whose .md is generated at ingest - read it from the artifact store so cat works
-            # across restarts / fresh plugin instances, not just in-memory.
-            if ext in CONVERT_EXTS:
-                # On-read freshness: stat() above already fetched the live source fingerprint,
-                # so comparing it to the one recorded at ingest is free. If it changed, the
-                # cached markdown is stale -> re-convert from the current source.
-                if await self._artifacts.converted_md_stale(cid, rel, st.fingerprint):
-                    raw = bytearray()
-                    async for ch in plugin.read(rel):
-                        raw += ch
-                    text = await self._infra.converter.convert(bytes(raw), ext)
-                else:
-                    art = await self._artifacts.read_artifact(self._ns, curi + rel, "converted_md")
-                    if art is not None:
-                        text = art.decode("utf-8", errors="replace")
-            elif curi.startswith(("web://", "github://")):
-                art = await self._artifacts.read_artifact(self._ns, curi + rel, "converted_md")
-                if art is not None:
-                    text = art.decode("utf-8", errors="replace")
-            if text is None and okind == "image" and self._cfg.description.enabled:
-                # An image's description is a model output served through the transformation
-                # cache: describe() returns the description memoized at ingest, or computes it
-                # on a miss. (Re-reading the bytes here is the source round-trip - cheap for
-                # local files; see TODO §10.9 for the snapshot path on remote connectors.)
-                raw = bytearray()
-                async for ch in plugin.read(rel):
-                    raw += ch
-                try:
-                    return await self._infra.vlm.describe(bytes(raw), ext)
-                except Exception:  # noqa: BLE001 - fall through to the raw read on provider error
-                    pass
-            if text is None:
-                if range is None and st.size_hint and st.size_hint > _BARE_CAT_MAX_BYTES:
-                    raise ValueError("object_too_large_for_cat")
-                rg = Range(range[0], range[1]) if range else None
-                buf = bytearray()
-                async for ch in plugin.read(rel, rg):
-                    buf += ch
-                text = bytes(buf).decode("utf-8", errors="replace")
-            if density and density != "deep":
-                okind = plugin.object_kind_of(rel)
-                if okind not in ("document", "code"):
-                    raise ValueError("density_unsupported")
-                return _density_view(text, ext, density)
-            return text
+            ctx = CatContext(
+                path=path,
+                range=range,
+                meta=meta,
+                density=density,
+                locator=locator,
+                cid=cid,
+                curi=curi,
+                rel=rel,
+                plugin=plugin,
+                st=st,
+                okind=okind,
+                structured=structured,
+                ext=ext,
+            )
+            return await self._cat_router.read(ctx)
         finally:
             await plugin.close()
 
