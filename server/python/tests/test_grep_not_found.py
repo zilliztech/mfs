@@ -53,7 +53,7 @@ async def test_grep_missing_path_raises_file_not_found(tmp_path) -> None:
     async def fake_open_path(path: str):
         return "cid", "file://local/root", "/does/not/exist", plugin
 
-    eng._open_path = fake_open_path  # type: ignore[method-assign]
+    eng.reads.open_path = fake_open_path  # type: ignore[method-assign]
 
     with pytest.raises(FileNotFoundError):
         await eng.grep("needle", "file://local/root/does/not/exist")

@@ -32,7 +32,7 @@ async def test_tail_rejects_unstable_structured_objects(tmp_path, okind: str) ->
     async def fake_open_path(path: str):
         return "cid", "postgres://db", "/rows.jsonl", plugin
 
-    eng._open_path = fake_open_path  # type: ignore[method-assign]
+    eng.reads.open_path = fake_open_path  # type: ignore[method-assign]
 
     with pytest.raises(ValueError, match="tail_unsupported"):
         await eng.tail("postgres://db/rows.jsonl", 5)
