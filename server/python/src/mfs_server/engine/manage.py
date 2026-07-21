@@ -273,6 +273,28 @@ class ConnectorManager:
             "jobs": {j["status"]: j["n"] for j in jobs},
         }
 
+    async def _await_worker_drained(self, cid: str) -> None:
+        """Wait for the worker to leave 'running' - that transition (set in finalize_job
+        after run_job's loop exits) is the proof the last object's Milvus upsert has
+        completed, so it's the only safe moment to delete. Don't bound by wall clock
+        (the old ~10s cap would delete out from under an object still mid-write,
+        re-opening the orphan-chunk race); trust the heartbeat. A live worker refreshes
+        it per task, so keep waiting; only a stale heartbeat means the worker died/stuck,
+        in which case WE take the job over and then delete."""
+        stale_after_s = _JOB_STALE_AFTER_S
+        while True:
+            running = await self._obj.get_running_job_heartbeat(cid)
+            if not running:
+                break
+            cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
+            if not running["heartbeat"] or running["heartbeat"] < cutoff:
+                # worker is dead or wedged - reclaim: cancel its in-flight tasks + the job
+                # so the 'running' row clears and no later write can resurrect it.
+                await self._obj.cancel_pending_running_tasks_for_job(running["id"])
+                await self._obj.cancel_running_job(running["id"])
+                break
+            await asyncio.sleep(0.1)
+
     async def remove_connector(self, target: str) -> bool:
         """Remove a connector and everything it owns: Milvus chunks, artifacts, and all
         metadata rows (objects / tasks / jobs / state / file_state)."""
@@ -296,26 +318,7 @@ class ConnectorManager:
         await self._obj.set_connector_removing(cid)
         await self._obj.cancel_pending_tasks_for_connector(cid)
         await self._obj.cancel_queued_preparing_jobs(cid)
-        # Wait for the worker to leave 'running' — that transition (set in _finalize_job
-        # after _run_job's loop exits) is the proof the last _index_object's Milvus upsert
-        # has completed, so it's the only safe moment to delete. Don't bound this by wall
-        # clock (the old ~10s cap would delete out from under an object still mid-write,
-        # re-opening the orphan-chunk race); instead trust the heartbeat. A live worker
-        # refreshes it per task, so we keep waiting; only a stale heartbeat means the
-        # worker died/stuck, in which case WE take the job over and then delete.
-        stale_after_s = _JOB_STALE_AFTER_S
-        while True:
-            running = await self._obj.get_running_job_heartbeat(cid)
-            if not running:
-                break
-            cutoff = (datetime.now(timezone.utc) - timedelta(seconds=stale_after_s)).isoformat()
-            if not running["heartbeat"] or running["heartbeat"] < cutoff:
-                # worker is dead or wedged — reclaim: cancel its in-flight tasks + the job
-                # so the 'running' row clears and no later write can resurrect it.
-                await self._obj.cancel_pending_running_tasks_for_job(running["id"])
-                await self._obj.cancel_running_job(running["id"])
-                break
-            await asyncio.sleep(0.1)
+        await self._await_worker_drained(cid)
         # 1. Milvus chunks for this connector partition (worker has now stopped writing)
         await asyncio.to_thread(self._infra.milvus.delete_by_connector, self._ns, connector_uri)
         # 2. best-effort artifact bytes per object
