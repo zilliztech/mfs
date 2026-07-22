@@ -1,10 +1,8 @@
 """GrepStrategy chain: Pushdown -> BM25 -> Linear (terminal on first hit).
 
-Extracted from ReadService.grep's three-branch if/elif (engine-redesign §4.6
-stage 6). Each strategy's `match(ctx)` returns either a final result list
+Each strategy's `match(ctx)` returns either a final result list
 (terminal - chain stops) or None (continue to next strategy). Pushdown is
 terminal on hit; BM25 appends and continues; Linear appends and is terminal.
-Behavior is identical to the original inline dispatch.
 """
 
 from __future__ import annotations

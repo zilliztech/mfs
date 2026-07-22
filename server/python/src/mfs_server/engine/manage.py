@@ -314,7 +314,7 @@ class ConnectorManager:
         # _should_stop and exits). Cancel only the not-yet-started work (queued job +
         # pending tasks). Crucially DON'T flip the running job ourselves — its status
         # leaving 'running' is the signal that the worker has exited _run_job and no
-        # _index_object is mid-write; only then is it safe to delete the data.
+        # object is mid-index; only then is it safe to delete the data.
         await self._obj.set_connector_removing(cid)
         await self._obj.cancel_pending_tasks_for_connector(cid)
         await self._obj.cancel_queued_preparing_jobs(cid)

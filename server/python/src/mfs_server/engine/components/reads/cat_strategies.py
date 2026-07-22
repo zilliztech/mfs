@@ -1,12 +1,10 @@
 """CatRouter + CatStrategy: first-match dispatch over cat's branch matrix.
 
-Extracted from ReadService.cat's 6-branch if/elif (engine-redesign §4.6 stage 6,
-cat half). Each strategy `applies(ctx)` + `read(ctx) -> Any | None`: None means
+Each strategy `applies(ctx)` + `read(ctx) -> Any | None`: None means
 "not applicable / try next", a non-None value is terminal. Density only applies
-to the artifact-backed / plain-text paths (the original D1/D2/E), so it lives in
-those strategies via _apply_density; the locator / structured / meta / image paths
-return before density (matching the original early-returns). Behavior identical
-to the original inline dispatch.
+to the artifact-backed / plain-text paths, so it lives in those strategies via
+_apply_density; the locator / structured / meta / image paths return before
+density.
 """
 
 from __future__ import annotations

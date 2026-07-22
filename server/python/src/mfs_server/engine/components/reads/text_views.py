@@ -1,6 +1,6 @@
 """ReadService pure helpers: density view skeleton + locator match guard +
-read-path size caps. Extracted from Engine so ReadService and its tests can use
-them without a connector stack."""
+read-path size caps, usable by ReadService and its tests without a connector
+stack."""
 
 from __future__ import annotations
 

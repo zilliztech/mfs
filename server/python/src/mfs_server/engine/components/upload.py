@@ -1,12 +1,10 @@
 """UploadService: tar + manifest-diff upload protocol.
 
-Extracted from the Engine god-class (engine-redesign §4.7 stage 5). Stage-5
-relocation landed in c10db97; this round (stage 6 follow-up) extracts
 BundleValidator (tar probe + zip-slip guard) and StagingLocator (staging path +
-connector registration) as standalone classes, plus a shared _drain_after_upload
+connector registration) are standalone classes; _drain_after_upload is a shared
 tail (partial Template Method). The staging-step bodies (extractall vs
 renames/bytes/deletions) stay inline - they differ enough that a shared
-template would risk behavior drift (left as a future follow-up).
+template would risk behavior drift.
 """
 
 from __future__ import annotations
