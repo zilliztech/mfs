@@ -175,6 +175,10 @@ def test_bind_remover_sets_callable():
     class _Cfg:
         namespace = "ns1"
 
+        class object_task:
+            backoff_initial_ms = 100
+            backoff_max_ms = 1000
+
     calls: list[str] = []
 
     async def _remover(uri: str) -> None:

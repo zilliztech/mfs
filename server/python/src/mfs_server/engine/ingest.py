@@ -36,6 +36,7 @@ from .components.connector_factory import ConnectorFactory
 from .components.object_repository import ObjectRepository, TaskStatus
 from .infra import InfraStack
 from .pipeline_supervisor import PipelineSupervisor
+from .policies import BackoffPolicy, CircuitBreaker, ErrorClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +292,9 @@ class IngestOrchestrator:
         self._obj = objects
         self._art = artifacts
         self._ns = cfg.namespace
+        self._backoff = BackoffPolicy(
+            cfg.object_task.backoff_initial_ms, cfg.object_task.backoff_max_ms
+        )
         self._remove_connector = None  # back-filled by bind_remover (add-failure rollback)
         self._indexer = ObjectIndexer(objects, artifacts, infra, pipeline, self._ns)
 
@@ -530,28 +534,6 @@ class IngestOrchestrator:
         (dir_summary is Job-Lane-owned, never enqueued as a task)."""
         return await self._obj.claim_tasks(connector_id, limit)
 
-    @staticmethod
-    def classify_error(e: Exception) -> str:
-        """Classify an embedding/provider error as 'auth' (bad key, non-retryable),
-        'quota' (exhausted, non-retryable), or 'retryable' (transient). 'auth'/'quota'
-        are global: the caller aborts the whole job rather than grinding every object."""
-        m = str(e).lower()
-        nm = type(e).__name__.lower()
-        auth_markers = (
-            "invalid_api_key",
-            "invalid x-api-key",
-            "authentication",
-            "unauthorized",
-            "permission denied",
-            "401",
-        )
-        if any(k in m for k in auth_markers) or "authentication" in nm or "permissiondenied" in nm:
-            return "auth"
-        # Quota (insufficient_quota / 402) is non-retryable, unlike a transient 429.
-        if "insufficient_quota" in m or "402" in m:
-            return "quota"
-        return "retryable"
-
     async def process_with_retry(self, plugin, connector_uri: str, task: dict) -> str | None:
         """Returns None on success, 'retryable_exhausted', 'skipped', or an
         embedding_* code. 'skipped' = a local per-object event (source vanished /
@@ -574,7 +556,7 @@ class IngestOrchestrator:
                 logger.info("object %s skipped (source disappeared mid-sync)", uri)
                 return "skipped"
             except Exception as e:  # noqa: BLE001
-                kind = self.classify_error(e)
+                kind = ErrorClassifier.classify(e)
                 if kind in ("auth", "quota"):
                     # Global non-retryable failure: abort the whole job on first occurrence.
                     code = "embedding_auth_failed" if kind == "auth" else "embedding_quota_exceeded"
@@ -592,10 +574,7 @@ class IngestOrchestrator:
                     if self._pipeline.embed_consumer is not None:
                         self._pipeline.embed_consumer.on_task_retry(task["id"])
                     # Exponential backoff capped at backoff_max_ms.
-                    delay_ms = min(
-                        self._cfg.object_task.backoff_initial_ms * (2**attempt),
-                        self._cfg.object_task.backoff_max_ms,
-                    )
+                    delay_ms = self._backoff.delay_ms(attempt)
                     await _a.sleep(delay_ms / 1000)
                     continue
                 await self._obj.mark_task_failed(task["id"], str(e))
@@ -670,7 +649,8 @@ class IngestOrchestrator:
         self, job_id: str, cid: str, connector_uri: str, plugin, threshold: int, consec_fail: int
     ) -> str | None:
         # Claim this connector's pending object_tasks (dir_summary is Job-Lane-owned,
-        # not a task).
+        # not a task). The breaker tracks consecutive failures across the loop.
+        breaker = CircuitBreaker(threshold, consec_fail)
         while True:
             if await self.should_stop(job_id, cid):
                 return "cancelled"
@@ -689,14 +669,14 @@ class IngestOrchestrator:
                     await self._obj.advance_task(
                         t["id"], TaskStatus.SUCCEEDED, from_status=TaskStatus.RUNNING
                     )
-                    consec_fail = 0
+                    breaker.record_success()
                 elif r == "deferred":
                     # Pipeline okind: the success hook flips status when chunks land.
-                    consec_fail = 0
+                    breaker.record_success()
                 elif r == "skipped":
                     # Local skip event still makes progress; reset the breaker so a
                     # burst of `rm`s doesn't accumulate into a false trip.
-                    consec_fail = 0
+                    breaker.record_success()
                 elif r in ("embedding_auth_failed", "embedding_quota_exceeded"):
                     # Global failure: abort the job (every object would fail identically).
                     await self._obj.cancel_pending_running_tasks_for_job(job_id)
@@ -704,8 +684,7 @@ class IngestOrchestrator:
                 else:
                     # Exhausted retries count toward the breaker: without it, a
                     # persistently rate-limited provider would grind the whole connector.
-                    consec_fail += 1
-                    if consec_fail >= threshold:
+                    if breaker.record_failure():
                         await self._obj.cancel_pending_running_tasks_for_job(job_id)
                         return "circuit_breaker_tripped"
         return None
