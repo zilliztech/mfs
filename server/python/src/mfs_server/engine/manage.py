@@ -112,7 +112,7 @@ class ConnectorManager:
             cfg_dict = await self._resolve_readonly_config(
                 ctype, connector_uri, config, default_config
             )
-            plugin, _ = self._factory.build_plugin(ctype, cfg_dict, "probe-" + uuid.uuid4().hex)
+            plugin, _ = self._build_plugin(ctype, cfg_dict, "probe-" + uuid.uuid4().hex)
             await plugin.connect()
             hs = await plugin.healthcheck()
             return {"target": connector_uri, "type": ctype, "ok": hs.ok, "detail": hs.detail}
@@ -145,7 +145,7 @@ class ConnectorManager:
         _, connector_uri, ctype, default_config = self._resolve_target(target)
         cfg_dict = await self._resolve_readonly_config(ctype, connector_uri, config, default_config)
         tmp_cid = "estimate-" + uuid.uuid4().hex
-        plugin, _ = self._factory.build_plugin(ctype, cfg_dict, tmp_cid)
+        plugin, _ = self._build_plugin(ctype, cfg_dict, tmp_cid)
         await plugin.connect()
         try:
             # Gate on the connector's own try-connect so a bad root (e.g. a single
