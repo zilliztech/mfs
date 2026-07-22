@@ -1,7 +1,5 @@
 """WorkerScheduler: queue claim + concurrent workers + reclaim.
 
-Extracted verbatim from the Engine god-class (engine-redesign §4.5 stage 4c).
-Method bodies are unchanged; only `self.<dep>` resolution targets moved.
 Single-direction dep on IngestOrchestrator (run_job + finalize_job), no cycle.
 
 The two-layer try/except is the load-bearing invariant: the OUTER

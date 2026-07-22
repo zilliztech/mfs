@@ -1,11 +1,8 @@
 """ReadService: search / ls / cat / head / tail / grep / export / resolve_connector_uri.
 
-Extracted verbatim from the Engine god-class (engine-redesign §4.6 stage 3).
-Method bodies are unchanged; only `self.<dep>` resolution targets moved (see
-the dependency-rewire table in docs-dev/engine-redesign-read-upload.md §3.2).
-The locator pair (open_path / match_connector) is a public method connecting
-directly to ConnectorFactory + ObjectRepository - no reverse reference to
-Engine (D1: direct connect + public method, not delayed-lambda).
+Read path over registered connectors. The locator pair (open_path / match_connector)
+connects directly to ConnectorFactory + ObjectRepository with no reverse reference
+to Engine.
 """
 
 from __future__ import annotations
@@ -69,20 +66,18 @@ class ReadService:
             ]
         )
 
-    # --- locators: direct connect to factory + objects, no Engine back-reference (D1) ---
+    # --- locators: direct connect to factory + objects, no Engine back-reference ---
     async def open_path(self, path: str):
         """(connector_id, connector_uri, relpath, plugin) for the registered connector
-        whose root is the longest prefix of `path`. Thin delegate to
-        ConnectorFactory.open_path."""
+        whose root is the longest prefix of `path`."""
         rows = await self._objects.list_connectors_all()
         resolved = await self._factory.open_path(rows, path)
         return resolved.cid, resolved.connector_uri, resolved.relpath, resolved.built.plugin
 
     async def match_connector(self, path: str) -> tuple[dict, str] | None:
         """Find the registered connector whose root is the longest prefix of `path`;
-        return (connector_row, relpath) or None. Thin delegate to
-        ConnectorLocator.match; rows are fetched from ObjectRepository so the factory
-        stays SQL-free."""
+        return (connector_row, relpath) or None. Rows are fetched from
+        ObjectRepository so the factory stays SQL-free."""
         rows = await self._objects.list_connectors_all()
         return ConnectorLocator.match(rows, path)
 
@@ -201,7 +196,7 @@ class ReadService:
         density: str | None = None,
         locator: dict | None = None,
     ):
-        """Dispatch cat's branch matrix via the CatRouter strategy table (stage 6)."""
+        """Dispatch cat's branch matrix via the CatRouter strategy table."""
         cid, curi, rel, plugin = await self.open_path(path)
         try:
             st = await plugin.stat(rel)
@@ -411,7 +406,7 @@ class ReadService:
         self, pattern: str, path: str, top_k: int = 100, regex: bool = False
     ) -> list[dict]:
         """Dispatch: pushdown (file: none) -> BM25 (indexed scope) -> linear scan
-        (not_indexed objects in scope), via the GrepStrategy chain (stage 6)."""
+        (not_indexed objects in scope), via the GrepStrategy chain."""
         cid, curi, rel, plugin = await self.open_path(path)
         scope_prefix = (curi + rel) if rel != "/" else None
         try:

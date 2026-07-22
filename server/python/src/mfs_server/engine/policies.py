@@ -1,8 +1,6 @@
-"""Retry / circuit-breaker policies for IngestOrchestrator (engine-redesign §4.4
-follow-up). Pure value objects extracted from IngestOrchestrator: ErrorClassifier
+"""Retry / circuit-breaker value objects for IngestOrchestrator: ErrorClassifier
 (auth/quota/retryable), BackoffPolicy (exponential capped), CircuitBreaker
-(consecutive-failure threshold). Behavior identical to the inline logic in
-classify_error / process_with_retry / run_job_loop.
+(consecutive-failure threshold).
 """
 
 from __future__ import annotations

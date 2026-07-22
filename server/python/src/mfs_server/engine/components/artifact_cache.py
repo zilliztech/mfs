@@ -1,13 +1,8 @@
 """ArtifactCacheService — artifact bytes + metadata row + LRU + freshness.
 
-Consolidates the ``artifact_cache`` table SQL and LRU eviction previously inline in
-``engine.py`` (six ``_*_artifact`` / ``_evict`` / ``_converted_md_stale`` methods plus
-the rename row-rewrite in ``_index_object``). The storage-layer
-``LocalArtifactCache`` (bytes CRUD + path) is injected; this service owns the
-metadata-row bookkeeping and the LRU throttle counter. Mirrors the
-``ObjectRepository`` pattern (component-local ``_now()``, public methods, SQL migrated
-verbatim with zero behavior change). ``Engine`` keeps thin delegate methods so call
-sites + ``ArtifactStoreAdapter`` wiring stay unchanged.
+Owns the ``artifact_cache`` table SQL + LRU eviction + freshness; the
+storage-layer ``LocalArtifactCache`` (bytes CRUD + path) is injected. Mirrors the
+``ObjectRepository`` pattern (component-local ``_now()``, public methods).
 """
 
 from __future__ import annotations
@@ -32,11 +27,9 @@ class ArtifactCacheService:
     image text, head snapshot, message_stream raw_records) per object, with LRU size
     eviction and a ``source_key`` freshness check.
 
-    ``Engine`` delegates every ``self.meta.execute/fetchone/fetchall`` against this
-    table to ``self.artifacts.xxx(...)``; SQL is migrated verbatim with zero behavior
-    change. The storage-layer ``LocalArtifactCache`` (bytes + paths) stays on
-    ``Engine`` (it has non-cache call sites — uploads staging / raw_records GC) and is
-    injected here for the bytes CRUD this service needs.
+    The storage-layer ``LocalArtifactCache`` (bytes + paths) lives on InfraStack
+    (it has non-cache call sites: uploads staging / raw_records GC) and is injected
+    here for the bytes CRUD this service needs.
     """
 
     def __init__(self, cfg, meta, artifact_cache, objects):
@@ -124,7 +117,7 @@ class ArtifactCacheService:
         the cached converted_md no longer reflects the source. `live_fp` comes from the stat()
         the read already did, so this costs one local metadata lookup. A connector that yields
         no fingerprint (live_fp falsy) can't be cheaply checked -> serve the cached copy (the
-        deferred snapshot/recheck path for those is TODO §10.9)."""
+        deferred snapshot/recheck path for those is TODO)."""
         if not live_fp:
             return False
         stored = await self._obj.get_object_fingerprint(cid, object_uri)

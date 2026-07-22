@@ -123,7 +123,7 @@ class CredentialService:
                env:/file: references)
     - resolve: turn env:/file: references into real values before plugin build
 
-    Security invariants (engine-redesign.md §5):
+    Security invariants:
     1. Credentials are resolved ONLY through resolve(); business code never reads os.environ[...] directly.
     2. config_json is persisted ONLY after redact().
     3. resolve() raises explicitly on unimplemented schemes (secret:/vault:), never silently using them as literal tokens.
@@ -387,11 +387,9 @@ class ConnectorLocator:
 class ConnectorFactory:
     """Factory facade: target resolution / credential redact+resolve / plugin build.
 
-    Does NOT touch connectors-table SQL (that's ``ObjectRepository``). To keep this
-    change merge-safe, ingest orchestration and the read path stay on ``Engine``;
-    the factory is invoked only through thin Engine delegates. ``cfg`` + ``meta``
-    are held solely to build ``ConnectorStateStore`` / ``FileStateStore`` (plugin
-    dependencies).
+    Does NOT touch connectors-table SQL (that's ``ObjectRepository``). ``cfg`` +
+    ``meta`` are held solely to build ``ConnectorStateStore`` / ``FileStateStore``
+    (plugin dependencies).
     """
 
     def __init__(self, cfg: ServerConfig, meta: MetadataStore):
