@@ -84,6 +84,7 @@ class Engine:
 
     # --- target resolution (file-only path) ---
 
+    @classmethod
     def _is_secret_key(cls, key: str) -> bool:
         return CredentialService.is_secret_key(key)
 
