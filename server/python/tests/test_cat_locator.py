@@ -115,7 +115,7 @@ async def test_cat_with_matching_dict_locator_returns_the_record(tmp_path) -> No
     async def fake_open_path(path: str):
         return "cid", "postgres://db", "/orders", plugin
 
-    eng._open_path = fake_open_path  # type: ignore[method-assign]
+    eng.reads.open_path = fake_open_path  # type: ignore[method-assign]
 
     out = await eng.cat("postgres://db/orders", locator={"id": "ord_1001"})
 
@@ -131,7 +131,7 @@ async def test_cat_with_dict_locator_no_match_raises_locator_not_found(tmp_path)
     async def fake_open_path(path: str):
         return "cid", "postgres://db", "/orders", plugin
 
-    eng._open_path = fake_open_path  # type: ignore[method-assign]
+    eng.reads.open_path = fake_open_path  # type: ignore[method-assign]
 
     with pytest.raises(ValueError, match="locator_not_found"):
         await eng.cat("postgres://db/orders", locator={"id": "does_not_exist"})

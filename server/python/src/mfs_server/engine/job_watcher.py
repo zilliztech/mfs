@@ -1,4 +1,4 @@
-"""ConnectorJobWatcher (§5.7): an independent lightweight coroutine that polls connector_jobs
+"""ConnectorJobWatcher: an independent lightweight coroutine that polls connector_jobs
 and finalizes them out-of-band.
 
 In the new pipeline there is no per-job worker loop bound to a job, so something has to notice

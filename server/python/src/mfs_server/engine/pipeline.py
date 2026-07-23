@@ -1,25 +1,25 @@
-"""Pipeline tail: chunks_q + the process-level EmbedConsumer (§3.1 / §5.1 / §5.2).
+"""Pipeline tail: chunks_q + the process-level EmbedConsumer.
 
-The Object Lane (per-object producers) and the Job Lane (directory summaries) both emit Chunk
-streams into a single bounded `chunks_q` (§5.1 — embed is the real bottleneck, so one queue
-decouples chunk production from embed consumption). One process-level EmbedConsumer (§5.2)
-drains that queue across ALL connector jobs so embed batches always fill to `batch_size`,
-then upserts to Milvus.
+The Object Lane (per-object producers) and the Job Lane (directory summaries) both emit
+Chunk streams into a single bounded `chunks_q` -- embed is the real bottleneck, so one
+queue decouples chunk production from embed consumption. One process-level EmbedConsumer
+drains that queue across ALL connector jobs so embed batches always fill to
+`batch_size`, then upserts to Milvus.
 
-Per-object atomicity (§6.1) is enforced here: `delete_by_object` runs once per task
-(on its first chunk, before any upsert), and a per-task pending counter + the
-`EndOfTask` sentinel decide when a task is fully written — at which point the
+Per-object atomicity is enforced here: `delete_by_object` runs once per task (on its
+first chunk, before any upsert), and a per-task pending counter + the `EndOfTask`
+sentinel decide when a task is fully written, at which point the
 on_object_task_succeeded hooks fire (the objects-table + Job Lane completion update).
 
-Queue transport — `Chunk` carries `uri` + `connector_job_id`, but `EndOfTask` is a bare
+Queue transport: `Chunk` carries `uri` + `connector_job_id`, but `EndOfTask` is a bare
 identity-less sentinel (producers/base.py). Since this consumer interleaves many tasks
 on one queue, every queue item is a `TaskEnvelope` pairing the payload with explicit
 task identity. The engine builds the envelopes from each ObjectTask's producer output;
 this file does NOT redefine the base Chunk / EndOfTask types.
 
-No real Milvus / embedder here — the three injected Protocols are mocked in tests; the
-adapters that bind them to the real CachingEmbeddingClient / MilvusStore / tx_cache (and
-that add chunk_id + namespace to rows) live in adapters.py.
+No real Milvus / embedder here -- the three injected Protocols are mocked in tests; the
+adapters that bind them to the real CachingEmbeddingClient / MilvusStore / tx_cache
+(and add chunk_id + namespace to rows) live in adapters.py.
 """
 
 from __future__ import annotations
@@ -36,13 +36,13 @@ from .producers.base import Chunk, EndOfTask, cap_content
 
 logger = logging.getLogger(__name__)
 
-# --- internal constants (not TOML-exposed, §7.3) ---
+# --- internal constants (not TOML-exposed) ---
 _EMBED_FLUSH_IDLE_MS = 5000  # force a flush when the batch sits idle this long
 _CHUNKS_Q_MIN_MAXSIZE = 200  # floor for the bounded chunks_q (derived from batch_size)
 
 
 def _make_chunks_q_maxsize(batch_size: int) -> int:
-    """chunks_q bound = max(200, batch_size * 2) (§3.1 / §7.3 _CHUNKS_Q_MAXSIZE)."""
+    """chunks_q bound = max(200, batch_size * 2)."""
     return max(_CHUNKS_Q_MIN_MAXSIZE, batch_size * 2)
 
 
@@ -66,7 +66,7 @@ def _json_safe(metadata: dict) -> dict:
 
 def make_chunks_q(batch_size: int) -> asyncio.Queue:
     """Bounded process-level chunks_q. Bounded = backpressure: producers block when the
-    consumer falls behind, so a runaway producer can't blow up memory (§4.4)."""
+    consumer falls behind, so a runaway producer can't blow up memory."""
     return asyncio.Queue(maxsize=_make_chunks_q_maxsize(batch_size))
 
 
@@ -75,7 +75,7 @@ def make_chunks_q(batch_size: int) -> asyncio.Queue:
 
 @runtime_checkable
 class Embedder(Protocol):
-    """Raw embedder — the EmbedConsumer owns the cache layer around it (§6.3)."""
+    """Raw embedder; the EmbedConsumer owns the cache layer around it."""
 
     async def batch_embed(self, texts: list[str]) -> list[list[float]]: ...
 
@@ -89,7 +89,7 @@ class MilvusSink(Protocol):
 
 @runtime_checkable
 class TxCacheLike(Protocol):
-    """Per-input embed-vector cache (§6.3 — key is per-input, batch-boundary free)."""
+    """Per-input embed-vector cache (key is per-input, batch-boundary free)."""
 
     async def batch_get(self, keys: list[str]) -> dict[str, list[float]]: ...
 
@@ -103,10 +103,10 @@ class TxCacheLike(Protocol):
 class TaskEnvelope:
     """One chunks_q item: a producer payload (Chunk | EndOfTask) + its task identity.
 
-    task_id    — pending-counter key (the object_tasks row id).
-    task_uri   — full object uri; passed to delete_by_object + the success hook.
-    connector_uri — for delete_by_object(connector_uri, object_uri).
-    job_id     — connector_job_id, passed to the success hook (Job Lane completion, §6.4.4)."""
+    task_id    - pending-counter key (the object_tasks row id).
+    task_uri   - full object uri; passed to delete_by_object + the success hook.
+    connector_uri - for delete_by_object(connector_uri, object_uri).
+    job_id     - connector_job_id, passed to the success hook (Job Lane completion)."""
 
     task_id: str
     task_uri: str
@@ -134,21 +134,19 @@ class _Shutdown:
 
 _SHUTDOWN = _Shutdown()
 
-# Success hook: (task_uri, job_id, chunk_count, partial, error). chunk_count is the total number
-# of chunks actually persisted to Milvus for the object (credited only on a successful flush,
-# post-dedup — never on a chunk merely received, and never on a batch that failed and was
-# dropped); partial is True if any chunk's content was capped, the task was truncated
-# (EndOfTask.partial), or a flush dropped some of its chunks. error is None on a
-# clean finalize, or "<ExcType>: <msg>" when an embed/upsert flush failed for this task — the
-# callback uses it to record a failed status + last_error. Callers derive search_status from
-# these without the producer returning them inline (§6.1).
+# Success hook: (task_uri, job_id, chunk_count, partial, error). chunk_count = chunks
+# actually persisted (credited on a successful flush, post-dedup; never on a chunk merely
+# received or a dropped batch). partial = True if any chunk was capped, the task was
+# truncated (EndOfTask.partial), or a flush dropped some of its chunks. error is None on
+# a clean finalize, else "<ExcType>: <msg>" for a failed flush, which the callback uses to
+# record a failed status + last_error. Callers derive search_status from these.
 SuccessCallback = Callable[
     [str, Optional[str], int, bool, Optional[str]], Union[None, Awaitable[None]]
 ]
 
 
 class EmbedConsumer:
-    """Process-level singleton: drain chunks_q across all jobs, embed, upsert (§5.2).
+    """Process-level singleton: drain chunks_q across all jobs, embed, upsert.
 
     `tx_cache` is an injected dependency (TxCacheLike): flush() needs it for the vector
     cache layer."""
@@ -169,7 +167,7 @@ class EmbedConsumer:
 
         # accumulated (envelope, chunk) awaiting flush
         self._batch: list[tuple[TaskEnvelope, Chunk]] = []
-        # per-task bookkeeping (§6.1)
+        # per-task bookkeeping
         self._pending: dict[str, int] = {}  # task_id -> chunks received, not yet written
         self._eot: dict[str, bool] = {}  # task_id -> partial flag (presence = EndOfTask seen)
         self._deleted: set[str] = set()  # task_ids whose stale chunks were purged
@@ -181,14 +179,11 @@ class EmbedConsumer:
         # task_id -> "<ExcType>: <msg>" recorded when a flush dropped this task's chunks, so
         # finalize can mark the object failed + attach last_error.
         self._task_errors: dict[str, str] = {}
-        # job_ids Engine.cancel_job() has told us about (§ mfs job cancel). A single object's
-        # chunks can span many flushes; the producer/object-boundary cancellation check
-        # (Engine._should_stop) only stops the NEXT object from starting, so a large single
-        # object already mid-flight here would otherwise keep burning embed CPU until it
-        # finishes regardless of cancellation. Checked once per flush (not per chunk), so this
-        # can't slow down the common (nothing-cancelled) path. Never explicitly pruned: job ids
-        # are unique per sync and cancellation is a rare, human-triggered action, so this can't
-        # meaningfully grow over a process's lifetime.
+        # job_ids cancelled via Engine.cancel_job(). A single object's chunks can span many
+        # flushes and the cancel boundary only stops the next object from starting, so without
+        # this a large mid-flight object would keep burning embed CPU after cancel. Checked
+        # once per flush (not per chunk) to keep the common path fast. Never pruned: job ids
+        # are unique per sync and cancel is rare, so this can't meaningfully grow.
         self._cancelled_jobs: set[str] = set()
 
         self._on_succeeded: list[SuccessCallback] = []
@@ -198,10 +193,9 @@ class EmbedConsumer:
     # --- registration ---
     def register_on_succeeded(self, callback: SuccessCallback) -> None:
         """Add a per-task finalize hook, invoked as callback(task_uri, job_id, chunk_count,
-        partial, error) when a task reaches a terminal state — either all its chunks were
-        written + its EndOfTask was seen (error is None), or a flush dropped its chunks (error
-        carries the exception). Job Lane completion §6.4.4; objects-table update.
-        Callbacks may ignore the trailing args."""
+        partial, error) when a task reaches a terminal state -- either all its chunks were
+        written + its EndOfTask was seen (error is None), or a flush dropped its chunks
+        (error carries the exception). Callbacks may ignore the trailing args."""
         self._on_succeeded.append(callback)
 
     # --- lifecycle ---
@@ -216,8 +210,8 @@ class EmbedConsumer:
 
         Every unit of work (idle flush, consume) is guarded: a transient failure (DB hiccup
         in a callback, a Milvus upsert error) is logged and the loop keeps draining rather
-        than dying. A dead consumer task would wedge every later chunk, so resilience here is
-        a hard requirement (§5.2)."""
+        than dying. A dead consumer task would wedge every later chunk, so resilience here
+        is load-bearing."""
         self._q = chunks_q
         idle_s = self._idle_ms / 1000.0
         while True:
@@ -231,11 +225,11 @@ class EmbedConsumer:
                 break
             try:
                 await self._consume(item)
-            except Exception as e:  # noqa: BLE001 — never let one bad item kill the consumer
+            except Exception as e:  # noqa: BLE001 - never let one bad item kill the consumer
                 logger.warning("embed consumer consume failed: %s", e)
 
     async def _safe_flush(self) -> None:
-        """_flush that logs (never raises) — for the loop's idle/shutdown drains, so a failed
+        """_flush that logs (never raises) - for the loop's idle/shutdown drains, so a failed
         write doesn't terminate the consumer. _flush itself preserves the batch on failure, so
         the next flush retries it (nothing is lost)."""
         try:
@@ -252,14 +246,13 @@ class EmbedConsumer:
 
     # --- retry ---
     def on_task_retry(self, task_id: str) -> None:
-        """Drop ALL per-task state before the engine re-pumps a task's producer (§6.1).
+        """Drop ALL per-task state before the engine re-pumps a task's producer.
 
-        A producer that raised mid-stream left partial state behind: chunks already in the
-        batch, an inflated _pending/_count, and `task_id` in _deleted (so the next first-chunk
-        would SKIP delete_by_object). Carrying any of that into the retry would double-count
-        the chunk_count, leave stale chunks the retry no longer produces, and corrupt the
-        pending counter. Resetting to fresh state makes the retry behave like a first attempt:
-        delete_by_object runs again and the counters reflect only the retry's chunks."""
+        A mid-stream failure leaves partial state behind (chunks in the batch, inflated
+        _pending/_count, task_id in _deleted so the next first-chunk would skip
+        delete_by_object). Carrying that into the retry would double-count chunks, leave
+        stale chunks the retry no longer produces, and corrupt the pending counter.
+        Resetting makes the retry behave like a first attempt."""
         self._batch = [(e, c) for (e, c) in self._batch if e.task_id != task_id]
         self._pending.pop(task_id, None)
         self._count.pop(task_id, None)
@@ -271,12 +264,10 @@ class EmbedConsumer:
 
     # --- cancellation ---
     def mark_job_cancelled(self, job_id: str) -> None:
-        """Record a job as cancelled (called from Engine.cancel_job()) so the NEXT flush
-        skips embedding its already-queued chunks instead of spending real embed-API/CPU
-        time on work whose result will never be written. This can't make an in-flight
-        batch_embed() call return early -- that one batch still runs to completion -- but
-        it stops every batch after it, which is the realistic bound on how fast `mfs job
-        cancel` can actually take effect for a single large object still mid-flight."""
+        """Record a job as cancelled so the next flush skips embedding its already-queued
+        chunks. Can't abort an in-flight batch_embed() (that batch still completes), but
+        stops every batch after it -- the realistic bound on how fast `mfs job cancel`
+        takes effect for a large mid-flight object."""
         self._cancelled_jobs.add(job_id)
 
     # --- consume ---
@@ -291,8 +282,8 @@ class EmbedConsumer:
         tid = env.task_id
         self._meta[tid] = env
         # per-object atomic: purge stale chunks once, on this task's FIRST chunk, before
-        # any upsert lands (§6.1). Idempotent + safe to retry (delete-by-filter no-ops
-        # when nothing matches), so re-running a task just deletes again.
+        # any upsert lands. Idempotent + safe to retry (delete-by-filter no-ops when
+        # nothing matches), so re-running a task just deletes again.
         if tid not in self._deleted:
             await self._milvus.delete_by_object(env.connector_uri, env.task_uri)
             self._deleted.add(tid)
@@ -310,8 +301,8 @@ class EmbedConsumer:
         if env.payload.partial:
             self._partial[tid] = True
         if self._pending.get(tid, 0) == 0:
-            # all chunks already written (or this task produced none) — a zero-chunk
-            # rebuild still must purge any prior index (§6.1).
+            # all chunks already written (or none produced) -- a zero-chunk rebuild still
+            # purges any prior index.
             if tid not in self._deleted:
                 await self._milvus.delete_by_object(env.connector_uri, env.task_uri)
                 self._deleted.add(tid)
@@ -331,15 +322,14 @@ class EmbedConsumer:
             cancelled = [item for item in batch if item[0].job_id in self._cancelled_jobs]
             if cancelled:
                 batch = [item for item in batch if item[0].job_id not in self._cancelled_jobs]
-                # Reuse the existing failure path rather than inventing new bookkeeping --
-                # cancellation was already called out as one of _fail_batch's intended
-                # triggers ("an OOM embed, a Milvus error, a cancellation") when that method
-                # was written; this is the first caller to actually exercise it that way.
+                # Reuse the existing failure path rather than inventing new bookkeeping:
+                # cancellation is one of _fail_batch's intended triggers, this is the first
+                # caller to exercise it that way.
                 await self._fail_batch(cancelled, RuntimeError("job_cancelled"))
                 if not batch:
                     return
         try:
-            # 1. tx_cache lookup for vectors, embed only the misses (§6.3), cache them back.
+            # 1. tx_cache lookup for vectors, embed only the misses, cache them back.
             keys = [self._cache_key(ch) for _, ch in batch]
             cached = await self._tx_cache.batch_get(keys) or {}
             miss_idx = [i for i, k in enumerate(keys) if cached.get(k) is None]
@@ -351,14 +341,14 @@ class EmbedConsumer:
                     put[keys[i]] = new_vecs[j]
                 await self._tx_cache.batch_put(put)
 
-            # 2. one upsert for the whole (cross-task, cross-kind) batch — idempotent by
-            #    chunk_id PK (§5.3 / §6.2). delete_by_object already ran per task on receipt.
+            # 2. one upsert for the whole (cross-task, cross-kind) batch - idempotent by
+            #    chunk_id PK. delete_by_object already ran per task on receipt.
             built = [
                 (env.task_id, self._build_row(env, ch, cached[keys[i]]))
                 for i, (env, ch) in enumerate(batch)
             ]
             # de-dupe by chunk_id (last-occurrence wins) so two chunks colliding on the same
-            # locator-derived id within one batch don't make Milvus reject the WHOLE batch —
+            # locator-derived id within one batch don't make Milvus reject the WHOLE batch -
             # rows without a chunk_id (the base class's default _build_row, used directly in
             # unit tests) skip this, since there is nothing to collide on.
             if built and "chunk_id" in built[0][1]:
@@ -368,23 +358,23 @@ class EmbedConsumer:
                 built = list(deduped.values())
             rows = [row for _, row in built]
             # raw per-task counts across the WHOLE flush attempt (every chunk processed, dedup
-            # or not) — pending tracks "no longer queued for a future flush", true regardless
+            # or not) - pending tracks "no longer queued for a future flush", true regardless
             # of whether the row survived dedup or the upsert ultimately succeeds.
             counts: dict[str, int] = {}
             for env, _ in batch:
                 counts[env.task_id] = counts.get(env.task_id, 0) + 1
             await self._milvus.upsert(rows)
         except BaseException as exc:  # noqa: BLE001
-            # Agnostic failure handling: we do NOT inspect the exception type or message, do NOT
-            # retry, and do NOT split the batch. Any failure (an OOM embed, a Milvus error, a
-            # cancellation) structurally releases this batch's per-task bookkeeping so the tasks
-            # finalize as failed and the run() loop keeps draining — the alternative is a wedged
-            # consumer where pending never reaches zero and the task is stuck 'running' forever.
+            # Agnostic failure handling: don't inspect the exception, don't retry, don't split
+            # the batch. Any failure (OOM embed, Milvus error, cancellation) releases this
+            # batch's per-task bookkeeping so the tasks finalize failed and run() keeps
+            # draining -- otherwise pending never reaches zero and the task sticks 'running'
+            # forever.
             await self._fail_batch(batch, exc)
             return
 
         # 3. write acked: clear the batch, credit chunk_count for what actually persisted
-        # (the deduped rows — not the raw per-task counts above), then decrement pending and
+        # (the deduped rows - not the raw per-task counts above), then decrement pending and
         # finalize.
         self._batch = []
         written: dict[str, int] = {}
@@ -414,7 +404,7 @@ class EmbedConsumer:
             exc,
         )
         # The whole batch is discarded (these chunks are NOT written). Decrement each chunk's
-        # pending (clamped at 0 — never negative), flag the task partial, and record the raw
+        # pending (clamped at 0 - never negative), flag the task partial, and record the raw
         # error so finalize can attach it as last_error.
         self._batch = []
         msg = f"{type(exc).__name__}: {exc}"
@@ -465,8 +455,8 @@ class EmbedConsumer:
 
     # --- overridable hooks (the adapters in adapters.py supply the real ones) ---
     def _cache_key(self, chunk: Chunk) -> str:
-        """Per-input embed cache key (§6.3). Default hashes content only; the adapter
-        overrides to fold in provider + model + version so a model swap re-embeds."""
+        """Per-input embed cache key. Default hashes content only; the adapter overrides
+        to fold in provider + model + version so a model swap re-embeds."""
         return hashlib.sha1(chunk.content.encode("utf-8")).hexdigest()
 
     def _build_row(self, env: TaskEnvelope, chunk: Chunk, vec: list[float]) -> dict:

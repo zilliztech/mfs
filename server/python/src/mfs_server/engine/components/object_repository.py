@@ -1,10 +1,9 @@
 """
 ``ObjectRepository`` + task/job/connector state machine.
 
-Consolidates all SQL for the ``objects`` / ``object_tasks`` / ``connector_jobs`` /
-``connectors`` tables and the status-transition guard (``advance_task``) so the
-invariants previously expressed only in ``WHERE status=?`` guards and inline
-comments live as a single queryable transition table.
+Owns all SQL for the ``objects`` / ``object_tasks`` / ``connector_jobs`` /
+``connectors`` tables and the status-transition guard (``advance_task``); the
+``WHERE status=?`` invariants live as a single queryable transition table.
 """
 
 from __future__ import annotations
@@ -93,11 +92,6 @@ _JOB_TRANSITIONS: frozenset[tuple[JobStatus, JobStatus]] = frozenset(
 class ObjectRepository:
     """SQL repository + state machine for the ``objects`` / ``object_tasks`` /
     ``connector_jobs`` / ``connectors`` tables.
-
-    ``Engine`` delegates every ``self.meta.execute/fetchone/fetchall`` against these
-    four tables to ``self.objects.xxx(...)``; SQL is migrated verbatim with zero
-    behavior change. ``Engine`` keeps the non-SQL orchestration and the thin
-    delegate methods called directly by tests.
     """
 
     def __init__(self, meta, cfg):
@@ -123,7 +117,7 @@ class ObjectRepository:
         on ``status=from_status`` and returns the rowcount (``won``). ``won == 0``
         means a concurrent cancel/remove beat us — the caller reconciles (e.g. delete
         orphan chunks in ``_on_pipeline_object_indexed``). Preserves the original
-        ``WHERE id=? AND status='running'`` guard + ``won`` semantics (§4.4 / §5).
+        ``WHERE id=? AND status='running'`` guard + ``won`` semantics.
 
         Only used on the paths that originally carried a ``status='running'`` guard
         (pipeline/inline succeeded, pipeline failed). Unguarded terminal writes
@@ -455,8 +449,8 @@ class ObjectRepository:
     async def write_object_row(
         self, cid: str, relpath: str, st, indexable: bool, search_status: str, chunk_count: int
     ) -> None:
-        """UPSERT the ``objects`` registry row. Shared by the inline _index_object tail,
-        the rename branch, and the pipeline success hook."""
+        """UPSERT the ``objects`` registry row. Shared by the inline index path, the
+        rename branch, and the pipeline success hook."""
         import os
 
         await self._meta.execute(
