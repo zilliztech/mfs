@@ -18,9 +18,12 @@ services:
     image: mfs-server:0.4.5
     command: ["run", "--bind", "0.0.0.0:13619"]
     environment:
-      # omit to use bundled Milvus Lite under /data; set to use Zilliz Cloud
-      MILVUS_URI: ${ZILLIZ_URI:-/data/milvus.db}
-      MILVUS_TOKEN: ${ZILLIZ_TOKEN:-}
+      # Milvus Lite (default): leave ZILLIZ_URI unset -> mfs uses <MFS_HOME>/milvus.db.
+      # Zilliz Cloud / remote Milvus: set ZILLIZ_URI + ZILLIZ_TOKEN. We pass these
+      # directly rather than pymilvus's MILVUS_URI: pymilvus 3.x parses MILVUS_URI at
+      # import time and rejects a local Lite path, so MILVUS_URI must stay remote-only.
+      ZILLIZ_URI: ${ZILLIZ_URI:-}
+      ZILLIZ_TOKEN: ${ZILLIZ_TOKEN:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       MFS_HOME: /data
       # The API requires a Bearer token. Set MFS_API_TOKEN to a known value

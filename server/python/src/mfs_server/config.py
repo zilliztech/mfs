@@ -414,14 +414,13 @@ def _format_config_validation_error(exc: ValidationError) -> str:
 def _apply_env_overrides(cfg: ServerConfig) -> None:
     """Env overrides for dogfood: Milvus endpoint/token + a few server knobs.
 
-    Milvus URI / token use a single primary name (`MILVUS_URI` / `MILVUS_TOKEN`)
-    that works for both Milvus self-hosted and Zilliz Cloud — conceptually
-    Zilliz Cloud is hosted Milvus, the URI/token are the same idea. As
-    fallback we accept `ZILLIZ_URI` / `ZILLIZ_TOKEN` / `ZILLIZ_API_KEY`
-    because Zilliz Cloud users typically already have one of those exported
-    from their notebooks. Primary names are documented; fallbacks are
-    silent-compat. OpenAI key is read by the openai SDK directly from
-    OPENAI_API_KEY.
+    Milvus URI/token precedence (mirrored in _apply_env_fills): `MFS_MILVUS_URI`
+    / `MFS_MILVUS_TOKEN` (the mfs namespace — what Helm injects, and the only
+    one of the three that may carry a Milvus Lite local path) > `MILVUS_URI` /
+    `MILVUS_TOKEN` (pymilvus's own env, remote-only — pymilvus 3.x parses
+    `MILVUS_URI` at import time and rejects local paths) > `ZILLIZ_URI` /
+    `ZILLIZ_TOKEN` / `ZILLIZ_API_KEY` (Zilliz users often have one exported).
+    OpenAI key is read by the openai SDK directly from OPENAI_API_KEY.
 
     Precedence: env wins over toml (12-factor — docker/K8s/compose deploys
     inject config via env, and the toml is the baked-in default to be
@@ -445,9 +444,14 @@ def _apply_env_overrides(cfg: ServerConfig) -> None:
     if summ is not None:
         cfg.summary.enabled = summ.strip().lower() in ("1", "true", "yes", "on")
 
-    uri_env = os.environ.get("MILVUS_URI") or os.environ.get("ZILLIZ_URI")
+    uri_env = (
+        os.environ.get("MFS_MILVUS_URI")
+        or os.environ.get("MILVUS_URI")
+        or os.environ.get("ZILLIZ_URI")
+    )
     token_env = (
-        os.environ.get("MILVUS_TOKEN")
+        os.environ.get("MFS_MILVUS_TOKEN")
+        or os.environ.get("MILVUS_TOKEN")
         or os.environ.get("ZILLIZ_TOKEN")
         or os.environ.get("ZILLIZ_API_KEY")
     )
@@ -505,9 +509,14 @@ def _apply_env_fills(cfg: ServerConfig) -> None:
     # default is False so any user that set summary.enabled=true in toml wins.
     if summ is not None and not cfg.summary.enabled:
         cfg.summary.enabled = summ.strip().lower() in ("1", "true", "yes", "on")
-    uri_env = os.environ.get("MILVUS_URI") or os.environ.get("ZILLIZ_URI")
+    uri_env = (
+        os.environ.get("MFS_MILVUS_URI")
+        or os.environ.get("MILVUS_URI")
+        or os.environ.get("ZILLIZ_URI")
+    )
     token_env = (
-        os.environ.get("MILVUS_TOKEN")
+        os.environ.get("MFS_MILVUS_TOKEN")
+        or os.environ.get("MILVUS_TOKEN")
         or os.environ.get("ZILLIZ_TOKEN")
         or os.environ.get("ZILLIZ_API_KEY")
     )

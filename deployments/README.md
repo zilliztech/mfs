@@ -26,7 +26,7 @@ docker run -d -p 13619:13619 -v mfs-data:/data \
 
 # or override Milvus to Zilliz Cloud
 docker run -d -p 13619:13619 -v mfs-data:/data \
-  -e MILVUS_URI=$ZILLIZ_URI -e MILVUS_TOKEN=$ZILLIZ_TOKEN \
+  -e ZILLIZ_URI=$ZILLIZ_URI -e ZILLIZ_TOKEN=$ZILLIZ_TOKEN \
   mfs-server:0.4.5
 ```
 
@@ -53,7 +53,7 @@ Compose wrapper (same image): `cd deployments/compose && docker compose up`.
 | Embedding | (via `mfs-server setup --section embedding`) | local ONNX `gpahal/bge-m3-onnx-int8` (multilingual, 1024-dim) |
 | VLM / image summary | (via `mfs-server setup --section vlm`) | OFF (opt-in) |
 | Metadata DB | `MFS_METADATA_DSN=postgresql://...` | SQLite under `/data` |
-| Milvus | `MILVUS_URI=...` + `MILVUS_TOKEN=...` | Lite at `/data/milvus.db` |
+| Milvus | `ZILLIZ_URI=...` + `ZILLIZ_TOKEN=...` | Lite at `/data/milvus.db` |
 | API token | `MFS_API_TOKEN=...` | Auto-generated to `/data/server.token` |
 
 ## Team / client-server (compose) and Kubernetes (helm)
