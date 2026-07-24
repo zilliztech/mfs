@@ -118,19 +118,18 @@ MFS writes chunks through `MilvusStore`.
 | Mode | How it is selected | Backup boundary |
 |---|---|---|
 | Milvus Lite | No Milvus URI is configured, so the resolved URI is `$MFS_HOME/milvus.db`. | Back up the local Lite file with metadata and local cache state. |
-| Remote Milvus or Zilliz | Configure `[milvus] uri` / `token`, `MILVUS_URI` / `MILVUS_TOKEN`, or the Zilliz fallback env names read by the server. | Treat it as external state. Use that service's backup, snapshot, export, or retention policy. |
+| Remote Milvus or Zilliz | Configure `[milvus] uri` / `token`, `MFS_MILVUS_URI` / `MFS_MILVUS_TOKEN` (or the `MILVUS_*` / `ZILLIZ_*` fallbacks read by the server). | Treat it as external state. Use that service's backup, snapshot, export, or retention policy. |
 
 Do not invent local collection backup commands for remote Milvus/Zilliz. The
 current MFS code deletes chunks by object or connector; the public operator path
 for connector data removal is `mfs connector remove TARGET` or
 `DELETE /v1/connectors`.
 
-!!! warning "Rendered deployment env names"
-    Current Compose and Helm assets mention `MFS_MILVUS_URI` and
-    `MFS_MILVUS_TOKEN`, while the server config code reads `MILVUS_URI`,
-    `MILVUS_TOKEN`, and Zilliz fallback names. Follow
-    [Deployment](deployment.md#environment-variables) before relying on remote
-    Milvus configuration.
+!!! note "Remote Milvus env names"
+    The server reads `MFS_MILVUS_URI` / `MFS_MILVUS_TOKEN` (what Helm injects),
+    then `MILVUS_URI` / `MILVUS_TOKEN` (remote only - pymilvus rejects local paths
+    at import), then `ZILLIZ_*` fallbacks. See
+    [Deployment](deployment.md#environment-variables) for the full precedence.
 
 ## Deployment Mapping
 
