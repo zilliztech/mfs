@@ -2901,12 +2901,10 @@ current MFS code deletes chunks by object or connector; the public operator path
 for connector data removal is <code>mfs connector remove TARGET</code> or
 <code>DELETE /v1/connectors</code>.</p>
 <div class="admonition warning">
-<p class="admonition-title">Rendered deployment env names</p>
-<p>Current Compose and Helm assets mention <code>MFS_MILVUS_URI</code> and
-<code>MFS_MILVUS_TOKEN</code>, while the server config code reads <code>MILVUS_URI</code>,
-<code>MILVUS_TOKEN</code>, and Zilliz fallback names. Follow
-<a href="../deployment/#environment-variables">Deployment</a> before relying on remote
-Milvus configuration.</p>
+<p class="admonition-title">Keep Milvus Lite paths out of <code>MILVUS_URI</code></p>
+<p>pymilvus treats <code>MILVUS_URI</code> as a remote URI during import. Leave it unset
+for the <code>$MFS_HOME/milvus.db</code> default, or configure a Lite path in
+<code>server.toml</code> instead.</p>
 </div>
 <h2 id="deployment-mapping">Deployment Mapping<a class="headerlink" href="#deployment-mapping" title="Permanent link">&para;</a></h2>
 <table>

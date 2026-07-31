@@ -3002,12 +3002,12 @@ apply after TOML is loaded and default paths are resolved.</p>
 <tr>
 <td><code>MILVUS_URI</code></td>
 <td>Server</td>
-<td>Primary Milvus or Zilliz Cloud URI override.</td>
+<td>Primary remote Milvus or Zilliz Cloud URI override. Do not use a Milvus Lite file path.</td>
 </tr>
 <tr>
 <td><code>MILVUS_TOKEN</code></td>
 <td>Server</td>
-<td>Primary Milvus or Zilliz token override.</td>
+<td>Primary remote Milvus or Zilliz token override.</td>
 </tr>
 <tr>
 <td><code>ZILLIZ_URI</code></td>
@@ -3047,11 +3047,10 @@ apply after TOML is loaded and default paths are resolved.</p>
 </tbody>
 </table>
 <div class="admonition warning">
-<p class="admonition-title">Do not use <code>MFS_MILVUS_*</code> as runtime overrides</p>
-<p>Some deployment assets mention <code>MFS_MILVUS_URI</code> and <code>MFS_MILVUS_TOKEN</code>.
-The current server configuration code does not read those names. Use
-<code>MILVUS_URI</code> / <code>MILVUS_TOKEN</code>, <code>ZILLIZ_URI</code> / <code>ZILLIZ_TOKEN</code>, or
-<code>server.toml</code> until the deployment assets and runtime config are aligned.</p>
+<p class="admonition-title">Keep Milvus Lite paths out of <code>MILVUS_URI</code></p>
+<p>pymilvus parses <code>MILVUS_URI</code> as a remote URI during import and rejects local
+file paths. For Milvus Lite, leave the variable unset to use
+<code>$MFS_HOME/milvus.db</code>, or set <code>[milvus].uri</code> in <code>server.toml</code>.</p>
 </div>
 <h2 id="cli-endpoint-and-token-resolution">CLI Endpoint and Token Resolution<a class="headerlink" href="#cli-endpoint-and-token-resolution" title="Permanent link">&para;</a></h2>
 <p>The CLI stores profiles in <code>$MFS_HOME/client.toml</code>.</p>

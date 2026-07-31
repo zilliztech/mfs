@@ -2886,15 +2886,18 @@ target before you scope a search.</p>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>mfs-server<span class="w"> </span>cat<span class="w"> </span>/data/server.token<span class="k">)</span><span class="s2">&quot;</span>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>mfs<span class="w"> </span>status
 </code></pre></div>
-<p>To pin a known token, export <code>MFS_API_TOKEN</code> before <code>up</code>. The upload rules from
-the Docker section apply unchanged.</p>
+<p>To pin a known API token, export <code>MFS_API_TOKEN</code> before <code>up</code>. Compose defaults to
+Milvus Lite at <code>/data/milvus.db</code>; to use remote Milvus or Zilliz Cloud, uncomment
+the <code>MILVUS_URI</code> and <code>MILVUS_TOKEN</code> entries in the Compose file and set them to a
+container-reachable HTTP(S) endpoint and its token. The upload rules from the
+Docker section apply unchanged.</p>
 <h2 id="kubernetes-apiworker">Kubernetes api/worker<a class="headerlink" href="#kubernetes-apiworker" title="Permanent link">&para;</a></h2>
 <p>The chart under <code>deployments/helm/mfs</code> renders an API Deployment
 (<code>mfs-server api</code>), a Worker Deployment (<code>mfs-server worker --concurrency auto</code>),
 and an API Service. Probes use unauthenticated <code>GET /healthz</code>. This shape expects
 externalized state — Postgres, object storage, and a managed Milvus/Zilliz
 endpoint.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>helm<span class="w"> </span>lint<span class="w"> </span>deployments/helm/mfs
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>helm<span class="w"> </span>lint<span class="w"> </span>deployments/helm/mfs<span class="w"> </span>--set<span class="w"> </span>search.uri<span class="o">=</span>https://xxx.zillizcloud.com
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>helm<span class="w"> </span>template<span class="w"> </span>mfs<span class="w"> </span>deployments/helm/mfs<span class="w"> </span>--set<span class="w"> </span>search.uri<span class="o">=</span>https://xxx.zillizcloud.com
 </code></pre></div>
 <p>It expects a secret (default <code>mfs-secrets</code>) with these keys:</p>
@@ -2980,14 +2983,9 @@ Rust toolchain) into the server's environment:</p>
 <td><code>http://127.0.0.1:13619</code></td>
 </tr>
 <tr>
-<td><code>MILVUS_URI</code></td>
-<td>Milvus Lite path, or a Milvus/Zilliz endpoint.</td>
-<td><code>$MFS_HOME/milvus.db</code></td>
-</tr>
-<tr>
-<td><code>MILVUS_TOKEN</code></td>
-<td>Milvus/Zilliz token.</td>
-<td>empty</td>
+<td><code>MILVUS_URI</code> / <code>MILVUS_TOKEN</code></td>
+<td>Remote Milvus/Zilliz HTTP(S) endpoint and token. Do not put a Milvus Lite file path in <code>MILVUS_URI</code>.</td>
+<td>unset; Lite resolves to <code>$MFS_HOME/milvus.db</code></td>
 </tr>
 <tr>
 <td><code>ZILLIZ_URI</code> / <code>ZILLIZ_TOKEN</code> / <code>ZILLIZ_API_KEY</code></td>

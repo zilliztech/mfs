@@ -2753,7 +2753,7 @@ the per-connector pages.</p>
 <tr>
 <td>Compose all-in-one</td>
 <td><code>MFS_API_TOKEN: ${MFS_API_TOKEN:-}</code> and <code>MFS_HOME=/data</code> in <code>deployments/compose/docker-compose.yml</code></td>
-<td>Compose passes <code>OPENAI_API_KEY</code> and the <code>MILVUS_*</code> / <code>ZILLIZ_*</code> endpoint vars</td>
+<td>Compose passes <code>OPENAI_API_KEY</code>; remote <code>MILVUS_*</code> entries are opt-in and commented by default</td>
 <td>If <code>MFS_API_TOKEN</code> is empty, read <code>/data/server.token</code> from the container.</td>
 </tr>
 <tr>
