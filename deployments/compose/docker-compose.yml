@@ -18,7 +18,7 @@ services:
     build:
       context: ../..
       dockerfile: deployments/docker/Dockerfile
-    image: mfs-server:0.4.5
+    image: mfs-server:0.4.6
     command: [ "run", "--bind", "0.0.0.0:13619" ]
     environment:
       MFS_HOME: /data
@@ -52,6 +52,6 @@ volumes:
 #
 #   postgres:    image: postgres:16          # metadata  (MFS_METADATA_DSN=postgresql://...)
 #   (artifact cache is local — mount a shared RWX volume at /data/cache across pods)
-#   mfs-api:     image: mfs-server:0.4.5      # command: ["api",    "--bind", "0.0.0.0:13619"]
-#   mfs-worker:  image: mfs-server:0.4.5      # command: ["worker", "--concurrency", "auto"]
+#   mfs-api:     image: mfs-server:0.4.6      # command: ["api",    "--bind", "0.0.0.0:13619"]
+#   mfs-worker:  image: mfs-server:0.4.6      # command: ["worker", "--concurrency", "auto"]
 # ---------------------------------------------------------------------------

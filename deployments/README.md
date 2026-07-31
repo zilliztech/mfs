@@ -12,22 +12,22 @@ volume. This is the runnable v0.4 topology.
 # build (include all connector SDKs)
 docker build -f deployments/docker/Dockerfile \
              --build-arg EXTRAS="[all-connectors]" \
-             -t mfs-server:0.4.5 .
+             -t mfs-server:0.4.6 .
 
 # run with local ONNX embedding + Milvus Lite (zero API keys needed)
 docker run -d -p 13619:13619 -v mfs-data:/data \
-  mfs-server:0.4.5
+  mfs-server:0.4.6
 
 # or override embedding to OpenAI
 docker run -d -p 13619:13619 -v mfs-data:/data \
   -e OPENAI_API_KEY=$OPENAI_API_KEY \
-  mfs-server:0.4.5
+  mfs-server:0.4.6
 # (then: docker exec -it <id> mfs-server setup --section embedding   to flip provider)
 
 # or use remote Milvus / Zilliz Cloud
 docker run -d -p 13619:13619 -v mfs-data:/data \
   -e MILVUS_URI=$ZILLIZ_URI -e MILVUS_TOKEN=$ZILLIZ_TOKEN \
-  mfs-server:0.4.5
+  mfs-server:0.4.6
 ```
 
 **First-launch tip**: the default ONNX embedding model (~600 MB, BGE-M3 int8)
