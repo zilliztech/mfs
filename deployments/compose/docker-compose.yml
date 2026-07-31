@@ -1,38 +1,44 @@
 # MFS Docker Compose.
 #
 # v0.4 ships the all-in-one server: API + inline task processing in one container,
-# SQLite metadata + cache on a mounted volume, Milvus via Lite (default) or Zilliz
-# Cloud (set ZILLIZ_URI / ZILLIZ_TOKEN). Single runnable topology today.
+# SQLite metadata + cache on a mounted volume, Milvus via Lite (default) or a
+# remote Milvus/Zilliz endpoint. Single runnable topology today.
 #
-#   ZILLIZ_URI=https://xxx.zillizcloud.com ZILLIZ_TOKEN=... OPENAI_API_KEY=... \
+#   MILVUS_URI=https://xxx.zillizcloud.com MILVUS_TOKEN=... OPENAI_API_KEY=... \
 #     docker compose up --build
+#
+# To use that remote endpoint, uncomment MILVUS_URI and MILVUS_TOKEN below.
 #
 # The api/worker split + Postgres metadata + a shared cache volume is the team /
 # client-server target; the Postgres metadata backend is wired (MFS_METADATA_DSN),
 # the standalone worker daemon lands post-v0.4. Sketch at the bottom (disabled).
+name: mfs
 services:
   mfs-server:
     build:
       context: ../..
       dockerfile: deployments/docker/Dockerfile
     image: mfs-server:0.4.5
-    command: ["run", "--bind", "0.0.0.0:13619"]
+    command: [ "run", "--bind", "0.0.0.0:13619" ]
     environment:
-      # omit to use bundled Milvus Lite under /data; set to use Zilliz Cloud
-      MILVUS_URI: ${ZILLIZ_URI:-/data/milvus.db}
-      MILVUS_TOKEN: ${ZILLIZ_TOKEN:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       MFS_HOME: /data
+      # Milvus Lite is the default at /data/milvus.db. Do not put a Lite file
+      # path in MILVUS_URI because pymilvus treats that variable as a remote URI.
+      # For remote Milvus or Zilliz Cloud, uncomment both lines and use an
+      # HTTP(S) endpoint reachable from this container.
+      # MILVUS_URI: ${MILVUS_URI:?set a remote Milvus or Zilliz endpoint}
+      # MILVUS_TOKEN: ${MILVUS_TOKEN:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # The API requires a Bearer token. Set MFS_API_TOKEN to a known value
       # so host CLIs can authenticate; if empty the server auto-generates one at
       # /data/server.token (read via: docker compose exec mfs-server cat /data/server.token).
       MFS_API_TOKEN: ${MFS_API_TOKEN:-}
-    ports: ["13619:13619"]
+    ports: [ "13619:13619" ]
     volumes:
       - mfs-data:/data          # SQLite metadata + cache + (Lite) milvus.db — persist!
     healthcheck:
       # send the Bearer token (explicit MFS_API_TOKEN, else the auto-generated server.token)
-      test: ["CMD", "python", "-c", "import urllib.request,sys,os; tok=os.environ.get('MFS_API_TOKEN') or (open('/data/server.token').read().strip() if os.path.exists('/data/server.token') else ''); req=urllib.request.Request('http://127.0.0.1:13619/v1/server/info', headers={'Authorization':'Bearer '+tok} if tok else {}); sys.exit(0 if urllib.request.urlopen(req).status==200 else 1)"]
+      test: [ "CMD", "python", "-c", "import urllib.request,sys,os; tok=os.environ.get('MFS_API_TOKEN') or (open('/data/server.token').read().strip() if os.path.exists('/data/server.token') else ''); req=urllib.request.Request('http://127.0.0.1:13619/v1/server/info', headers={'Authorization':'Bearer '+tok} if tok else {}); sys.exit(0 if urllib.request.urlopen(req).status==200 else 1)" ]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -99,7 +99,7 @@ the per-connector pages.
 |---|---|---|---|
 | Source server | `MFS_API_TOKEN` in the server environment, or `$MFS_HOME/server.token` in auto mode | Server environment variables such as `MILVUS_TOKEN`, `ZILLIZ_TOKEN`, `ZILLIZ_API_KEY`, and provider SDK env vars | `MFS_HOME` defaults to `~/.mfs`. |
 | Docker all-in-one | `docker run -e MFS_API_TOKEN=...`, or `/data/server.token` when omitted | `docker run -e ...` for server-read env vars | Mount `/data` so generated tokens and state survive container removal. |
-| Compose all-in-one | `MFS_API_TOKEN: ${MFS_API_TOKEN:-}` and `MFS_HOME=/data` in `deployments/compose/docker-compose.yml` | Compose passes `OPENAI_API_KEY` and the `MILVUS_*` / `ZILLIZ_*` endpoint vars | If `MFS_API_TOKEN` is empty, read `/data/server.token` from the container. |
+| Compose all-in-one | `MFS_API_TOKEN: ${MFS_API_TOKEN:-}` and `MFS_HOME=/data` in `deployments/compose/docker-compose.yml` | Compose passes `OPENAI_API_KEY`; remote `MILVUS_*` entries are opt-in and commented by default | If `MFS_API_TOKEN` is empty, read `/data/server.token` from the container. |
 | Helm-rendered API/worker | `MFS_API_TOKEN` from existing Secret key `api-token` | Secret keys `zilliz-token` and `openai-api-key` | Every API replica must share the same `api-token`. API probes use unauthenticated `/healthz`. |
 
 ## First Failure Recovery

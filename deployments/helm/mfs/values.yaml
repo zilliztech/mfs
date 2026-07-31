@@ -21,7 +21,7 @@ worker:
 # scope for v0.4 (see design/10 §4.3).
 search:
   type: zilliz
-  uri: ""          # https://xxx.zillizcloud.com
+  uri: ""          # required; e.g. https://xxx.zillizcloud.com
   # token is read from the secret below
 
 # metadata: postgres (set dsn) or sqlite (single-replica only)
@@ -33,7 +33,7 @@ metadata:
 # RWX volume at the cache root ($MFS_HOME/cache) so artifacts and upload staging are
 # visible to every pod.
 
-# secret holding the shared API bearer token + ZILLIZ_TOKEN / OPENAI_API_KEY.
+# secret holding the shared API bearer token + Milvus/Zilliz token + OpenAI key.
 # Required keys: api-token, zilliz-token, openai-api-key. The same api-token must be
 # shared by every API replica.
 existingSecret: "mfs-secrets"

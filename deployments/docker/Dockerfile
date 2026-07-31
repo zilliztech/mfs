@@ -22,7 +22,7 @@
 #
 # Backends (DB / Milvus) are all RUNTIME — pass env at `docker run`:
 #   MFS_METADATA_DSN=postgresql://...   # default = SQLite under /data
-#   MILVUS_URI=https://...zillizcloud.com / MILVUS_TOKEN=...  # default = Lite under /data
+#   MILVUS_URI=https://... / MILVUS_TOKEN=...  # remote only; Lite uses MFS_HOME
 #   MFS_API_TOKEN=...                   # default = auto-generated to /data/server.token
 #   OPENAI_API_KEY=...                  # only if embedding.provider = openai
 #

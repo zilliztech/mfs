@@ -11,11 +11,11 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 
 {{/* common env: milvus + metadata + secret-backed tokens */}}
 {{- define "mfs.env" -}}
-- name: MFS_MILVUS_URI
-  value: {{ .Values.search.uri | quote }}
+- name: MILVUS_URI
+  value: {{ required "search.uri is required for the shared Milvus/Zilliz backend" .Values.search.uri | quote }}
 - name: MFS_METADATA_DSN
   value: {{ .Values.metadata.dsn | quote }}
-- name: MFS_MILVUS_TOKEN
+- name: MILVUS_TOKEN
   valueFrom:
     secretKeyRef: { name: {{ .Values.existingSecret }}, key: zilliz-token }
 - name: OPENAI_API_KEY

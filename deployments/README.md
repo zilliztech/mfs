@@ -24,7 +24,7 @@ docker run -d -p 13619:13619 -v mfs-data:/data \
   mfs-server:0.4.5
 # (then: docker exec -it <id> mfs-server setup --section embedding   to flip provider)
 
-# or override Milvus to Zilliz Cloud
+# or use remote Milvus / Zilliz Cloud
 docker run -d -p 13619:13619 -v mfs-data:/data \
   -e MILVUS_URI=$ZILLIZ_URI -e MILVUS_TOKEN=$ZILLIZ_TOKEN \
   mfs-server:0.4.5
@@ -53,7 +53,7 @@ Compose wrapper (same image): `cd deployments/compose && docker compose up`.
 | Embedding | (via `mfs-server setup --section embedding`) | local ONNX `gpahal/bge-m3-onnx-int8` (multilingual, 1024-dim) |
 | VLM / image summary | (via `mfs-server setup --section vlm`) | OFF (opt-in) |
 | Metadata DB | `MFS_METADATA_DSN=postgresql://...` | SQLite under `/data` |
-| Milvus | `MILVUS_URI=...` + `MILVUS_TOKEN=...` | Lite at `/data/milvus.db` |
+| Milvus | Remote only: `MILVUS_URI=...` + `MILVUS_TOKEN=...` | Lite at `/data/milvus.db` via `MFS_HOME` |
 | API token | `MFS_API_TOKEN=...` | Auto-generated to `/data/server.token` |
 
 ## Team / client-server (compose) and Kubernetes (helm)
@@ -65,7 +65,7 @@ metadata backend is already wired (`MFS_METADATA_DSN`); the standalone worker
 daemon lands post-v0.4. See the chart's NOTES.txt.
 
 ```bash
-helm lint deployments/helm/mfs
+helm lint deployments/helm/mfs --set search.uri=https://xxx.zillizcloud.com
 helm template mfs deployments/helm/mfs --set search.uri=https://xxx.zillizcloud.com
 ```
 
